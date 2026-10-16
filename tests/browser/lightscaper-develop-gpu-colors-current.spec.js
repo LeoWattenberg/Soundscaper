@@ -61,6 +61,7 @@ for (const locale of ['en', 'de']) test(`${locale}: real RAW all-color Develop e
 		// selected. The later renderer switch must execute the complete stack.
 		for (const effect of effects) {
 			await named(dialog, 'combobox', words.choose).selectOption(effect.type); await keyboard(named(dialog, 'button', words.add));
+			await expect(preview).toHaveAttribute('data-state', 'ready');
 			const row = dialog.locator(`[data-photo-develop-effect="${effect.type}"]`);
 			if (effect.type === 'point-curves-v1') {
 				await number(row, `${words.shared.videoEffectCurveMaster}: ${words.shared.videoEffectCurveOutput} 2`, '0.875');
@@ -96,7 +97,8 @@ for (const locale of ['en', 'de']) test(`${locale}: real RAW all-color Develop e
 		expect(errors).toEqual([]); expect(workers.length).toBeGreaterThan(0);
 		for (const url of workers) { expect(new URL(url).origin).toBe(new URL(page.url()).origin); expect(new URL(url).pathname).toMatch(/\/assets\/libraw-worker-v1-[^/]+\.js$/u); }
 
-		async function number(scope, label, value) { const input = named(scope, 'spinbutton', label); await editLightscaperDevelopNumberCurrentV1(input, value); await expect(input).toHaveValue(value); }
+		async function number(scope, label, value) { const input = named(scope, 'spinbutton', label);
+			await editLightscaperDevelopNumberCurrentV1(input, value, () => expect(preview).toHaveAttribute('data-state', 'ready')); await expect(input).toHaveValue(value); }
 		async function painted(after, exact = qualification.backend === 'cpu') {
 			await expect(preview).toHaveAttribute('data-state', 'ready');
 			await expect.poll(() => plane(named(dialog, 'img', words.before))).toEqual([32, 32, ...before.display]);

@@ -79,11 +79,11 @@ for (const locale of ['en', 'de']) test(`${locale}: real RAW optics menus retain
 		expect((await observation()).attempts).toBe(0); expect(await custody()).toEqual(saved); await close(); expect(errors).toEqual([]); expect(workers.length).toBeGreaterThan(0);
 		for (const url of workers) { expect(new URL(url).origin).toBe(new URL(page.url()).origin); expect(new URL(url).pathname).toMatch(/\/assets\/libraw-worker-v1-[^/]+\.js$/u); }
 
-		async function add(type) { await named(dialog, 'combobox', words.choose).selectOption(type); await keyboard(named(dialog, 'button', words.add)); }
+		async function add(type) { await named(dialog, 'combobox', words.choose).selectOption(type); await keyboard(named(dialog, 'button', words.add));
+			await expect(preview).toHaveAttribute('data-state', 'ready'); }
 		function group(key) { return named(dialog, 'group', words.shared[key]); }
 		async function numeric(scope, key, value, action = 'Enter') { const control = named(scope, 'spinbutton', `${words.shared.videoEffectExactValue}: ${words.shared[key]}`);
-			if (action === 'Escape') { await control.focus(); await expect(control).toBeFocused(); await control.press('ControlOrMeta+A'); for (const character of value) await control.press(character); await control.press('Escape'); }
-			else await editLightscaperDevelopNumberCurrentV1(control, value);
+			await editLightscaperDevelopNumberCurrentV1(control, value, () => expect(preview).toHaveAttribute('data-state', 'ready'), action === 'Escape' ? 'Escape' : 'Enter');
 			await expect(control).toHaveValue(action === 'Escape' ? '0' : value); }
 		async function painted(pixels, approximate = false) { await expect(preview).toHaveAttribute('data-state', 'ready');
 			await expect.poll(() => plane(named(dialog, 'img', words.before))).toEqual([32, 32, ...expected.before]);

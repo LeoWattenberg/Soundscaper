@@ -75,6 +75,43 @@ non-dyadic lens alpha-refusal witness and qualified dyadic accepted corpus
 describe finite precision, not universal Float32 equivalence. Source validation
 yields before oracle allocation; native source bytes/samples and custody remain
 unchanged.
+E65 adds private same-aperture kinds 14–20 for all seven native spatial families:
+detail sharpening, post-crop vignette, clarity, noise reduction, grain, texture
+and dehaze. Both resolutions use the unchanged native CPU authority, exact
+prepared Q8/Q16 controls and deterministic grain/coverage definitions. Direct
+immutable 3×3/5×5/7×7 neighborhoods introduce no encoded plane, separable-stage
+rounding or image-sized spatial scratch. Proxy and Full keep their declared
+different lattices; saved parameters do not rescale.
+
+The same two-plane reference validates per-stage Float32 and exact normative
+alpha/zero/tiny rules. Neighborhood output cannot claim Original ancestry from
+a same-index coincidence. Coupled grain/protected dark post-crop branches
+propagate prior channel invalidation; independent/copy policies never restore
+it. Physical source, capture, textures, readback, reference and presentation
+retain the 768-MiB ceiling and conservative 4096-byte extended uniform reserve.
+<!-- E65_INPUT_DELIVERY_CORRECTION -->
+E65 preview status now belongs to the accepted request interaction: a changed
+recipe, resolution, temporary policy or source owner shows pending immediately,
+and predecessor readiness cannot certify it. Genuine current ready follows
+joined Original/render retirement. The conformance menu workflows keep all
+worker coverage hooks and wait for that current view between keyboard actions;
+the separate unprofiled English/German PNG burst run passes both cases. Preserved
+pinned
+Chromium diagnostics show native-input suppression during debugger pauses, with
+limits on attributing every application failure to that mechanism. Native pixel
+math, saved settings and custody assertions remain unchanged.
+<!-- E65_VERIFIED_LOCAL_SPATIAL_QUALIFICATION -->
+E65 local qualification passes 575 selected Node cases in 74 files, all 121
+software-Chromium cases, all 121 Firefox compatibility cases and both unprofiled
+English/German rapid PNG proxy cases. Twelve UI coverage profiles compact to
+116 scripts and 116 source maps; 27 mapped source owners match current SHA-256
+pins with positive containing-script ranges. This is not per-line GLSL coverage
+or a coverage-floor pass, and no floor tightening is claimed. Hosted CI remains
+pending;
+earlier color/LUT/geometry/optics results above are the E64 baseline. No speed
+claim follows from CPU-validated GPU correctness. Complete masks/overlay
+projection and Original-space Clone/Heal still use the complete CPU route.
+
 CPU remains the default, unsupported complete stacks use CPU, and the renderer
 preference resets on reopening. The choice does not change saved settings,
 history, exports or Original custody. Complete GPU stack coverage and native

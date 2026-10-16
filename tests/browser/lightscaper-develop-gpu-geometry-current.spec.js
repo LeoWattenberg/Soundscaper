@@ -48,9 +48,10 @@ for (const locale of ['en', 'de']) test(`${locale}: RAW crop/rotation menus pres
 		await keyboard(card); await photoAction(photoDevelopMenuLabel(locale), true);
 		const dialog = named(page, 'dialog', `${words.title}: ${source.name}`), preview = dialog.locator('[data-photo-develop-preview]');
 		await painted(32, 32, expected.before); await named(dialog, 'combobox', words.choose).selectOption('develop-geometry-v1'); await keyboard(named(dialog, 'button', words.add));
+		await expect(preview).toHaveAttribute('data-state', 'ready');
 		for (const [key, value] of [['CropWidth', '0.5'], ['CropHeight', '0.25'], ['CropX', '0.5'], ['CropY', '0.5'], ['GeometryRotation', '90']]) {
 			const control = named(dialog, 'spinbutton', `${words.shared.videoEffectExactValue}: ${words.shared[`videoEffectParam${key}`]}`);
-			await editLightscaperDevelopNumberCurrentV1(control, value); await expect(control).toHaveValue(value);
+			await editLightscaperDevelopNumberCurrentV1(control, value, () => expect(preview).toHaveAttribute('data-state', 'ready')); await expect(control).toHaveValue(value);
 		}
 		await named(dialog, 'combobox', `${words.shared.videoEffectExactValue}: ${words.shared.videoEffectParamFlipHorizontal}`).selectOption('1');
 		await painted(8, 16, expected.after); expect((await observation()).attempts).toBe(0); expect(await custody()).toEqual(initial);

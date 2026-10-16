@@ -6,7 +6,7 @@ const site = browserProductSiteForBuild('lightscaper');
 process.env.SCAPE_PLAYWRIGHT_PRODUCT_ORIGINS = JSON.stringify({ lightscaper: site.origin });
 
 // This finite software-renderer corpus qualifies native color, verified LUTs,
-// natural-extent geometry, manual optics and their Current Photo UI.
+// natural-extent geometry, manual optics, spatial effects and their Current Photo UI.
 // Artifact verification precedes this config in the dedicated CI jobs.
 export default defineConfig({
 	testDir: './tests/browser',
@@ -14,7 +14,8 @@ export default defineConfig({
 		'lightscaper-native-gpu-colors-current.spec.js', 'lightscaper-develop-gpu-colors-current.spec.js',
 		'lightscaper-native-gpu-lut-current.spec.js', 'lightscaper-develop-gpu-lut-current.spec.js',
 		'lightscaper-native-gpu-geometry-current.spec.js', 'lightscaper-develop-gpu-geometry-current.spec.js',
-		'lightscaper-native-gpu-optics-current.spec.js', 'lightscaper-develop-gpu-optics-current.spec.js'],
+		'lightscaper-native-gpu-optics-current.spec.js', 'lightscaper-develop-gpu-optics-current.spec.js',
+		'lightscaper-native-gpu-spatial-current.spec.js', 'lightscaper-develop-gpu-spatial-current.spec.js'],
 	fullyParallel: false,
 	forbidOnly: Boolean(process.env.CI),
 	workers: 1,

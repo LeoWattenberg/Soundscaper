@@ -21,6 +21,13 @@ The native optics program now implements manual lens distortion, chromatic
 aberration, defringe and optical vignette. The recorded local software-GPU and
 Firefox corpus qualifies their accepted GPU paths and separate exact-CPU
 numerical refusals alongside color, LUT and geometry stages.
+E65 adds all seven existing native spatial families to the same optional
+renderer. Local qualification passes 575 selected Node cases in 74 files,
+121 software-Chromium cases and 121 Firefox compatibility cases. The separate
+unprofiled English/German PNG proxy burst workflow passes both cases. Twelve
+coverage-enabled UI profiles compact to 116 scripts and 116 source maps with
+27 exact-current-SHA mapped source owners and positive containing-script ranges.
+Hosted CI and complete GPU stack qualification remain open.
 
 ## Shared execution and fallback
 
@@ -29,8 +36,8 @@ mask overlay, resource authorities, geometry and processing limits before source
 samples. The broker uses the existing native CPU engine as its whole-recipe
 fallback. An unfinished stage never disappears from a GPU result.
 
-At present, active spatial effects, local masks,
-repairs or a selected mask overlay select the complete CPU render.
+At present, local masks, repairs or a selected mask overlay select the complete
+CPU render. Native spatial stages now enter the GPU path described below.
 Encoded byte sources also retain their existing CPU process and
 per-stage byte quantization. They are not implicitly promoted into the native
 Float32 process to obtain GPU execution.
@@ -83,8 +90,8 @@ expected RGB magnitudes below `2^-60` and final unchanged native components must
 match exactly. Other finite normal results permit at most eight Float32 ULPs;
 no absolute epsilon can erase a signal. A mismatch retires GPU resources before
 the complete CPU fallback. The check allocates no expected-result image plane.
-Geometry recipes instead use the whole-plane reference described below. Both
-checks evaluate CPU work, so this packet makes no speed claim.
+Geometry, optics and spatial recipes instead use the whole-plane reference
+described below. Both checks evaluate CPU work, so this packet makes no speed claim.
 
 Some tested drivers flush subnormal arithmetic. Affected source or intermediate
 profiles take the CPU path. Nonlinear near-zero and ill-conditioned cancellation
@@ -227,13 +234,65 @@ coefficient `±5/32`, edge displacement `±1/16`, and fractional alpha/transpare
 support with exactly representable weights. These are distinct proofs; neither
 changes the CPU model, exact-alpha guard, other precision rules or source custody.
 
+## Native spatial effects
+
+Seven private prepared kinds bind the incoming native descriptor to the unchanged
+`prepareLinearSpatialEffectV1`/`writeLinearSpatialEffectV1` CPU authority:
+14 detail sharpening, 15 post-crop vignette, 16 clarity, 17 noise reduction,
+18 grain, 19 texture and 20 dehaze. They keep the same aperture, authored order
+and Float32 store after every stage. Existing effect controls remain inside the
+opted-in Develop dialog; no default-visible control or saved renderer setting
+is added. Proxy uses the admitted proxy lattice; Full uses natural resolution.
+
+Uniforms retain exact prepared Q8 controls and Q16 vignette midpoint/feather
+values. Authored enabled state remains separate from quantized neutrality:
+a nonzero spatial amount that quantizes to zero is a genuine copy, unlike the
+raw-activity rule for optics. RGB arithmetic stays continuous in odd extended
+sRGB coordinates and returns to signed, unclipped linear samples. Alpha-zero
+centers, disabled/neutral stages and individually unchanged encoded components
+retain the existing native bit-preserving bypasses; alpha copies exactly.
+
+Detail reads a direct alpha-weighted 3×3 binomial neighborhood; clarity reads
+7×7, and texture compares the distinct 3×3 and 5×5 means. Noise reduction's
+luminance 3×3 and blended chroma 3×3/5×5 branches both read the same immutable
+incoming plane. Positive dehaze uses the existing 3×3 dark estimate and bounded
+transmission; negative dehaze applies the existing independent fog blend.
+These are direct two-dimensional taps, not separable passes with additional
+Float32 stores. Neither an encoded image plane nor spatial image-sized scratch
+is introduced.
+
+Grain retains the seeded integer lattice and two-octave interpolation. Bounded
+unsigned polynomial arithmetic and explicit signed floor division preserve the
+CPU's discrete hash and negative-noise rounding. Post-crop vignette retains
+integer pixel-center coverage, Q16 shape controls and the inherited smoothstep;
+its artistic encoded-color blend remains distinct from optical vignette's
+direct linear-light gain. Earlier geometry determines the current lattice and
+aperture for both families.
+
+The private `inputPolicy` governs the whole-plane reference's conservative
+same-pixel witness. Disabled/Q8-neutral copies preserve eligibility.
+Active detail, clarity, texture, noise reduction and positive dehaze invalidate
+RGB ancestry even when a particular native result rounds back to its Original
+value: a neighborhood coincidence is not a unique source ancestor. Independent
+negative dehaze and unprotected/light post-crop operations retain existing
+per-channel eligibility. Grain's luma response and dark post-crop highlight
+protection couple RGB, so any prior CA/resampling invalidation propagates to all
+channels. No operation restores eligibility or allocates a provenance image.
+
+The existing native CPU writer re-evaluates every spatial stage on its actual
+incoming Float32 plane. The same at-most-two reference planes, exact normative
+alpha/zero/tiny guards and eight-ULP normal-RGB allowance apply. Numeric,
+capacity or capability refusal retires the attempt before whole CPU fallback;
+invalid metadata, cancellation and independent cleanup failures remain errors.
+No readback repair, tolerance relaxation or acceleration claim is made.
+
 ## Working set and retirement
 
 The Current preview working ceiling remains 768 MiB. Admission charges the full
 physical borrowed backing, including padding outside a valid source view.
 Native GPU execution overlaps that backing with one Float32 host capture, two
-maximum-extent RGBA32F textures and one final-extent Float32 readback. Geometry
-or optics recipes additionally reserve two maximum-extent CPU reference planes.
+maximum-extent RGBA32F textures and one final-extent Float32 readback. Geometry,
+optics or spatial recipes additionally reserve two maximum-extent CPU reference planes.
 Color/LUT-only pointwise recipes retain the streamed comparison and allocate no
 reference image plane.
 Presentation planning also reserves
@@ -243,9 +302,11 @@ this is a conservative reserve, not a claim that both byte planes remain live
 together. It charges 4 bytes per output pixel plus 4 bytes per fitted pixel,
 with the fitted allowance capped at 4,194,304 pixels.
 
-Active extended color or LUT passes also reserve 4096 bytes for bounded uniform
-staging. One reusable Float32 bank holds the band controls and curve points;
-the pointwise streamed comparison introduces no additional image plane or
+Any prepared kind greater than 2 conservatively reserves 4096 bytes for bounded
+uniform staging. Extended color/LUT execution uses one reusable Float32 bank for
+band controls and curve points; the separate spatial program does not require
+the 142/143-vector color/LUT uniform capacity. The
+pointwise streamed comparison introduces no additional image plane or
 pixel-bearing rank scratch. Capability probing retains its separate fixed
 reserve.
 
@@ -307,8 +368,8 @@ jobs using the existing digest-pinned Playwright 1.62.1 container. Both authenti
 the downloaded Lightscaper build and source maps before running the project;
 their coverage dependencies make a failed GPU job block distribution.
 
-The dedicated configuration names ten exact Lightscaper native/menu specs.
-Recorded local qualification passes all 86 software-Chromium cases and all 86
+The E64 baseline named ten exact Lightscaper native/menu specs.
+Recorded E64 local qualification passed all 86 software-Chromium cases and all 86
 Firefox compatibility cases, including ten English/German UI profiles. The
 software-GPU UI workflows collect built-site coverage.
 Both jobs require compaction and upload of the distinct
@@ -322,22 +383,85 @@ precision-refusal witness, while the RAW LUT workflow proves accepted LUT previe
 with unchanged Original and resource custody. Observed GL work alone does not
 prove accepted GPU delivery. Mounted numeric regressions also preserve rapid
 crop/rotation/flip edits through Save, refuse replaced or disabled controls and
-clear rejected edits on Escape. The five browser UI specs confirm field focus
-before select-all and enter numeric values with a separate locator action for
-each key. Observed bulk and rapid insertion
-could omit native input/key events and did not prove an authored edit. The
-selected Lightscaper Node run passed 508 cases in 67 files, and full repository
-lint passed.
+clear rejected edits on Escape. The five E64 browser UI specs confirmed field
+focus before select-all and used a separate locator action for each numeric key.
+Observed bulk and rapid insertion could omit native input/key events and did not
+prove an authored edit. The selected E64 Lightscaper Node run passed 508 cases in
+67 files, and full repository lint passed.
 These local results do not establish hosted CI success or a coverage-floor pass;
 no local floor tightening is claimed.
 
-Hosted CI execution remains pending; a configured gate
-is not a hosted success. Spatial families, complete mask graphs
-and overlay projection, Original-space
-Clone and genuine screened-Poisson Heal still need GPU implementations and
-combined conformance. Until each is qualified, its recipe keeps the complete
-CPU route. Full-stack GPU parity, native desktop services, the broader L7/L8/L9
-exit gates and final inter-slice QA remain open.
+E65 source/domain strict types and Lightscaper, canonical and Frame builds have
+passed, together with 575 selected Lightscaper Node cases in 74 files. The
+separate 33-case native spatial software corpus passed, including mandatory
+accepted GPU positives for all seven families. The final twelve-spec corpus
+passes 121 software-Chromium cases and 121 Firefox compatibility cases on the
+status-fixed closure. The separate unprofiled English/German PNG proxy burst
+workflow also passes both cases; its native trusted pending-work inputs, literal
+pixels, Save/reopen and cancellation/custody assertions remain unchanged.
+
+<!-- E65_INPUT_DELIVERY_CORRECTION -->
+E65 also fixes a real loading-status bug in `PhotoDevelopPreviewKernelV1`.
+The UI now pairs each presentation snapshot with its accepted request interaction. A changed
+recipe, revision, resolution, temporary policy or source owner immediately shows
+pending until its own publication; suspension shows idle while retirement joins.
+A predecessor's ready snapshot cannot certify the successor. Actual current
+ready still follows the joined Original and render scopes, including native
+worker retirement. The fix changes no pixel math, saved recipe or custody rule.
+
+The retained native-pause diagnostic archive records a concrete mechanism in
+pinned Chromium 151.0.7922.34: CDP keyboard requests acknowledged during an actual
+debugger pause produced no native key events, while the resumed control delivered
+them. Controlled Worker-termination coverage runs also lost pointer-release/
+click events and could retain pointer capture. The minimal Worker cases still
+passed their final value assertions. Actual UI traces show missing native input
+with overlapping coverage/checkpoint resume, but do not contain the raw paused
+hook frame needed to prove every step of the application's causal chain. These
+bounded observations establish neither failure frequency nor a universal browser
+or GPU defect.
+
+GPU conformance menu workflows keep every worker coverage checkpoint and wait
+for the corrected current-view readiness between fields and individual keyboard
+actions. They retain foreground/focus checks, native Select All/Backspace,
+observed empty value without `badInput`, independent pixel oracles and complete
+saved-recipe/resource custody checks. This is paced conformance qualification;
+rapid gesture semantics are checked separately by the existing PNG proxy burst
+workflow without profiling. Its edits while work is pending, latest-output
+pixels, Save/reopen and cancellation/custody assertions remain intact. Both
+English/German cases passed without profiling. No fixed sleep, native-input
+retry, worker exclusion or coverage-floor relaxation is introduced.
+
+<!-- E65_VERIFIED_COMBINED_BROWSER -->
+The final E65 twelve-spec browser corpus passes all 121 software-Chromium cases
+and all 121 matching Firefox compatibility cases. Its English/German UI workflows
+retain all worker coverage checkpoints; lower-level realtime cases keep their
+declared profiling opt-out. The E64 results above remain the identified
+predecessor baseline.
+
+<!-- E65_VERIFIED_RAPID_INTERACTION -->
+The separate unprofiled English/German PNG proxy burst run passes both cases,
+including trusted inputs while prior work is pending, exact latest-output pixels,
+Save/reopen and cancellation/custody. The paced GPU corpus does not replace that
+rapid pending-work interaction proof.
+
+<!-- E65_VERIFIED_OWNER_COVERAGE -->
+The E65 run records twelve raw English/German UI coverage profiles. Compaction
+retains 116 scripts and 116 source maps; all 27 mapped processing, presentation
+and UI source owners match their current SHA-256 and have positive ranges in
+their containing compiled scripts. This proves source pins, mapped membership
+and containing-script execution, not per-line GLSL execution. Independent native
+cases establish actual GL results. This is a local browser shard, with no
+coverage-floor tightening or full-union coverage-floor pass claimed. The earlier
+E64 compaction totals remain predecessor evidence.
+
+<!-- E65_PENDING_HOSTED_CI -->
+Hosted CI execution remains pending; a configured gate is not a hosted success.
+Complete mask graphs, brush coverage and overlay projection, Original-space
+Clone and genuine
+screened-Poisson Heal still need GPU implementations and combined conformance.
+Those recipes retain the complete CPU route. Full-stack GPU parity, native
+desktop services, the broader L7/L8/L9 exit gates and final inter-slice QA remain
+open.
 
 This work changes no assistance engine or native decoder runtime closure.
 No manual **Update AI assets** run is required.

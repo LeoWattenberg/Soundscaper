@@ -82,16 +82,47 @@ geometry retains its effect position and natural output descriptor. The four
 manual optics GPU kinds also pass the recorded local software-GPU and Firefox
 corpus, with mandatory accepted GPU positives and distinct exact-CPU
 numerical-refusal witnesses.
-A stack needing spatial stages, masks or repairs
-takes the entire existing CPU route, as do unsupported GPU numeric, capability
-or working-set profiles. Stages are never silently omitted. GPU stages store
+E65 now wires all seven spatial families into the optional native GPU renderer.
+Their private kinds 14–20 retain the existing prepared Q8/Q16 controls,
+deterministic grain/coverage definitions and continuous immutable-input spatial
+math without an encoded image plane or image-sized scratch. Existing menus
+remain the entry point.
+<!-- E65_INPUT_DELIVERY_CORRECTION -->
+E65 preview status now belongs to the accepted request interaction: a changed
+recipe, resolution, temporary policy or source owner shows pending immediately,
+and predecessor readiness cannot certify it. Genuine current ready follows
+joined Original/render retirement. The conformance menu workflows keep all
+worker coverage hooks and wait for that current view between keyboard actions;
+the separate unprofiled English/German PNG burst run passes both cases. Preserved
+pinned
+Chromium diagnostics show native-input suppression during debugger pauses, with
+limits on attributing every application failure to that mechanism. Native pixel
+math, saved settings and custody assertions remain unchanged.
+<!-- E65_VERIFIED_LOCAL_SPATIAL_QUALIFICATION -->
+E65 local qualification passes 575 selected Node cases in 74 files, all 121
+software-Chromium cases, all 121 Firefox compatibility cases and both unprofiled
+English/German rapid PNG proxy cases. Twelve UI coverage profiles compact to
+116 scripts and 116 source maps; 27 mapped source owners match current SHA-256
+pins with positive containing-script ranges. This is not per-line GLSL coverage
+or a coverage-floor pass, and no floor tightening is claimed. Hosted CI remains
+pending;
+the recorded color/LUT/geometry/optics qualification above is the E64 baseline.
+A stack needing masks, overlay projection or repairs takes the entire existing
+CPU route, as do unsupported GPU numeric, capability or working-set profiles.
+Stages are never silently omitted. GPU stages store
 linear RGBA32F and return scoped Float32 readback checked against the normative
 CPU operation before delivery. Exact unchanged-component rules can select CPU
-even when a rounded identity curve differs by only a few ULPs. This streaming
+even when a rounded identity curve differs by only a few ULPs. This conformance
 check also costs CPU work and makes no speed claim. Pointwise stacks use the
-streamed scalar reference; geometry/optics stacks use up to two maximum-extent CPU
+streamed scalar reference; geometry/optics/spatial stacks use up to two maximum-extent CPU
 reference planes, with Float32 stores after each native stage and
-exact normative output alpha. Canonical Before and the
+exact normative output alpha. Active spatial neighborhoods invalidate any
+same-index Original coincidence witness. Grain and protected dark post-crop
+vignette propagate prior cross-channel invalidation; copy and independent
+pointwise policies retain eligibility without restoring it. Alpha-zero and
+unchanged-component bypasses retain native bits. The same 768-MiB physical
+ledger includes both reference planes and the conservative 4096-byte extended
+uniform reserve. Canonical Before and the
 final display, proof and histogram boundaries retain their existing policies.
 Complete GPU stack coverage, broader native conformance and hosted CI parity
 remain open.

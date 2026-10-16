@@ -60,7 +60,8 @@ Firefox corpus; its preferred phase also charges two maximum-extent CPU referenc
 The four native optics kinds use that same reference allowance and pass the
 recorded local software-GPU and Firefox corpus; they do not raise the 768-MiB
 phase ceiling.
-Active extended color or LUT passes add a 4096-byte uniform-staging reserve;
+Any prepared kind greater than 2 conservatively adds the existing 4096-byte
+uniform-staging reserve;
 pointwise streamed CPU conformance checking allocates no expected-result image plane. Capability
 probing has a separate fixed reserve. If that phase cannot fit but
 the entire CPU phase can, the same admitted source and one proxy capture select
@@ -106,6 +107,43 @@ claim for reconstructed channels, and its source scan yields before allocation.
 Non-dyadic exact-alpha loss and tiny CA diagonal support require truthful CPU
 fallback; dyadic fractional-alpha lens positives qualify a separate accepted
 GPU corpus. The proxy source is never reopened, replaced or modified by this choice.
+
+The E65 private spatial kinds 14–20 evaluate that same fitted native grid:
+detail sharpening, post-crop vignette, clarity, noise reduction, grain, texture
+and dehaze. Direct immutable 3×3/5×5/7×7 neighborhoods use the unchanged native
+CPU formulas. Exact Q8/Q16 controls, unsigned seeded grain arithmetic with signed
+floor division and discrete vignette coverage remain separate from continuous
+RGB; no encoded plane or image-sized spatial scratch is added. Every stage
+stores Float32 and keeps native alpha and bypass bits.
+
+Neighborhood operations invalidate a same-index Original coincidence witness;
+a computed value rounding back to the Original does not establish ancestry.
+Coupled grain/protected dark post-crop stages propagate prior channel
+invalidation, while copies and independent fog/vignette branches retain but
+never restore it. The existing two-plane native reference and full physical
+768-MiB plan cover these paths. Masks, overlay projection and Clone/Heal still
+select the complete CPU renderer.
+<!-- E65_INPUT_DELIVERY_CORRECTION -->
+E65 preview status now belongs to the accepted request interaction: a changed
+recipe, resolution, temporary policy or source owner shows pending immediately,
+and predecessor readiness cannot certify it. Genuine current ready follows
+joined Original/render retirement. The conformance menu workflows keep all
+worker coverage hooks and wait for that current view between keyboard actions;
+the separate unprofiled English/German PNG burst run passes both cases. Preserved
+pinned
+Chromium diagnostics show native-input suppression during debugger pauses, with
+limits on attributing every application failure to that mechanism. Native pixel
+math, saved settings and custody assertions remain unchanged.
+<!-- E65_VERIFIED_LOCAL_SPATIAL_QUALIFICATION -->
+E65 local qualification passes 575 selected Node cases in 74 files, all 121
+software-Chromium cases, all 121 Firefox compatibility cases and both unprofiled
+English/German rapid PNG proxy cases. Twelve UI coverage profiles compact to
+116 scripts and 116 source maps; 27 mapped source owners match current SHA-256
+pins with positive containing-script ranges. This is not per-line GLSL coverage
+or a coverage-floor pass, and no floor tightening is claimed. Hosted CI remains
+pending;
+earlier geometry/optics results above are the E64 baseline. This correctness
+path makes no speed claim.
 
 Native promotion starts at the fitted proxy extent; each adjustment uses its
 admitted natural proxy stage extent. No full-Original Float32 capture is

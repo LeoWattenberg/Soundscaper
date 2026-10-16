@@ -55,7 +55,7 @@ for (const locale of ['en', 'de']) test(`${locale}: real RAW and immutable cube 
 		await dialog.getByLabel(words.shared.videoEffectCubeLutImport, { exact: true }).setInputFiles({ name: 'Native signed HDR.cube', mimeType: 'text/plain', buffer: CUBE });
 		await painted(LUT); await add('tone-ladder-v1');
 		const exposure = named(dialog, 'spinbutton', `${words.shared.videoEffectExactValue}: ${words.shared.videoEffectParamExposure}`);
-		await editLightscaperDevelopNumberCurrentV1(exposure, '1'); await expect(exposure).toHaveValue('1'); await painted(AFTER);
+		await editLightscaperDevelopNumberCurrentV1(exposure, '1', () => expect(preview).toHaveAttribute('data-state', 'ready')); await expect(exposure).toHaveValue('1'); await painted(AFTER);
 		expect((await observation()).attempts).toBe(0); expect(await custody()).toEqual(initial);
 		const lut = await lutCustody(); expect(lut.reference).toEqual(REFERENCE); expect(lut.bytes).toEqual([...CUBE]);
 		await observe('stop');
@@ -88,7 +88,8 @@ for (const locale of ['en', 'de']) test(`${locale}: real RAW and immutable cube 
 		expect(workers.length).toBeGreaterThan(0);
 		for (const url of workers) { expect(new URL(url).origin).toBe(new URL(page.url()).origin); expect(new URL(url).pathname).toMatch(/\/assets\/libraw-worker-v1-[^/]+\.js$/u); }
 
-		async function add(type) { await named(dialog, 'combobox', words.choose).selectOption(type); await keyboard(named(dialog, 'button', words.add)); }
+		async function add(type) { await named(dialog, 'combobox', words.choose).selectOption(type); await keyboard(named(dialog, 'button', words.add));
+			await expect(preview).toHaveAttribute('data-state', 'ready'); }
 		async function painted(expected) { await expect(preview).toHaveAttribute('data-state', 'ready'); await expect.poll(() => plane(named(dialog, 'img', words.before))).toEqual([32, 32, ...before]);
 			await expect.poll(() => plane(named(dialog, 'img', words.after))).toEqual([32, 32, ...expected]); await expect(dialog.getByRole('alert')).toHaveCount(0); }
 		async function settingsMenu() { const summary = dialog.locator('summary').filter({ hasText: new RegExp(`^${escape(settings.menu)}$`, 'u') });

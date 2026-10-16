@@ -1004,23 +1004,34 @@ there.
   physical 768-MiB phase ceiling remain unchanged. The non-dyadic lens one-ULP
   alpha witness remains a required exact-CPU refusal; dyadic fractional-alpha
   positives and tiny CA support refusal have separate recorded proofs.
-  Numerical, capability or capacity refusal retains the whole CPU
-  recipe. This correctness check also costs CPU work and makes no acceleration
-  claim. Spatial stages, complete masks/brush
-  and true Clone/Heal GPU execution remain unfinished, alongside combined
-  conformance and the L7/L8/L9 exit gates. The configured digest-pinned Chromium
+  E65 wires seven additional private same-aperture spatial kinds 14–20:
+  detail sharpening, post-crop vignette, clarity, noise reduction, grain, texture
+  and dehaze. Existing menu-owned authoring remains unchanged. Direct immutable
+  3×3/5×5/7×7 neighborhoods retain the native CPU formulas and per-stage Float32;
+  Q8/Q16 controls, unsigned seeded grain arithmetic with signed floor division,
+  and discrete vignette coverage remain explicit. No encoded image plane or
+  spatial image-sized scratch is introduced. Neighborhoods invalidate Original
+  coincidence ancestry; coupled grain/protected dark post-crop branches propagate
+  prior channel invalidation, while copy/independent policies never restore it.
+  The same two-plane native reference and 768-MiB physical ledger apply, including
+  the conservative 4096-byte extended uniform reserve.
+  Numerical, capability or capacity refusal retains the whole CPU recipe.
+  This correctness check also costs CPU work and makes no acceleration claim.
+  Complete masks/brush and overlay projection, and true Clone/Heal GPU execution
+  remain unfinished, alongside full-stack combined conformance, native desktop services,
+  final inter-slice QA and the L7/L8/L9 exit gates. The configured digest-pinned Chromium
   software-GPU baseline retains its Quality/Desktop Preview coverage
-  dependencies. The configuration names ten exact specs. Recorded local
-  qualification passed all 86 software-Chromium cases and all 86 Firefox
+  dependencies. The E64 baseline configuration named ten exact specs. Recorded
+  E64 local qualification passed all 86 software-Chromium cases and all 86 Firefox
   compatibility cases, including ten coverage-enabled English/German UI
   profiles. Compaction retained 116 scripts and 116 source maps with exact pins
   for 23 processing, presentation and UI owners; 508 selected Lightscaper Node
   cases passed in 67 files. Rapid numeric handoffs
   preserve crop, rotation and flip through Save, with stale/disabled edits and
-  invalid-value cancellation covered. The browser UI workflows confirm focus
-  before select-all and use real sequential keyboard edits after bulk insertion
-  was observed to change DOM
-  values without an input event; that test correction is not a product UI fix.
+  invalid-value cancellation covered. Those E64 browser UI workflows confirmed
+  focus before select-all and used separate per-key locator actions after bulk
+  insertion was observed to change DOM values without a native input event;
+  that test correction changed no application UI behavior.
   Positive color/LUT/geometry/optics delivery and exact
   whole-CPU precision fallback are independently witnessed. GPU fallback can
   re-read SHA-bound LUT bytes through the same pinned resource method after
@@ -1028,6 +1039,38 @@ there.
   cancellation and cleanup failures never cause replay. No assistance or native
   decoder runtime closure changes; no manual **Update AI assets** run is needed.
   Hosted CI success and final inter-slice QA are not claimed.
+  E65 source/domain strict types and Lightscaper/canonical/Frame builds pass;
+  575 selected Lightscaper Node cases in 74 files and the separate 33-case native
+  spatial software corpus pass, including mandatory GPU positives for all seven
+  spatial families.
+  <!-- E65_INPUT_DELIVERY_CORRECTION -->
+  E65 also fixes a real preview loading-status bug: each publication belongs to
+  its accepted request interaction, so an older ready snapshot cannot label a
+  changed recipe, resolution, temporary policy or source owner ready. Current
+  readiness follows joined Original/render retirement. The preserved pinned
+  Chromium diagnostic archive proves native-input suppression during a debugger
+  pause and records Worker-checkpoint pointer-event loss; it does not establish
+  every causal step of the full UI failure or a universal browser/GPU defect.
+  Conformance workflows retain all worker coverage hooks and wait for the
+  corrected current view between keyboard actions. Rapid pending-work PNG
+  bursts remain a separate unprofiled workflow with literal pixels, Save/reopen
+  and custody checks; both English/German cases pass without profiling. Native
+  pixel oracles, source authority and coverage floors stay unchanged.
+  <!-- E65_VERIFIED_ROADMAP_BROWSER -->
+  The final E65 twelve-spec corpus passes all 121 software-Chromium cases and
+  all 121 Firefox compatibility cases. Its twelve English/German UI profiles
+  retain all worker coverage checkpoints; realtime profiling opt-outs stay exact.
+  <!-- E65_VERIFIED_RAPID_INTERACTION -->
+  The separate unprofiled English/German PNG proxy burst run passes both cases,
+  including trusted edits while prior work is pending, latest-output pixels,
+  Save/reopen and cancellation/custody.
+  <!-- E65_VERIFIED_ROADMAP_COVERAGE -->
+  Twelve E65 raw English/German UI profiles compact to 116 scripts and 116 source
+  maps. All 27 mapped processing/presentation/UI owners match their current
+  SHA-256 and have positive containing-script ranges. This is mapped-source and
+  containing-script evidence, not per-line GLSL coverage or a full-union coverage
+  floor pass; no floor tightening is claimed. E64 counts above remain predecessor
+  evidence. Hosted CI success remains pending.
 - **Electron Enhanced — Planned:** native raw decode and preview services
   through the milestone-5 helper architecture, fail-closed, with the WASM
   path as fallback.

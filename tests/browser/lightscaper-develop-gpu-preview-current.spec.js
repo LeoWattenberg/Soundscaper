@@ -8,6 +8,7 @@ import { photoDevelopCopy } from '../../src/common/i18n/lightscaper-develop-copy
 import { photoDevelopMenuLabel } from '../../src/common/i18n/lightscaper-develop-menu-copy.ts';
 import { photoDevelopSettingsCopy } from '../../src/common/i18n/lightscaper-develop-settings-copy.ts';
 import { photoDevelopPreviewRendererCopy } from '../../src/common/i18n/lightscaper-develop-preview-renderer-copy.ts';
+import { photoDevelopLocalAdjustmentsCopy } from '../../src/common/i18n/lightscaper-develop-local-adjustments-copy.ts';
 import { withImageDevelopLinearCurrentV1 } from '../../src/common/editor/imaging/image-develop-linear-current-v1.ts';
 import { defaultImageDevelopStateV2 } from '../../src/common/editor/imaging/image-develop-state-v2.ts';
 import { PHOTO_DEVELOP_LINEAR_LIMITS_V1 } from '../../src/common/editor/photo-library-develop-linear-port-v1.ts';
@@ -30,7 +31,7 @@ test.beforeAll(async () => {
 });
 
 // Actual Current Photo UI integration for admitted native WB/tone. One
-// active unsupported spatial stage proves that
+// active mask binding proves that
 // this choice falls back for the whole authored stack rather than omitting it.
 for (const locale of ['en', 'de']) test(`${locale}: opt-in GPU Develop preview executes real native globals and keeps renderer choice outside saved RAW recipes`, async ({ page, browserName }) => {
 	expect(['chromium', 'firefox']).toContain(browserName); test.setTimeout(240_000);
@@ -77,17 +78,29 @@ for (const locale of ['en', 'de']) test(`${locale}: opt-in GPU Develop preview e
 		assertNativeAfter(await observation()); await observe('reset');
 		await resolution('proxy'); await painted(expectedPixels); await expect(named(dialog, 'region', words.imageViewport)).toHaveCount(0);
 		assertNativeAfter(await observation()); expect(await custody()).toEqual(saved);
-		// Texture still has no native GPU implementation. A real
-		// active spatial correction appears in After through whole CPU
+		// Mask bindings still require the CPU. A real bound spatial
+		// correction appears in After through whole CPU
 		// fallback; any native Before copy is not counted as After execution.
-		await add('texture-v1'); await number('videoEffectTextureAmount', '25'); await painted(texturePixels);
+		await add('texture-v1'); await number('videoEffectTextureAmount', '25');
+		const local = photoDevelopLocalAdjustmentsCopy(locale); await settingsMenu(); await keyboard(named(dialog, 'button', local.menu));
+		const gradient = named(page, 'dialog', local.title); await expect(gradient).toBeVisible();
+		for (const [label, value] of [[local.startX, '0'], [local.startY, '0'], [local.endX, '1'], [local.endY, '0']]) {
+			const control = named(gradient, 'spinbutton', label); await control.focus(); await expect(control).toBeFocused();
+			await control.press('ControlOrMeta+A'); for (const character of value) await control.press(character); await control.press('Tab'); await expect(control).toHaveValue(value);
+		}
+		const binding = named(gradient, 'checkbox', `${local.bind}: ${words.shared.videoEffectTexture} (3)`);
+		await binding.focus(); await expect(binding).toBeFocused(); await binding.press('Space'); await expect(binding).toBeChecked();
+		await keyboard(named(gradient, 'button', local.apply)); await expect(gradient).toHaveCount(0); await painted(texturePixels);
 		await observe('reset'); await resolution('full'); await painted(texturePixels);
 		const fallback = await observation(); expect(fallback.readbacks.filter(read => read.passes.some(pass => pass.kind === 1 || pass.kind === 2))).toEqual([]); retired(fallback);
 		expect(await custody()).toEqual(saved); await keyboard(named(dialog, 'button', words.save)); await expect(named(dialog, 'button', words.save)).toBeDisabled(); await painted(texturePixels);
 		const savedSpatial = await custody(); originalUnchanged(savedSpatial); expect(savedSpatial.photo.revision).toBe(initial.photo.revision + 2);
 		expect(active(savedSpatial.photo).develop.effects.slice(0, 2)).toEqual(savedRecipe.effects);
 		expect(active(savedSpatial.photo).develop.effects[2]).toMatchObject({ type: 'texture-v1', enabled: true, params: { amount: 25 } });
-		expect({ ...active(savedSpatial.photo).develop, effects: savedRecipe.effects }).toEqual(savedRecipe);
+		const maskedRecipe = active(savedSpatial.photo).develop; expect(maskedRecipe.masks).toHaveLength(1);
+		expect(maskedRecipe.masks[0].nodes).toEqual([{ id: maskedRecipe.masks[0].outputNodeId, kind: 'linear-gradient', start: { x: 0, y: 0 }, end: { x: 1, y: 0 } }]);
+		expect(maskedRecipe.maskBindings).toEqual([{ maskId: maskedRecipe.masks[0].id, effectId: maskedRecipe.effects[2].id }]);
+		expect({ ...maskedRecipe, effects: savedRecipe.effects, masks: savedRecipe.masks, maskBindings: savedRecipe.maskBindings }).toEqual(savedRecipe);
 		await openRenderer(); choice = named(page, 'dialog', renderer.title); await expect(named(choice, 'combobox', renderer.renderer)).toHaveValue('gpu-preferred');
 		await keyboard(named(choice, 'button', renderer.close).last()); await expect(choice).toHaveCount(0); await painted(texturePixels); expect(await custody()).toEqual(savedSpatial);
 		await close(); await observe('stop'); await page.reload(); await expect(app).toBeVisible(); await library(); expect(await custody()).toEqual(savedSpatial);
@@ -98,8 +111,10 @@ for (const locale of ['en', 'de']) test(`${locale}: opt-in GPU Develop preview e
 		await close(); expect(errors).toEqual([]); expect(workerUrls.length).toBeGreaterThan(0);
 		for (const url of workerUrls) { expect(new URL(url).origin).toBe(new URL(page.url()).origin); expect(new URL(url).pathname).toMatch(/\/assets\/libraw-worker-v1-[^/]+\.js$/u); }
 
-		async function add(type) { await named(dialog, 'combobox', words.choose).selectOption(type); await keyboard(named(dialog, 'button', words.add)); }
-		async function number(key, value) { const input = named(dialog, 'spinbutton', `${words.shared.videoEffectExactValue}: ${words.shared[key]}`); await editLightscaperDevelopNumberCurrentV1(input, value); await expect(input).toHaveValue(value); }
+		async function add(type) { await named(dialog, 'combobox', words.choose).selectOption(type); await keyboard(named(dialog, 'button', words.add));
+			await expect(preview).toHaveAttribute('data-state', 'ready'); }
+		async function number(key, value) { const input = named(dialog, 'spinbutton', `${words.shared.videoEffectExactValue}: ${words.shared[key]}`);
+			await editLightscaperDevelopNumberCurrentV1(input, value, () => expect(preview).toHaveAttribute('data-state', 'ready')); await expect(input).toHaveValue(value); }
 		async function painted(expected) {
 			await expect(preview).toHaveAttribute('data-state', 'ready'); await expect.poll(() => plane(named(dialog, 'img', words.before))).toEqual([32, 32, ...beforePixels]);
 			await expect.poll(() => plane(named(dialog, 'img', words.after))).toEqual([32, 32, ...expected]); await expect(dialog.getByRole('alert')).toHaveCount(0);
@@ -147,13 +162,15 @@ function developWords(words) { return words.map((sample, at) => {
 }); }
 async function texture(values) {
 	// Start with the independently computed, per-stage-rounded WB/tone
-	// values above. Only the existing CPU Texture stage supplies this spatial
+	// values above. Only the existing CPU masked Texture stage supplies this spatial
 	// reference; no application renderer or browser observer is substituted.
 	const pixels = Float32Array.from(values), frame = { descriptor: { schemaVersion: 1, width: 32, height: 32,
 		sampleFormat: 'float32', primaries: 'srgb', transfer: 'linear' }, pixels };
 	try { return await withImageDevelopLinearCurrentV1({ frame, develop: { ...defaultImageDevelopStateV2(), effects: [
 		{ id: 'texture-reference', type: 'texture-v1', enabled: true, params: { amount: 25 } },
-	] } }, output => [...output.pixels], PHOTO_DEVELOP_LINEAR_LIMITS_V1); }
+	], masks: [{ schemaVersion: 1, id: 'local', kind: 'mask', inputs: [], nodes: [{ id: 'gradient', kind: 'linear-gradient',
+		start: { x: 0, y: 0 }, end: { x: 1, y: 0 } }], outputNodeId: 'gradient' }], maskBindings: [{ maskId: 'local', effectId: 'texture-reference' }],
+	} }, output => [...output.pixels], PHOTO_DEVELOP_LINEAR_LIMITS_V1); }
 	finally { pixels.fill(0); }
 }
 function display(values) { return values.map((value, at) => { if (at % 4 === 3) return 255;
