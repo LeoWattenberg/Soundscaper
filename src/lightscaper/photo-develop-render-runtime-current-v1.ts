@@ -2,7 +2,7 @@
 
 import { readClosedDomainField as field, readClosedDomainRecord as record } from '../common/editor/closed-domain-value.ts';
 import type { PhotoLibraryDevelopProxyViewV3 } from '../common/editor/photo-library-develop-proxy-port-v3.ts';
-import type { PhotoLibraryDevelopFrameRequestCurrentV1, PhotoLibraryDevelopProxyRuntimeCurrentV1 } from '../common/editor/photo-library-develop-proxy-port-current-v1.ts';
+import type { PhotoLibraryDevelopFrameRequestCurrentV1 } from '../common/editor/photo-library-develop-proxy-port-current-v1.ts';
 import { PHOTO_DEVELOP_LINEAR_LIMITS_V1, type PhotoLibraryDevelopLinearRuntimeV1 } from '../common/editor/photo-library-develop-linear-port-v1.ts';
 import { withImageDevelopLinearCurrentV1 } from '../common/editor/imaging/image-develop-linear-current-v1.ts';
 import { withLinearPixelFrameDisplayV1 } from '../common/editor/imaging/pixel-frame-linear-display-v1.ts';
@@ -18,11 +18,13 @@ import { PHOTO_DEVELOP_FULL_RESOLUTION_LIMITS_V1 } from '../common/editor/photo-
 import { PHOTO_DEVELOP_PROXY_LIMITS_V1 } from './controller/photo-develop-frame-core.ts';
 import { readPixelFrameV1 } from '../common/editor/imaging/pixel-frame-contract-v1.ts';
 import { captureImageDevelopRawRequestCurrentV1 } from '../common/editor/imaging/image-develop-raw-request-current-v1.ts';
+import type { PhotoLibraryDevelopGpuPreviewRuntimeCurrentV1, PhotoLibraryDevelopGpuPreviewViewCurrentV1 } from '../common/editor/photo-library-develop-gpu-preview-port-current-v1.ts';
+import { withPhotoDevelopGpuPreviewCurrentV1 } from './photo-develop-gpu-preview-current-v1.ts';
 
 /** Active composition widens native depth. The permanent V3 renderer remains
  * the exact byte implementation; deep color stays Float32 through development.
  * Histogram bytes retire before a rendered frame reaches its consumer. */
-export function createPhotoDevelopRenderRuntimeCurrentV1(optionsValue: PhotoDevelopFrameOptionsV3 = {}): Readonly<PhotoLibraryDevelopProxyRuntimeCurrentV1 & PhotoLibraryDevelopLinearRuntimeV1> {
+export function createPhotoDevelopRenderRuntimeCurrentV1(optionsValue: PhotoDevelopFrameOptionsV3 = {}): Readonly<PhotoLibraryDevelopGpuPreviewRuntimeCurrentV1 & PhotoLibraryDevelopLinearRuntimeV1> {
 	const input = record(optionsValue, 'Current develop runtime options', ['source', 'maskSource'], []);
 	const source = Object.hasOwn(input, 'source') ? field(input, 'source', 'Current develop runtime source') : undefined;
 	const mask = Object.hasOwn(input, 'maskSource') ? field(input, 'maskSource', 'Current develop runtime mask source') : undefined;
@@ -33,6 +35,9 @@ export function createPhotoDevelopRenderRuntimeCurrentV1(optionsValue: PhotoDeve
 		withProxy: <Result>(request: Readonly<PhotoLibraryDevelopFrameRequestCurrentV1>, consume: (view: PhotoLibraryDevelopProxyViewV3) => Result | Promise<Result>) =>
 			withPhotoDevelopProxyCurrentV1(request, consume, (value, accept) => render('proxy', value, accept, options), options),
 		withFullResolution: <Result>(request: Readonly<PhotoLibraryDevelopFrameRequestCurrentV1>, consume: (view: PhotoLibraryDevelopProxyViewV3) => Result | Promise<Result>) => render('full', request, consume, options),
+		withGpuPreview: <Result>(resolution: 'proxy' | 'full', request: Readonly<PhotoLibraryDevelopFrameRequestCurrentV1>,
+			consume: (view: Readonly<PhotoLibraryDevelopGpuPreviewViewCurrentV1>) => Result | Promise<Result>) => withPhotoDevelopGpuPreviewCurrentV1(resolution, request, consume, options,
+			(selected, value, accept) => render(selected, value, accept, options)),
 	});
 }
 

@@ -11,6 +11,7 @@ export interface PhotoDevelopSettingsMenuPropsCurrentV1 extends Omit<PhotoDevelo
 	readonly withWritePreviewRetirement: (run: () => Promise<unknown>, isCurrent: () => boolean) => Promise<unknown>;
 	readonly rawDevelopment?: Readonly<{ onOpen: () => void }>;
 	readonly softProof?: Readonly<{ onOpen: () => void }>;
+	readonly previewRenderer?: Readonly<{ onOpen: () => void }>;
 }
 /** Explicit menu activation for complete Current settings; no legacy preset cap. */
 export default function PhotoDevelopSettingsMenuCurrentV1(props: PhotoDevelopSettingsMenuPropsCurrentV1) {

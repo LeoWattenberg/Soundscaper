@@ -5,7 +5,7 @@ import type { PhotoLibraryDevelopProxyViewV3 } from '../common/editor/photo-libr
 import { captureImageDevelopRawRequestCurrentV1 } from '../common/editor/imaging/image-develop-raw-request-current-v1.ts';
 import { prepareDevelopProxyMetadataCurrentV1 } from '../common/editor/imaging/image-develop-linear-metadata-current-v1.ts';
 import { prepareImageDevelopMaskOverlaySelectionV1 } from '../common/editor/imaging/image-develop-mask-overlay-v1.ts';
-import { prepareNativeDevelopProxySourceCurrentV1, withNativeDevelopProxySourceCurrentV1 } from '../common/editor/imaging/native-develop-proxy-source-current-v1.ts';
+import { prepareNativeDevelopProxySourceCurrentV1, withNativeDevelopProxySourceCurrentV1, withPreferredNativeDevelopProxySourceCurrentV1 } from '../common/editor/imaging/native-develop-proxy-source-current-v1.ts';
 import { captureRepairSignalV1, checkRepairSignalV1 } from '../common/editor/imaging/pixel-frame-repair-lifetime-v1.ts';
 import type { ImageDevelopFrameOptionsV3 } from '../common/editor/imaging/image-develop-frame-v3.ts';
 
@@ -19,8 +19,9 @@ export const PHOTO_DEVELOP_PROXY_PROFILE_CURRENT_V1 = Object.freeze({
  * representation or persisted recipe projection participates in this path. */
 export async function withPhotoDevelopProxyCurrentV1<Result>(value: unknown,
 	consume: (view: PhotoLibraryDevelopProxyViewV3) => Result | Promise<Result>,
-	evaluate: (request: unknown, consume: (view: PhotoLibraryDevelopProxyViewV3) => Result | Promise<Result>) => Promise<Result>,
-	options: ImageDevelopFrameOptionsV3): Promise<Result> {
+	evaluate: (request: unknown, consume: (view: PhotoLibraryDevelopProxyViewV3) => Result | Promise<Result>, preferred?: boolean) => Promise<Result>,
+	options: ImageDevelopFrameOptionsV3,
+	additionalPeak?: (metadata: ReturnType<typeof prepareDevelopProxyMetadataCurrentV1>) => number): Promise<Result> {
 	const signalField = typeof value === 'object' && value !== null ? Object.getOwnPropertyDescriptor(value, 'signal') : undefined;
 	if (signalField && !Object.hasOwn(signalField, 'value')) throw new TypeError('Current proxy signal must be own data.');
 	const signal = captureRepairSignalV1(signalField?.value), check = () => { checkRepairSignalV1(signal); };
@@ -32,8 +33,13 @@ export async function withPhotoDevelopProxyCurrentV1<Result>(value: unknown,
 		const plan = prepareNativeDevelopProxySourceCurrentV1(field(input, 'frame', 'Current Develop proxy'), signal);
 		const request = { develop, ...(signal ? { signal } : {}), ...(selection ? { maskOverlay: selection } : {}) };
 		const metadata = prepareDevelopProxyMetadataCurrentV1({ ...request, frame: { descriptor: plan.proxyPlan.descriptor } }, PHOTO_DEVELOP_PROXY_PROFILE_CURRENT_V1, options);
-		check(); return { plan, peak: metadata.peakWorkingBytes, request };
+		if (additionalPeak !== undefined && typeof additionalPeak !== 'function') throw new TypeError('Proxy overlap admission requires a callable scalar planner.');
+		const extra = additionalPeak?.(metadata) ?? metadata.peakWorkingBytes;
+		if (!Number.isSafeInteger(extra) || extra < 0) throw new RangeError('Proxy overlap admission requires bounded working bytes.');
+		check(); return { plan, peak: Math.max(metadata.peakWorkingBytes, extra), fallbackPeak: metadata.peakWorkingBytes, request };
 	} catch (error) { check(); throw error; } })();
+	if (additionalPeak !== undefined) return withPreferredNativeDevelopProxySourceCurrentV1(prepared.plan, prepared.peak, prepared.fallbackPeak,
+		(frame, preferred) => evaluate({ ...prepared.request, frame }, consume, preferred));
 	return withNativeDevelopProxySourceCurrentV1(prepared.plan, prepared.peak,
 		frame => evaluate({ ...prepared.request, frame }, consume));
 }

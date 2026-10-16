@@ -39,6 +39,8 @@ import type { PhotoLibraryDevelopPortCurrentV1, PhotoLibraryDevelopOriginalCapab
 import type { PhotoLibraryDevelopOriginalPortCurrentV1 } from '../../photo-library-develop-original-current-v1.ts';
 import { photoDevelopRawDevelopmentCopy } from '../../../i18n/lightscaper-raw-development-copy.ts';
 import { photoDevelopSoftProofCopy } from '../../../i18n/lightscaper-develop-soft-proof-copy.ts';
+import { photoDevelopPreviewRendererCopy } from '../../../i18n/lightscaper-develop-preview-renderer-copy.ts';
+import { usePhotoDevelopPreviewRendererCurrentV1 } from './use-photo-develop-preview-renderer-current-v1.ts';
 import type { ImageOutputSoftProofCurrentV1 } from '../../imaging/image-output-soft-proof-current-v1.ts';
 import type { ExecutePhotoDevelopCurrentV1, PhotoLibraryDevelopWorkflowCurrentV1 } from '../../controller/shared/photo-library-develop-workflow-current-v1.ts';
 import type { PhotoLibraryDevelopWorkflowV2 } from '../../controller/shared/photo-library-develop-workflow-v2.ts';
@@ -54,6 +56,7 @@ const PhotoDevelopRepairSpotsDialogV1 = lazy(() => import('./PhotoDevelopRepairS
 const PhotoDevelopRepairSpotsDialogCurrentV1 = lazy(() => import('./PhotoDevelopRepairSpotsDialogCurrentV1.tsx'));
 const PhotoDevelopRawDevelopmentDialogCurrentV1 = lazy(() => import('./PhotoDevelopRawDevelopmentDialogCurrentV1.tsx'));
 const PhotoDevelopSoftProofDialogCurrentV1 = lazy(() => import('./PhotoDevelopSoftProofDialogCurrentV1.tsx'));
+const PhotoDevelopPreviewRendererDialogCurrentV1 = lazy(() => import('./PhotoDevelopPreviewRendererDialogCurrentV1.tsx'));
 
 type Props = Omit<PhotoDevelopWorkspacePropsV2, 'execute' | 'loadProxy'> & {
 	readonly executeLegacyDevelop?: ExecutePhotoDevelopV2;
@@ -78,6 +81,7 @@ export default function PhotoDevelopWorkspaceKernelV1(props: Props) {
 	const execute = execution.current.invoke;
 	const executeLegacyDevelop = useCapturedMethod(props.executeLegacyDevelop, props);
 	const { owner, drain, snapshot } = useDevelopForProfile(profile, { generation, execute }), messages = photoDevelopCopy(props.locale);
+	const previewRenderer = usePhotoDevelopPreviewRendererCurrentV1(owner, props.photoId);
 	const [snapshotName, setSnapshotName] = useState(''), [copyName, setCopyName] = useState('');
 	const predecessor = useRef<Promise<void>>(Promise.resolve());
 	const [entryFailure, setEntryFailure] = useState(() => ({ owner, failed: false }));
@@ -207,12 +211,12 @@ export default function PhotoDevelopWorkspaceKernelV1(props: Props) {
 		return () => { active = false; stop.abort(); legacyToken.current = null; };
 	}, [profile, executeLegacyDevelop, currentSettingsOwner, legacySettingsOwner, owner, document, draft]);
 	const busy = snapshot.busy || settings?.snapshot.busy === true || importing, disabled = busy || !document;
-	type LocalKind = NonNullable<PhotoDevelopGradientDialogPropsV1['kind'] | PhotoDevelopRangeMaskDialogPropsV1['kind']> | 'brush' | 'masks' | 'repairs' | 'raw-development' | 'soft-proof';
+	type LocalKind = NonNullable<PhotoDevelopGradientDialogPropsV1['kind'] | PhotoDevelopRangeMaskDialogPropsV1['kind']> | 'brush' | 'masks' | 'repairs' | 'raw-development' | 'soft-proof' | 'preview-renderer';
 	type LocalEntry = Readonly<{ kind: LocalKind; owner: typeof owner; document: NonNullable<typeof document>; draft: NonNullable<typeof draft> }>;
 	const [localEntry, setLocalEntry] = useState<LocalEntry | null>(null);
 	const activeLocal = useRef(localEntry); activeLocal.current = localEntry;
 	const parentAvailable = () => { const entry = activeLocal.current;
-		return !entry || entry.kind !== 'raw-development' && entry.kind !== 'soft-proof' || entry.owner !== owner || entry.document !== document || entry.draft !== draft; };
+		return !entry || entry.kind !== 'raw-development' && entry.kind !== 'soft-proof' && entry.kind !== 'preview-renderer' || entry.owner !== owner || entry.document !== document || entry.draft !== draft; };
 	const [brushPort, setBrushPort] = useState<Readonly<{ entry: LocalEntry; port: Readonly<PhotoLibraryDevelopMaskRasterPortV1> }> | null>(null);
 	const [repairPort, setRepairPort] = useState<Readonly<{ entry: LocalEntry; port: Readonly<PhotoLibraryDevelopOriginalCapabilityCurrentV1> }> | null>(null);
 	const [brushFailed, setBrushFailed] = useState<LocalEntry | null>(null);
@@ -220,7 +224,7 @@ export default function PhotoDevelopWorkspaceKernelV1(props: Props) {
 	const localCurrent = () => current() && !busy && localEntry !== null && activeLocal.current === localEntry
 		&& localEntry.owner === owner && localEntry.document === document && localEntry.draft === draft
 		&& owner.snapshot().document === document && owner.snapshot().draft === draft;
-	const brushCurrent = (localEntry?.kind === 'brush' || localEntry?.kind === 'repairs' || localEntry?.kind === 'raw-development') && localEntry.owner === owner && localEntry.document === document && localEntry.draft === draft;
+	const brushCurrent = (localEntry?.kind === 'brush' || localEntry?.kind === 'repairs' || localEntry?.kind === 'raw-development' || localEntry?.kind === 'preview-renderer') && localEntry.owner === owner && localEntry.document === document && localEntry.draft === draft;
 	const openLocal = (kind: LocalKind) => { if (current() && parentAvailable() && !busy && document && draft) {
 		const entry = { kind, owner, document, draft }; activeLocal.current = entry; setLocalEntry(entry);
 	} };
@@ -299,7 +303,8 @@ export default function PhotoDevelopWorkspaceKernelV1(props: Props) {
 						isCurrent={() => mounted() && parentAvailable() && owner.snapshot().document === document && owner.snapshot().draft === draft} onChanged={() => owner.reload()} withWritePreviewRetirement={withSettingsWrite}
 					resolution={{ value: selectedResolution.value, fullAvailable: props.withOriginalFrame !== undefined,
 						onChange: value => { if (current() && parentAvailable() && renderedResolution.current === selectedResolution) setResolution({ owner, photoId: props.photoId, value }); } }}
-					localAdjustments={{ onOpen: openLocal }} repairs={{ available: props.withOriginalFrame !== undefined, onOpen: () => { openLocal('repairs'); } }} rawDevelopment={{ onOpen: () => { openLocal('raw-development'); } }} softProof={{ onOpen: () => { if (!activeLocal.current) openLocal('soft-proof'); } }} />}
+					localAdjustments={{ onOpen: openLocal }} repairs={{ available: props.withOriginalFrame !== undefined, onOpen: () => { openLocal('repairs'); } }} rawDevelopment={{ onOpen: () => { openLocal('raw-development'); } }} softProof={{ onOpen: () => { if (!activeLocal.current) openLocal('soft-proof'); } }}
+					previewRenderer={{ onOpen: () => { if (!activeLocal.current) openLocal('preview-renderer'); } }} />}
 				{!currentSettings && legacySettings && legacyEligible && legacyDraft && catalogId && <PhotoDevelopSettingsMenuV2 locale={props.locale} owner={legacySettings.owner} snapshot={legacySettings.snapshot}
 					source={{ schemaVersion: 2, catalogId, photoId: document.photoId, versionId: document.versionId, revision: document.revision, develop: legacyDraft }}
 					selectedIds={props.selectedIds ?? [document.photoId]} disabled={busy} dirty={snapshot.dirty}
@@ -309,6 +314,7 @@ export default function PhotoDevelopWorkspaceKernelV1(props: Props) {
 						onChange: value => { if (current() && parentAvailable() && renderedResolution.current === selectedResolution) setResolution({ owner, photoId: props.photoId, value }); } }}
 					localAdjustments={{ onOpen: openLocal }} repairs={profile === 'current3' ? { available: props.withOriginalFrame !== undefined, onOpen: () => { openLocal('repairs'); } } : undefined} />}
 				{(!settings || !currentSettings && !legacyEligible) && <details className="lightscaper-develop-settings-menu"><summary>{photoDevelopSettingsCopy(props.locale, profile).menu}</summary>
+					{profile === 'current3' && <button type="button" disabled={busy} onClick={() => { if (current() && !activeLocal.current) openLocal('preview-renderer'); }}>{photoDevelopPreviewRendererCopy(props.locale).menu}</button>}
 					{profile === 'current3' && <button type="button" disabled={busy} onClick={() => { if (current() && !activeLocal.current) openLocal('soft-proof'); }}>{photoDevelopSoftProofCopy(props.locale).menu}</button>}
 					{profile === 'current3' && <button type="button" disabled={busy} onClick={() => { if (current()) openLocal('raw-development'); }}>{photoDevelopRawDevelopmentCopy(props.locale).menu}</button>}
 					<PhotoDevelopLocalAdjustmentsMenuV1 locale={props.locale} disabled={busy} isCurrent={current} localAdjustments={{ onOpen: openLocal }}
@@ -321,7 +327,8 @@ export default function PhotoDevelopWorkspaceKernelV1(props: Props) {
 				<button type="button" disabled={busy || snapshot.dirty || document.activeVersionId === document.versionId}
 					onClick={() => { run(() => owner.apply({ type: 'activate-version', versionId: document.versionId })); }}>{messages.useVersion}</button>
 				<div className="lightscaper-develop-layout"><Preview {...props} {...previewSource} registerRetirement={registerPreviewRetirement} develop={draft} messages={messages} revision={document.revision} resolution={selectedResolution.value}
-					softProof={profile === 'current3' ? softProof : undefined} maskOverlay={selectedOverlay?.selection} maskOverlayMode={selectedOverlay?.mode} suspended={brushCurrent || profile === 'current3' && importing} isCurrent={() => mounted() && owner.snapshot().document === document && owner.snapshot().draft === draft} />
+					softProof={profile === 'current3' ? softProof : undefined} previewRenderer={profile === 'current3' && previewRenderer.value === 'gpu-preferred' ? previewRenderer.value : undefined}
+					maskOverlay={selectedOverlay?.selection} maskOverlayMode={selectedOverlay?.mode} suspended={brushCurrent || profile === 'current3' && importing} isCurrent={() => mounted() && owner.snapshot().document === document && owner.snapshot().draft === draft} />
 					<PhotoDevelopEffectsV2 effects={draft.effects} owner={owner} messages={messages} disabled={busy}
 						isCurrent={() => mounted() && parentAvailable() && owner.snapshot().document === document} importCubeLut={importCubeLut}
 						onImportPending={onImportPending} registerImportRetirement={registerImportRetirement} /></div>
@@ -350,7 +357,12 @@ export default function PhotoDevelopWorkspaceKernelV1(props: Props) {
 				</section></div>
 			</>}
 			{localEntry && document && draft && authoringDraft && localEntry.owner === owner && localEntry.document === document && localEntry.draft === draft
-				&& (localEntry.kind === 'soft-proof'
+				&& (localEntry.kind === 'preview-renderer'
+					? <Suspense fallback={<p role="status">{messages.working}</p>}><PhotoDevelopPreviewRendererDialogCurrentV1 value={previewRenderer.value} locale={props.locale} disabled={busy}
+						isCurrent={localCurrent} onApply={value => { if (!localCurrent()) return;
+							previewRenderer.apply(value); activeLocal.current = null; setLocalEntry(null);
+						}} onClose={closeLocal} /></Suspense>
+					: localEntry.kind === 'soft-proof'
 					? <Suspense fallback={<p role="status">{messages.working}</p>}><PhotoDevelopSoftProofDialogCurrentV1 value={softProof} locale={props.locale} disabled={busy}
 						isCurrent={localCurrent} onApply={value => { if (!localCurrent()) return;
 							setProof(value ? { owner, photoId: props.photoId, value } : null); activeLocal.current = null; setLocalEntry(null);

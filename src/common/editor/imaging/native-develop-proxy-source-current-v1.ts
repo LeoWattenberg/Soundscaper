@@ -54,30 +54,49 @@ export async function withNativeDevelopProxySourceCurrentV1<Result>(
 	downstreamPeakBytes: number,
 	consume: (frame: PixelFrameV1) => Result | Promise<Result>,
 ): Promise<Result> {
+	return withNativeProxySource(plan, downstreamPeakBytes, downstreamPeakBytes, consume, true);
+}
+
+/** Prefer a complete execution phase only when it fits beside the actual
+ * Original backing. Both choices share one source admission and proxy copy. */
+export async function withPreferredNativeDevelopProxySourceCurrentV1<Result>(
+	plan: Readonly<NativeDevelopProxySourcePlanCurrentV1>,
+	preferredPeakBytes: number,
+	fallbackPeakBytes: number,
+	consume: (frame: PixelFrameV1, preferred: boolean) => Result | Promise<Result>,
+): Promise<Result> {
+	return withNativeProxySource(plan, preferredPeakBytes, fallbackPeakBytes, consume, false);
+}
+
+async function withNativeProxySource<Result>(plan: Readonly<NativeDevelopProxySourcePlanCurrentV1>, preferredPeakBytes: number,
+	fallbackPeakBytes: number, consume: (frame: PixelFrameV1, preferred: boolean) => Result | Promise<Result>, strictPeak: boolean): Promise<Result> {
 	const input = captured.get(plan);
 	if (!input) throw new TypeError('Native Develop proxy requires its original admitted plan.');
 	const check = () => { checkRepairSignalV1(input.signal); };
-	const frame = (() => { try {
+	const admitted = (() => { try {
 		check();
 		if (typeof consume !== 'function') throw new TypeError('Native Develop proxy requires a consumer.');
-		if (!Number.isSafeInteger(downstreamPeakBytes) || downstreamPeakBytes < plan.proxyPlan.byteLength
-			|| downstreamPeakBytes > NATIVE_DEVELOP_PROXY_WORKING_BYTES_CURRENT_V1) {
+		if ([preferredPeakBytes, fallbackPeakBytes].some(peak => !Number.isSafeInteger(peak) || peak < plan.proxyPlan.byteLength
+			|| strictPeak && peak > NATIVE_DEVELOP_PROXY_WORKING_BYTES_CURRENT_V1)) {
 			throw new RangeError('Native Develop proxy requires a bounded downstream peak including its input.');
 		}
-		if (plan.sourcePlan.byteLength + downstreamPeakBytes > NATIVE_DEVELOP_PROXY_WORKING_BYTES_CURRENT_V1) {
-			throw new RangeError('Native Develop proxy exceeds its declared aggregate working byte bound.');
-		}
+		const choose = (backingBytes: number, physical: boolean) => {
+			if (backingBytes + preferredPeakBytes <= NATIVE_DEVELOP_PROXY_WORKING_BYTES_CURRENT_V1) return true;
+			if (backingBytes + fallbackPeakBytes <= NATIVE_DEVELOP_PROXY_WORKING_BYTES_CURRENT_V1) return false;
+			throw new RangeError(physical ? 'Native Develop proxy exceeds its aggregate physical working byte bound.'
+				: 'Native Develop proxy exceeds its declared aggregate working byte bound.');
+		};
+		choose(plan.sourcePlan.byteLength, false);
 		const raw = record(input.raw, 'native Develop proxy frame', ['descriptor', 'pixels']);
 		const pixels = field(raw, 'pixels', 'native Develop proxy frame');
 		const source = readPixelFrameV1({ descriptor: plan.sourcePlan.descriptor, pixels }, SOURCE_LIMITS);
 		const backing = Reflect.apply(BUFFER, source.pixels, []) as ArrayBuffer;
 		const backingBytes = Number(Reflect.apply(SIZE, backing, []));
-		if (backingBytes + downstreamPeakBytes > NATIVE_DEVELOP_PROXY_WORKING_BYTES_CURRENT_V1) {
-			throw new RangeError('Native Develop proxy exceeds its aggregate physical working byte bound.');
-		}
-		check(); return source;
+		const preferred = choose(backingBytes, true);
+		check(); return { frame: source, preferred };
 	} catch (error) { check(); throw error; } })();
 	return withRepairPixelFrameLifetimeV1(async owner => {
+		const { frame, preferred } = admitted;
 		const bytes = owner.bytes(plan.proxyPlan.byteLength);
 		const pixels = plan.proxyPlan.descriptor.sampleFormat === 'float32' ? new Float32Array(bytes.buffer)
 			: plan.proxyPlan.descriptor.sampleFormat === 'unorm16' ? new Uint16Array(bytes.buffer) : bytes;
@@ -91,6 +110,6 @@ export async function withNativeDevelopProxySourceCurrentV1<Result>(
 		}
 		const proxy = readPixelFrameV1({ descriptor: plan.proxyPlan.descriptor, pixels }, PROXY_LIMITS);
 		check(); await new Promise<void>(resolve => { setTimeout(resolve, 0); }); check();
-		const result = await consume(proxy); check(); return result;
+		const result = await consume(proxy, preferred); check(); return result;
 	});
 }

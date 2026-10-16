@@ -21,6 +21,7 @@ export default function PhotoDevelopPreviewKernelV1({ profile, props }: Readonly
 	const { readPreview, withOriginalFrame, loadProxy, beforePresent, registerRetirement } = props;
 	const withDerivedFrame = profile === 'current3' ? (props as PhotoDevelopPreviewPropsCurrentV1).withDerivedFrame : undefined;
 	const softProof = profile === 'current3' ? (props as PhotoDevelopPreviewPropsCurrentV1).softProof : undefined;
+	const previewRenderer = profile === 'current3' ? (props as PhotoDevelopPreviewPropsCurrentV1).previewRenderer : undefined;
 	const sourceRef = useRef({ readPreview, withOriginalFrame, withDerivedFrame, loadProxy, beforePresent, receiver: props });
 	if (sourceRef.current.readPreview !== readPreview || sourceRef.current.withOriginalFrame !== withOriginalFrame
 		|| sourceRef.current.withDerivedFrame !== withDerivedFrame || sourceRef.current.loadProxy !== loadProxy || sourceRef.current.beforePresent !== beforePresent) {
@@ -37,7 +38,7 @@ export default function PhotoDevelopPreviewKernelV1({ profile, props }: Readonly
 	if (registrationRef.current.method !== registerRetirement) registrationRef.current = { method: registerRetirement, receiver: props };
 	const registration = registrationRef.current;
 	const interaction = useMemo(() => ({ owner, photoId: props.photoId, develop: props.develop, revision: props.revision, resolution: props.resolution,
-		maskOverlay: props.maskOverlay, maskOverlayMode: props.maskOverlayMode, suspended: props.suspended, softProof }), [owner, props.photoId, props.develop, props.revision, props.resolution, props.maskOverlay, props.maskOverlayMode, props.suspended, softProof]);
+		maskOverlay: props.maskOverlay, maskOverlayMode: props.maskOverlayMode, suspended: props.suspended, softProof, previewRenderer }), [owner, props.photoId, props.develop, props.revision, props.resolution, props.maskOverlay, props.maskOverlayMode, props.suspended, softProof, previewRenderer]);
 	const activeInteraction = useRef(interaction); activeInteraction.current = interaction;
 	const before = useRef<HTMLCanvasElement>(null), after = useRef<HTMLCanvasElement>(null), overlay = useRef<HTMLCanvasElement>(null);
 	const [view, setView] = useState(() => ({ owner, photoId: props.photoId, mode: 'compare' as PreviewMode, divider: 50 }));
@@ -67,6 +68,7 @@ export default function PhotoDevelopPreviewKernelV1({ profile, props }: Readonly
 			const prepared = (profile === 'legacy2' ? preparePhotoDevelopPresentationViewV2 : preparePhotoDevelopPresentationViewCurrentV1)({ photoId: props.photoId, develop: props.develop, revision: props.revision,
 				resolution: props.resolution, before: before.current, after: after.current,
 				...(softProof ? { softProof } : {}),
+				...(previewRenderer ? { previewRenderer } : {}),
 				...(props.maskOverlay ? { maskOverlay: props.maskOverlay, maskOverlayMode: props.maskOverlayMode, overlay: overlay.current } : {}) });
 			void joinPhotoLibraryRetirementV1([retirement.current, owner.pause()]).then(() => {
 				if (current) Reflect.apply(owner.setView, owner, [prepared]);
@@ -75,7 +77,7 @@ export default function PhotoDevelopPreviewKernelV1({ profile, props }: Readonly
 			setSnapshot(Object.freeze({ status: 'failed', before: null, after: null, extent: null, error: 'The develop preview failed.' }));
 		}
 		return () => { current = false; void owner.pause().catch(() => undefined); };
-	}, [owner, props.photoId, props.develop, props.revision, props.resolution, props.maskOverlay, props.maskOverlayMode, props.suspended, softProof, profile]);
+	}, [owner, props.photoId, props.develop, props.revision, props.resolution, props.maskOverlay, props.maskOverlayMode, props.suspended, softProof, previewRenderer, profile]);
 	const { messages } = props, { mode, divider } = selected;
 	const current = () => lifetime.current && activeInteraction.current === interaction && rendered.current === selected && !props.suspended;
 	const aspect = mode === 'split' && snapshot.extent ? `${snapshot.extent.after.width} / ${snapshot.extent.after.height}` : undefined;

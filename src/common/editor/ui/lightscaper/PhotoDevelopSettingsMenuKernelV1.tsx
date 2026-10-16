@@ -14,6 +14,7 @@ import type { ImageDevelopSelectionV4 } from '../../imaging/image-develop-settin
 import PhotoDevelopSettingsPickerCurrentV1 from './PhotoDevelopSettingsPickerCurrentV1.tsx';
 import { photoDevelopRawDevelopmentCopy } from '../../../i18n/lightscaper-raw-development-copy.ts';
 import { photoDevelopSoftProofCopy } from '../../../i18n/lightscaper-develop-soft-proof-copy.ts';
+import { photoDevelopPreviewRendererCopy } from '../../../i18n/lightscaper-develop-preview-renderer-copy.ts';
 
 type Props = (PhotoDevelopSettingsMenuPropsV2 & Readonly<{ profile: 'legacy2' }>)
 	| (PhotoDevelopSettingsMenuPropsCurrentV1 & Readonly<{ profile: 'current3' }>);
@@ -53,6 +54,9 @@ export default function PhotoDevelopSettingsMenuKernelV1(props: Props) {
 	const modes = { copy: messages.copy, sync: messages.sync, auto: messages.auto, quick: messages.quick, presets: messages.presets };
 	return <>
 		<details className="lightscaper-develop-settings-menu"><summary>{messages.menu}</summary>
+			{props.profile === 'current3' && props.previewRenderer && <button type="button" disabled={busy} onClick={() => {
+				if (current() && !active.current) props.previewRenderer?.onOpen();
+			}}>{photoDevelopPreviewRendererCopy(props.locale).menu}</button>}
 			{props.profile === 'current3' && props.softProof && <button type="button" disabled={busy} onClick={() => {
 				if (current() && !active.current) props.softProof?.onOpen();
 			}}>{photoDevelopSoftProofCopy(props.locale).menu}</button>}

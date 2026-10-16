@@ -26,11 +26,13 @@ import { prepareImageOutputSoftProofCurrentV1, type ImageOutputSoftProofCurrentV
 import { presentPhotoDevelopProofAfterCurrentV1 } from './photo-library-develop-proof-presentation-current-v1.ts';
 import { paintPixelFrameDisplayP3CurrentV1 } from '../../../imaging/pixel-frame-canvas-presenter-profile-current-v1.ts';
 import type { PhotoDevelopPresentationSnapshotV2, PhotoDevelopPresentationViewV2 } from '../photo-library-develop-presentation-v2.ts';
+import { preparePhotoDevelopPreviewRendererCurrentV1, type PhotoDevelopPreviewRendererCurrentV1, type PhotoLibraryDevelopGpuPreviewRuntimeCurrentV1 } from '../../../photo-library-develop-gpu-preview-port-current-v1.ts';
 
 export type PhotoDevelopPresentationProfileV1 = 'legacy2' | 'current3' | 'current4';
 export interface PhotoDevelopPresentationViewKernelV1 extends Omit<PhotoDevelopPresentationViewV2, 'develop'> {
 	readonly develop: PhotoLibraryDevelopSettingsCurrentV1;
 	readonly softProof?: Readonly<ImageOutputSoftProofCurrentV1>;
+	readonly previewRenderer?: PhotoDevelopPreviewRendererCurrentV1;
 }
 type CapturedPorts = Required<Omit<PhotoDevelopPresentationPortsKernelV1, 'withOriginalFrame' | 'withDerivedFrame' | 'readPreview'>> & Pick<PhotoDevelopPresentationPortsKernelV1, 'withOriginalFrame' | 'withDerivedFrame' | 'readPreview'>;
 function assertProfile(value: unknown): asserts value is PhotoDevelopPresentationProfileV1 {
@@ -62,9 +64,10 @@ export function preparePhotoDevelopPresentationViewForProfileV1(profile: PhotoDe
 	assertProfile(profile);
 	if (value && typeof value === 'object' && PREPARED.get(value) === profile) return value as Readonly<PhotoDevelopPresentationViewKernelV1>;
 	const input = record(value, 'develop presentation', ['photoId', 'develop', 'revision', 'resolution', 'before', 'after', 'maskOverlay', 'maskOverlayMode', 'overlay',
-		...(profile === 'current4' ? ['softProof'] : [])], ['photoId', 'develop', 'before', 'after']);
+		...(profile === 'current4' ? ['softProof', 'previewRenderer'] : [])], ['photoId', 'develop', 'before', 'after']);
 	const rawProof = profile === 'current4' && Object.hasOwn(input, 'softProof') ? field(input, 'softProof', 'develop presentation') : undefined;
 	const softProof = rawProof === undefined ? undefined : prepareImageOutputSoftProofCurrentV1(rawProof);
+	const renderer = profile === 'current4' && Object.hasOwn(input, 'previewRenderer') ? preparePhotoDevelopPreviewRendererCurrentV1(field(input, 'previewRenderer', 'develop presentation')) : undefined;
 	const id = field(input, 'photoId', 'develop presentation');
 	if (typeof id !== 'string' || id.length === 0 || id.length > 256 || [...id].some(character => character.charCodeAt(0) < 32)) throw new TypeError('Develop requires a bounded photo ID.');
 	const resolution = Object.hasOwn(input, 'resolution') ? field(input, 'resolution', 'develop presentation') : undefined;
@@ -85,7 +88,7 @@ export function preparePhotoDevelopPresentationViewForProfileV1(profile: PhotoDe
 	if (overlay !== undefined && (!overlay || typeof overlay !== 'object' || overlay === before || overlay === after)) throw new TypeError('Mask overlay requires a distinct canvas target.');
 	const maskOverlay = rawSelection === undefined ? undefined : prepareImageDevelopMaskOverlaySelectionV1(rawSelection);
 	const result = Object.freeze({ photoId: id, develop, resolution, revision: revision as number | undefined, before: before as HTMLCanvasElement, after: after as HTMLCanvasElement,
-		...(maskOverlay ? { maskOverlay, maskOverlayMode, overlay: overlay as HTMLCanvasElement } : {}), ...(softProof ? { softProof } : {}) });
+		...(maskOverlay ? { maskOverlay, maskOverlayMode, overlay: overlay as HTMLCanvasElement } : {}), ...(softProof ? { softProof } : {}), ...(renderer ? { previewRenderer: renderer } : {}) });
 	PREPARED.set(result, profile); return result;
 }
 
@@ -118,14 +121,21 @@ const paintCurrent: typeof paintPixelFrameCanvasV1 = (canvas, frame, options) =>
 	if (options.signal) check(options.signal); return result;
 };
 
-function captureRuntime(profile: PhotoDevelopPresentationProfileV1, value: Readonly<PhotoLibraryDevelopProxyRuntimeCurrentV1>): Readonly<PhotoLibraryDevelopProxyRuntimeCurrentV1> {
+function captureRuntime(profile: PhotoDevelopPresentationProfileV1, value: Readonly<PhotoLibraryDevelopProxyRuntimeCurrentV1>, renderer?: PhotoDevelopPreviewRendererCurrentV1): Readonly<PhotoLibraryDevelopProxyRuntimeCurrentV1> {
 	const methods = ['withProxy', 'withFullResolution'];
-	const input = record(value, 'develop runtime', profile !== 'legacy2' ? [...methods, 'withLinearWorkingFrame'] : methods, methods);
+	const input = record(value, 'develop runtime', profile !== 'legacy2' ? [...methods, 'withLinearWorkingFrame', ...(profile === 'current4' ? ['withGpuPreview'] : [])] : methods, methods);
 	if (Object.hasOwn(input, 'withLinearWorkingFrame') && typeof field(input, 'withLinearWorkingFrame', 'develop runtime') !== 'function') {
 		throw new TypeError('Linear working delivery requires an own runtime method.');
 	}
-	return Object.freeze({ withProxy: pin<PhotoLibraryDevelopProxyRuntimeCurrentV1['withProxy']>(field(input, 'withProxy', 'develop runtime'), value),
+	const cpu = Object.freeze({ withProxy: pin<PhotoLibraryDevelopProxyRuntimeCurrentV1['withProxy']>(field(input, 'withProxy', 'develop runtime'), value),
 		withFullResolution: pin<PhotoLibraryDevelopProxyRuntimeCurrentV1['withFullResolution']>(field(input, 'withFullResolution', 'develop runtime'), value) });
+	const rawGpu = Object.hasOwn(input, 'withGpuPreview') ? field(input, 'withGpuPreview', 'develop runtime') : undefined;
+	const gpu = rawGpu === undefined ? undefined : pin<PhotoLibraryDevelopGpuPreviewRuntimeCurrentV1['withGpuPreview']>(rawGpu, value);
+	if (renderer !== 'gpu-preferred' || !gpu) return cpu;
+	return Object.freeze({
+		withProxy: <Result>(request: Parameters<PhotoLibraryDevelopProxyRuntimeCurrentV1['withProxy']>[0], consume: (view: Parameters<Parameters<PhotoLibraryDevelopProxyRuntimeCurrentV1['withProxy']>[1]>[0]) => Result | Promise<Result>) => gpu('proxy', request, consume),
+		withFullResolution: <Result>(request: Parameters<PhotoLibraryDevelopProxyRuntimeCurrentV1['withFullResolution']>[0], consume: (view: Parameters<Parameters<PhotoLibraryDevelopProxyRuntimeCurrentV1['withFullResolution']>[1]>[0]) => Result | Promise<Result>) => gpu('full', request, consume),
+	});
 }
 
 /** One joined source/stage/current renderer at a time. Only scalar histograms and
@@ -201,7 +211,7 @@ export class PhotoLibraryDevelopPresentationKernelV1 {
 		try { await this.#ports.beforePresent; } catch (error) { this.#remember(error); throw error; }
 		check(signal);
 		if (this.#profile !== 'legacy2' || view.resolution === 'full') {
-			const loaded = await this.#ports.loadProxy(); check(signal); const runtime = captureRuntime(this.#profile, loaded); check(signal);
+			const loaded = await this.#ports.loadProxy(); check(signal); const runtime = captureRuntime(this.#profile, loaded, view.previewRenderer); check(signal);
 			if (this.#profile === 'current4' && view.develop.processVersion === 4 && view.develop.rawDevelopment.mode !== 'canonical') {
 				const rendered = await presentPhotoDevelopRawCurrentV1(view, runtime, this.#ports, signal, () => this.#view === view);
 				check(signal); if (this.#view === view && rendered) this.#publish({ status: 'ready', ...rendered, error: null }); return;
