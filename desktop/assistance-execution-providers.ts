@@ -18,10 +18,10 @@ export function validateAssistanceExecutionProviders(
 }
 
 function allowedProviders(familyId: string, targetId: string): readonly string[] {
-	if (familyId === 'onnxruntime-node') {
+	if (familyId === 'onnxruntime-node' || familyId === 'sherpa-onnx-node') {
 		if (targetId === 'mac-arm64') return ['cpu', 'coreml', 'webgpu'];
-		if (targetId === 'win-x64' || targetId === 'win-arm64') return ['cpu', 'webgpu'];
-		return targetId === 'linux-x64' ? ['cpu', 'webgpu'] : ['cpu'];
+		return ['linux-x64', 'linux-arm64', 'win-x64', 'win-arm64'].includes(targetId)
+			? ['cpu', 'webgpu'] : ['cpu'];
 	}
 	if (familyId === 'whisper-cpp' || familyId === 'llama-cpp') {
 		return targetId === 'mac-arm64' ? ['cpu', 'metal'] : ['cpu', 'vulkan'];
