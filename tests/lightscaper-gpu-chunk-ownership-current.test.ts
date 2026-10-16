@@ -23,7 +23,7 @@ const EXECUTION = [CONTEXT, 'pixel-frame-webgl2-numeric-current-v1.ts', 'pixel-f
 	'pixel-frame-webgl2-curves-glsl-current-v1.ts', 'pixel-frame-webgl2-color-glsl-current-v1.ts', 'pixel-frame-webgl2-lut-glsl-current-v1.ts',
 	'pixel-frame-webgl2-geometry-glsl-current-v1.ts', 'pixel-frame-webgl2-reference-current-v1.ts', 'pixel-frame-webgl2-optics-glsl-current-v1.ts',
 	'pixel-frame-webgl2-spatial-glsl-current-v1.ts', 'pixel-frame-webgl2-spatial-neighborhood-glsl-current-v1.ts', 'pixel-frame-webgl2-spatial-lattice-glsl-current-v1.ts',
-	'pixel-frame-webgl2-mask-node-glsl-current-v1.ts', 'pixel-frame-webgl2-mask-path-glsl-current-v1.ts', 'pixel-frame-webgl2-mask-feather-glsl-current-v1.ts', 'pixel-frame-webgl2-mask-reference-current-v1.ts'];
+	'pixel-frame-webgl2-mask-node-glsl-current-v1.ts', 'pixel-frame-webgl2-mask-path-glsl-current-v1.ts', 'pixel-frame-webgl2-mask-feather-glsl-current-v1.ts', 'pixel-frame-webgl2-mask-reference-current-v1.ts', 'pixel-frame-webgl2-mask-blend-glsl-current-v1.ts'];
 function source(path: string): string { return transformSync(readFileSync(path, 'utf8'), { loader: 'ts', format: 'esm' }).code; }
 function exactOwner(name: string, expected: string): void {
 	for (const path of [IMAGING + name, (IMAGING + name).replaceAll('/', '\\')]) {

@@ -26,7 +26,7 @@ export const imagingChunkGroups = [{
 	// Actual native GL initialization is loaded only after an opted-in GPU
 	// request captures its source. CPU and scalar preparation do not load it.
 	name: 'editor-image-develop-gpu',
-	test: /src[\\/]common[\\/]editor[\\/]imaging[\\/]pixel-frame-webgl2-(?:context|numeric|reference|mask-reference|(?:chroma|curves|color|lut|geometry|optics|spatial(?:-(?:neighborhood|lattice))?|mask-(?:node|path|feather))-glsl)-current-v1\.ts$/,
+	test: /src[\\/]common[\\/]editor[\\/]imaging[\\/]pixel-frame-webgl2-(?:context|numeric|reference|mask-reference|(?:chroma|curves|color|lut|geometry|optics|spatial(?:-(?:neighborhood|lattice))?|mask-(?:node|path|feather|blend))-glsl)-current-v1\.ts$/,
 	priority: 99,
 	minSize: 0,
 	maxSize: 400_000,
