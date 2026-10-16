@@ -97,6 +97,13 @@
 			"path": "include/onnxruntime/core/session/onnxruntime_error_code.h",
 			"byteLength": 2775,
 			"sha256": "5ce3b054e798eced8d14f5b86e98692fd33470463f96194ce0700a2d53dd8721"
+		},
+		{
+			"id": "ort-coreml-provider-factory",
+			"url": "https://raw.githubusercontent.com/microsoft/onnxruntime/2e2543fbe9fae542f921d47a72d21d5a4ef0b710/include/onnxruntime/core/providers/coreml/coreml_provider_factory.h",
+			"path": "include/onnxruntime/core/providers/coreml/coreml_provider_factory.h",
+			"byteLength": 5247,
+			"sha256": "d6430c47d2b076d4a40ba6523e78d75cc4c4b0e5604fb280168891331b057ade"
 		}
 	]
 }

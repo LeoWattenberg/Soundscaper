@@ -2,6 +2,7 @@
 #pragma once
 
 #include <filesystem>
+#include <cstdlib>
 #include <stdexcept>
 #include <string>
 
@@ -44,7 +45,10 @@ inline void ScapeRunWebGpuProbe(const std::filesystem::path& executable) {
 	if (wait == WAIT_OBJECT_0) GetExitCodeProcess(child.hProcess, &exit_code);
 	else {
 		TerminateProcess(child.hProcess, 125);
-		WaitForSingleObject(child.hProcess, 2000);
+		if (WaitForSingleObject(child.hProcess, 2000) != WAIT_OBJECT_0) {
+			// Do not resume CPU inference while an unobserved probe might remain.
+			std::_Exit(125);
+		}
 	}
 	CloseHandle(child.hProcess);
 	if (wait != WAIT_OBJECT_0 || exit_code != 0) {
@@ -75,6 +79,8 @@ inline void ScapeRunWebGpuProbe(const std::filesystem::path& executable) {
 		const pid_t result = waitpid(child, &status, WNOHANG);
 		if (result == child) break;
 		if (result < 0 && errno != EINTR) {
+			kill(child, SIGKILL);
+			while (waitpid(child, &status, 0) < 0 && errno == EINTR) {}
 			throw std::runtime_error("The isolated WebGPU device probe could not be observed.");
 		}
 		if (std::chrono::steady_clock::now() >= deadline) {

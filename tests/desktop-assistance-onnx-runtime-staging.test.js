@@ -25,13 +25,37 @@ const hash = (bytes, algorithm = 'sha256', encoding = 'hex') => (
 );
 const descriptor = (path, bytes) => ({ path, byteLength: bytes.length, sha256: hash(bytes) });
 
-async function fixture(t) {
+async function fixtureBuildWebGpu({ outputRoot, targetId }) {
+	const pluginName = targetId.startsWith('win-') ? 'onnxruntime_providers_webgpu.dll'
+		: `libonnxruntime_providers_webgpu.${targetId.startsWith('mac-') ? 'dylib' : 'so'}`;
+	const probeName = `onnx-webgpu-device-probe${targetId.startsWith('win-') ? '.exe' : ''}`;
+	const contents = {
+		'onnxruntime_binding.node': Buffer.from('generated GPU bridge'),
+		[pluginName]: Buffer.from('authenticated GPU plugin'),
+		[probeName]: Buffer.from('isolated device probe'),
+		'ONNX-WebGPU-LICENSE': Buffer.from('MIT'),
+		'onnx-webgpu-build-provenance.json': Buffer.from('authenticated build provenance'),
+	};
+	for (const [path, bytes] of Object.entries(contents)) await writeFile(join(outputRoot, path), bytes);
+	return {
+		files: Object.entries(contents).map(([path, bytes]) => ({
+			...descriptor(path, bytes), ...(path === probeName ? { executable: true } : {}),
+		})), provenance: { targetId },
+	};
+}
+
+async function fixture(t, targetId = 'linux-x64') {
 	const root = await mkdtemp(join(tmpdir(), 'onnx-runtime-staging-'));
 	t.after(() => rm(root, { recursive: true, force: true }));
+	const [targetOs, architecture] = targetId.split('-');
+	const platform = { mac: 'darwin', linux: 'linux', win: 'win32' }[targetOs];
+	const nativePrefix = `bin/napi-v6/${platform}/${architecture}`;
+	const coreName = targetOs === 'win' ? 'onnxruntime.dll'
+		: targetOs === 'mac' ? 'libonnxruntime.1.29.0.dylib' : 'libonnxruntime.so.1';
 	const files = {
 		'dist/index.js': Buffer.from('module.exports = { version: "1.29.0" };'),
-		'bin/napi-v6/linux/x64/onnxruntime_binding.node': Buffer.from('pinned CPU binding'),
-		'bin/napi-v6/linux/x64/libonnxruntime.so.1': Buffer.from('pinned CPU runtime'),
+		[`${nativePrefix}/onnxruntime_binding.node`]: Buffer.from('pinned CPU binding'),
+		[`${nativePrefix}/${coreName}`]: Buffer.from('pinned CPU runtime'),
 		'script/install.js': Buffer.from('throw new Error("must not execute an install hook");'),
 	};
 	for (const [path, bytes] of Object.entries(files)) {
@@ -48,7 +72,7 @@ async function fixture(t) {
 		integrity: `sha512-${hash(archive, 'sha512', 'base64')}`,
 		byteLength: archive.length, sha256: hash(archive), destination: 'node_modules/onnxruntime-node',
 		files: [descriptor('dist/index.js', files['dist/index.js'])],
-		targetFiles: { 'linux-x64': Object.entries(files).filter(([path]) => path.startsWith('bin/'))
+		targetFiles: { [targetId]: Object.entries(files).filter(([path]) => path.startsWith('bin/'))
 			.map(([path, bytes]) => descriptor(path, bytes)) },
 	}, {
 		id: 'license', kind: 'file', url: 'https://example.invalid/LICENSE',
@@ -59,40 +83,94 @@ async function fixture(t) {
 	return {
 		root, downloads, fetched,
 		options: {
-			targetId: 'linux-x64', outputRoot: join(root, 'runtime'), cacheRoot: join(root, 'cache'),
+			targetId, outputRoot: join(root, 'runtime'), cacheRoot: join(root, 'cache'),
+			buildWebGpu: fixtureBuildWebGpu,
 			payloads: { ...payloads, sources },
 			fetchImpl: async (url) => { fetched.push(url); return new Response(downloads.get(url)); },
 		},
 	};
 }
 
-test('ONNX upstream pins authenticate GPU provider closures with a CPU baseline on all targets', () => {
+test('every ONNX target requires a generated WebGPU bridge and retains reviewed portable core and license pins', () => {
 	assert.equal(payloads.sources[0].integrity,
 		'sha512-WjiVVB72riILz8HbYvxvmjKyE/WmkYoSfKY++axo5jAR609HQg8MwiG/HhShpTcJfmmAdzxxmB+MMST3A+SiPA==');
 	for (const targetId of TARGETS) {
 		const manifest = validateAssistanceRuntimeFamilyManifestV1(createDesktopAssistanceOnnxManifest(targetId));
 		const target = manifest.targets.find(({ id }) => id === targetId);
-		assert.equal(target.status, 'authenticated');
-		assert.ok(target.files.length >= 32);
-		assert.equal(target.entrypoint, 'node_modules/onnxruntime-node/dist/index.js');
-		assert.ok(target.files.some(({ path }) => path.endsWith('/dist/cjs/package.json')));
-		assert.ok(target.files.some(({ path }) => path.endsWith('/onnxruntime_binding.node')));
-		assert.ok(target.files.some(({ path }) => path === 'licenses/ONNXRuntime-LICENSE'));
-		assert.ok(target.files.some(({ path }) => path === 'licenses/ONNXRuntime-ThirdPartyNotices.txt'));
+		assert.equal(target.status, 'package-generated');
+		assert.match(target.packageBehavior, /WebGPU.*probe.*Node-API/u);
+		const files = payloads.sources.flatMap((source) => source.kind === 'file' ? [{ path: source.destination }]
+			: [...source.files, ...(source.targetFiles[targetId] ?? [])]
+				.map(({ path }) => ({ path: `${source.destination}/${path}` })));
+		assert.ok(files.length >= 32);
+		assert.ok(files.some(({ path }) => path.endsWith('/dist/cjs/package.json')));
+		assert.ok(files.some(({ path }) => path.endsWith('/onnxruntime_binding.node')));
+		assert.ok(files.some(({ path }) => path === 'licenses/ONNXRuntime-LICENSE'));
+		assert.ok(files.some(({ path }) => path === 'licenses/ONNXRuntime-ThirdPartyNotices.txt'));
 		for (const notice of ['LICENSE', 'ThirdPartyNotices.txt', 'ReleaseNotes.md']) {
-			assert.ok(target.files.some(({ path }) => path === `licenses/DirectXShaderCompiler-${notice}`));
+			assert.ok(files.some(({ path }) => path === `licenses/DirectXShaderCompiler-${notice}`));
 		}
-		assert.ok(target.files.every(({ path }) => !/\/script\/|cuda|DirectML/u.test(path)));
-		assert.deepEqual(target.executionProviders, targetId === 'mac-arm64' ? ['coreml', 'webgpu', 'cpu']
-			: targetId === 'linux-arm64' ? ['cpu'] : ['webgpu', 'cpu']);
+		assert.ok(files.every(({ path }) => !/\/script\/|cuda|DirectML/u.test(path)));
 		if (targetId.startsWith('win-')) {
 			for (const library of ['dxcompiler.dll', 'dxil.dll']) {
-				assert.ok(target.files.some(({ path }) => path.endsWith(`/${library}`)));
+				assert.ok(files.some(({ path }) => path.endsWith(`/${library}`)));
 			}
 		}
 		assert.ok(manifest.targets.filter(({ id }) => id !== targetId)
 			.every(({ status }) => status === 'package-generated'));
 	}
+});
+
+test('each generated target authenticates its GPU bridge, plugin and executable device probe before capability publication', async (t) => {
+	for (const targetId of TARGETS) {
+		const { options } = await fixture(t, targetId);
+		const result = await stageDesktopAssistanceOnnxRuntime(options);
+		const manifest = validateAssistanceRuntimeFamilyManifestV1(result.manifest);
+		const target = manifest.targets.find(({ id }) => id === targetId);
+		assert.equal(target.status, 'authenticated');
+		assert.deepEqual(target.executionProviders, targetId === 'mac-arm64' ? ['coreml', 'webgpu', 'cpu'] : ['webgpu', 'cpu']);
+		assert.ok(target.files.some(({ path, executable }) => path.endsWith(
+			`/onnx-webgpu-device-probe${targetId.startsWith('win-') ? '.exe' : ''}`,
+		) && executable));
+		assert.ok(target.files.some(({ path }) => path.includes('onnxruntime_providers_webgpu.')));
+	}
+});
+
+test('Linux ARM64 publishes GPU capability only after its plugin bridge build and verifies every generated file', async (t) => {
+	const { options } = await fixture(t, 'linux-arm64');
+	const builtFiles = {
+		'libonnxruntime_providers_webgpu.so': Buffer.from('authenticated WebGPU plugin'),
+		'onnxruntime_binding.node': Buffer.from('rebuilt WebGPU binding'),
+		'onnx-webgpu-device-probe': Buffer.from('isolated GPU discovery'),
+		'ONNX-WebGPU-LICENSE': Buffer.from('MIT'),
+		'onnx-webgpu-build-provenance.json': Buffer.from('authenticated source and build recipe'),
+	};
+	let builds = 0;
+	const buildWebGpu = async ({ outputRoot, targetId }) => {
+		builds++;
+		assert.equal(targetId, 'linux-arm64');
+		for (const [path, bytes] of Object.entries(builtFiles)) await writeFile(join(outputRoot, path), bytes);
+		return { files: Object.entries(builtFiles).map(([path, bytes]) => ({
+			...descriptor(path, bytes), ...(path === 'onnx-webgpu-device-probe' ? { executable: true } : {}),
+		})), provenance: { targetId } };
+	};
+	const result = await stageDesktopAssistanceOnnxRuntime({ ...options, targetId: 'linux-arm64', buildWebGpu });
+	assert.equal(builds, 1);
+	const target = result.manifest.targets.find(({ id }) => id === 'linux-arm64');
+	assert.deepEqual(target.executionProviders, ['webgpu', 'cpu']);
+	assert.ok(target.files.some(({ path }) => path.endsWith('/libonnxruntime_providers_webgpu.so')));
+	assert.ok(target.files.some(({ path }) => path.endsWith('/onnx-webgpu-build-provenance.json')));
+	assert.ok(target.files.some(({ path, executable }) => path.endsWith('/onnx-webgpu-device-probe') && executable));
+	const changed = async (args) => {
+		const receipt = await buildWebGpu(args);
+		receipt.files[0].sha256 = 'a'.repeat(64);
+		return receipt;
+	};
+	await assert.rejects(stageDesktopAssistanceOnnxRuntime({ ...options, targetId: 'linux-arm64', buildWebGpu: changed }), /failed verification/u);
+	await assert.rejects(stageDesktopAssistanceOnnxRuntime({
+		...options, targetId: 'linux-arm64',
+		buildWebGpu: () => ({ files: [], provenance: { targetId: 'linux-arm64' } }),
+	}), /build receipt/u);
 });
 
 test('DXC license and applicability evidence are pinned to the bundled compiler source revision', () => {
@@ -114,13 +192,13 @@ test('ONNX staging downloads authenticated sources, extracts only pinned files, 
 	const result = await stageDesktopAssistanceOnnxRuntime(options);
 	assert.equal(fetched.length, 2);
 	assert.equal(result.summary.status, 'authenticated');
-	assert.equal(result.summary.fileCount, 4);
+	assert.equal(result.summary.fileCount, 8);
 	const availability = await describeAssistanceRuntimeFamilyAvailability({
 		familyId: 'onnxruntime-node', manifest: result.manifest, runtimeRoot: options.outputRoot,
 		platform: 'linux', architecture: 'x64', totalMemoryBytes: 8 * 1024 ** 3,
 	});
 	assert.equal(availability.status, 'available');
-	assert.equal(availability.descriptor.files.length, 4);
+	assert.equal(availability.descriptor.files.length, 8);
 	await assert.rejects(readFile(join(root, 'runtime', PREFIX, 'linux-x64',
 		'node_modules/onnxruntime-node/script/install.js')), { code: 'ENOENT' });
 	await stageDesktopAssistanceOnnxRuntime({
