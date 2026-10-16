@@ -165,6 +165,6 @@ test('the hardened nightly launcher renders and updates its archived progress pa
 	const stdout = readFileSync(stdoutPath, 'utf8');
 	const stderr = readFileSync(stderrPath, 'utf8');
 	if (result.error) throw new Error(`Electron progress-page process failed: ${result.error.message}\n${stderr}`, { cause: result.error });
-	assert.equal(result.status, 0, stderr);
+	assert.equal(result.status, 0, `Electron exited with status ${result.status}, signal ${result.signal}\n${stdout}\n${stderr}`);
 	assert.match(stdout, /NIGHTLY_PROGRESS_ARCHIVE_PASSED/u);
 });

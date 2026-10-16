@@ -196,6 +196,18 @@ test('the real-time desktop protocol probe runs outside the parallel Node batch'
 	assert.deepEqual(batches[0], discovered, 'the discovered real-time protocol probe must be the first singleton');
 });
 
+test('the archived Electron progress test runs alone before the parallel Node batch', () => {
+	const progress = '/repository/tests/desktop-nightly-tests-progress-archive.test.ts';
+	const ordinary = '/repository/tests/ordinary.test.js';
+	assert.deepEqual(partitionNodeTestExecutionBatches([ordinary, progress]), [[progress], [ordinary]]);
+	const selected = selectNodeTestFiles(ROOT, { shard: 'common-1' });
+	const batches = partitionNodeTestExecutionBatches(selected);
+	const discovered = selected.find((file) => basename(file) === basename(progress));
+	assert.ok(discovered);
+	assert.ok(batches.some((batch) => batch.length === 1 && batch[0] === discovered));
+	assert.deepEqual(batches.flat().sort(), [...selected].sort());
+});
+
 for (const workflowName of SHARDED_WORKFLOWS) {
 	test(`${workflowName} runs one job per shard and no more`, async () => {
 		const job = extractJob(await readWorkflow(workflowName), 'tests');

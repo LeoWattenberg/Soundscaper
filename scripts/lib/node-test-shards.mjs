@@ -32,7 +32,11 @@ const PRODUCTS = Object.freeze([
 // renderer thread is blocked. Running it beside hundreds of CPU-heavy test
 // processes instead measures host scheduler starvation and can trip the
 // production deadline before either worker receives its first block.
-const ISOLATED_NODE_TEST_NAMES = new Set(['desktop-parallel-stack-protocol.test.ts']);
+const ISOLATED_NODE_TEST_NAMES = new Set([
+	'desktop-parallel-stack-protocol.test.ts',
+	// Chromium startup can abort under the shared batch's process/memory pressure.
+	'desktop-nightly-tests-progress-archive.test.ts',
+]);
 
 export function listNodeTestFiles(repositoryRoot) {
 	const testDirectory = resolve(repositoryRoot, 'tests');
