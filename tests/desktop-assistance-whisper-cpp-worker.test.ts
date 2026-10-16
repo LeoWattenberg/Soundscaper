@@ -467,7 +467,7 @@ test('a GPU CLI without an observed exit is never overlapped by a CPU fallback',
 		starts += 1;
 		const child = new FakeChild();
 		child.kill = () => true;
-		queueMicrotask(() => child.emit('error', new Error('backend failed')));
+		queueMicrotask(() => child.emit('error', Object.assign(new Error('backend failed'), { code: 'ELIBBAD' })));
 		return child;
 	};
 	await assert.rejects(createAssistanceWhisperCppWorkerSpawnerV1({ spawn, terminationGraceMs: 5 })(job, {

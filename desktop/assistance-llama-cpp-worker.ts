@@ -26,6 +26,8 @@ import {
 } from '../src/common/editor/assistance/editorial-generation-v1.ts';
 import {
 	AssistanceNativeCliExecutionError,
+	assistanceNativeCliSpawnErrorV1,
+	assistanceNativeGpuEntrypointV1,
 	createAssistanceNativeGpuExecutorV1,
 } from './assistance-native-gpu-execution.ts';
 
@@ -132,7 +134,7 @@ async function executeLlamaCppEditorial(
 	const stdout = await withInvocationFiles(plan, context.signal, async (files) => await gpu.run(
 		context.signal, async (provider) => await runCli({
 			spawn,
-			executable: context.job.descriptor.entrypoint,
+			executable: assistanceNativeGpuEntrypointV1(context.job.descriptor, provider),
 			args: Object.freeze([
 				'--model', model.path, '--file', files.prompt, '--grammar-file', files.grammar,
 				'--offline', ...(provider === 'cpu'
@@ -243,7 +245,7 @@ async function runCli(options: Readonly<{
 				stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true, shell: false, env: { ...options.env },
 			});
 		} catch (error) {
-			reject(new AssistanceNativeCliExecutionError('The authenticated llama.cpp CLI could not be started.', { cause: error }));
+			reject(assistanceNativeCliSpawnErrorV1('The authenticated llama.cpp CLI could not be started.', error));
 			return;
 		}
 		child = inspectChild(child);
@@ -297,7 +299,7 @@ async function runCli(options: Readonly<{
 			}
 		});
 		child.once('error', (error) => {
-			stop(new AssistanceNativeCliExecutionError('The authenticated llama.cpp CLI failed to execute.', { cause: error }));
+			stop(assistanceNativeCliSpawnErrorV1('The authenticated llama.cpp CLI failed to execute.', error));
 		});
 		child.once('close', (code, processSignal) => {
 			if (settled) return;

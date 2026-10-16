@@ -20,6 +20,8 @@ import {
 import type { VoiceActivitySegment } from './assistance-vad-runtime.ts';
 import {
 	AssistanceNativeCliExecutionError,
+	assistanceNativeCliSpawnErrorV1,
+	assistanceNativeGpuEntrypointV1,
 	createAssistanceNativeGpuExecutorV1,
 	type AssistanceNativeGpuExecutor,
 } from './assistance-native-gpu-execution.ts';
@@ -245,7 +247,7 @@ async function runWhisperCli(
 ): Promise<Uint8Array> {
 	return await gpu.run(context.signal, async (provider) => await runCli({
 		spawn,
-		executable: context.job.descriptor.entrypoint,
+		executable: assistanceNativeGpuEntrypointV1(context.job.descriptor, provider),
 		args: Object.freeze([
 			'--model', modelPath, '--file', audioPath,
 			'--output-json', '--output-file', '-', '--no-prints',
@@ -349,7 +351,7 @@ async function runCli(options: Readonly<{
 				stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true, shell: false,
 			});
 		} catch (error) {
-			reject(new AssistanceNativeCliExecutionError('The authenticated whisper.cpp CLI could not be started.', { cause: error }));
+			reject(assistanceNativeCliSpawnErrorV1('The authenticated whisper.cpp CLI could not be started.', error));
 			return;
 		}
 		child = inspectChild(child);
@@ -421,7 +423,7 @@ async function runCli(options: Readonly<{
 			}
 		});
 		child.once('error', (error) => {
-			stop(new AssistanceNativeCliExecutionError('The authenticated whisper.cpp CLI failed to execute.', { cause: error }));
+			stop(assistanceNativeCliSpawnErrorV1('The authenticated whisper.cpp CLI failed to execute.', error));
 		});
 		child.once('close', (code, processSignal) => {
 			if (settled) return;

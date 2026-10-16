@@ -4,10 +4,27 @@
 
 import type { AssistanceRuntimeFamilyDescriptor } from './assistance-runtime-family-manifest.ts';
 
-export type AssistanceNativeGpuProvider = 'cpu' | 'metal';
+export type AssistanceNativeGpuProvider = 'cpu' | 'metal' | 'vulkan';
 
 export class AssistanceNativeCliExecutionError extends Error {
 	readonly name = 'AssistanceNativeCliExecutionError';
+}
+
+/** Only missing or incompatible OS loaders classify spawn failures as retryable. */
+export function assistanceNativeCliSpawnErrorV1(message: string, cause: unknown): Error {
+	const code = cause !== null && typeof cause === 'object' && 'code' in cause ? cause.code : undefined;
+	return code === 'ENOENT' || code === 'ELIBBAD'
+		? new AssistanceNativeCliExecutionError(message, { cause }) : new Error(message, { cause });
+}
+
+export function assistanceNativeGpuEntrypointV1(
+	descriptor: AssistanceRuntimeFamilyDescriptor,
+	provider: AssistanceNativeGpuProvider,
+): string {
+	if (provider !== 'vulkan') return descriptor.entrypoint;
+	const entrypoint = descriptor.accelerationEntrypoints?.vulkan;
+	if (!entrypoint) throw new TypeError('The authenticated Vulkan runtime has no companion entrypoint.');
+	return entrypoint;
 }
 
 export interface AssistanceNativeGpuExecutor {
@@ -20,8 +37,8 @@ export interface AssistanceNativeGpuExecutor {
 export function createAssistanceNativeGpuExecutorV1(
 	descriptor: AssistanceRuntimeFamilyDescriptor,
 ): AssistanceNativeGpuExecutor {
-	let provider: AssistanceNativeGpuProvider = descriptor.executionProviders?.includes('metal')
-		? 'metal' : 'cpu';
+	let provider: AssistanceNativeGpuProvider = descriptor.executionProviders?.includes('vulkan')
+		? 'vulkan' : descriptor.executionProviders?.includes('metal') ? 'metal' : 'cpu';
 	return Object.freeze({
 		async run<T>(
 			signal: AbortSignal | undefined,
