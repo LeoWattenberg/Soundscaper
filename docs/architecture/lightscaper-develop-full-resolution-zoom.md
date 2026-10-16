@@ -28,7 +28,8 @@ The Current editor's [native proxy owner](lightscaper-native-proxy.md) retains
 word/float sample precision while reducing the Original before adjustments.
 Its native proxy profile permits 64 MiB of source and 128 MiB of natural render
 storage at the same pixel/side limits. Proxy spatial and repair operations use
-the proxy grid with the unchanged saved recipe; full inspection stays exact.
+the proxy grid with the unchanged saved recipe; Full inspection uses the
+natural-resolution grid.
 Current native Full processing admits 8192 pixels per side, 16,777,216 pixels
 and 256 MiB per source or rendered plane, subject to its separate 768-MiB
 aggregate processing budget.
@@ -44,7 +45,11 @@ it creates no settings, history, snapshot, version, metadata or original
 write, and reopening starts with the fit-screen proxy.
 
 Current Settings → Preview rendering can temporarily prefer GPU for admitted
-native identity, white-balance and tone-ladder stacks in either resolution.
+native white balance, tone, chroma, black-and-white mix, HSL, point/parametric
+curves and wheels in either resolution. Their recorded local software-GPU
+corpus passed. Native readback must pass its streamed CPU
+conformance check before delivery; an unchanged identity-curve channel can
+legitimately select the complete CPU route on a small rounding difference.
 CPU remains the default, unsupported complete stacks use CPU, and the renderer
 preference resets on reopening. The choice does not change saved settings,
 history, exports or Original custody. Complete GPU stack coverage and native

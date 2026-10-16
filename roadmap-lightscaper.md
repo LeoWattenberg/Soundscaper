@@ -930,9 +930,8 @@ there.
   English/German Chromium/Firefox workflows qualify actual camera pixels,
   cache reuse, culling saves, native Develop and reload. The Lightscaper build
   retains 53 ready-graph requests and six initial requests within existing
-  ceilings. Broader camera coverage,
-  wide-gamut/soft-proof output, GPU/native execution,
-  lens/camera profiles, HDR merge, L8 and L9 remain unfinished. Current native
+  ceilings. Broader camera coverage, complete GPU/native execution, reviewed
+  lens/camera profiles, L8 and L9 remain unfinished. Current native
   Develop and raster export qualification is recorded above; remaining L3–L6
   exit gates and L7 completion remain open.
   A separate [RAW recovery decoder foundation](docs/architecture/lightscaper-raw-recovery.md)
@@ -960,16 +959,24 @@ there.
   product qualification remains in progress; this
   does not close the full L7 exit gate.
 - **Web Enhanced — In progress:** [opt-in GPU Develop preview](docs/architecture/lightscaper-develop-gpu-preview.md)
-  starts with native Float32 white balance and the complete tone ladder through
-  Develop's existing Settings menu. CPU remains the default; GPU preferred is
-  temporary proxy/Full presentation policy. Unsupported families, capabilities,
-  numeric profiles and working sets retain the entire CPU recipe. Native
-  readback comparisons qualify a finite corpus, with the CPU path as oracle;
-  other color families, LUTs, geometry, spatial/optical stages, masks and true
-  Clone/Heal GPU execution remain unfinished. A digest-pinned Chromium
-  software-GPU baseline now gates Quality and Desktop Preview through required
-  coverage dependencies; its actual local native/UI project passes. Hosted CI
-  execution and the complete-stack conformance exit gate remain open.
+  wires all eight native color families through Develop's existing Settings
+  menu: white balance, the full tone ladder, chroma, black-and-white mix, HSL,
+  point/parametric curves and wheels. Their recorded local software-GPU corpus
+  passed. CPU remains the default; GPU preferred is temporary proxy/Full presentation
+  policy. Every GPU delivery is checked against the normative CPU scalar with
+  per-stage Float32 rounding: alpha, zeros, tiny samples below `2^-60` and final
+  unchanged components remain exact; other finite normal RGB permits at most
+  eight ULPs. Identity-knot rounding can legitimately select the complete CPU
+  route. Numerical, capability or capacity refusal retains the whole CPU
+  recipe. This correctness check also costs CPU work and makes no acceleration
+  claim. Verified LUTs, geometry/optics, spatial stages, complete masks/brush
+  and true Clone/Heal GPU execution remain unfinished, alongside combined
+  conformance and the L7/L8/L9 exit gates. The configured digest-pinned Chromium
+  software-GPU baseline retains its Quality/Desktop Preview coverage
+  dependencies; local native/menu color qualification passed all 30 cases,
+  including four coverage-enabled English/German workflows and exact CPU
+  fallback for the RAW corpus when its native GPU precision check refuses.
+  Hosted CI success and final inter-slice QA are not claimed.
 - **Electron Enhanced — Planned:** native raw decode and preview services
   through the milestone-5 helper architecture, fail-closed, with the WASM
   path as fallback.

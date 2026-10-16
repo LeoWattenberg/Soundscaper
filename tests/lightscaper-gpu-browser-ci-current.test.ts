@@ -12,7 +12,8 @@ const ROOT = new URL('../', import.meta.url);
 const CONFIG = 'playwright.lightscaper-gpu.config.mjs';
 const PROJECT = 'lightscaper-software-gpu';
 const JOB = 'browser-lightscaper-gpu';
-const SPECS = ['lightscaper-native-gpu-current.spec.js', 'lightscaper-develop-gpu-preview-current.spec.js'];
+const SPECS = ['lightscaper-native-gpu-current.spec.js', 'lightscaper-develop-gpu-preview-current.spec.js',
+	'lightscaper-native-gpu-colors-current.spec.js', 'lightscaper-develop-gpu-colors-current.spec.js'];
 const IMAGE = 'mcr.microsoft.com/playwright:v1.62.1-noble@sha256:dcc5531e97840b9b5e794f2814476b21571c5124a3fca2267d73041f56e7580e';
 const ACTIONS = new Map([
 	['actions/checkout', 'de0fac2e4500dabe0009e67214ff5f5447ce83dd'],
@@ -22,7 +23,7 @@ const ACTIONS = new Map([
 	['actions/upload-artifact', '043fb46d1a93c77aae656e7c1c64a875d1fc6a0a'],
 ]);
 
-test('Lightscaper software GPU project owns exactly the two native conformance specs and one verified photo server', async () => {
+test('Lightscaper software GPU project owns exactly the global and complete color conformance specs and one verified photo server', async () => {
 	const previous = { port: process.env.PLAYWRIGHT_LIGHTSCAPER_PORT, origins: process.env.SCAPE_PLAYWRIGHT_PRODUCT_ORIGINS };
 	process.env.PLAYWRIGHT_LIGHTSCAPER_PORT = '4380';
 	try {
@@ -154,8 +155,9 @@ for (const spec of SPECS) test(`${spec} admits pinned software Chromium and real
 		assert.equal(infoReads, 1);
 	}
 	assert.ok(source.includes("toContain('SwiftShader')"), 'actual native software renderer identity remains asserted');
-	assert.ok(source.includes("browserName === 'chromium'"), 'the qualified Chromium path may not silently accept capability fallback');
-	if (spec === 'lightscaper-native-gpu-current.spec.js') {
+	assert.ok(source.includes("browserName === 'chromium'") || /if \(positive\) expect\(value\.backend(?:, deliveryDiagnostic\(value\))?\)\.toBe\('webgl2'\)/u.test(source),
+		'the qualified Chromium path must demand actual GPU execution for its positive corpus');
+	if (spec.startsWith('lightscaper-native-gpu')) {
 		assert.ok(source.includes('browserCoverage: false'), 'the lower native cancellation corpus retains its timing-sensitive opt-out');
 	} else assert.doesNotMatch(source, /browserCoverage\s*:/u, 'the interactive UI workflow uses default Chromium coverage');
 });

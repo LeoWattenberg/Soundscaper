@@ -448,7 +448,7 @@ jobs:
           import { verifyBrowserProductSite } from './scripts/lib/browser-product-test-sites.mjs';
           await verifyBrowserProductSite(browserProductSiteForBuild('lightscaper'));"
 
-      - name: Run the two Lightscaper software GPU browser specs
+      - name: Run the four Lightscaper software GPU browser specs
         run: npx playwright test --config=playwright.lightscaper-gpu.config.mjs --project=lightscaper-software-gpu --workers=1
         env:
           SCAPE_BROWSER_COVERAGE: '1'

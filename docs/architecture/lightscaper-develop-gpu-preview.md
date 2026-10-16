@@ -7,10 +7,12 @@ without changing recipes, history, presets, exported files or Original custody.
 Canonical Before keeps its existing source and presentation route. Save does
 not turn the preview renderer into a processing setting.
 
-The first native GPU implementation evaluates white balance and the complete
-tone ladder. Tone includes exposure, contrast, highlights, shadows, whites and
-blacks in authored order. This is an initial GPU execution packet; the complete
-Photo Develop GPU stack remains unfinished.
+The native GPU path implements all eight Current color families: white balance,
+the full tone ladder, chroma, black-and-white mix, HSL, point curves, parametric
+curves and color wheels. Tone includes exposure, contrast, highlights, shadows,
+whites and blacks. Each authored effect retains its order and Float32 stage
+store. The recorded local software-GPU corpus qualifies these color paths and
+their truthful fallback. The complete Photo Develop GPU stack remains unfinished.
 
 ## Shared execution and fallback
 
@@ -19,9 +21,9 @@ mask overlay, resource authorities, geometry and processing limits before source
 samples. The broker uses the existing native CPU engine as its whole-recipe
 fallback. An unfinished stage never disappears from a GPU result.
 
-At present, active geometry, other color families, LUTs, spatial and optical
-effects, local masks, repairs or a selected mask overlay select the complete
-CPU render. Encoded byte sources also retain their existing CPU process and
+At present, active geometry, LUTs, spatial and optical effects, local masks,
+repairs or a selected mask overlay select the complete CPU render.
+Encoded byte sources also retain their existing CPU process and
 per-stage byte quantization. They are not implicitly promoted into the native
 Float32 process to obtain GPU execution.
 
@@ -49,10 +51,16 @@ same-format native proxy grid, then evaluates the unchanged recipe on that grid.
 
 The optional context owner uses two RGBA32F textures with nearest sampling and
 integer `texelFetch`. Each authored operation writes a Float32 stage. White
-balance multiplies native RGB gains. Tone uses the stable affine contrast form
-and clamps only its regional smooth weights. Working RGB has no byte table,
-transfer encoding or gamut clip; straight alpha passes through unchanged.
-Final display, proofing and histogram generation retain their existing owners.
+balance, tone and wheels operate in native linear RGB. Tone uses the stable
+affine contrast form and clamps only its regional smooth weights; wheels use
+signed lift, gain and gamma. Chroma, black-and-white, HSL and curves use
+continuous sign-symmetric extended-sRGB coordinates and return to linear RGB
+without a byte lookup or encoded working plane. Curves share the CPU's authored
+knots and parametric Q16 gain definition; master and channel compose before the
+stage store. Distinct curve knots that collapse in Float32 uniforms or nonfinite
+uniform slopes select CPU. Straight alpha remains exact, and hidden RGB retains
+the CPU process's semantics. Final display, proofing and histogram generation
+retain their existing owners.
 
 Extension names alone do not grant support. A native upload/render/readback
 probe checks signed/HDR values, negative zero, small normal samples, subnormal
@@ -60,13 +68,24 @@ copy/arithmetic and alpha. The admitted pass identities retain a private link
 to the existing CPU scalar, allowing numeric admission to consult that
 normative operation without duplicating its formulas.
 
+Before consumer delivery, a bounded streaming check evaluates the existing
+normative CPU scalar and rounds once per authored effect. Alpha, signed zeros,
+expected RGB magnitudes below `2^-60` and final unchanged native components must
+match exactly. Other finite normal results permit at most eight Float32 ULPs;
+no absolute epsilon can erase a signal. A mismatch retires GPU resources before
+the complete CPU fallback. The check allocates no expected-result image plane.
+It currently also evaluates CPU color work, so this packet makes no speed claim.
+
 Some tested drivers flush subnormal arithmetic. Affected source or intermediate
-profiles take the CPU path; an absolute-error allowance does not erase their
-signal. Nonlinear near-zero and ill-conditioned cancellation profiles also
-fall back conservatively. The contrast-pivot witness at Float32(.135) and
-contrast 100 retains a nonzero CPU result of approximately 2.1457672e-8; returning
-GPU zero is not accepted as equivalent. These guards do not constitute a
-universal GPU accuracy proof over every finite control and sample.
+profiles take the CPU path. Nonlinear near-zero and ill-conditioned cancellation
+profiles also fall back conservatively. The contrast-pivot witness at
+Float32(.135) and contrast 100 retains a nonzero CPU result of approximately
+2.1457672e-8; returning GPU zero is not accepted as equivalent. Float32 rounding
+of derived identity-curve knots can also drift an otherwise unchanged native
+channel. Even a two-ULP difference then selects CPU: the eight-ULP allowance
+does not apply to an unchanged component. Readback is never patched with CPU
+samples to manufacture conformance. This result contract is not a universal
+shader-accuracy or capability claim over every finite control and sample.
 
 ## Working set and retirement
 
@@ -79,6 +98,12 @@ live native working set. Histogram and display conversions can run sequentially;
 this is a conservative reserve, not a claim that both byte planes remain live
 together. It charges 4 bytes per output pixel plus 4 bytes per fitted pixel,
 with the fitted allowance capped at 4,194,304 pixels.
+
+Active extended color passes also reserve 4096 bytes for bounded uniform
+staging. One reusable Float32 bank holds the band controls and curve points;
+the streamed scalar comparison introduces no additional image plane or
+pixel-bearing rank scratch. Capability probing retains its separate fixed
+reserve.
 
 GPU and CPU fallback have separate phase plans. Proxy admission chooses once
 using the actual physical Original backing before allocating its private proxy.
@@ -105,9 +130,12 @@ of driver-private GPU memory; a lost context cannot accept overwrite commands.
 Focused tests cover native uniform authority, complete metadata admission,
 immutable source capture, whole CPU parity for mixed recipes, projected mask
 coverage, resource failures, cancellation and joined cleanup. Native browser
-tests compare actual RGBA32F readback with independent WB/tone literals and the
-CPU oracle for the recorded finite corpus. Byte-preview tolerances are not
-reused as a native Float32 precision contract.
+qualification compares actual RGBA32F readback with independent color literals
+and the CPU oracle, including per-family positive GPU cases and deliberate
+whole-CPU numerical refusals. Every family and the authored mixed stack require
+accepted GPU delivery for their positive corpus. Byte-preview tolerances are
+not reused as its native Float32
+precision contract.
 
 The dedicated [software-GPU configuration](../../playwright.lightscaper-gpu.config.mjs)
 runs the native Float32 corpus and English/German Photo menu workflows through
@@ -122,19 +150,23 @@ The English/German software-GPU UI workflows collect built-site coverage.
 Both jobs require compaction and upload of the distinct
 `coverage-shard-browser-chromium-lightscaper-gpu` artifact into the existing
 coverage union. Lower-level realtime cases retain their explicit coverage
-opt-out. Local coverage-enabled UI qualification records actual Float32
-readback and execution of all four new GPU owners; it does not establish a
-hosted CI result or a coverage-floor pass, and no local floor tightening is
-claimed.
+opt-out. Local qualification passed all 30 software-GPU cases, including four
+coverage-enabled English/German menu workflows. Compaction retained 114 scripts
+and maps with exact pins for nine GPU source owners. The all-color RAW workflow
+also qualifies its authentic samples through the real broker: a precision
+refusal requires exact whole-CPU native output and exact CPU pixels in the UI.
+Observed GL work alone does not prove accepted GPU delivery. These results do
+not establish a hosted CI result or a coverage-floor pass; no local floor
+tightening is claimed.
 
-The actual local software-GPU project has passed. Hosted CI execution remains
-pending; the configured gate is not a report of a hosted success. This baseline
-qualifies the recorded WB/tone subset and its truthful fallback behavior.
-Full native color/curves/wheels, verified LUTs, geometry, all spatial and optical
-families, complete mask graphs and overlay projection, Original-space Clone
-and genuine screened-Poisson Heal still need GPU implementations and combined
-conformance. Until each is qualified, its recipe keeps the complete CPU route.
-Full-stack GPU parity and the broader L7 exit gates remain open.
+The recorded local color software-GPU corpus passed. Hosted CI execution remains
+pending; the configured gate
+is not a report of a hosted success. Verified LUTs, geometry, all spatial and
+optical families, complete mask graphs and overlay projection, Original-space
+Clone and genuine screened-Poisson Heal still need GPU implementations and
+combined conformance. Until each is qualified, its recipe keeps the complete
+CPU route. Full-stack GPU parity, native desktop services, the broader L7/L8/L9
+exit gates and final inter-slice QA remain open.
 
 This work changes no assistance engine or native decoder runtime closure.
 No manual **Update AI assets** run is required.

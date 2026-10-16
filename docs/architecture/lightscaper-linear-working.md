@@ -72,14 +72,20 @@ closed metadata admission.
 
 Those methods remain the default and export renderers. The additive Current
 `withGpuPreview` method is selected only by the temporary Develop Settings
-preview preference. Its first admitted GPU subset is identity, white balance
-and the full tone ladder on native linear word/Float32 sources. A stack needing
-another family, masks or repairs takes the entire existing CPU route, as do
-unsupported GPU numeric, capability or working-set profiles. Stages are never
-silently omitted. GPU stages store linear RGBA32F and return scoped Float32
-readback. Canonical Before and the final display, proof and histogram boundaries
-retain their existing policies. This is partial GPU coverage; broader native
-conformance and pinned CI parity remain open.
+preview preference. Its native linear word/Float32 color paths include white
+balance, the full tone ladder, chroma, black-and-white mix, HSL, point/parametric
+curves and wheels. The recorded local software-GPU corpus qualifies these paths
+and their numerical fallback. A stack needing LUTs, geometry/optics, spatial
+stages, masks or repairs
+takes the entire existing CPU route, as do unsupported GPU numeric, capability
+or working-set profiles. Stages are never silently omitted. GPU stages store
+linear RGBA32F and return scoped Float32 readback checked against the normative
+CPU scalar before delivery. Exact unchanged-component rules can select CPU
+even when a rounded identity curve differs by only a few ULPs. This streaming
+check also costs CPU work and makes no speed claim. Canonical Before and the
+final display, proof and histogram boundaries retain their existing policies.
+Complete GPU stack coverage, broader native conformance and hosted CI parity
+remain open.
 
 The shared execution order is:
 

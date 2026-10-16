@@ -55,7 +55,9 @@ claim or a bound for decoder/browser-native storage.
 GPU preference admits its complete preferred phase beside the full physical
 Original backing: native proxy input, private Float32 capture, two RGBA32F
 targets, Float32 readback and the existing full/fitted presentation allowance.
-Capability probing has a separate fixed reserve. If that phase cannot fit but
+Active extended color passes add a 4096-byte uniform-staging reserve; streamed
+CPU conformance checking allocates no expected-result image plane. Capability
+probing has a separate fixed reserve. If that phase cannot fit but
 the entire CPU phase can, the same admitted source and one proxy capture select
 CPU before GL allocation. If neither fits, the request refuses. No fallback
 reopens the Original.
