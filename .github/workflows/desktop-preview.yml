@@ -70,26 +70,21 @@ jobs:
         run: npm ci
 
       - name: Run the canonical quality checks that are not the Node test suite
-        # The Node suite runs in the per-product `tests` shards below, and the
-        # thresholds it feeds are enforced once over their union in `coverage`.
+        # The Node suite runs in the per-product `tests` shards below. Browser
+        # testing and combined coverage enforcement belong to quality.yml.
         run: npm run check:static
         env:
           # Type-aware linting of the whole tree exhausts the default old-space
           # limit and dies with "Ineffective mark-compacts near heap limit"
           # before it reports a single rule. The ubuntu-24.04 runner has 16 GiB.
           NODE_OPTIONS: --max-old-space-size=8192
-          # Hidden maps beside `dist/`, as in quality.yml, so the Chromium browser
-          # shards below can record coverage of the built site for `coverage`.
-          SCAPE_BUILD_SOURCE_MAPS: '1'
 
       - name: Measure the built transfer documents against the build just made
         # The same step quality.yml runs in its `build` job, for the same
         # reason. This job does what that whole gate does, in one runner rather
         # than sharded across several - nothing waits on it in a hurry, and the
-        # release scope resolved above has to be an output of it - and it ends by
-        # publishing `verified-site-build`, so a build it uploads without this
-        # step is a build nothing measured, sitting under the artifact name that
-        # says otherwise. The `tests` shards below never build, and the
+        # release scope resolved above has to be an output of it.
+        # The `tests` shards below never build, and the
         # three assertions in this file that read `dist/` are the only ones that
         # can see the chunk-graph edge no source-level model declares: rolldown
         # injects `vite/preload-helper` into the transfer chunk for its dynamic
@@ -100,56 +95,6 @@ jobs:
         env:
           SOUNDSCAPER_TRANSFER_BUILD_REQUIRED: '1'
 
-      - name: Build and verify the Framescaper browser site
-        run: npm run build:browser:framescaper
-
-      - name: Record the checked Soundscaper handbook
-        run: node scripts/ci-handbook-build.mjs record
-
-      - name: Upload the checked Soundscaper handbook
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: checked-soundscaper-handbook-${{ github.sha }}
-          path: |
-            handbook/dist/
-            handbook/.ci-build.json
-          include-hidden-files: true
-          if-no-files-found: error
-          retention-days: 1
-
-      - name: Upload the verified website build
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: verified-site-build
-          path: dist/
-          if-no-files-found: error
-          retention-days: 1
-
-      - name: Upload the verified Framescaper website build
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: verified-framescaper-site-build
-          path: .wrangler/browser-products/framescaper/
-          include-hidden-files: true
-          if-no-files-found: error
-          retention-days: 1
-
-      - name: Upload the website build's source maps
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: verified-site-source-maps
-          path: dist-source-maps/
-          if-no-files-found: error
-          retention-days: 1
-
-      - name: Upload the Framescaper website build's source maps
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: verified-framescaper-site-source-maps
-          path: .wrangler/browser-products/framescaper-source-maps/
-          if-no-files-found: error
-          retention-days: 1
-
       - name: Prepare one fresh desktop test runtime for the common shards
         uses: ./.github/actions/prepare-desktop-runtime-test-fixture
 
@@ -159,12 +104,8 @@ jobs:
     strategy:
       fail-fast: false
       # Product ownership separates Framescaper and Soundscaper tests; the
-      # shared tests run in two stable filename-hash partitions. The coverage
-      # job checks the union after all four shards upload their profiles.
-      #
-      # These wait on `quality` on purpose. The browser jobs are the pipeline's
-      # long pole either way, so the shards lose nothing by starting after lint
-      # and typecheck, and a red lint does not burn the test runners.
+      # shared tests run in two stable filename-hash partitions. Wait for lint
+      # and typecheck so a static-check failure does not burn the test runners.
       matrix:
         shard: [common-1, common-2, framescaper, soundscaper]
     runs-on: ubuntu-24.04
@@ -245,315 +186,15 @@ jobs:
           path: .wrangler/node-desktop-runtime-fixture
 
       - name: Run the ${{ matrix.shard }} Node test shard
-        run: xvfb-run --auto-servernum npm run test:shard -- --shard=${{ matrix.shard }} --require-linux-native --desktop-runtime-fixture=.wrangler/node-desktop-runtime-fixture
+        run: xvfb-run --auto-servernum npm run test -- --shard=${{ matrix.shard }} --require-linux-native --desktop-runtime-fixture=.wrangler/node-desktop-runtime-fixture
         env:
-          # The headroom the suite has always run under. Nothing here merges
-          # coverage — the shard only records raw V8 profiles — but a few tests
-          # stage large buffers, and this keeps their limit what it was before the
-          # split. The ubuntu-24.04 runner has 16 GiB, so it leaves plenty for
-          # Electron and xvfb.
+          # A few tests stage large buffers. Keep their existing heap headroom;
+          # the ubuntu-24.04 runner has 16 GiB, leaving room for Electron and xvfb.
           NODE_OPTIONS: --max-old-space-size=8192
-
-      - name: Compact the shard's raw V8 coverage
-        # Every test file leaves its own profile behind, each carrying a full copy
-        # of the TypeScript source-map cache. Merging them and de-duplicating the
-        # maps turns gigabytes into a single file the coverage job can consume.
-        run: npm run coverage:compact -- coverage/shards/${{ matrix.shard }}.json
-
-      - name: Upload the shard's coverage
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: coverage-shard-${{ matrix.shard }}
-          path: coverage/shards/${{ matrix.shard }}.json
-          if-no-files-found: error
-          retention-days: 1
-
-  coverage:
-    name: Coverage
-    # The Chromium browser shards upload coverage of their own, and the floors
-    # are scored over the union of what the site ran and what the Node shards ran.
-    needs: [tests, browser]
-    runs-on: ubuntu-24.04
-    timeout-minutes: 20
-    steps:
-      - name: Check out source
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        with:
-          persist-credentials: false
-
-      - name: Set up Node.js
-        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
-        with:
-          node-version-file: .nvmrc
-          cache: npm
-
-      - name: Pin npm
-        run: npm install --global npm@12.0.1
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Download every shard's coverage
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-        with:
-          pattern: coverage-shard-*
-          path: coverage/shards
-          merge-multiple: true
-
-      - name: Enforce the coverage thresholds over the union of the shards
-        # V8 records absolute file URLs, so this only merges because every job
-        # checks the repository out at the same path on the same runner image.
-        run: npm run coverage:check
-
-  browser:
-    name: Browser / ${{ matrix.project }} ${{ matrix.shard }}/${{ matrix.project == 'webkit' && 8 || 4 }}
-    needs: quality
-    strategy:
-      fail-fast: false
-      # One WebKit worker avoids competing real-time audio clocks. Eight shards
-      # keep that full suite inside the hour budget; Chromium keeps four.
-      matrix:
-        project: [chromium, webkit]
-        shard: [1, 2, 3, 4, 5, 6, 7, 8]
-        exclude:
-          - project: chromium
-            shard: 5
-          - project: chromium
-            shard: 6
-          - project: chromium
-            shard: 7
-          - project: chromium
-            shard: 8
-    runs-on: ubuntu-24.04
-    container:
-      image: mcr.microsoft.com/playwright:v1.62.1-noble@sha256:dcc5531e97840b9b5e794f2814476b21571c5124a3fca2267d73041f56e7580e
-      options: --user 1001
-    timeout-minutes: 60
-    steps:
-      - name: Check out source
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        with:
-          persist-credentials: false
-
-      - name: Set up Node.js
-        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
-        with:
-          node-version-file: .nvmrc
-          cache: npm
-
-      - name: Pin npm
-        run: |
-          npm install --global --prefix "$HOME/.local" npm@12.0.1
-          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
-
-      - name: Restore or install verified dependencies
-        uses: ./.github/actions/verified-node-dependencies
-        with:
-          scope: mcr.microsoft.com/playwright:v1.62.1-noble@sha256:dcc5531e97840b9b5e794f2814476b21571c5124a3fca2267d73041f56e7580e
-
-      - name: Set up the interchange reference Python
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
-        with:
-          python-version: '3.12'
-
-      - name: Resolve the interchange download cache identity
-        id: interchange-cache-key
-        run: node scripts/provision-interchange-conformance.mjs --cache-key >> "$GITHUB_OUTPUT"
-
-      - name: Restore verified interchange download inputs
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: .wrangler/test-download-cache/interchange
-          key: >-
-            interchange-downloads-v1-${{ runner.os }}-${{ runner.arch }}-${{ steps.interchange-cache-key.outputs.key }}-${{ hashFiles('scripts/provision-interchange-conformance.mjs', 'scripts/lib/interchange-download-cache.mjs') }}
-
-      - name: Provision interchange conformance readers
-        run: npm run provision:interchange-conformance
-
-      - name: Download the verified website build
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-        with:
-          name: verified-site-build
-          path: dist
-
-      - name: Download the verified Framescaper website build
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-        with:
-          name: verified-framescaper-site-build
-          path: .wrangler/browser-products/framescaper
-
-      # Beside each site rather than inside it, as in quality.yml: every browser
-      # verifies the source-map evidence before serving the digest-verified site.
-      - name: Download the website build's source maps
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-        with:
-          name: verified-site-source-maps
-          path: .wrangler/browser-products/soundscaper-source-maps
-
-      - name: Download the Framescaper website build's source maps
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-        with:
-          name: verified-framescaper-site-source-maps
-          path: .wrangler/browser-products/framescaper-source-maps
-
-      - name: Run browser workflows against the existing build
-        run: npm run test:browser:built -- --project=${{ matrix.project }} --shard=${{ matrix.shard }}/${{ matrix.project == 'webkit' && 8 || 4 }} --workers=${{ matrix.project == 'webkit' && 1 || 2 }}
-        env:
-          # Chromium is the only engine whose V8 coverage Playwright can read, so
-          # it is the only one that records; the floors in config/coverage-gates.json
-          # are set from the union that includes these runs.
-          SCAPE_BROWSER_COVERAGE: ${{ matrix.project == 'chromium' && '1' || '' }}
-
-      - name: Run the reciprocal-origin editable-copy workflow
-        if: matrix.project == 'chromium' && matrix.shard == 1
-        run: npm run test:browser:dual-origin
-
-      - name: Download the checked Soundscaper handbook
-        if: matrix.project == 'chromium' && matrix.shard == 1
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-        with:
-          name: checked-soundscaper-handbook-${{ github.sha }}
-          path: handbook
-
-      - name: Run handbook browser workflows
-        # Both desktop and mobile projects use the already checked handbook.
-        if: matrix.project == 'chromium' && matrix.shard == 1
-        run: |
-          node scripts/ci-handbook-build.mjs verify
-          npx playwright test --config playwright.docs.config.mjs
-
-      - name: Compact the shard's browser coverage
-        if: matrix.project == 'chromium'
-        run: npm run coverage:compact:browser -- coverage/shards/browser-chromium-${{ matrix.shard }}.json
-
-      - name: Upload the shard's browser coverage
-        if: matrix.project == 'chromium'
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: coverage-shard-browser-chromium-${{ matrix.shard }}
-          path: coverage/shards/browser-chromium-${{ matrix.shard }}.json
-          if-no-files-found: error
-          retention-days: 1
-
-      - name: Upload browser diagnostics
-        if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: browser-diagnostics-${{ matrix.project }}-${{ matrix.shard }}
-          path: |
-            playwright-report/
-            test-results/
-          if-no-files-found: ignore
-          retention-days: 7
-
-  firefox:
-    name: Browser / firefox ${{ matrix.shard }}/6
-    needs: quality
-    strategy:
-      fail-fast: false
-      # Six single-worker shards keep the expanded suite within its hour budget.
-      matrix:
-        shard: [1, 2, 3, 4, 5, 6]
-    runs-on: ubuntu-24.04
-    timeout-minutes: 60
-    steps:
-      - name: Check out source
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        with:
-          persist-credentials: false
-
-      - name: Set up Node.js
-        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
-        with:
-          node-version-file: .nvmrc
-          cache: npm
-
-      - name: Pin npm
-        run: npm install --global npm@12.0.1
-
-      - name: Restore or install verified dependencies
-        uses: ./.github/actions/verified-node-dependencies
-        with:
-          scope: ubuntu-24.04
-
-      - name: Restore or install verified Playwright Firefox
-        uses: ./.github/actions/verified-firefox
-        with:
-          scope: ubuntu-24.04
-
-      - name: Install PulseAudio
-        timeout-minutes: 10
-        run: bash scripts/ci-apt-install.sh pulseaudio pulseaudio-utils
-
-      - name: Configure the Firefox PulseAudio null sink and source
-        run: bash scripts/ci-firefox-pulseaudio.sh
-
-      - name: Require a live Firefox AudioContext clock
-        run: node scripts/ci-firefox-audio-clock.mjs
-
-      - name: Set up the interchange reference Python
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
-        with:
-          python-version: '3.12'
-
-      - name: Resolve the interchange download cache identity
-        id: interchange-cache-key
-        run: node scripts/provision-interchange-conformance.mjs --cache-key >> "$GITHUB_OUTPUT"
-
-      - name: Restore verified interchange download inputs
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: .wrangler/test-download-cache/interchange
-          key: >-
-            interchange-downloads-v1-${{ runner.os }}-${{ runner.arch }}-${{ steps.interchange-cache-key.outputs.key }}-${{ hashFiles('scripts/provision-interchange-conformance.mjs', 'scripts/lib/interchange-download-cache.mjs') }}
-
-      - name: Provision interchange conformance readers
-        run: npm run provision:interchange-conformance
-
-      - name: Download the verified website build
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-        with:
-          name: verified-site-build
-          path: dist
-
-      - name: Download the verified Framescaper website build
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-        with:
-          name: verified-framescaper-site-build
-          path: .wrangler/browser-products/framescaper
-
-      - name: Download the website build's source maps
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-        with:
-          name: verified-site-source-maps
-          path: .wrangler/browser-products/soundscaper-source-maps
-
-      - name: Download the Framescaper website build's source maps
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-        with:
-          name: verified-framescaper-site-source-maps
-          path: .wrangler/browser-products/framescaper-source-maps
-
-      - name: Run Firefox workflows against the existing build
-        # A second Firefox content process can starve the live AudioContext even
-        # after the PulseAudio clock probe passes. The six shard runners still
-        # keep the suite parallel without competing for one runner's audio clock.
-        run: npm run test:browser:built -- --project=firefox --shard=${{ matrix.shard }}/6 --workers=1
-
-      - name: Upload Firefox diagnostics
-        if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: browser-diagnostics-firefox-${{ matrix.shard }}
-          path: |
-            playwright-report/
-            test-results/
-          if-no-files-found: ignore
-          retention-days: 7
 
   publish-assistance-runtime-handoff:
     name: Publish AI runtimes / ${{ matrix.target.platform }} / ${{ matrix.target.arch }}
-    needs: [quality, tests, coverage, browser, firefox]
+    needs: [quality, tests]
     timeout-minutes: 90
     strategy:
       fail-fast: false
@@ -746,7 +387,7 @@ jobs:
 
   package:
     name: Package ${{ matrix.product }} / ${{ matrix.target.platform }} / ${{ matrix.target.arch }}
-    needs: [quality, tests, coverage, browser, firefox, publish-assistance-runtime-handoff, professional-native-build, milestone-5-native-audit-source]
+    needs: [quality, tests, publish-assistance-runtime-handoff, professional-native-build, milestone-5-native-audit-source]
     timeout-minutes: 60
     strategy:
       fail-fast: false
@@ -1271,7 +912,7 @@ jobs:
 
   soundscaper-project-library-lease-matrix:
     name: Soundscaper v1 + Framescaper v1 packaged lease matrix / ${{ matrix.target.platform }} / ${{ matrix.target.arch }}
-    needs: [quality, tests, coverage, browser, firefox]
+    needs: [quality, tests]
     runs-on: ${{ matrix.target.runner }}
     timeout-minutes: 90
     strategy:

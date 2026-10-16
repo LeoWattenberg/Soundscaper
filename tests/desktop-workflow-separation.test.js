@@ -19,34 +19,30 @@ test('desktop preview restores Electron before the native protocol test shard', 
 	const tests = extractJob(await readWorkflow('desktop-preview.yml'), 'tests');
 	assert.match(tests, /if: matrix\.shard == 'common-2'\s+run: \|\s+if \[ ! -x node_modules\/electron\/dist\/electron \]; then\s+node node_modules\/electron\/install\.js\s+fi\s+test -x node_modules\/electron\/dist\/electron/u);
 	assert.ok(tests.indexOf('node node_modules/electron/install.js')
-		< tests.indexOf('run: xvfb-run --auto-servernum npm run test:shard'));
+		< tests.indexOf('run: xvfb-run --auto-servernum npm run test --'));
 });
 
-test('desktop preview keeps browser partitions and job budgets aligned with the Quality gate', async () => {
+test('desktop preview leaves browser testing and combined coverage to Quality', async () => {
 	const [preview, quality] = await Promise.all([
 		readWorkflow('desktop-preview.yml'), readWorkflow('quality.yml'),
 	]);
-	for (const jobName of ['browser', 'firefox']) {
-		const canonical = extractJob(quality, jobName);
-		const desktop = extractJob(preview, jobName);
-		const shards = /shard: \[([\d, ]+)\]/u.exec(canonical)?.[1];
-		assert.ok(shards, `${jobName} defines its Quality partitions`);
-		const shardTotal = jobName === 'browser'
-			? "${{ matrix.project == 'webkit' && 8 || 4 }}"
-			: String(shards.split(',').length);
-		assert.equal(/shard: \[([\d, ]+)\]/u.exec(desktop)?.[1], shards,
-			`${jobName} must use the same partitions to stay within the job timeout`);
-		const label = /^\s+name:\s+([^\n]+)/mu.exec(desktop)?.[1];
-		assert.equal(label, /^\s+name:\s+([^\n]+)/mu.exec(canonical)?.[1],
-			`${jobName} labels the same engine partitions as Quality`);
-		assert.ok(label?.endsWith(`\${{ matrix.shard }}/${shardTotal}`),
-			`${jobName} labels the complete partition count`);
-		assert.ok(desktop.includes(`--shard=\${{ matrix.shard }}/${shardTotal}`),
-			`${jobName} runs every partition using the declared total`);
-		const canonicalTimeout = /^ {4}timeout-minutes: (\d+)$/mu.exec(canonical)?.[1];
-		assert.ok(canonicalTimeout, `${jobName} defines its Quality job budget`);
-		assert.equal(/^ {4}timeout-minutes: (\d+)$/mu.exec(desktop)?.[1], canonicalTimeout,
-			`${jobName} must allow the same measured workloads as Quality`);
+	for (const jobName of ['browser', 'firefox', 'coverage']) {
+		assert.ok(extractJob(quality, jobName).length > 0, `${jobName} remains in Quality`);
+		assert.doesNotMatch(preview, new RegExp(`^  ${jobName}:`, 'mu'));
+	}
+	assert.doesNotMatch(preview, /test:browser|playwright|verified-firefox|SCAPE_BUILD_SOURCE_MAPS/u);
+	assert.doesNotMatch(preview, /coverage:|coverage-shard-|test:shard|verified-(?:framescaper-)?site-|checked-soundscaper-handbook/u);
+	assert.match(extractJob(preview, 'tests'), /npm run test -- --shard=\$\{\{ matrix\.shard \}\} --require-linux-native/u);
+	assert.match(extractJob(quality, 'coverage'), /npm run coverage:check/u);
+
+	const jobs = new Set([...preview.matchAll(/^ {2}([a-z][a-z0-9-]*):$/gmu)].map(match => match[1]));
+	for (const [, dependencies] of preview.matchAll(/^ {4}needs: (.+)$/gmu)) {
+		for (const dependency of dependencies.replaceAll('[', '').replaceAll(']', '').split(/, */u)) {
+			assert.ok(jobs.has(dependency), `missing prerequisite ${dependency}`);
+		}
+	}
+	for (const jobName of ['publish-assistance-runtime-handoff', 'package', 'soundscaper-project-library-lease-matrix']) {
+		assert.match(extractJob(preview, jobName), /needs: \[quality, tests(?:,|\])/u);
 	}
 });
 

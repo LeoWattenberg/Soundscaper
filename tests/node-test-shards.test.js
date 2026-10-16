@@ -208,7 +208,7 @@ for (const workflowName of SHARDED_WORKFLOWS) {
 		);
 		assert.match(
 			job,
-			/npm run test:shard -- --shard=\$\{\{ matrix\.shard \}\} --require-linux-native/u,
+			/npm run test(?::shard)? -- --shard=\$\{\{ matrix\.shard \}\} --require-linux-native/u,
 			`${workflowName} must turn native prerequisite skips into failures`,
 		);
 		const boostProvision = 'node scripts/ci-provision-framescaper-boost.mjs';
@@ -218,7 +218,7 @@ for (const workflowName of SHARDED_WORKFLOWS) {
 			`${workflowName} must provision the pinned Boost closure only for Framescaper`,
 		);
 		assert.ok(
-			job.indexOf(boostProvision) < job.indexOf('npm run test:shard'),
+			job.indexOf(boostProvision) < job.indexOf('npm run test'),
 			`${workflowName} must provision Boost before requiring native tests`,
 		);
 	});
