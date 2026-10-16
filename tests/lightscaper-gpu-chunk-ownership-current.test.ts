@@ -17,7 +17,8 @@ const HOSTS = ['image-develop-gpu-current-v1.ts', 'pixel-frame-webgl2-current-v1
 	'pixel-frame-webgl2-geometry-current-v1.ts', 'pixel-frame-webgl2-pipeline-current-v1.ts', 'pixel-frame-webgl2-optics-current-v1.ts',
 	'pixel-frame-webgl2-spatial-current-v1.ts', 'pixel-frame-webgl2-mask-plan-current-v1.ts',
 	'pixel-frame-webgl2-mask-graph-current-v1.ts', 'pixel-frame-webgl2-mask-node-current-v1.ts',
-	'pixel-frame-webgl2-mask-checkpoint-current-v1.ts', 'pixel-frame-webgl2-mask-context-plan-current-v1.ts', 'image-develop-linear-mask-blend-current-v1.ts'];
+	'pixel-frame-webgl2-mask-checkpoint-current-v1.ts', 'pixel-frame-webgl2-mask-context-plan-current-v1.ts',
+	'pixel-frame-webgl2-mask-overlay-plan-current-v1.ts', 'image-develop-linear-mask-blend-current-v1.ts'];
 const CONTEXT = 'pixel-frame-webgl2-context-current-v1.ts';
 const EXECUTION = [CONTEXT, 'pixel-frame-webgl2-numeric-current-v1.ts', 'pixel-frame-webgl2-chroma-glsl-current-v1.ts',
 	'pixel-frame-webgl2-curves-glsl-current-v1.ts', 'pixel-frame-webgl2-color-glsl-current-v1.ts', 'pixel-frame-webgl2-lut-glsl-current-v1.ts',
@@ -25,7 +26,8 @@ const EXECUTION = [CONTEXT, 'pixel-frame-webgl2-numeric-current-v1.ts', 'pixel-f
 	'pixel-frame-webgl2-spatial-glsl-current-v1.ts', 'pixel-frame-webgl2-spatial-neighborhood-glsl-current-v1.ts', 'pixel-frame-webgl2-spatial-lattice-glsl-current-v1.ts',
 	'pixel-frame-webgl2-mask-node-glsl-current-v1.ts', 'pixel-frame-webgl2-mask-path-glsl-current-v1.ts', 'pixel-frame-webgl2-mask-feather-glsl-current-v1.ts', 'pixel-frame-webgl2-mask-reference-current-v1.ts', 'pixel-frame-webgl2-mask-blend-glsl-current-v1.ts', 'pixel-frame-webgl2-mask-context-current-v1.ts',
 	'pixel-frame-webgl2-mask-context-native-current-v1.ts', 'pixel-frame-webgl2-mask-context-programs-current-v1.ts',
-	'pixel-frame-webgl2-mask-context-execute-current-v1.ts', 'pixel-frame-webgl2-mask-context-probe-current-v1.ts'];
+	'pixel-frame-webgl2-mask-context-execute-current-v1.ts', 'pixel-frame-webgl2-mask-context-probe-current-v1.ts',
+	'pixel-frame-webgl2-mask-overlay-current-v1.ts', 'pixel-frame-webgl2-mask-overlay-glsl-current-v1.ts'];
 function source(path: string): string { return transformSync(readFileSync(path, 'utf8'), { loader: 'ts', format: 'esm' }).code; }
 function exactOwner(name: string, expected: string): void {
 	for (const path of [IMAGING + name, (IMAGING + name).replaceAll('/', '\\')]) {

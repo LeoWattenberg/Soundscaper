@@ -42,6 +42,22 @@ Encoded byte sources also retain their existing CPU process and
 per-stage byte quantization. They are not implicitly promoted into the native
 Float32 process to obtain GPU execution.
 
+The mask components under qualification now execute native graph coverage,
+blend candidates and project a selected overlay through its ordered geometry
+and lens suffix. Every suffix draw stores R8UI bytes, so the next warp samples
+the previous rounded result. Projection textures and integer readback scratch
+retire before proof reads the retained GPU-derived host plane. A separate
+private stripe reader serves proof before the one external presentation borrow;
+neither reader can reopen the retired owner. The complete application broker
+and phase admission remain the next integration boundary.
+
+Overlay byte proof is exact. A 4×4 gradient rotated 45 degrees exposes a
+Float32 coordinate boundary on the locally tested Firefox renderer: its byte
+result differs from the unchanged CPU Double projection. The component refuses
+delivery after the mismatch and retires its native and proof storage. A
+separate noninteger rotation requires accepted native output in both tested
+browsers. No byte tolerance or CPU replacement of GPU coverage is introduced.
+
 GPU preferred can also choose CPU because WebGL2, float render targets, texture
 capacity, the admitted numeric profile or the working set is unavailable.
 Metadata failures, missing resource authority, corrupt bodies, cancellation
