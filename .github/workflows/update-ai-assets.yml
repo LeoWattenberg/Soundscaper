@@ -83,10 +83,10 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Install local-model CPU build tools
+      - name: Install local-model build tools
         if: runner.os == 'Linux'
         timeout-minutes: 10
-        run: bash scripts/ci-apt-install.sh build-essential cmake
+        run: bash scripts/ci-apt-install.sh build-essential cmake pkg-config python3
 
       - name: Build the authenticated target-native OS audio codec host
         if: matrix.target.platform != 'linux'
