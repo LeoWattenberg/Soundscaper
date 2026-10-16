@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import { readClosedDomainField as field, readClosedDomainRecord as record } from './closed-domain-value.ts';
 import { planPixelFrameV1, type PixelFrameDescriptorV1 } from './imaging/pixel-frame-contract-v1.ts';
-import { IMAGE_HDR_ORIGINAL_LIMITS_V1, IMAGE_HDR_ORIGINAL_FORMAT_V1 } from './imaging/image-hdr-original-contract-v1.ts';
+import { IMAGE_HDR_ORIGINAL_LIMITS_V1, IMAGE_HDR_ORIGINAL_FORMAT_V1 } from './imaging/image-hdr-original-profile-v1.ts';
 
 export type FramescaperHdrOriginalDescriptorV1 = Readonly<PixelFrameDescriptorV1 & {
 	readonly sampleFormat: 'float32'; readonly primaries: 'srgb'; readonly transfer: 'linear';

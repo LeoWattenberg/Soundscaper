@@ -9,7 +9,7 @@ import { normalizeBrushMaskResourceReferenceV1 } from './imaging/brush-mask-reso
 import { normalizeImageDevelopHandoffProvenanceHdrCurrentV1, type ImageDevelopHandoffProvenanceHdrCurrentV1 } from './image-develop-handoff-provenance-hdr-current-v1.ts';
 import { imageDevelopHandoffRecipeSha256CurrentV1 } from './image-develop-handoff-provenance-current-v1.ts';
 import { encodeFramescaperImageConversionReceiptV1 } from './timeline-image-conversion-receipt-v1.ts';
-import { IMAGE_HDR_ORIGINAL_LIMITS_V1, IMAGE_HDR_ORIGINAL_MIME_TYPE_V1, IMAGE_HDR_ORIGINAL_FORMAT_V1 } from './imaging/image-hdr-original-contract-v1.ts';
+import { IMAGE_HDR_ORIGINAL_LIMITS_V1, IMAGE_HDR_ORIGINAL_MIME_TYPE_V1, IMAGE_HDR_ORIGINAL_FORMAT_V1 } from './imaging/image-hdr-original-profile-v1.ts';
 
 export interface FramescaperHdrImageSourceCurrentV1 extends Omit<FramescaperImageSourceV1, 'schemaVersion'> {
 	readonly schemaVersion: 5;

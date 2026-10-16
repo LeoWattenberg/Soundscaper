@@ -5,7 +5,8 @@ import { readClosedDomainField as field, readClosedDomainRecord as record } from
 import { admitPixelFrameV1 } from './pixel-frame-admission-v1.ts';
 import { readPixelFrameV1, type PixelFrameDescriptorV1 } from './pixel-frame-contract-v1.ts';
 import { captureRepairSignalV1, checkRepairSignalV1, RepairTaskBudgetV1, withRepairPixelFrameLifetimeV1 } from './pixel-frame-repair-lifetime-v1.ts';
-import { IMAGE_HDR_ORIGINAL_MAGIC_V1, IMAGE_HDR_ORIGINAL_LIMITS_V1 as LIMITS, normalizeImageHdrOriginalProvenanceV1,
+import { IMAGE_HDR_ORIGINAL_MAGIC_V1, IMAGE_HDR_ORIGINAL_LIMITS_V1 as LIMITS } from './image-hdr-original-profile-v1.ts';
+import { normalizeImageHdrOriginalProvenanceV1,
 	serializeImageHdrOriginalProvenanceV1, type ImageHdrOriginalProvenanceV1 } from './image-hdr-original-contract-v1.ts';
 
 export interface ImageHdrOriginalFrameV1 {
