@@ -44,10 +44,21 @@ export default function PhotoDevelopPreviewKernelV1({ profile, props }: Readonly
 	const [view, setView] = useState(() => ({ owner, photoId: props.photoId, mode: 'compare' as PreviewMode, divider: 50 }));
 	const selected = view.owner === owner && view.photoId === props.photoId ? view : { owner, photoId: props.photoId, mode: 'compare' as PreviewMode, divider: 50 };
 	const rendered = useRef(selected); rendered.current = selected;
-	const [snapshot, setSnapshot] = useState<PhotoDevelopPresentationSnapshotV2>(() => owner.snapshot());
+	const acceptedInteraction = useRef<typeof interaction | null>(null);
+	const [publication, setPublication] = useState<Readonly<{ interaction: typeof interaction | null; snapshot: PhotoDevelopPresentationSnapshotV2 }>>(
+		() => ({ interaction: null, snapshot: owner.snapshot() }));
+	// A predecessor can remain alive while its source and targets retire. Its
+	// ready snapshot cannot certify the newly requested interaction.
+	const snapshot: PhotoDevelopPresentationSnapshotV2 = publication.interaction === interaction ? publication.snapshot
+		: Object.freeze({ status: props.suspended ? 'idle' : 'pending', before: null, after: null, extent: null, error: null });
 	useLayoutEffect(() => {
 		lifetime.current = true;
-		const unsubscribe = owner.subscribe(setSnapshot);
+		const unsubscribe = owner.subscribe(snapshot => {
+			const accepted = acceptedInteraction.current;
+			if (lifetime.current && accepted === activeInteraction.current && accepted.owner === owner) {
+				setPublication({ interaction: accepted, snapshot });
+			}
+		});
 		const unregister = Reflect.apply(registration.method, registration.receiver, [() => joinPhotoLibraryRetirementV1([retirement.current, owner.pause()])]) as () => void;
 		return () => { lifetime.current = false; unsubscribe(); unregister(); retirement.current = joinPhotoLibraryRetirementV1([retirement.current, owner.pause()]);
 			void retirement.current.catch(() => undefined); };
@@ -56,7 +67,7 @@ export default function PhotoDevelopPreviewKernelV1({ profile, props }: Readonly
 		let current = true;
 		if (props.suspended) {
 			void joinPhotoLibraryRetirementV1([retirement.current, owner.pause()]).catch(() => {
-				if (current) setSnapshot(Object.freeze({ status: 'failed', before: null, after: null, extent: null, error: 'The develop preview failed.' }));
+				if (current) setPublication({ interaction, snapshot: Object.freeze({ status: 'failed', before: null, after: null, extent: null, error: 'The develop preview failed.' }) });
 			});
 			return () => { current = false; };
 		}
@@ -71,13 +82,13 @@ export default function PhotoDevelopPreviewKernelV1({ profile, props }: Readonly
 				...(previewRenderer ? { previewRenderer } : {}),
 				...(props.maskOverlay ? { maskOverlay: props.maskOverlay, maskOverlayMode: props.maskOverlayMode, overlay: overlay.current } : {}) });
 			void joinPhotoLibraryRetirementV1([retirement.current, owner.pause()]).then(() => {
-				if (current) Reflect.apply(owner.setView, owner, [prepared]);
-			}).catch(() => { if (current) setSnapshot(Object.freeze({ status: 'failed', before: null, after: null, extent: null, error: 'The develop preview failed.' })); });
+				if (current) { acceptedInteraction.current = interaction; Reflect.apply(owner.setView, owner, [prepared]); }
+			}).catch(() => { if (current) setPublication({ interaction, snapshot: Object.freeze({ status: 'failed', before: null, after: null, extent: null, error: 'The develop preview failed.' }) }); });
 		} catch {
-			setSnapshot(Object.freeze({ status: 'failed', before: null, after: null, extent: null, error: 'The develop preview failed.' }));
+			setPublication({ interaction, snapshot: Object.freeze({ status: 'failed', before: null, after: null, extent: null, error: 'The develop preview failed.' }) });
 		}
 		return () => { current = false; void owner.pause().catch(() => undefined); };
-	}, [owner, props.photoId, props.develop, props.revision, props.resolution, props.maskOverlay, props.maskOverlayMode, props.suspended, softProof, previewRenderer, profile]);
+	}, [owner, props.photoId, props.develop, props.revision, props.resolution, props.maskOverlay, props.maskOverlayMode, props.suspended, softProof, previewRenderer, profile, interaction]);
 	const { messages } = props, { mode, divider } = selected;
 	const current = () => lifetime.current && activeInteraction.current === interaction && rendered.current === selected && !props.suspended;
 	const aspect = mode === 'split' && snapshot.extent ? `${snapshot.extent.after.width} / ${snapshot.extent.after.height}` : undefined;
