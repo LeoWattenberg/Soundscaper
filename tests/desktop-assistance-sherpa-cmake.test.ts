@@ -13,7 +13,7 @@ import { desktopSherpaGpuBuildPlan } from '../scripts/lib/desktop-assistance-she
 const runFile = promisify(execFile);
 
 test('the root Sherpa build target includes the excluded upstream C++ library and every shipped binary', {
-	skip: process.platform !== 'linux' ? 'The native CMake fixture uses the Linux build host.' : false,
+	skip: !['linux', 'win32'].includes(process.platform) ? 'Native fixture requires Linux or Windows.' : false,
 }, async context => {
 	const root = await mkdtemp(join(tmpdir(), 'sherpa cmake '));
 	context.after(() => rm(root, { recursive: true, force: true }));
@@ -43,21 +43,29 @@ target_link_libraries(sherpa-onnx-c-api PRIVATE sherpa-onnx-core)
 add_library(sherpa-onnx-cxx-api SHARED empty.cc)
 target_link_libraries(sherpa-onnx-cxx-api PRIVATE sherpa-onnx-c-api)
 `);
-	await write(join(upstream, 'sherpa-onnx/c-api/empty.cc'), '');
+	await write(join(upstream, 'sherpa-onnx/c-api/empty.cc'), `
+#ifdef _WIN32
+__declspec(dllexport)
+#endif
+void scape_fixture_export() {}
+`);
 	const addonSources = /set\(source_names\s+([^)]+)\)/u.exec(source)?.[1];
 	assert.ok(addonSources);
 	for (const name of addonSources.trim().split(/\s+/u)) {
 		await write(join(upstream, 'harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp', name), '');
 	}
-	await runFile('cmake', ['-S', native, '-B', build,
+	const plan = desktopSherpaGpuBuildPlan({ targetId: `${process.platform === 'win32' ? 'win' : 'linux'}-${process.arch}` });
+	await runFile('cmake', ['-S', native, '-B', build, ...plan.generatorArgs,
 		`-DSHERPA_SOURCE=${upstream}`, `-DORT_INCLUDE=${root}`, `-DORT_LIBRARY=${join(upstream, 'empty.cc')}`,
 		`-DNODE_HEADERS=${root}`, `-DNODE_ADDON_API=${root}`, `-DSCAPE_WORK_ROOT=${root}`,
+		...(process.platform === 'win32' ? [`-DNODE_LIBRARY=${join(build, 'onnxruntime.lib')}`,
+			`-DNODE_DELAY_HOOK=${join(upstream, 'empty.cc')}`] : []),
 	], { timeout: 30_000 });
-	const plan = desktopSherpaGpuBuildPlan({ targetId: 'linux-x64', platform: 'linux', architecture: 'x64' });
 	const targetStart = plan.buildArgs.indexOf('--target') + 1;
 	const targetEnd = plan.buildArgs.indexOf('--parallel');
 	assert.deepEqual(plan.buildArgs.slice(targetStart, targetEnd), ['scape-sherpa-gpu']);
-	await runFile('cmake', ['--build', build, ...plan.buildArgs], { timeout: 30_000 });
+	const built = await runFile('cmake', ['--build', build, ...plan.buildArgs], { timeout: 30_000 });
+	assert.doesNotMatch(`${built.stdout}\n${built.stderr}`, /D900[27]/u, 'MSVC must honor every reproducibility flag');
 	const files: string[] = [];
 	const collect = async (directory: string): Promise<void> => {
 		for (const entry of await readdir(directory, { withFileTypes: true })) {
@@ -66,7 +74,10 @@ target_link_libraries(sherpa-onnx-cxx-api PRIVATE sherpa-onnx-c-api)
 		}
 	};
 	await collect(build);
-	for (const name of ['sherpa-onnx.node', 'libsherpa-onnx-c-api.so', 'libsherpa-onnx-cxx-api.so', 'onnx-webgpu-device-probe']) {
+	const prefix = process.platform === 'win32' ? '' : 'lib';
+	const extension = process.platform === 'win32' ? 'dll' : 'so';
+	for (const name of ['sherpa-onnx.node', `${prefix}sherpa-onnx-c-api.${extension}`,
+		`${prefix}sherpa-onnx-cxx-api.${extension}`, `onnx-webgpu-device-probe${process.platform === 'win32' ? '.exe' : ''}`]) {
 		assert.ok(files.includes(name), `The root target did not build ${name}.`);
 	}
 });

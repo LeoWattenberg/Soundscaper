@@ -14,7 +14,11 @@ import {
 
 test('every ONNX plugin bridge uses a matching target runner and builds an isolated GPU device probe', () => {
 	const plan = desktopOnnxWebGpuBindingBuildPlan({ targetId: 'linux-arm64', platform: 'linux', architecture: 'arm64' });
-	assert.deepEqual(plan.configureArgs, ['-DCMAKE_BUILD_TYPE=Release']);
+	assert.ok(plan.configureArgs.includes('-DCMAKE_BUILD_TYPE=Release'));
+	const sources = plan.configureArgs.find((argument) => argument.startsWith('-DORT_NODE_SOURCE_FILES='));
+	assert.ok(sources, 'the bridge must compile the reviewed source inventory without a directory glob');
+	assert.deepEqual(sources.split('=')[1].split(';'), recipe.sources.filter(({ path }) => path.endsWith('.cc'))
+		.map(({ path }) => path.split('/').at(-1)));
 	assert.ok(plan.buildArgs.includes('onnxruntime_binding'));
 	assert.throws(() => desktopOnnxWebGpuBindingBuildPlan({ targetId: 'linux-arm64', platform: 'linux', architecture: 'x64' }), /matching native/u);
 	for (const [targetId, platform, architecture] of [

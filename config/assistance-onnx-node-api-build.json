@@ -151,7 +151,7 @@
 		}
 	],
 	"recipeFiles": {
-		"CMakeLists.txt": "2d9da87d09efeb4c95bcdff7e890cbc55fef342de978e71ea44e8b12f6520ad8",
+		"CMakeLists.txt": "d8a8f285ea19a2a46d278b866f55d12aa9873ce9697cbd37e8aa167652a02a05",
 		"webgpu_device_test.cc": "9af329543e8b87ec1990968be08c2b1aead3b1bbe3aff60cf977e42876e54e27",
 		"webgpu_plugin_provider.cc": "9481cb66b9500dade3fd643c88e7f26e5678f67167ed0c82e82fcfbce600fc75",
 		"webgpu_plugin_provider.h": "c774eedaac056bafdd51a954d8118f60bbb34d9ab993619bf1b8ddb5ccb4b6de",

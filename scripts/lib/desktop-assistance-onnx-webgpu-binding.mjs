@@ -5,7 +5,7 @@
 import { execFile } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { chmod, copyFile, lstat, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
-import { dirname, isAbsolute, join } from 'node:path';
+import { basename, dirname, isAbsolute, join } from 'node:path';
 import { promisify } from 'node:util';
 import { extract } from 'tar';
 
@@ -29,7 +29,8 @@ export function desktopOnnxWebGpuBindingBuildPlan({ targetId, platform = process
 	}
 	return {
 		generatorArgs: platform === 'win32' ? ['-A', targetId === 'win-arm64' ? 'ARM64' : 'x64'] : [],
-		targetId, configureArgs: ['-DCMAKE_BUILD_TYPE=Release'],
+		targetId, configureArgs: ['-DCMAKE_BUILD_TYPE=Release',
+			`-DORT_NODE_SOURCE_FILES=${recipe.sources.filter(({ path }) => path.endsWith('.cc')).map(({ path }) => basename(path)).join(';')}`],
 		buildArgs: ['--config', 'Release', '--target', 'onnxruntime_binding', 'onnx_webgpu_probe',
 			'onnx_webgpu_device_test', '--parallel', '4'],
 	};
