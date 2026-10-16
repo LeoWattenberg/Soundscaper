@@ -104,7 +104,7 @@ export default defineConfig({
 				},
 			],
 			sidebar: isSoundscaper ? soundscaperSidebar
-				: [{ ...chromeLabel(`sidebar.${productId}`), items: [{ autogenerate: { directory: '' } }] }],
+				: [{ ...chromeLabel(`sidebar.${productId}`), items: [{ autogenerate: { directory: productId } }] }],
 			customCss: ['./src/styles/custom.css'],
 		}),
 	],
