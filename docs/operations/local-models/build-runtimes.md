@@ -20,8 +20,8 @@ Preparation fails when an engine cannot be built or authenticated.
 ## Build prerequisites
 
 Use the repository's Node.js 26.5.0 and npm 12.0.1. Install dependencies with
-`npm ci`. Building whisper.cpp and llama.cpp also requires CMake, Python 3,
-and a C/C++ compiler:
+`npm ci`. Building Sherpa, the ONNX Linux ARM64 binding, whisper.cpp, and
+llama.cpp also requires CMake, Python 3, and a C/C++ compiler:
 
 - Linux: `build-essential`, `cmake` (3.22.1 or later), `pkg-config`, and
   `python3`; the desktop CI jobs install them.
@@ -51,17 +51,25 @@ No model weights are bundled or downloaded during ordinary application builds.
 | llama.cpp b10509 | Qwen3 4B Q4_K_M |
 | Kokoro G2P 0.9.4 | Offline phonemization for Kokoro, installed with ONNX Runtime |
 
-ONNX Runtime comes from the exact npm archives and file hashes in
-`config/assistance-onnx-runtime-payloads.json`. Packaging extracts the selected
-platform's reviewed CPU and GPU files without executing npm install scripts or
-downloading CUDA. Windows also includes the digest-pinned DXC shader compiler
-libraries from that same archive, with their exact upstream license and
-third-party notices. DirectML's separately licensed redistributable is omitted.
-The target manifest declares CoreML and native WebGPU on macOS ARM64, native
-WebGPU on Windows and Linux x64, and CPU on Linux ARM64. Workers try these authenticated
-providers automatically for existing menu-invoked operations and retain CPU
-fallback when a GPU backend cannot initialize or execute the model.
-The runtime archive includes the upstream license and third-party notices.
+All 22 catalog models have a GPU option on every maintained desktop target.
+Existing menu-invoked operations automatically try the installed runtime's
+authenticated GPU providers, followed by CPU fallback. ONNX Runtime and Sherpa
+use CoreML or native WebGPU on macOS ARM64, and native WebGPU on Windows and
+Linux x64/ARM64. GPU availability depends on the machine's compatible graphics
+hardware, drivers, and memory. Native WebGPU runs in the desktop worker;
+these recipes do not add browser inference.
+
+The shared ONNX Runtime 1.29.0 core comes from the exact npm archives and file
+hashes in `config/assistance-onnx-runtime-payloads.json`. The WebGPU plugin and
+its C API headers are pinned in `config/assistance-onnx-webgpu-plugin.json`.
+Packaging authenticates the reviewed plugin binary, MIT license, and complete
+third-party notices. The generic ONNX Linux ARM64 archive also rebuilds the
+Node-API binding from the locked source and patches in
+`config/assistance-onnx-node-api-build.json` to register that plugin; the stable
+ORT core is reused. Other generic ONNX targets retain their upstream GPU
+bindings. No npm lifecycle install script runs. Windows includes the pinned
+DXC shader compiler libraries and their upstream notices. DirectML and CUDA
+are not packaged.
 
 whisper.cpp comes from the pinned source archive recorded in
 `scripts/lib/desktop-assistance-whisper-runtime.mjs`. The macOS ARM64 Whisper and
@@ -90,12 +98,17 @@ work with every Electron/Node process pipe. This preserves the existing
 bounded-output worker. Build provenance records the original source, patch,
 recipe, tools and resulting files. The MIT license accompanies the executable.
 
-Windows ARM64 has no upstream Sherpa Node addon package at the pinned version.
-Preparation builds that wrapper using the exact inputs in
-`config/assistance-sherpa-win-arm64-build.json`, then stages it with the existing
-Sherpa JavaScript package and official ARM64 libraries. The archive build receipt
-records the source, compiler and resulting file hashes. Other platforms retain
-the existing upstream Sherpa package inventories.
+Sherpa is rebuilt for all five targets using the source pins, provider patches,
+Node headers, and Node-API inputs in `config/assistance-sherpa-gpu-build.json`.
+The build links the shared reviewed ORT core and packages its WebGPU plugin,
+then authenticates the generated addon, C/C++ libraries, notices, and build
+provenance. Parakeet recognition, Silero VAD, pyannote segmentation, and ERes2Net
+speaker embedding all receive the installed archive's provider selection.
+GPU construction or inference failures can retry the same authenticated model
+on CPU after the native call finishes and supported release hooks run.
+Cancellation, invalid inputs or outputs, and authentication failures remain
+terminal. Previously published CPU archives remain compatible as legacy
+fallback; every new target build must include GPU support.
 
 The current digest-pinned model catalog admits all 22 models on Windows ARM64
 as well as macOS ARM64, Linux x64/ARM64 and Windows x64. Catalog admission
@@ -109,7 +122,9 @@ archives it, and records its exact target file inventory in
 Installing Kokoro through Model Manager fetches both ONNX Runtime and G2P;
 first use fetches either missing runtime for preseeded weights. The production
 worker verifies the G2P inventory before each subprocess invocation. End users
-do not install Python. The packaged nightly nine-language text-to-WAV case
+do not install Python. G2P performs pronunciation preprocessing without loading
+the Kokoro neural model; actual speech synthesis uses the accelerated ONNX
+engine. The packaged nightly nine-language text-to-WAV case
 establishes whether that target build performs speech
 generation; a recipe alone is not a passing inference result.
 

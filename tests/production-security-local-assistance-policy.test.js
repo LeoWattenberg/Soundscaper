@@ -90,7 +90,7 @@ test('local-assistance policy records conditional workflow activation and its ma
 	assertOrderedClaim(threatClaims,
 		/AssistanceWorkflow.*aggregate.*fence.*Guided.*Advanced.*runtime families/isu);
 	assertOrderedClaim(threatClaims,
-		/CPU runtime families.*Whisper.*TIGER.*PANNs.*Beat This.*TransNetV2.*OCR.*Qwen.*selected-target CPU engine.*generated file manifest/isu);
+		/GPU-capable runtime families.*Whisper.*TIGER.*PANNs.*Beat This.*TransNetV2.*OCR.*Qwen.*selected-target GPU\/CPU engine.*generated file manifest/isu);
 	assertOrderedClaim(threatClaims,
 		/semantic review.*explicit acceptance.*transcript.*cleanup.*speaker.*derived audio.*reactions.*beats.*tempo.*shots.*indexes.*reframe.*highlight/isu);
 	assert.match(threatClaims,
@@ -147,4 +147,30 @@ test('capability inventory records the shared Electron-only assistance surface f
 			'tests/audio-editor-local-assistance-transcript-acceptance.test.ts',
 		]) assert.ok(surface.evidence.includes(path), `${productId} is missing ${path}`);
 	}
+});
+
+test('all-model GPU policy records authenticated providers, CPU fallback, legacy archives, and target-validation limits', async () => {
+	const matrix = await readJson('config/production-security-matrix.json');
+	const control = matrix.risks.flatMap(({ currentControls }) => currentControls)
+		.find(({ id }) => id === 'authenticated-local-assistance-gpu-execution');
+	assert.ok(control);
+	assertOrderedClaim(control.summary,
+		/GPU option.*CPU fallback.*all 22 catalog models.*all five desktop targets.*Sherpa and ONNX Runtime.*CoreML.*WebGPU.*Windows\/Linux x64 and ARM64/isu);
+	assertOrderedClaim(control.summary,
+		/Sherpa is source-built.*pinned ONNX Runtime 1\.29\.0 core.*WebGPU plugin.*Linux ARM64 rebuilds its Node-API binding.*Exact generated native files.*MIT licenses.*third-party notices/isu);
+	assertOrderedClaim(control.summary,
+		/existing menu-invoked operations.*authenticated GPU providers.*CPU fallback.*Cancellation.*authentication failures.*invalid inputs.*invalid outputs.*cleanup failures.*terminal/isu);
+	assertOrderedClaim(control.summary,
+		/Legacy CPU archives.*compatible.*new builds cannot omit GPU support.*CUDA and DirectML.*not packaged.*performance need separate evidence/isu);
+	for (const path of [
+		'desktop/assistance-sherpa-acceleration.ts',
+		'scripts/lib/desktop-assistance-sherpa-gpu-runtime.mjs',
+		'scripts/lib/desktop-assistance-onnx-webgpu-binding.mjs',
+		'scripts/lib/desktop-assistance-onnx-native-closure.mjs',
+		'config/assistance-sherpa-gpu-build.json',
+		'config/assistance-onnx-node-api-build.json',
+		'config/assistance-onnx-webgpu-plugin.json',
+		'tests/desktop-assistance-sherpa-gpu-adapters.test.ts',
+		'tests/desktop-assistance-all-model-gpu-capabilities.test.ts',
+	]) assert.ok(control.evidence.some((item) => item.path === path), path);
 });

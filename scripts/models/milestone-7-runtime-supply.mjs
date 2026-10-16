@@ -30,7 +30,7 @@ const FAMILIES = Object.freeze({
 		version: '1.29.0',
 		manifestUrl: 'https://registry.npmjs.org/onnxruntime-node/-/onnxruntime-node-1.29.0.tgz',
 		revision: '1.29.0',
-		recipeId: 'onnxruntime-node-upstream-closure-v1',
+		recipeId: 'onnxruntime-node-upstream-closure-v2',
 		source: Object.freeze({
 			kind: 'npm-tarball',
 			url: 'https://registry.npmjs.org/onnxruntime-node/-/onnxruntime-node-1.29.0.tgz',

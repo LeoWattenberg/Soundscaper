@@ -59,6 +59,47 @@ test('native producer audit rejects an absent Vulkan source register for both co
 	} finally { await rm(fixture, { recursive: true, force: true }); }
 });
 
+test('native producer audit follows GPU builder branches and rejects missing shared source pins', async () => {
+	const fixture = await producerFixture();
+	try {
+		await rm(join(fixture, 'config/assistance-onnx-webgpu-plugin.json'));
+		const audit = auditNativePayloadProducers(fixture);
+		assert.equal(audit.status, 'failed');
+		for (const id of ['assistance-sherpa-onnx-node', 'assistance-onnxruntime-node']) {
+			assert.ok(audit.findings.some((finding) => finding.includes(id)
+				&& finding.includes('assistance-onnx-webgpu-plugin.json')));
+		}
+	} finally { await rm(fixture, { recursive: true, force: true }); }
+});
+
+test('an unreachable GPU builder cannot grant reachability to its own recipe or native files', async () => {
+	const fixture = await producerFixture();
+	try {
+		const sourcePath = join(fixture, 'scripts/lib/desktop-assistance-speech-runtime.mjs');
+		const source = await readFile(sourcePath, 'utf8');
+		await writeFile(sourcePath, source.replace("from './desktop-assistance-sherpa-gpu-runtime.mjs'", "from './missing-builder.mjs'"));
+		const audit = auditNativePayloadProducers(fixture);
+		assert.equal(audit.status, 'failed');
+		for (const path of ['desktop-assistance-sherpa-gpu-runtime.mjs', 'assistance-sherpa-gpu-build.json', 'webgpu-provider.cc']) {
+			assert.ok(audit.findings.some((finding) => finding.includes('assistance-sherpa-onnx-node pipeline')
+				&& finding.includes(path)));
+		}
+	} finally { await rm(fixture, { recursive: true, force: true }); }
+});
+
+test('native producer audit rejects repeated pipeline inputs', async () => {
+	const fixture = await producerFixture();
+	try {
+		const path = join(fixture, 'config/native-payload-producers.json');
+		const register = JSON.parse(await readFile(path, 'utf8'));
+		register.packageProducers[0].pipelinePaths.push(register.packageProducers[0].pipelinePaths[0]);
+		await writeFile(path, JSON.stringify(register));
+		const audit = auditNativePayloadProducers(fixture);
+		assert.equal(audit.status, 'failed');
+		assert.ok(audit.findings.some((finding) => finding.includes('Native package producer assistance-sherpa-onnx-node is invalid')));
+	} finally { await rm(fixture, { recursive: true, force: true }); }
+});
+
 test('package generation binds helper-backed targets and its platform environment', async () => {
 	const fixture = await producerFixture();
 	try {

@@ -27,7 +27,7 @@ identities rather than filesystem or module paths.
 | Runtime family | Current responsibility |
 | --- | --- |
 | Sherpa ONNX | Parakeet speech recognition, Silero voice-activity detection, and the pyannote/ERes2Net diarization pair |
-| ONNX Runtime | Alignment, enhancement, separation, tagging, beats, accurate shots, detection, saliency, OCR, and text/image embeddings |
+| ONNX Runtime | Alignment, enhancement, separation, tagging, beats, accurate shots, detection, saliency, OCR, text/image embeddings, and Kokoro speech synthesis |
 | whisper.cpp | Multilingual Whisper recognition through a fixed-argument, no-shell CLI |
 | llama.cpp | Optional Qwen editorial generation with grammar-constrained JSON |
 | Kokoro offline G2P | Frozen, authenticated pronunciation preprocessing for local text-to-speech |
@@ -36,15 +36,16 @@ identities rather than filesystem or module paths.
 Target packages generate and authenticate Sherpa ONNX 1.13.5, ONNX
 Runtime 1.29.0, whisper.cpp v1.9.3, and llama.cpp b10509 closures for the five
 maintained desktop targets: macOS ARM64, Linux x64 and ARM64, and Windows x64
-and ARM64. The Windows ARM64 Sherpa addon and Kokoro G2P closure are built as
-package inputs. CPU inference remains available on every target. New runtime
-archives also authenticate optional GPU providers per target:
+and ARM64. Every newly built neural runtime provides a GPU option and portable
+CPU fallback. All 22 catalog models use one of these four neural runtime families;
+the separate Kokoro G2P helper supplies pronunciation preprocessing. New runtime
+archives authenticate the available providers per target:
 
 | Engine | macOS ARM64 | Windows x64 / ARM64 | Linux x64 | Linux ARM64 |
 | --- | --- | --- | --- | --- |
-| ONNX Runtime | CoreML, native WebGPU | Native WebGPU | Native WebGPU | CPU |
+| ONNX Runtime | CoreML, native WebGPU | Native WebGPU | Native WebGPU | Native WebGPU |
 | whisper.cpp / llama.cpp | Embedded Metal | Vulkan | Vulkan | Vulkan |
-| Sherpa ONNX | CPU | CPU | CPU | CPU |
+| Sherpa ONNX | CoreML, native WebGPU | Native WebGPU | Native WebGPU | Native WebGPU |
 
 Existing menu-invoked assistance operations prefer the installed archive's
 authenticated GPU providers, then CPU. Native WebGPU runs inside the desktop
@@ -58,7 +59,18 @@ or `libvulkan.so.1` on Linux) and a compatible vendor graphics driver. Those hos
 dependencies are outside the authenticated archive. The macOS embedded Metal
 path is unchanged. Cancellation, invalid inputs, invalid outputs, and
 authentication failures do not permit retries. Older archives without provider
-metadata remain CPU-only, even on a GPU-capable machine. DirectML and CUDA are not packaged.
+metadata retain their legacy CPU fallback; new builds may not omit GPU support.
+DirectML and CUDA are not packaged.
+
+Sherpa is rebuilt from pinned source on every target against the reviewed ONNX
+Runtime 1.29.0 core and WebGPU plugin. Its recognizer, VAD, segmentation, and
+speaker-embedding sessions receive the same authenticated provider selection.
+The generic ONNX Linux ARM64 archive rebuilds its Node-API binding to register
+that plugin; other generic ONNX targets retain upstream GPU bindings. The plugin
+binary, MIT license, third-party notices, build recipes, and generated native
+files are part of each affected authenticated closure. GPU construction or
+inference failure releases supported native resources before trying the next
+provider; CPU retries preserve the selected inputs and model.
 
 Vulkan builds use digest-pinned Vulkan Headers/Loader and a host shader compiler
 built from pinned shaderc, glslang, SPIRV Headers, and SPIRV Tools sources. The

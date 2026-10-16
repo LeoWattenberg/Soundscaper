@@ -967,14 +967,14 @@ fixed shell-free, bounded, process-tree-supervised grammar. Qualification or
 executable-authority loss returns typed unavailable; malformed actual metadata
 or process failure stays hard, and no shot boundary is fabricated.
 
-Conditional CPU runtime families and owned deterministic stages implement
+Conditional GPU-capable runtime families and owned deterministic stages implement
 Whisper/wav2vec2 alignment, DeepFilterNet enhancement, TIGER separation, PANNs
 reactions, Beat This, TransNetV2 accurate shots, nomic/SigLIP embeddings, OCR,
 subject/saliency reframe, deterministic highlights, and bounded Qwen editorial
 JSON. Their isolated process/thread protocols enforce exact file grants, memory
 admission, supervision, crash quarantine, and termination cancellation. Desktop
-preparation provisions the exact selected-target CPU engine and authenticates
-its generated file manifest, including the Windows ARM64 Sherpa addon. The
+preparation provisions the exact selected-target GPU/CPU engine and authenticates
+its generated file manifest, including the five-target Sherpa GPU addons. The
 [retained conversion evidence](../../evidence/milestone-7-model-conversion/README.md)
 binds TIGER, PANNs, both Beat This checkpoints, TransNetV2, and Dereverb Room to
 actual source-framework comparisons and exact converted artifacts. Unmet model,
@@ -1495,23 +1495,27 @@ preseeded or previously installed model can fetch it on first use. The complete
 closure is verified again before native execution.
 
 <!-- policy-narrative:local-assistance-gpu-execution -->
-Authenticated target manifests may admit native WebGPU on supported ONNX
-targets, CoreML on macOS, embedded Metal for whisper.cpp and llama.cpp on macOS
-ARM64, and separate Vulkan GPU executables for Whisper and Qwen on Windows/Linux
-x64 and ARM64. Each Vulkan companion and its portable CPU executable are
-authenticated in the same archive; the CPU executable does not link the Vulkan
-loader. Vulkan requires the system loader and a compatible vendor graphics
-driver, whose bytes remain host dependencies outside archive authentication.
-Pinned source archives for Vulkan Headers/Loader, shaderc, glslang, SPIRV
-Headers and SPIRV Tools build embedded shaders and bind toolchain provenance and
-upstream notices; no runtime SDK or shader download occurs. CPU fallback remains
-available when GPU initialization, launch, or backend execution fails.
-Cancellation, authentication failures, invalid inputs, and invalid outputs
-remain terminal. Legacy archives without acceleration metadata remain CPU-only.
-ONNX and Sherpa support and macOS Metal behavior are unchanged; CUDA and
-DirectML are not packaged. GPU publication, usable target hardware, driver
-compatibility, and performance require their own evidence; source, fixture, and
-build checks do not establish them.
+Authenticated target manifests bind a GPU option and portable CPU fallback for
+all 22 catalog models across all five desktop targets. Sherpa and ONNX Runtime
+use CoreML or native WebGPU on macOS ARM64 and native WebGPU on Windows/Linux
+x64 and ARM64. Sherpa is source-built on every target against the pinned ONNX
+Runtime 1.29.0 core and reviewed WebGPU plugin; generic ONNX Linux ARM64
+rebuilds its Node-API binding to register that plugin. Exact generated native
+files, source pins, MIT licenses, third-party notices, and provenance enter each
+authenticated closure. Pronunciation preprocessing in Kokoro G2P does not load
+its neural synthesis model. Whisper and Qwen use embedded Metal on macOS ARM64
+or separate Vulkan GPU executables on Windows/Linux. Each Vulkan companion and
+its portable CPU executable share an authenticated archive; the CPU executable
+does not link Vulkan. System Vulkan loaders and compatible graphics drivers
+remain host dependencies outside archive authentication. Digest-pinned Vulkan
+Headers/Loader, shaderc, glslang, SPIRV Headers and Tools build embedded shaders
+with provenance and notices. Existing menu-invoked operations prefer
+authenticated GPU providers before CPU fallback for native initialization or
+execution failure. Cancellation, authentication failures, invalid inputs,
+invalid outputs, and cleanup failures remain terminal. Legacy CPU archives
+remain compatible; new builds cannot omit GPU support. CUDA and DirectML are not
+packaged. Publication, usable devices, driver compatibility, and performance
+need separate evidence; source, fixture, and build checks do not establish them.
 <!-- /policy-narrative:local-assistance-gpu-execution -->
 
 The conditional external-FFmpeg shot adapter is a separate ordinary child

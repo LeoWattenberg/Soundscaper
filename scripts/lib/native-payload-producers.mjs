@@ -171,6 +171,7 @@ function auditPackageProducer(root, producer, findings) {
 		|| !producer.targets.every((target) => TARGETS.includes(target))
 		|| ![producer.manifestPath, producer.workflowPath, producer.packageCommand].every(safePath)
 		|| !Array.isArray(producer.pipelinePaths) || producer.pipelinePaths.length < 2
+		|| new Set(producer.pipelinePaths).size !== producer.pipelinePaths.length
 		|| producer.pipelinePaths[0] !== producer.packageCommand
 		|| !producer.pipelinePaths.every(safePath)) {
 		findings.push(`Native package producer ${String(producer?.id)} is invalid.`);
@@ -204,13 +205,15 @@ function auditPackageProducer(root, producer, findings) {
 			auditPackageWorkflowJob(root, producer, job, workflow, findings);
 		}
 	}
+	const reachable = [];
 	for (const [index, path] of producer.pipelinePaths.entries()) {
 		const source = readChecked(root, path, `${producer.id} pipeline entry`, findings);
-		if (source === null || index === producer.pipelinePaths.length - 1) continue;
-		const next = producer.pipelinePaths[index + 1];
-		if (!activeJavascript(source).includes(basename(next))) {
-			findings.push(`${producer.id} pipeline ${path} does not reach ${next}.`);
+		if (source === null) continue;
+		if (index > 0 && !reachable.some((entry) => entry.includes(basename(path)))) {
+			findings.push(`${producer.id} pipeline does not reach ${path} from its package command.`);
+			continue;
 		}
+		reachable.push(activeJavascript(source));
 	}
 }
 
