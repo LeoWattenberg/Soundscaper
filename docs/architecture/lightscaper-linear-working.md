@@ -76,14 +76,19 @@ preview preference. Its native linear word/Float32 color paths include white
 balance, the full tone ladder, chroma, black-and-white mix, HSL, point/parametric
 curves and wheels. The recorded local software-GPU corpus qualifies these paths
 and their numerical fallback. Authenticated cube-LUT GPU stages also pass their
-recorded local software-GPU and Firefox corpus. A stack needing geometry/optics,
-spatial stages, masks or repairs
+recorded local software-GPU and Firefox corpus. Native geometry also passes that
+local corpus: legacy geometry stays first and authored
+geometry retains its effect position and natural output descriptor. A stack
+needing optics, spatial stages, masks or repairs
 takes the entire existing CPU route, as do unsupported GPU numeric, capability
 or working-set profiles. Stages are never silently omitted. GPU stages store
 linear RGBA32F and return scoped Float32 readback checked against the normative
-CPU scalar before delivery. Exact unchanged-component rules can select CPU
+CPU operation before delivery. Exact unchanged-component rules can select CPU
 even when a rounded identity curve differs by only a few ULPs. This streaming
-check also costs CPU work and makes no speed claim. Canonical Before and the
+check also costs CPU work and makes no speed claim. Pointwise stacks use the
+streamed scalar reference; geometry stacks use up to two maximum-extent CPU
+reference planes, with Float32 stores after each color/LUT/geometry stage and
+exact normative output alpha. Canonical Before and the
 final display, proof and histogram boundaries retain their existing policies.
 Complete GPU stack coverage, broader native conformance and hosted CI parity
 remain open.
@@ -100,6 +105,20 @@ Authentication, cancellation and cleanup failures never replay. The
 [GPU ownership plan](lightscaper-develop-gpu-preview.md#working-set-and-retirement)
 charges all unique tables, reusable upload/texture storage and the padded
 physical parser phase under the unchanged 768-MiB ceiling.
+
+The GPU geometry program uses each stage's admitted viewport and resizes its
+two ping-pong textures after clearing prior storage. Its exact integer inverse
+handles integer crops and quarter turns; explicit identity geometry still clears
+hidden alpha-zero RGB and canonicalizes RGB zeros as the CPU filter does.
+Fractional/perspective geometry uses four crop-clamped taps, premultiplied linear
+RGB and division by unrounded alpha, with transparent pixels outside the aperture.
+It retains signed/HDR values. CPU mapper drift or Float32 coordinate precision
+can require complete CPU fallback without changing the eight-ULP/exact guards.
+Double LUT tables remain scoped through whole-plane validation and retire before
+the final consumer. Metadata admits at most 257 passes, including legacy geometry.
+The preferred phase charges the full physical source, capture, two maximum-size
+textures, final readback, both reference planes, LUT resources and presentation;
+the distinct parser and fallback phases keep the same 768-MiB ceiling.
 
 The shared execution order is:
 

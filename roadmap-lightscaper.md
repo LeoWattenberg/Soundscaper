@@ -971,19 +971,39 @@ there.
   Distinct table/parser/execution/whole-CPU phases retain the 768-MiB ceiling,
   including padded borrowed backings; Double tables retire before the final GPU
   consumer. CPU remains the default; GPU preferred is temporary proxy/Full presentation
-  policy. Every GPU delivery is checked against the normative CPU scalar with
+  policy. Natural-extent GPU geometry passes the recorded local software-GPU and
+  Firefox corpus: legacy geometry stays first and authored geometry retains its
+  actual effect position. Up to 257 private passes bind the complete changing
+  descriptor chain; each viewport and the final readback use their admitted
+  extent. Ping-pong textures clear prior storage before resizing. Exact integer
+  inverse sampling handles integer crops/quarter turns; generic four-tap
+  premultiplied-linear filtering clamps crop edges, divides by unrounded alpha
+  and clears pixels outside the aperture. Identity geometry remains real
+  filtering, including hidden-RGB/zero canonicalization. Every GPU delivery is
+  checked against the normative CPU operation with
   per-stage Float32 rounding: alpha, zeros, tiny samples below `2^-60` and final
   unchanged components remain exact; other finite normal RGB permits at most
   eight ULPs. Identity-knot rounding can legitimately select the complete CPU
-  route. Numerical, capability or capacity refusal retains the whole CPU
+  route. Geometry uses a sequential whole-plane CPU reference with at most two
+  maximum-extent planes and exact normative output alpha; pointwise recipes
+  keep their streamed reference without those planes. CPU coordinate drift can
+  require whole CPU even for integer geometry. Capture, two maximum-extent
+  textures, final readback, reference planes, LUT resources and presentation,
+  plus distinct parser/fallback phases, retain the 768-MiB ceiling. Double LUT
+  tables stay scoped through validation and retire before consumer delivery.
+  Numerical, capability or capacity refusal retains the whole CPU
   recipe. This correctness check also costs CPU work and makes no acceleration
-  claim. Geometry/optics, spatial stages, complete masks/brush
+  claim. Optics, spatial stages, complete masks/brush
   and true Clone/Heal GPU execution remain unfinished, alongside combined
   conformance and the L7/L8/L9 exit gates. The configured digest-pinned Chromium
   software-GPU baseline retains its Quality/Desktop Preview coverage
-  dependencies; local qualification passed all 48 software-GPU cases across the
-  six native/menu specs and all 48 Firefox compatibility cases, including six
-  coverage-enabled English/German workflows. Positive LUT delivery and exact
+  dependencies. Local qualification passed all 62 software-GPU cases across its
+  eight exact native/menu specs and all 62 Firefox compatibility cases, including
+  eight coverage-enabled English/German workflows. Compaction retained 116
+  scripts/maps and exact pins for 21 processing, presentation and UI owners;
+  295 selected Lightscaper Node cases passed in 47 files. Rapid numeric handoffs
+  preserve crop, rotation and flip through Save, with stale/disabled edits and
+  invalid-value cancellation covered. Positive color/LUT/geometry delivery and exact
   whole-CPU precision fallback are independently witnessed. GPU fallback can
   re-read SHA-bound LUT bytes through the same pinned resource method after
   resource retirement, while the Original remains captured once. Authentication,

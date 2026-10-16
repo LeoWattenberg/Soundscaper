@@ -15,6 +15,8 @@ store. The recorded local software-GPU corpus qualifies these color paths and
 their truthful fallback. The complete Photo Develop GPU stack remains unfinished.
 Authenticated cube-LUT stages use the same native path; their recorded local
 software-GPU and Firefox corpus now passes.
+Natural-extent geometry uses the same ordered path and passes the recorded local
+software-GPU and Firefox corpus, including English/German RAW menu workflows.
 
 ## Shared execution and fallback
 
@@ -23,7 +25,7 @@ mask overlay, resource authorities, geometry and processing limits before source
 samples. The broker uses the existing native CPU engine as its whole-recipe
 fallback. An unfinished stage never disappears from a GPU result.
 
-At present, active geometry, spatial and optical effects, local masks,
+At present, active spatial and optical effects, local masks,
 repairs or a selected mask overlay select the complete CPU render.
 Encoded byte sources also retain their existing CPU process and
 per-stage byte quantization. They are not implicitly promoted into the native
@@ -67,16 +69,17 @@ retain their existing owners.
 Extension names alone do not grant support. A native upload/render/readback
 probe checks signed/HDR values, negative zero, small normal samples, subnormal
 copy/arithmetic and alpha. The admitted pass identities retain a private link
-to the existing CPU scalar, allowing numeric admission to consult that
+to the existing CPU operation, allowing numeric admission to consult that
 normative operation without duplicating its formulas.
 
-Before consumer delivery, a bounded streaming check evaluates the existing
+For pointwise color/LUT recipes, a bounded streaming check evaluates the existing
 normative CPU scalar and rounds once per authored effect. Alpha, signed zeros,
 expected RGB magnitudes below `2^-60` and final unchanged native components must
 match exactly. Other finite normal results permit at most eight Float32 ULPs;
 no absolute epsilon can erase a signal. A mismatch retires GPU resources before
 the complete CPU fallback. The check allocates no expected-result image plane.
-It currently also evaluates CPU color work, so this packet makes no speed claim.
+Geometry recipes instead use the whole-plane reference described below. Both
+checks evaluate CPU work, so this packet makes no speed claim.
 
 Some tested drivers flush subnormal arithmetic. Affected source or intermediate
 profiles take the CPU path. Nonlinear near-zero and ill-conditioned cancellation
@@ -119,12 +122,61 @@ and complete SHA-bound reference; the Original is never reopened. Authentication
 opaque operation, cancellation and cleanup failures remain fatal and never
 trigger replay.
 
+## Natural-extent geometry
+
+Legacy top-level geometry runs first; authored
+crop, rotation, flips and perspective stay at their actual effect positions.
+Complete private pass identities and the descriptor chain are admitted before
+pixels. The maximum is 257 passes: one legacy geometry followed by up to 256
+authored effects. Each stage retains its Float32 store, natural output descriptor
+and viewport. Two ping-pong textures resize for the next admitted extent, clearing
+their prior application-visible storage before replacement. Readback uses the
+final descriptor, which may differ from the Original in both dimensions.
+
+Integer-pixel crops and quarter turns without perspective have an exact integer
+inverse mapping. That shader path avoids rounded normalized-coordinate drift.
+It still performs geometry: alpha zero clears every component to positive zero,
+and visible RGB zeros canonicalize to positive zero as in the CPU accumulator.
+An explicitly authored identity geometry is therefore not an omitted no-op.
+
+Generic geometry uses output pixel centers, the captured affine aperture map
+and projective division. Four explicit integer texel reads clamp to the crop's
+inclusive pixel bounds. The rectangular crop extends its edge samples; outside
+the rotated aperture is transparent. Filtering accumulates premultiplied linear
+RGB and alpha, then divides RGB by the unrounded accumulated alpha. Only output
+alpha clamps to its unit range; alpha rounding to zero clears RGBA. Signed/HDR
+RGB has no output clamp or encoded intermediate.
+
+A sequential whole-plane CPU reference uses the existing geometry writer and
+native color/LUT operations, storing Float32 after every authored stage. It owns
+at most two maximum-extent reference planes and retires predecessors immediately;
+there is no recursive neighborhood sampler or provenance image. Output alpha
+must match the CPU result exactly. Geometry-only integer-permutation chains
+require exact RGBA. Mixed stacks retain the zero, tiny and unchanged-component
+guards and the existing eight-ULP allowance for other normal RGB. Integer
+ancestry uses the private exact inverse maps rather than a same-index source
+assumption after a crop or rotation. The reference's finite-source validation,
+stage evaluation, comparison and reverse-ancestry work yield to cancellation;
+intrinsic source capture and bulk plane copies remain synchronous.
+
+The existing CPU mapper can retain tiny neighbor support at nominal integer
+centers through Double-coordinate roundoff. If that survives Float32 storage,
+the exact integer GPU fetch must select whole CPU processing. Float32 projective
+mapping and aperture-boundary differences can also refuse numerical admission.
+Neither the CPU model nor the precision budget changes to force GPU acceptance.
+Private Double LUT tables stay alive through the complete reference comparison,
+then retire before final consumer delivery. Readback is never repaired with CPU
+samples. These checks preserve the same Original, recipe and resource authority.
+
 ## Working set and retirement
 
 The Current preview working ceiling remains 768 MiB. Admission charges the full
 physical borrowed backing, including padding outside a valid source view.
 Native GPU execution overlaps that backing with one Float32 host capture, two
-RGBA32F textures and one Float32 readback. Presentation planning also reserves
+maximum-extent RGBA32F textures and one final-extent Float32 readback. Geometry
+recipes additionally reserve two maximum-extent CPU reference planes. Pointwise
+recipes retain the streamed comparison and allocate no reference image plane.
+Presentation planning also reserves
 a full RGBA8 conversion plus a bounded fitted presentation allowance beside the
 live native working set. Histogram and display conversions can run sequentially;
 this is a conservative reserve, not a claim that both byte planes remain live
@@ -133,7 +185,7 @@ with the fitted allowance capped at 4,194,304 pixels.
 
 Active extended color or LUT passes also reserve 4096 bytes for bounded uniform
 staging. One reusable Float32 bank holds the band controls and curve points;
-the streamed scalar comparison introduces no additional image plane or
+the pointwise streamed comparison introduces no additional image plane or
 pixel-bearing rank scratch. Capability probing retains its separate fixed
 reserve.
 
@@ -195,25 +247,29 @@ jobs using the existing digest-pinned Playwright 1.62.1 container. Both authenti
 the downloaded Lightscaper build and source maps before running the project;
 their coverage dependencies make a failed GPU job block distribution.
 
+The dedicated configuration names eight exact Lightscaper native/menu specs.
 The English/German software-GPU UI workflows collect built-site coverage.
 Both jobs require compaction and upload of the distinct
 `coverage-shard-browser-chromium-lightscaper-gpu` artifact into the existing
 coverage union. Lower-level realtime cases retain their explicit coverage
-opt-out. Local qualification passed all 48 software-GPU cases across six specs,
-including six coverage-enabled English/German menu workflows, and all 48 Firefox
+opt-out. Local qualification passed all 62 software-GPU cases across eight specs,
+including eight coverage-enabled English/German menu workflows, and all 62 Firefox
 compatibility cases. Compaction retained 116 scripts and maps with exact pins
-for 16 processing and presentation source owners. Mandatory positive software-GPU
-literals prove accepted native color/LUT delivery; numerical-refusal witnesses
+for 21 processing, presentation and UI source owners. Mandatory positive software-GPU
+literals prove accepted native color/LUT/geometry delivery; numerical-refusal witnesses
 require exact whole-CPU output. The all-color RAW workflow retains its explicit
 precision-refusal witness, while the RAW LUT workflow proves accepted LUT preview
 with unchanged Original and resource custody. Observed GL work alone does not
-prove accepted GPU delivery. These local results do not establish hosted CI
-success or a coverage-floor pass; no local floor tightening is claimed.
+prove accepted GPU delivery. Mounted numeric regressions also preserve rapid
+crop/rotation/flip edits through Save, refuse replaced or disabled controls and
+clear rejected edits on Escape. The selected Lightscaper Node run passed 295
+cases in 47 files. These local results do not establish hosted CI success or a
+coverage-floor pass; no local floor tightening is claimed.
 
-The recorded local color/LUT software-GPU and Firefox corpus passed. Hosted CI
-execution remains pending; a configured gate is not a hosted success.
-Geometry, all spatial and
-optical families, complete mask graphs and overlay projection, Original-space
+The recorded local color/LUT/geometry software-GPU and Firefox corpus passed.
+Hosted CI execution remains pending; a configured gate
+is not a hosted success. All spatial and optical families, complete mask graphs
+and overlay projection, Original-space
 Clone and genuine screened-Poisson Heal still need GPU implementations and
 combined conformance. Until each is qualified, its recipe keeps the complete
 CPU route. Full-stack GPU parity, native desktop services, the broader L7/L8/L9

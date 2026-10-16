@@ -53,10 +53,12 @@ retain their existing charges. This phase bound is not a whole-application heap
 claim or a bound for decoder/browser-native storage.
 
 GPU preference admits its complete preferred phase beside the full physical
-Original backing: native proxy input, private Float32 capture, two RGBA32F
-targets, Float32 readback and the existing full/fitted presentation allowance.
+Original backing: native proxy input, private Float32 capture, two maximum-extent
+RGBA32F targets, final-extent Float32 readback and the existing full/fitted
+presentation allowance. GPU geometry passes the recorded local software-GPU and
+Firefox corpus; its preferred phase also charges two maximum-extent CPU reference planes.
 Active extended color or LUT passes add a 4096-byte uniform-staging reserve;
-streamed CPU conformance checking allocates no expected-result image plane. Capability
+pointwise streamed CPU conformance checking allocates no expected-result image plane. Capability
 probing has a separate fixed reserve. If that phase cannot fit but
 the entire CPU phase can, the same admitted source and one proxy capture select
 CPU before GL allocation. If neither fits, the request refuses. No fallback
@@ -75,6 +77,18 @@ re-read immutable SHA-bound LUT bodies through the pinned source method after
 GPU resource retirement. Invalid bodies, cancellation and cleanup failures do
 not trigger replay. Input-domain clamp, signed/HDR output, exact alpha and the
 existing native readback precision rules remain unchanged.
+
+GPU geometry evaluates the same admitted proxy grid, with legacy geometry first
+and authored geometry at its saved position. Up to 257 private passes capture
+the entire changing descriptor chain before samples. Each viewport follows its
+stage extent; ping-pong textures clear prior storage before resizing. Integer
+crops and quarter turns use exact inverse texel coordinates, while generic
+geometry uses four crop-clamped premultiplied-linear taps and unrounded-alpha
+division. Explicit identity geometry still canonicalizes alpha-zero hidden RGB.
+The sequential CPU reference retains every Float32 stage store and exact output
+alpha; Double LUT authority remains live through comparison, then retires before
+the consumer. CPU mapper drift, coordinate precision or memory can select the
+complete CPU recipe without changing saved parameters or precision guards.
 
 Native promotion starts at the fitted proxy extent; each adjustment uses its
 admitted natural proxy stage extent. No full-Original Float32 capture is

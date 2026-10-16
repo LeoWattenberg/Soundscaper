@@ -50,9 +50,19 @@ curves and wheels in either resolution. Their recorded local software-GPU
 corpus passed. Authenticated cube LUTs are qualified in both resolutions by the
 recorded local software-GPU and Firefox corpus. Their bodies authenticate before
 GL; private Double sampling remains independent of the rounded upload, and the stable
-Original is never reopened during CPU fallback. Native readback must pass its streamed CPU
-conformance check before delivery; an unchanged identity-curve channel can
+Original is never reopened during CPU fallback. Native geometry passes the
+recorded local software-GPU and Firefox corpus for proxy and Full. Legacy geometry stays
+first and authored geometry stays in order; each viewport and the final readback
+follow the admitted natural descriptor. Integer inverse sampling and generic
+four-tap premultiplied filtering retain the CPU alpha/hidden-RGB rules.
+Native pointwise readback must pass its streamed CPU conformance check;
+geometry readback instead uses the existing CPU writers in up to two
+maximum-extent reference planes, with exact output alpha and unchanged precision
+guards. Both paths finish validation before delivery. An unchanged identity-curve channel can
 legitimately select the complete CPU route on a small rounding difference.
+The CPU mapper's own coordinate drift can likewise require CPU for an integer
+geometry request. Reference planes, changing texture extents, LUT resources and
+presentation all enter the existing 768-MiB phase plan; no bound is widened.
 CPU remains the default, unsupported complete stacks use CPU, and the renderer
 preference resets on reopening. The choice does not change saved settings,
 history, exports or Original custody. Complete GPU stack coverage and native
