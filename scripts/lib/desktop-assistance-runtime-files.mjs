@@ -2,6 +2,7 @@
 
 /** Exact compiled closure owned by desktop local assistance and its model store. */
 export const DESKTOP_ASSISTANCE_RUNTIME_FILES = Object.freeze([
+	'desktop/assistance-acceleration-entrypoints.js',
 	'desktop/assistance-cleanup-barrier.js',
 	'desktop/assistance-runtime-family-cancellation.js',
 	'desktop/assistance-runtime-distribution.js',

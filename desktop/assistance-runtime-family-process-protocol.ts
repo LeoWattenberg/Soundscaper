@@ -20,6 +20,7 @@ import {
 } from './assistance-runtime-family-manifest.ts';
 import { assertHelperWireEnvelope } from './helper-wire-admission.ts';
 import { validateAssistanceExecutionProviders } from './assistance-execution-providers.ts';
+import { validateAssistanceAccelerationEntrypoints } from './assistance-acceleration-entrypoints.ts';
 
 export type AssistanceRuntimeFamilyHostMessageV1 =
 	| Readonly<{
@@ -100,6 +101,7 @@ export function validateAssistanceRuntimeFamilyDescriptorV1(
 	const record = exactRecord(value, [
 		'familyId', 'runtimeVersion', 'target', 'executionProvider', 'entrypoint', 'files',
 		...(plainRecord(value) && Object.hasOwn(value, 'executionProviders') ? ['executionProviders'] : []),
+		...(plainRecord(value) && Object.hasOwn(value, 'accelerationEntrypoints') ? ['accelerationEntrypoints'] : []),
 	], 'runtime-family descriptor');
 	const familyId = family(record.familyId);
 	const definition = ASSISTANCE_RUNTIME_FAMILY_DEFINITIONS[familyId];
@@ -124,11 +126,14 @@ export function validateAssistanceRuntimeFamilyDescriptorV1(
 	if (!entry || entry.executable !== (definition.loader === 'executable')) {
 		throw new TypeError('The runtime-family entrypoint is not bound by its exact closure.');
 	}
+	const accelerationEntrypoints = validateAssistanceAccelerationEntrypoints(record.accelerationEntrypoints,
+		{ familyId, entrypoint, executionProviders, files, absolute: true });
 	return Object.freeze({
 		familyId, runtimeVersion: definition.runtimeVersion,
 		target: record.target as AssistanceRuntimeFamilyTargetId,
 		executionProvider: 'cpu', entrypoint, files: Object.freeze(files),
 		...(executionProviders ? { executionProviders } : {}),
+		...(accelerationEntrypoints ? { accelerationEntrypoints } : {}),
 	});
 }
 

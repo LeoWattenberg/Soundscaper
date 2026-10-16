@@ -12,6 +12,10 @@ import {
 	validateAssistanceExecutionProviders,
 	type AssistanceRuntimeExecutionProvider,
 } from './assistance-execution-providers.ts';
+import {
+	validateAssistanceAccelerationEntrypoints,
+	type AssistanceAccelerationEntrypoints,
+} from './assistance-acceleration-entrypoints.ts';
 
 export const ASSISTANCE_RUNTIME_FAMILY_MANIFEST_SCHEMA_VERSION = 1;
 export const ASSISTANCE_RUNTIME_FAMILY_TARGETS = Object.freeze([
@@ -60,6 +64,7 @@ export interface AssistanceRuntimeFamilyAuthenticatedTargetV1 {
 	readonly entrypoint: string;
 	readonly files: readonly AssistanceRuntimeFamilyFileV1[];
 	readonly executionProviders?: readonly AssistanceRuntimeExecutionProvider[];
+	readonly accelerationEntrypoints?: AssistanceAccelerationEntrypoints;
 }
 
 export interface AssistanceRuntimeFamilyPackageGeneratedTargetV1 {
@@ -93,6 +98,7 @@ export interface AssistanceRuntimeFamilyDescriptor {
 	readonly target: AssistanceRuntimeFamilyTargetId;
 	readonly executionProvider: 'cpu';
 	readonly executionProviders?: readonly AssistanceRuntimeExecutionProvider[];
+	readonly accelerationEntrypoints?: AssistanceAccelerationEntrypoints;
 	readonly entrypoint: string;
 	readonly files: readonly AssistanceRuntimeFamilyDescriptorFile[];
 }
@@ -233,6 +239,9 @@ export async function describeAssistanceRuntimeFamilyAvailability(
 				target: targetId,
 				executionProvider: 'cpu' as const,
 				...(target.executionProviders ? { executionProviders: target.executionProviders } : {}),
+				...(target.accelerationEntrypoints ? { accelerationEntrypoints: Object.freeze({
+					vulkan: resolve(targetRoot, target.accelerationEntrypoints.vulkan),
+				}) } : {}),
 				entrypoint: resolve(targetRoot, target.entrypoint),
 				files,
 			}),
@@ -263,7 +272,8 @@ function validateTarget(
 	}
 	if (value.status !== 'authenticated') throw new TypeError('A runtime-family target status is invalid.');
 	exactKeys(value, ['id', 'status', 'entrypoint', 'files',
-		...(Object.hasOwn(value, 'executionProviders') ? ['executionProviders'] : [])],
+		...(Object.hasOwn(value, 'executionProviders') ? ['executionProviders'] : []),
+		...(Object.hasOwn(value, 'accelerationEntrypoints') ? ['accelerationEntrypoints'] : [])],
 	'authenticated runtime-family target');
 	const executionProviders = Object.hasOwn(value, 'executionProviders')
 		? validateAssistanceExecutionProviders(value.executionProviders, familyId, id) : undefined;
@@ -279,8 +289,11 @@ function validateTarget(
 	if (!entryFile || entryFile.executable !== (loader === 'executable')) {
 		throw new TypeError('The runtime-family entrypoint is absent or has the wrong execution kind.');
 	}
+	const accelerationEntrypoints = validateAssistanceAccelerationEntrypoints(value.accelerationEntrypoints,
+		{ familyId, entrypoint, executionProviders, files });
 	return Object.freeze({ id, status: 'authenticated', entrypoint, files: Object.freeze(files),
-		...(executionProviders ? { executionProviders } : {}) });
+		...(executionProviders ? { executionProviders } : {}),
+		...(accelerationEntrypoints ? { accelerationEntrypoints } : {}) });
 }
 
 function validateFile(value: unknown): AssistanceRuntimeFamilyFileV1 {
