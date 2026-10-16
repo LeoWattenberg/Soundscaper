@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-/** Authenticated CPU ONNX execution for pinned nomic transcript/query embeddings. */
+/** Authenticated ONNX execution for pinned nomic transcript/query embeddings. */
 
 import { readFile } from 'node:fs/promises';
 

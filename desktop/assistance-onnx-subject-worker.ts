@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-/** Authenticated composite YuNet face and D-FINE object detection on CPU. */
+/** Authenticated composite YuNet face and D-FINE object detection with ONNX. */
 
 import { readFile } from 'node:fs/promises';
 

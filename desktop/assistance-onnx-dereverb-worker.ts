@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-/** Authenticated CPU ONNX custody for the dereverb-room BS-RoFormer model. */
+/** Authenticated ONNX custody for the dereverb-room BS-RoFormer model. */
 
 import {
 	ASSISTANCE_DEREVERB_ROOM_CHUNK_FRAMES,

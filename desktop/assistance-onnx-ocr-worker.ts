@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-/** Authenticated PP-OCRv4 mobile detector/orientation/recognizer CPU pipeline. */
+/** Authenticated PP-OCRv4 mobile pipeline using the selected ONNX provider. */
 
 import { readFile } from 'node:fs/promises';
 

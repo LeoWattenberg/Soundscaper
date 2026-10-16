@@ -128,10 +128,12 @@ export async function prepareAssistanceRuntimeDistributionSources({
 	const kokoroFiles = [];
 	for (const file of kokoro.files) {
 		// Windows does not expose PE executability through POSIX mode bits.
-		const runtimeFile = file.path === kokoro.executable
-			? { ...file, executable: true } : file;
+		if (file.path === kokoro.executable
+			|| /^_internal\/scape-gpu\/onnx-webgpu-device-probe(?:\.exe)?$/u.test(file.path)) {
+			file.executable = true;
+		}
 		const refreshed = await refreshedFile(resolve(runtimeRoot, kokoro.runtimePrefix, targetId, file.path),
-			runtimeFile, signing);
+			file, signing);
 		file.byteLength = refreshed.byteLength;
 		file.sha256 = refreshed.sha256;
 		kokoroFiles.push(refreshed);

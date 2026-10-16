@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-/** Authenticated CPU U²-Net-P saliency detection over VFR-bound sampled frames. */
+/** Authenticated U²-Net-P saliency detection over VFR-bound sampled frames. */
 
 import {
 	reviewAssistanceSaliencyResultV1,

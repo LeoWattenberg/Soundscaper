@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-/** Authenticated CPU execution of pinned SigLIP2 image and text embeddings. */
+/** Authenticated ONNX execution of pinned SigLIP2 image and text embeddings. */
 
 import { readFile } from 'node:fs/promises';
 

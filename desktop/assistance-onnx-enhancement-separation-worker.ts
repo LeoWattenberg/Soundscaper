@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-/** Authenticated CPU ONNX custody for DeepFilterNet3 and TIGER-DnR. */
+/** Authenticated ONNX custody for DeepFilterNet3 and TIGER-DnR. */
 
 import { readFile } from 'node:fs/promises';
 

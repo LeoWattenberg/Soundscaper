@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-/** Authenticated CPU ONNX Kokoro v1.0 synthesis from offline phoneme chunks. */
+/** Authenticated ONNX Kokoro v1.0 synthesis from offline phoneme chunks. */
 
 import { readFile } from 'node:fs/promises';
 

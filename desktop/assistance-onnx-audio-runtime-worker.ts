@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-/** Reviewed CPU ONNX adapters for PANNs Cnn10 and Beat This v1.1.0. */
+/** Reviewed ONNX adapters for PANNs Cnn10 and Beat This v1.1.0. */
 
 import {
 	ASSISTANCE_BEAT_THIS_FRAMES_PER_SECOND,

@@ -126,13 +126,20 @@ test('distributed Windows GPU probes retain executable archive mode without POSI
 		manifests[familyId] = { runtimeVersion: 'fixture', runtimePrefix,
 			targets: [{ id: targetId, status: 'authenticated', files: [file] }] };
 	}
+	const g2pProbe = { ...file, path: '_internal/scape-gpu/onnx-webgpu-device-probe.exe' };
+	const g2pDirectory = join(runtimeRoot, 'assistance/kokoro-g2p/fixture', targetId);
+	await mkdir(join(g2pDirectory, '_internal/scape-gpu'), { recursive: true });
+	await writeFile(join(g2pDirectory, g2pProbe.path), bytes, { mode: 0o644 });
 	const prepared = await prepareAssistanceRuntimeDistributionSources({
 		targetId, runtimeRoot, assistanceSpeechRuntime: speech, environment: {},
 		assistanceRuntimeFamilies: { manifestBytes: Buffer.from(JSON.stringify({ manifests })),
 			summary: { targetId, families: familyIds.map((familyId) => ({ familyId, targetId, runtimeVersion: 'fixture' })) } },
 		kokoroG2pRuntime: { manifest: { runtimeVersion: 'fixture', runtimePrefix: 'assistance/kokoro-g2p/fixture',
-			targetId, executable: 'engine', files: [file] } },
+			targetId, executable: 'engine', files: [file, g2pProbe] } },
 	});
+	const g2pArchivedProbe = prepared.kokoroFiles.find(({ path }: { path: string }) => path === g2pProbe.path);
+	assert.equal(g2pArchivedProbe?.executable, true);
+	assert.equal(prepared.kokoro.manifest.files.find(({ path }: { path: string }) => path === g2pProbe.path)?.executable, true);
 	const probe = prepared.speechFiles.find(({ path }: { path: string }) => path.endsWith('/onnx-webgpu-device-probe.exe'));
 	assert.ok(probe);
 	assert.equal(probe?.executable, true);
@@ -153,6 +160,23 @@ test('distributed Windows GPU probes retain executable archive mode without POSI
 		offset += 512 + Math.ceil(length / 512) * 512;
 	}
 	assert.equal(found, true);
+	const g2pArchive = await createAssistanceRuntimeArchive({
+		familyId: 'kokoro-g2p', runtimeVersion: 'fixture', targetId,
+		runtimePrefix: 'assistance/kokoro-g2p/fixture', installPath: `assistance/kokoro-g2p/fixture/${targetId}`,
+		files: prepared.kokoroFiles, runtimeRoot, archiveRoot: join(root, 'g2p-archives'),
+	});
+	const g2pTar = gunzipSync(await readFile(g2pArchive.archivePath));
+	let g2pFound = false;
+	for (let offset = 0; g2pTar[offset];) {
+		const name = g2pTar.toString('utf8', offset, offset + 100).replaceAll('\0', '');
+		if (name === g2pProbe.path) {
+			assert.equal(Number.parseInt(g2pTar.toString('ascii', offset + 100, offset + 108), 8) & 0o111, 0o111);
+			g2pFound = true;
+		}
+		const length = Number.parseInt(g2pTar.toString('ascii', offset + 124, offset + 136), 8);
+		offset += 512 + Math.ceil(length / 512) * 512;
+	}
+	assert.equal(g2pFound, true);
 });
 
 async function sourceFixture(context: TestContext, targetId: typeof TARGETS[number]) {
