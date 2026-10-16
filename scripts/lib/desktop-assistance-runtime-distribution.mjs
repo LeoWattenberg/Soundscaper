@@ -89,7 +89,8 @@ export async function prepareAssistanceRuntimeDistributionSources({
 	const speechFiles = [];
 	for (const [path, file] of Object.entries(speechSummary.payload.files)) {
 		const absolute = resolve(runtimeRoot, speech.runtimePrefix, path);
-		const refreshed = await refreshedFile(absolute, { path, ...file }, signing);
+		const probe = /\/onnx-webgpu-device-probe(?:\.exe)?$/u.test(path);
+		const refreshed = await refreshedFile(absolute, { path, ...file, ...(probe ? { executable: true } : {}) }, signing);
 		speechFiles.push(refreshed);
 		const [, packageName, ...remainder] = path.split('/');
 		const packageFile = remainder.join('/');

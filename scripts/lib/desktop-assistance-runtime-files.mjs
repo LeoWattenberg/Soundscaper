@@ -72,6 +72,7 @@ export const DESKTOP_ASSISTANCE_RUNTIME_FILES = Object.freeze([
 	'desktop/assistance-semantic-query-executor.js',
 	'desktop/assistance-selected-video-authority.js',
 	'desktop/assistance-service.js',
+	'desktop/assistance-sherpa-acceleration.js',
 	'desktop/assistance-sherpa-diarizer.js',
 	'desktop/assistance-streaming-float32-wave.js',
 	'desktop/assistance-sherpa-recognizer.js',

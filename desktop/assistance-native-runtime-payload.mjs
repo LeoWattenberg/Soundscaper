@@ -10,6 +10,8 @@ import {
 import { isAbsolute, relative, resolve, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
+import sherpaGpuRecipe from '../config/assistance-sherpa-gpu-build.json' with { type: 'json' };
+
 const TARGET_IDS = Object.freeze([
 	'linux-x64', 'linux-arm64', 'mac-arm64', 'win-x64', 'win-arm64',
 ]);
@@ -62,6 +64,7 @@ export function assistanceNativeRuntimeStageSummary(manifestValue, targetId) {
 		runtimeId: manifest.runtimeId,
 		version: manifest.version,
 		manifestSha256,
+		...(target.executionProviders ? { executionProviders: [...target.executionProviders] } : {}),
 		payload: {
 			root: manifest.runtimePrefix,
 			files: Object.fromEntries(packages.flatMap((descriptor) => (
@@ -177,11 +180,14 @@ function validateManifestAndTarget(value, targetId) {
 		if (!plainRecord(candidate) || !ASSISTANCE_TARGET_STATUSES.includes(candidate.status)) {
 			throw new TypeError(`The assistance native runtime target ${id} is invalid.`);
 		}
-		if (candidate.status === 'built') validatePackage(candidate.package, value.version, false);
+		if (candidate.status === 'built') {
+			validatePackage(candidate.package, value.version, false);
+			validateNativeExecutionProviders(candidate, id);
+		}
 		else if ((candidate.status === 'package-generated'
 				? candidate.blockedBy !== null
 				: typeof candidate.blockedBy !== 'string' || candidate.blockedBy.trim().length < 16)
-			|| Object.hasOwn(candidate, 'package')) {
+			|| Object.hasOwn(candidate, 'package') || Object.hasOwn(candidate, 'executionProviders')) {
 			throw new TypeError(`The unavailable assistance target ${id} is invalid.`);
 		}
 	}
@@ -214,6 +220,15 @@ function validPackageSource(value, common) {
 	if (typeof value.sourceUrl !== 'string') return false;
 	if (value.sourceBuild === undefined) return value.sourceUrl.startsWith('https://registry.npmjs.org/');
 	const source = value.sourceBuild;
+	if (!common && source?.recipeId === sherpaGpuRecipe.recipeId) {
+		const pinned = sherpaGpuRecipe.sources.find(({ id }) => id === 'sherpa-source');
+		return plainRecord(source) && JSON.stringify(Object.keys(source).sort()) === JSON.stringify([
+			'recipeId', 'recipeSha256', 'sourceRevision', 'sourceSha256',
+		]) && source.sourceRevision === sherpaGpuRecipe.sourceRevision && source.sourceSha256 === pinned.sha256
+			&& source.recipeSha256 === digest(Buffer.from(JSON.stringify(sherpaGpuRecipe)))
+			&& value.sourceUrl === pinned.url && value.integrity === pinned.integrity
+			&& value.version === sherpaGpuRecipe.version;
+	}
 	return !common && value.name === 'sherpa-onnx-win-arm64' && value.version === '1.13.5'
 		&& plainRecord(source)
 		&& JSON.stringify(Object.keys(source).sort()) === JSON.stringify([
@@ -225,6 +240,35 @@ function validPackageSource(value, common) {
 		&& source.nativeAssetSha256 === '42112e75ca3baf647047929f704960587cf6ed22fbd046643d66d33d7c74c123'
 		&& value.sourceUrl === `https://codeload.github.com/k2-fsa/sherpa-onnx/tar.gz/${source.sourceRevision}`
 		&& value.integrity === 'sha512-Pu5IhMT9dOkU8nXAb3kUQ0X+8RubN+KR3Q1AgwmV/wmXKnW/PSe5IZGf///Gr/7WLVioUZ/urhhW5KiBDVHANw==';
+}
+
+function validateNativeExecutionProviders(target, targetId) {
+	const providers = target.executionProviders;
+	const gpuBuild = target.package.sourceBuild?.recipeId === sherpaGpuRecipe.recipeId;
+	if (providers === undefined && !gpuBuild) return;
+	const allowed = targetId === 'mac-arm64' ? ['coreml', 'webgpu', 'cpu'] : ['webgpu', 'cpu'];
+	if (!Array.isArray(providers) || providers.length < 1 || providers.length > allowed.length
+		|| !providers.includes('cpu') || new Set(providers).size !== providers.length
+		|| providers.some((provider) => !allowed.includes(provider))
+		|| providers.some((provider) => provider !== 'cpu') !== gpuBuild) {
+		throw new TypeError('Sherpa execution providers require an authenticated GPU build with CPU fallback.');
+	}
+	const expectedPackage = `sherpa-onnx-${targetId.replace('mac-', 'darwin-')}`;
+	if (gpuBuild && (target.package.name !== expectedPackage || !providers.includes('webgpu')
+		|| sherpaGpuFiles(targetId).some((name) => !target.package.files[name]))) {
+		throw new TypeError('The Sherpa GPU capability does not match its target package closure.');
+	}
+}
+
+function sherpaGpuFiles(targetId) {
+	const windows = targetId.startsWith('win-'), mac = targetId === 'mac-arm64';
+	const prefix = windows ? '' : 'lib', extension = windows ? 'dll' : mac ? 'dylib' : 'so';
+	return ['sherpa-onnx.node', 'build-provenance.json', 'SHERPA_NOTICES.txt',
+		`onnx-webgpu-device-probe${windows ? '.exe' : ''}`,
+		`${prefix}sherpa-onnx-c-api.${extension}`, `${prefix}sherpa-onnx-cxx-api.${extension}`,
+		`${prefix}onnxruntime_providers_webgpu.${extension}`,
+		...(windows ? ['onnxruntime.dll', 'dxcompiler.dll', 'dxil.dll']
+			: mac ? ['libonnxruntime.1.29.0.dylib', 'libonnxruntime.1.dylib'] : ['libonnxruntime.so.1'])];
 }
 
 async function verifyPackageDirectory(packageRoot, descriptor) {

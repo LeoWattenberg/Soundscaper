@@ -16,8 +16,9 @@ import { createSpeechRuntimeAdapter } from './project-library-runtime/desktop/as
 import { validateAssistanceSpeechJobGrant } from './project-library-runtime/desktop/assistance-speech-job-contract.js';
 import { nativeChildFileIdentityFromStat } from './project-library-runtime/desktop/native-child-file-identity.js';
 
+let executionProviders;
 const runtime = createSpeechRuntimeAdapter({
-	createFactory: createSherpaRecognizerFactory,
+	createFactory: (module) => createSherpaRecognizerFactory(module, { executionProviders }),
 	load: loadVerifiedRuntime,
 });
 
@@ -43,7 +44,8 @@ async function run() {
 	for (const file of [...inputFiles, ...modelFiles]) await verifyGrantedFile(file);
 	parentPort?.postMessage({ type: 'progress', value: 0 });
 	if (grant.operation === 'detect-voice-activity') {
-		const detector = createSherpaVadFactory(await loadVerifiedRuntime());
+		const module = await loadVerifiedRuntime();
+		const detector = createSherpaVadFactory(module, { executionProviders });
 		return detector.detect({
 			modelId: grant.modelId,
 			audioPath: grant.audio.path,
@@ -54,7 +56,8 @@ async function run() {
 		});
 	}
 	if (grant.operation === 'diarize-speakers') {
-		const diarizer = createSherpaDiarizerFactory(await loadVerifiedRuntime());
+		const module = await loadVerifiedRuntime();
+		const diarizer = createSherpaDiarizerFactory(module, { executionProviders });
 		return diarizer.diarize({
 			audioPath: grant.audio.path,
 			modelIds: grant.modelIds,
@@ -95,6 +98,7 @@ async function loadVerifiedRuntime() {
 		error.code = 'MODULE_NOT_FOUND';
 		throw error;
 	}
+	executionProviders = verified.executionProviders;
 	return import(verified.moduleSpecifier);
 }
 

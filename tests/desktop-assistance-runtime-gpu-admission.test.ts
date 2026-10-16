@@ -36,6 +36,7 @@ test('GPU capabilities remain bound to the reviewed family and target with a CPU
 		['onnxruntime-node', 'mac-arm64', ['coreml', 'webgpu', 'cpu']],
 		['onnxruntime-node', 'win-arm64', ['webgpu', 'cpu']],
 		['onnxruntime-node', 'linux-x64', ['webgpu', 'cpu']],
+		['onnxruntime-node', 'linux-arm64', ['webgpu', 'cpu']],
 		['whisper-cpp', 'mac-arm64', ['metal', 'cpu']],
 		['llama-cpp', 'mac-arm64', ['metal', 'cpu']],
 	] as const) {
@@ -44,7 +45,7 @@ test('GPU capabilities remain bound to the reviewed family and target with a CPU
 			manifest(familyId, targetId, providers).targets.find(({ id }) => id === targetId));
 	}
 	for (const [familyId, targetId, providers] of [
-		['onnxruntime-node', 'linux-arm64', ['webgpu', 'cpu']],
+		['onnxruntime-node', 'linux-arm64', ['coreml', 'cpu']],
 		['onnxruntime-node', 'linux-x64', ['coreml', 'cpu']],
 		['onnxruntime-node', 'mac-arm64', ['dml', 'cpu']],
 		['onnxruntime-node', 'win-x64', ['dml', 'cpu']],
@@ -95,8 +96,10 @@ test('process descriptors preserve authenticated GPU capabilities and reject tar
 			byteLength: BYTES.byteLength, sha256: SHA, executable: false }],
 	};
 	assert.deepEqual(validateAssistanceRuntimeFamilyDescriptorV1(descriptor), descriptor);
+	assert.deepEqual(validateAssistanceRuntimeFamilyDescriptorV1({ ...descriptor, target: 'linux-arm64' }),
+		{ ...descriptor, target: 'linux-arm64' });
 	assert.throws(() => validateAssistanceRuntimeFamilyDescriptorV1({
-		...descriptor, target: 'linux-arm64',
+		...descriptor, target: 'linux-arm64', executionProviders: ['coreml', 'cpu'],
 	}), /provider/iu);
 	assert.throws(() => validateAssistanceRuntimeFamilyDescriptorV1({
 		...descriptor, executionProviders: ['webgpu'],
