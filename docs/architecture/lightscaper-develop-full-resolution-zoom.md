@@ -47,7 +47,10 @@ write, and reopening starts with the fit-screen proxy.
 Current Settings → Preview rendering can temporarily prefer GPU for admitted
 native white balance, tone, chroma, black-and-white mix, HSL, point/parametric
 curves and wheels in either resolution. Their recorded local software-GPU
-corpus passed. Native readback must pass its streamed CPU
+corpus passed. Authenticated cube LUTs are qualified in both resolutions by the
+recorded local software-GPU and Firefox corpus. Their bodies authenticate before
+GL; private Double sampling remains independent of the rounded upload, and the stable
+Original is never reopened during CPU fallback. Native readback must pass its streamed CPU
 conformance check before delivery; an unchanged identity-curve channel can
 legitimately select the complete CPU route on a small rounding difference.
 CPU remains the default, unsupported complete stacks use CPU, and the renderer

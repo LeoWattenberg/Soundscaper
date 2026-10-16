@@ -55,12 +55,26 @@ claim or a bound for decoder/browser-native storage.
 GPU preference admits its complete preferred phase beside the full physical
 Original backing: native proxy input, private Float32 capture, two RGBA32F
 targets, Float32 readback and the existing full/fitted presentation allowance.
-Active extended color passes add a 4096-byte uniform-staging reserve; streamed
-CPU conformance checking allocates no expected-result image plane. Capability
+Active extended color or LUT passes add a 4096-byte uniform-staging reserve;
+streamed CPU conformance checking allocates no expected-result image plane. Capability
 probing has a separate fixed reserve. If that phase cannot fit but
 the entire CPU phase can, the same admitted source and one proxy capture select
 CPU before GL allocation. If neither fits, the request refuses. No fallback
 reopens the Original.
+
+Authenticated LUT GPU stages use the same proxy grid; their recorded local
+software-GPU and Firefox corpus passes. Unique bodies are read sequentially after
+the source snapshot and authenticated before GL. Private Double tables supply the CPU
+oracle independently of the reusable Float32 upload and maximum-size 3D
+texture. Their sum, the 4096-byte uniform reserve and the distinct parser phase
+join the preferred plan: retained Double prefix plus 128 MiB parser reserve,
+16 MiB borrowed physical backing and the current reference's raw snapshot.
+The ceiling remains 768 MiB. Double tables retire before final GPU consumption;
+GL/upload storage remains owned through its consumer. Whole CPU fallback can
+re-read immutable SHA-bound LUT bodies through the pinned source method after
+GPU resource retirement. Invalid bodies, cancellation and cleanup failures do
+not trigger replay. Input-domain clamp, signed/HDR output, exact alpha and the
+existing native readback precision rules remain unchanged.
 
 Native promotion starts at the fitted proxy extent; each adjustment uses its
 admitted natural proxy stage extent. No full-Original Float32 capture is

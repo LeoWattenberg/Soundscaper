@@ -962,20 +962,33 @@ there.
   wires all eight native color families through Develop's existing Settings
   menu: white balance, the full tone ladder, chroma, black-and-white mix, HSL,
   point/parametric curves and wheels. Their recorded local software-GPU corpus
-  passed. CPU remains the default; GPU preferred is temporary proxy/Full presentation
+  passed. Authenticated cube-LUT GPU stages also pass their recorded local
+  software-GPU and Firefox corpus. Stable Original capture precedes sequential
+  unique resource reads, and full body SHA/length/size/domain authentication
+  precedes GL. Private Double tables retain the existing CPU sampler separately
+  from the rounded upload. One maximum-size 3D texture and one upload bank
+  preserve authored order, input-domain clamp, signed/HDR output and exact alpha.
+  Distinct table/parser/execution/whole-CPU phases retain the 768-MiB ceiling,
+  including padded borrowed backings; Double tables retire before the final GPU
+  consumer. CPU remains the default; GPU preferred is temporary proxy/Full presentation
   policy. Every GPU delivery is checked against the normative CPU scalar with
   per-stage Float32 rounding: alpha, zeros, tiny samples below `2^-60` and final
   unchanged components remain exact; other finite normal RGB permits at most
   eight ULPs. Identity-knot rounding can legitimately select the complete CPU
   route. Numerical, capability or capacity refusal retains the whole CPU
   recipe. This correctness check also costs CPU work and makes no acceleration
-  claim. Verified LUTs, geometry/optics, spatial stages, complete masks/brush
+  claim. Geometry/optics, spatial stages, complete masks/brush
   and true Clone/Heal GPU execution remain unfinished, alongside combined
   conformance and the L7/L8/L9 exit gates. The configured digest-pinned Chromium
   software-GPU baseline retains its Quality/Desktop Preview coverage
-  dependencies; local native/menu color qualification passed all 30 cases,
-  including four coverage-enabled English/German workflows and exact CPU
-  fallback for the RAW corpus when its native GPU precision check refuses.
+  dependencies; local qualification passed all 48 software-GPU cases across the
+  six native/menu specs and all 48 Firefox compatibility cases, including six
+  coverage-enabled English/German workflows. Positive LUT delivery and exact
+  whole-CPU precision fallback are independently witnessed. GPU fallback can
+  re-read SHA-bound LUT bytes through the same pinned resource method after
+  resource retirement, while the Original remains captured once. Authentication,
+  cancellation and cleanup failures never cause replay. No assistance or native
+  decoder runtime closure changes; no manual **Update AI assets** run is needed.
   Hosted CI success and final inter-slice QA are not claimed.
 - **Electron Enhanced — Planned:** native raw decode and preview services
   through the milestone-5 helper architecture, fail-closed, with the WASM

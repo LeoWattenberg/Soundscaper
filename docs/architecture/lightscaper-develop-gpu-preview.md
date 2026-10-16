@@ -13,6 +13,8 @@ curves and color wheels. Tone includes exposure, contrast, highlights, shadows,
 whites and blacks. Each authored effect retains its order and Float32 stage
 store. The recorded local software-GPU corpus qualifies these color paths and
 their truthful fallback. The complete Photo Develop GPU stack remains unfinished.
+Authenticated cube-LUT stages use the same native path; their recorded local
+software-GPU and Firefox corpus now passes.
 
 ## Shared execution and fallback
 
@@ -21,7 +23,7 @@ mask overlay, resource authorities, geometry and processing limits before source
 samples. The broker uses the existing native CPU engine as its whole-recipe
 fallback. An unfinished stage never disappears from a GPU result.
 
-At present, active geometry, LUTs, spatial and optical effects, local masks,
+At present, active geometry, spatial and optical effects, local masks,
 repairs or a selected mask overlay select the complete CPU render.
 Encoded byte sources also retain their existing CPU process and
 per-stage byte quantization. They are not implicitly promoted into the native
@@ -87,6 +89,36 @@ does not apply to an unchanged component. Readback is never patched with CPU
 samples to manufacture conformance. This result contract is not a universal
 shader-accuracy or capability claim over every finite control and sample.
 
+## Authenticated cube LUTs
+
+The Original snapshot finishes before the first asynchronous resource read.
+Closed LUT references bind their SHA-256, byte length, lattice size and input
+domain. Every unique body passes the existing parser and those complete identity
+checks before GL opens. Reads are sequential, with no nested repository borrows;
+the source method and receiver are pinned before awaits. Repeated authored
+references share one private table without changing effect order.
+
+Each authenticated table is copied into private Float64 storage for the
+normative CPU sampler. The Float32 RGBA upload bank is separate and cannot
+become that oracle: rounding two lattice endpoints can erase a real interpolated
+signal. The shader uses eight explicit nearest texel reads and the CPU's
+red-fastest, B→G→R difference-form interpolation. Only declared input-domain
+coordinates clamp. Signed/HDR output remains unclipped, each authored stage
+stores Float32, and straight alpha remains exact. Float32-collapsed domains or
+nonfinite uploads select whole CPU processing after body authentication.
+The texture operations follow the [WebGL2 specification](https://registry.khronos.org/webgl/specs/2.0/)
+and its [float render-target extension](https://registry.khronos.org/webgl/extensions/EXT_color_buffer_float/).
+
+One reusable RGBA32F 3D texture and one host upload bank use the largest selected
+lattice; smaller passes read only their declared lattice extent. The LUT shader
+variant requires 143 fragment-uniform vectors. The existing eight-ULP and exact
+component guards apply unchanged to the private Double oracle. Numerical or
+capability refusal retires the resource and GL scopes before whole CPU fallback.
+That CPU phase can read LUT bytes again through the same pinned source method
+and complete SHA-bound reference; the Original is never reopened. Authentication,
+opaque operation, cancellation and cleanup failures remain fatal and never
+trigger replay.
+
 ## Working set and retirement
 
 The Current preview working ceiling remains 768 MiB. Admission charges the full
@@ -99,11 +131,24 @@ this is a conservative reserve, not a claim that both byte planes remain live
 together. It charges 4 bytes per output pixel plus 4 bytes per fitted pixel,
 with the fitted allowance capped at 4,194,304 pixels.
 
-Active extended color passes also reserve 4096 bytes for bounded uniform
+Active extended color or LUT passes also reserve 4096 bytes for bounded uniform
 staging. One reusable Float32 bank holds the band controls and curve points;
 the streamed scalar comparison introduces no additional image plane or
 pixel-bearing rank scratch. Capability probing retains its separate fixed
 reserve.
+
+LUT planning charges the sum of unique Float64 RGB tables, one maximum-size
+Float32 RGBA upload bank and one matching 3D texture. A 65³ table costs
+6,591,000 oracle bytes and 4,394,000 bytes each for upload and texture storage.
+The separate capture phase charges the retained Double prefix including the
+current table, a 128-MiB parser/transient reserve, the full 16-MiB admitted
+borrowed backing and the reference's raw snapshot byte length. Padding outside
+an authenticated source view therefore cannot hide physical source cost. The
+ceiling stays 768 MiB; an oversized valid set selects whole CPU before GPU I/O.
+These scalar reserves are not an exact JavaScript-engine or driver heap bound.
+Existing parser text and frozen numeric scratch are released without a claim
+that their physical memory can be wiped. The new mutable Double snapshots and
+upload bank have explicit wipe ownership.
 
 GPU and CPU fallback have separate phase plans. Proxy admission chooses once
 using the actual physical Original backing before allocating its private proxy.
@@ -124,6 +169,10 @@ accepts commands, deletes its handles, requests context loss when available and
 zeros canvas backing dimensions. Captured host samples, probe arrays and readback storage
 have physical wipe ownership. Deleting GL resources does not certify erasure
 of driver-private GPU memory; a lost context cannot accept overwrite commands.
+Private Double tables retire before the final GPU consumer. The GL texture and
+host upload bank stay owned through that joined consumer; retirement wipes the
+bank and clears every layer of the maximum-size cube before deleting its handle
+when the context still accepts commands.
 
 ## Qualification and remaining scope
 
@@ -150,18 +199,20 @@ The English/German software-GPU UI workflows collect built-site coverage.
 Both jobs require compaction and upload of the distinct
 `coverage-shard-browser-chromium-lightscaper-gpu` artifact into the existing
 coverage union. Lower-level realtime cases retain their explicit coverage
-opt-out. Local qualification passed all 30 software-GPU cases, including four
-coverage-enabled English/German menu workflows. Compaction retained 114 scripts
-and maps with exact pins for nine GPU source owners. The all-color RAW workflow
-also qualifies its authentic samples through the real broker: a precision
-refusal requires exact whole-CPU native output and exact CPU pixels in the UI.
-Observed GL work alone does not prove accepted GPU delivery. These results do
-not establish a hosted CI result or a coverage-floor pass; no local floor
-tightening is claimed.
+opt-out. Local qualification passed all 48 software-GPU cases across six specs,
+including six coverage-enabled English/German menu workflows, and all 48 Firefox
+compatibility cases. Compaction retained 116 scripts and maps with exact pins
+for 16 processing and presentation source owners. Mandatory positive software-GPU
+literals prove accepted native color/LUT delivery; numerical-refusal witnesses
+require exact whole-CPU output. The all-color RAW workflow retains its explicit
+precision-refusal witness, while the RAW LUT workflow proves accepted LUT preview
+with unchanged Original and resource custody. Observed GL work alone does not
+prove accepted GPU delivery. These local results do not establish hosted CI
+success or a coverage-floor pass; no local floor tightening is claimed.
 
-The recorded local color software-GPU corpus passed. Hosted CI execution remains
-pending; the configured gate
-is not a report of a hosted success. Verified LUTs, geometry, all spatial and
+The recorded local color/LUT software-GPU and Firefox corpus passed. Hosted CI
+execution remains pending; a configured gate is not a hosted success.
+Geometry, all spatial and
 optical families, complete mask graphs and overlay projection, Original-space
 Clone and genuine screened-Poisson Heal still need GPU implementations and
 combined conformance. Until each is qualified, its recipe keeps the complete

@@ -75,8 +75,9 @@ Those methods remain the default and export renderers. The additive Current
 preview preference. Its native linear word/Float32 color paths include white
 balance, the full tone ladder, chroma, black-and-white mix, HSL, point/parametric
 curves and wheels. The recorded local software-GPU corpus qualifies these paths
-and their numerical fallback. A stack needing LUTs, geometry/optics, spatial
-stages, masks or repairs
+and their numerical fallback. Authenticated cube-LUT GPU stages also pass their
+recorded local software-GPU and Firefox corpus. A stack needing geometry/optics,
+spatial stages, masks or repairs
 takes the entire existing CPU route, as do unsupported GPU numeric, capability
 or working-set profiles. Stages are never silently omitted. GPU stages store
 linear RGBA32F and return scoped Float32 readback checked against the normative
@@ -86,6 +87,19 @@ check also costs CPU work and makes no speed claim. Canonical Before and the
 final display, proof and histogram boundaries retain their existing policies.
 Complete GPU stack coverage, broader native conformance and hosted CI parity
 remain open.
+
+The GPU LUT route authenticates complete body SHA/length/size/domain bindings
+sequentially after the stable Original capture and before GL. A private Double
+table supplies the unchanged CPU trilinear sampler independently of the rounded
+Float32 upload. Input-domain clamp, signed/HDR output, per-stage Float32 stores
+and exact alpha retain their CPU meanings. Double tables retire before final
+GPU delivery; GL and its upload bank stay owned through the joined consumer.
+Numeric/capability refusal can re-read SHA-bound LUT resources through the same
+pinned source method for whole CPU fallback, without reopening the Original.
+Authentication, cancellation and cleanup failures never replay. The
+[GPU ownership plan](lightscaper-develop-gpu-preview.md#working-set-and-retirement)
+charges all unique tables, reusable upload/texture storage and the padded
+physical parser phase under the unchanged 768-MiB ceiling.
 
 The shared execution order is:
 
@@ -160,7 +174,7 @@ Native plane admission also charges the borrowed source's full underlying
 fixed backing, including padding outside a valid view, before private frame
 allocation. A small admitted span cannot hide a larger physical source cost.
 
-Each active LUT charges twice its declared byte length plus a conservative
+Each active CPU LUT charges twice its declared byte length plus a conservative
 128 MiB parser/transient reserve. This is a planning reserve, not an exact
 bound on JavaScript engine string or array overhead. Oversized combinations of
 natural geometry, masks, resources and scratch refuse before sample access;
