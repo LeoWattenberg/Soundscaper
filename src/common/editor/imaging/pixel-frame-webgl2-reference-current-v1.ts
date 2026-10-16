@@ -13,6 +13,17 @@ import type { PixelFrameWebGl2LutResourcesCurrentV1 } from './pixel-frame-webgl2
 import { pixelFrameWebGl2ComponentEquivalentCurrentV1 } from './pixel-frame-webgl2-numeric-current-v1.ts';
 import { captureRepairSignalV1, checkRepairSignalV1, RepairTaskBudgetV1 } from './pixel-frame-repair-lifetime-v1.ts';
 
+import { readPixelFrameWebGl2MaskCheckpointPlanCurrentV1 } from './pixel-frame-webgl2-mask-plan-current-v1.ts';
+import { replayPixelFrameWebGl2MaskReferenceCurrentV1 } from './pixel-frame-webgl2-mask-reference-current-v1.ts';
+import { finishPixelFrameWebGl2MaskCheckpointsCurrentV1,
+	type PixelFrameWebGl2MaskReceiptsCurrentV1 } from './pixel-frame-webgl2-mask-checkpoint-current-v1.ts';
+import type { MaskRasterSourceScopeV1 } from './mask-raster-source-scope-v1.ts';
+interface MaskContext {
+	readonly plan: unknown;
+	readonly receipts: Readonly<PixelFrameWebGl2MaskReceiptsCurrentV1>;
+	readonly scope: Readonly<MaskRasterSourceScopeV1> | undefined;
+}
+
 const NativeFloat = Float32Array, NativeBytes = Uint8Array;
 const TYPED = Object.getPrototypeOf(NativeFloat.prototype) as object;
 const BUFFER = Object.getOwnPropertyDescriptor(TYPED, 'buffer')!.get!;
@@ -93,13 +104,34 @@ function borrow(value: unknown, ownedDescriptor: LinearKernelDescriptorV1) {
  * upload tables. Every authored effect stores Float32 before the next stage.
  * Replaced private planes retire immediately; all remaining storage is wiped
  * before returning either numerical outcome or an operation/cleanup failure. */
-export async function validatePixelFrameWebGl2ReferenceCurrentV1(sourceValue: Readonly<LinearWorkingPixelFrameV1>,
+export function validatePixelFrameWebGl2ReferenceCurrentV1(sourceValue: Readonly<LinearWorkingPixelFrameV1>,
 	resultValue: Readonly<LinearWorkingPixelFrameV1>, values: readonly unknown[], checkValue: () => void,
 	resources?: Readonly<PixelFrameWebGl2LutResourcesCurrentV1>, signalValue?: AbortSignal): Promise<boolean> {
+	return validate(sourceValue, resultValue, values, checkValue, resources, signalValue);
+}
+
+/** Private plan and live scoped receipts accompany the existing whole-plane
+ * validator. This does not prepare metadata, authenticate bodies or deliver an
+ * overlay. The ordinary unmasked public path remains exactly the old path. */
+export function validatePixelFrameWebGl2MaskedReferenceCurrentV1(sourceValue: Readonly<LinearWorkingPixelFrameV1>,
+	resultValue: Readonly<LinearWorkingPixelFrameV1>, planValue: unknown, receipts: Readonly<PixelFrameWebGl2MaskReceiptsCurrentV1>,
+	checkValue: () => void, resources?: Readonly<PixelFrameWebGl2LutResourcesCurrentV1>,
+	scope?: Readonly<MaskRasterSourceScopeV1>, signalValue?: AbortSignal): Promise<boolean> {
+	checkRepairSignalV1(captureRepairSignalV1(signalValue));
+	const plan = readPixelFrameWebGl2MaskCheckpointPlanCurrentV1(planValue);
+	return validate(sourceValue, resultValue, plan.passes, checkValue, resources, signalValue, { plan: planValue, receipts, scope });
+}
+async function validate(sourceValue: Readonly<LinearWorkingPixelFrameV1>,
+	resultValue: Readonly<LinearWorkingPixelFrameV1>, values: readonly unknown[], checkValue: () => void,
+	resources?: Readonly<PixelFrameWebGl2LutResourcesCurrentV1>, signalValue?: AbortSignal, masks?: MaskContext): Promise<boolean> {
 	const signal = captureRepairSignalV1(signalValue); checkRepairSignalV1(signal);
 	if (typeof checkValue !== 'function') throw new TypeError('Native GPU reference requires a currentness check.');
 	checkValue();
 	const plan = metadata(sourceValue, resultValue, values, resources);
+	const maskPlan = masks && readPixelFrameWebGl2MaskCheckpointPlanCurrentV1(masks.plan);
+	if (maskPlan && (!same(maskPlan.sourceDescriptor, plan.source) || !same(maskPlan.finalDescriptor, plan.result))) {
+		throw new RangeError('Mask reference differs from its captured native descriptor chain.');
+	}
 	const source = borrow(sourceValue, plan.source), result = borrow(resultValue, plan.result);
 	const check = () => { checkRepairSignalV1(signal); checkValue(); source.check(); result.check(); };
 	check();
@@ -114,9 +146,10 @@ export async function validatePixelFrameWebGl2ReferenceCurrentV1(sourceValue: Re
 		const matched = await owner.run(async () => {
 			const initial = owner.floats(plan.source.width * plan.source.height * 4), budget = new RepairTaskBudgetV1(check);
 			Reflect.apply(SET, initial, [source.pixels]);
-			let current: Readonly<LinearWorkingPixelFrameV1> = Object.freeze({ descriptor: plan.source, pixels: initial }), backing = initial.buffer;
+			let current: Readonly<LinearWorkingPixelFrameV1> = Object.freeze({ descriptor: maskPlan?.sourceDescriptor ?? plan.source, pixels: initial }), backing = initial.buffer;
 			check();
-			for (const pass of plan.passes) {
+			if (masks) current = await replayPixelFrameWebGl2MaskReferenceCurrentV1(masks.plan, current, owner, masks.receipts, check, resources, masks.scope, signal);
+			else for (const pass of plan.passes) {
 				check();
 				if ('sourceDescriptor' in pass) {
 					const next = owner.floats(pass.descriptor.width * pass.descriptor.height * 4);
@@ -135,6 +168,7 @@ export async function validatePixelFrameWebGl2ReferenceCurrentV1(sourceValue: Re
 					if (budget.visit()) await budget.yield();
 				}
 			}
+			const maskMatched = masks ? finishPixelFrameWebGl2MaskCheckpointsCurrentV1(masks.receipts) : true;
 			for (let offset = 0; offset < current.pixels.length; offset += 4) {
 				if (budget.visit()) await budget.yield();
 				if (!Object.is(current.pixels[offset + 3], result.pixels[offset + 3])) return false;
@@ -158,7 +192,7 @@ export async function validatePixelFrameWebGl2ReferenceCurrentV1(sourceValue: Re
 						original === undefined || !plan.ancestry[channel] ? undefined : source.pixels[original + channel])) return false;
 				}
 			}
-			check(); return true;
+			check(); return maskMatched;
 		});
 		check(); return matched;
 	} finally { rgb.red = 0; rgb.green = 0; rgb.blue = 0; }

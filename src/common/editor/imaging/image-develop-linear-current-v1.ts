@@ -16,7 +16,8 @@ import { writeLinearChromaticAberrationV1 } from './pixel-frame-linear-chromatic
 import { writeLinearDefringeV1 } from './pixel-frame-linear-defringe-v1.ts';
 import { writeLinearOpticalVignetteV1 } from './pixel-frame-linear-optical-vignette-v1.ts';
 import { writeLinearLutStageV1 } from './image-develop-linear-lut-stage-v1.ts';
-import { withLinearMaskCoverageV1, blendLinearMaskCoverageV1 } from './pixel-frame-linear-mask-v1.ts';
+import { withLinearMaskCoverageV1 } from './pixel-frame-linear-mask-v1.ts';
+import { blendLinearMaskCurrentV1 } from './image-develop-linear-mask-blend-current-v1.ts';
 import { withMaskRasterSourceScopeV1, type MaskRasterSourceScopeV1 } from './mask-raster-source-scope-v1.ts';
 import type { ImageDevelopMaskOverlayViewV1 } from './image-develop-mask-overlay-v1.ts';
 import { withProjectedImageDevelopMaskCoverageCurrentV1 } from './image-develop-mask-overlay-current-v1.ts';
@@ -71,20 +72,9 @@ export async function withImageDevelopLinearCurrentV1<Result>(value: unknown,
 				const next = work ? await work() : undefined;
 				if (binding && (next || binding === prepared.selectedBinding)) await withLinearMaskCoverageV1(binding, current, async coverage => {
 					if (next) {
-						if (copiedChannels === 'unchanged') await blendUnchangedMaskCurrentV1(current, next, coverage, signal);
-						else await blendLinearMaskCoverageV1(current, next, coverage, signal);
-						// CA's reference channels are literal copies. Fractional blend
-						// arithmetic must not turn their negative zero into positive zero.
-						if (copiedChannels && copiedChannels !== 'unchanged') {
-							const budget = new RepairTaskBudgetV1(check);
-							for (let offset = 0; offset < next.length; offset += 4) {
-								next[offset + 1] = current.pixels[offset + 1]!;
-								if (copiedChannels.red) next[offset] = current.pixels[offset]!;
-								if (copiedChannels.blue) next[offset + 2] = current.pixels[offset + 2]!;
-								if (budget.visit()) await budget.yield();
-							}
-							check();
-						}
+						await blendLinearMaskCurrentV1(current, next, coverage, copiedChannels === 'unchanged'
+							? { kind: 'unchanged-components' } : copiedChannels ? { kind: 'ca-copy', copyRed: copiedChannels.red, copyBlue: copiedChannels.blue }
+								: { kind: 'generic' }, signal);
 					}
 					if (binding === prepared.selectedBinding) await withProjectedImageDevelopMaskCoverageCurrentV1(binding, coverage, view => {
 						const copy = owner.bytes(view.coverage.length); Uint8Array.prototype.set.call(copy, view.coverage);
@@ -139,35 +129,4 @@ export async function withImageDevelopLinearCurrentV1<Result>(value: unknown,
 		};
 		return prepared.maskSource ? withMaskRasterSourceScopeV1(prepared.masks.references, prepared.masks.retainedStorageKeys, prepared.maskSource, render, signal) : render();
 	});
-}
-
-/** Current stages can retain exact gate-zero/unchanged component bits.
- * Compare the staged value before interpolation; the permanent shared blend
- * retains its original arithmetic. No plane or image-sized scratch is made. */
-async function blendUnchangedMaskCurrentV1(source: Readonly<LinearWorkingPixelFrameV1>, target: Float32Array<ArrayBuffer>,
-	coverage: Uint8Array<ArrayBuffer>, signal?: AbortSignal): Promise<void> {
-	if (target.length !== source.pixels.length || coverage.length * 4 !== target.length) throw new RangeError('Current unchanged-component mask geometry changed.');
-	const backings = [source.pixels, target, coverage].map(view => {
-		const buffer = Reflect.apply(TYPED_BUFFER, view, []) as ArrayBuffer;
-		return { buffer, length: Number(Reflect.apply(BACKING_SIZE, buffer, [])) };
-	});
-	const check = () => {
-		checkRepairSignalV1(signal);
-		if (backings.some(({ buffer, length }) => length === 0 || Reflect.apply(BACKING_SIZE, buffer, []) !== length)) {
-			throw new TypeError('Current unchanged-component mask storage was detached or changed.');
-		}
-	};
-	const budget = new RepairTaskBudgetV1(check); check();
-	for (let offset = 0; offset < target.length; offset += 4) {
-		const amount = coverage[offset / 4]!;
-		for (let channel = 0; channel < 3; channel++) {
-			const before = source.pixels[offset + channel]!, after = target[offset + channel]!;
-			const value = before === after || amount === 0 ? before : amount === 255 ? after : Math.fround(before + amount / 255 * (after - before));
-			if (!Number.isFinite(value)) throw new RangeError('Current unchanged-component mask exceeds finite Float32 range.');
-			target[offset + channel] = value;
-		}
-		target[offset + 3] = source.pixels[offset + 3]!;
-		if (budget.visit()) await budget.yield();
-	}
-	check();
 }
