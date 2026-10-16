@@ -1,10 +1,11 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { createWavFixture, expect, test } from './audio-editor-test-fixtures.js';
-import { bootEditor, chooseCommandAction, chooseNestedCommandAction, effectSourcePeak, importFiles } from './audio-editor-test-helpers.js';
+import { bootEditor, chooseCommandAction, chooseNestedCommandAction, importFiles } from './audio-editor-test-helpers.js';
 import { installOscillatorMicrophone, persistedProject } from './helpers/complex-editing-workflows.js';
 import { chooseTrackMenuAction } from './helpers/track-menu.js';
 import { SOUNDSCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
+import { sourcePeakById } from './helpers/stored-source-probes.js';
 
 test('ordinary promoted mono microphone take flattens with its native width', async ({ page }) => {
 	await installOscillatorMicrophone(page);
@@ -28,7 +29,8 @@ test('ordinary promoted mono microphone take flattens with its native width', as
 	expect(take).toBeTruthy();
 	const source = captured.sources.find(item => item.id === take.sourceId);
 	expect(source.channelCount).toBe(1);
-	const inputPeak = await effectSourcePeak(page, source.name);
+	// Loop passes share a display name; IndexedDB's source order need not match the selected take.
+	const inputPeak = await sourcePeakById(page, source.id);
 	expect(inputPeak).toBeGreaterThan(.05);
 	await chooseTrackMenuAction(page, editor, editor.locator('[data-track-row]').first(), 'Take lanes and comps');
 	const dialog = page.getByRole('dialog', { name: 'Take lanes and comps', exact: true });
@@ -43,7 +45,7 @@ test('ordinary promoted mono microphone take flattens with its native width', as
 	await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved');
 	const flattened = await persistedProject(page, id);
 	const result = flattened.sources.find(item => item.name.includes('flattened take'));
-	const resultPeak = await effectSourcePeak(page, result.name);
+	const resultPeak = await sourcePeakById(page, result.id);
 	console.log('Take flatten native PCM', { inputWidth: source.channelCount, outputWidth: result.channelCount, inputPeak, resultPeak });
 	expect(resultPeak).toBeGreaterThan(.05);
 	expect(result.channelCount).toBe(source.channelCount);
@@ -74,3 +76,36 @@ async function capturedFrames(page) {
 		} finally { database.close(); }
 	}, SOUNDSCAPER_DATABASE_NAME);
 }
+
+test('stored peak probes distinguish duplicate display names by source identity', async ({ page }) => {
+	const editor = await bootEditor(page, '/embed/en/');
+	const projectId = await editor.getAttribute('data-project-id');
+	expect(projectId).toBeTruthy();
+	const initial = await persistedProject(page, projectId);
+	const knownIds = new Set((initial?.sources ?? []).map(source => source.id));
+	const name = 'duplicate-peak-identity.wav';
+	const selected = [];
+	for (const amplitude of [.25, .75]) {
+		await importFiles(editor, [createWavFixture({ name, frequency: 375, duration: .1,
+			sampleRate: 48_000, channelCount: 1, channelAmplitudes: [amplitude] })]);
+		await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved');
+		const saved = await persistedProject(page, projectId);
+		expect(saved).not.toBeNull();
+		const added = saved.sources.filter(source => !knownIds.has(source.id));
+		expect(added).toHaveLength(1);
+		const [source] = added;
+		expect(source.name).toBe(name);
+		expect(source.channelCount).toBe(1);
+		selected.push({ source, amplitude });
+		for (const source of saved.sources) knownIds.add(source.id);
+	}
+	expect(new Set(selected.map(({ source }) => source.id)).size).toBe(2);
+	expect(selected.map(({ source }) => source.name)).toEqual([name, name]);
+	// At 375 Hz / 48 kHz, each period includes samples at both sine extrema.
+	// One signed-PCM16 step bounds quantization and normalized decoder scaling.
+	const pcm16Step = 1 / 32_768;
+	for (const { source, amplitude } of [...selected, ...selected.slice().reverse()]) {
+		await expect.poll(async () => Math.abs(await sourcePeakById(page, source.id) - amplitude))
+			.toBeLessThanOrEqual(pcm16Step);
+	}
+});
