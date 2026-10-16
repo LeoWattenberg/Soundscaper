@@ -261,6 +261,7 @@ async [ENGINE_SCHEDULE_PLAYBACK](this: EngineRuntimeHost, fromFrame, scheduledTi
 				signal: graph.abortController.signal,
 				onStreamUnderrun: recordWebCoreStreamUnderrun,
 				deferStartUntilPrimed: true,
+				allowUnstartedStartRebase: true,
 				minimumStartLeadSeconds,
 				onBeforeStart,
 			});
