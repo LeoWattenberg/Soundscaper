@@ -6,6 +6,7 @@ import { PIXEL_FRAME_WEBGL2_COLOR_FRAGMENT_CURRENT_V1 as COLOR_FRAGMENT } from '
 import { PIXEL_FRAME_WEBGL2_LUT_FRAGMENT_CURRENT_V1 as LUT_FRAGMENT } from './pixel-frame-webgl2-lut-glsl-current-v1.ts';
 import { PIXEL_FRAME_WEBGL2_GEOMETRY_FRAGMENT_CURRENT_V1 as GEOMETRY_FRAGMENT } from './pixel-frame-webgl2-geometry-glsl-current-v1.ts';
 import { PIXEL_FRAME_WEBGL2_OPTICS_FRAGMENT_CURRENT_V1 as OPTICS_FRAGMENT } from './pixel-frame-webgl2-optics-glsl-current-v1.ts';
+import { PIXEL_FRAME_WEBGL2_SPATIAL_FRAGMENT_CURRENT_V1 as SPATIAL_FRAGMENT } from './pixel-frame-webgl2-spatial-glsl-current-v1.ts';
 import { pixelFrameWebGl2PassSupportedCurrentV1, type PreparedPixelFrameWebGl2PassCurrentV1 } from './pixel-frame-webgl2-pass-current-v1.ts';
 import type { PixelFrameWebGl2LutResourcesCurrentV1 } from './pixel-frame-webgl2-lut-current-v1.ts';
 import { pixelFrameWebGl2NumericEligibleCurrentV1, validatePixelFrameWebGl2ColorReadbackCurrentV1 } from './pixel-frame-webgl2-numeric-current-v1.ts';
@@ -117,6 +118,10 @@ export async function openPixelFrameWebGl2ContextCurrentV1(frame: Readonly<Linea
 		const opticsUniforms = opticsProgram ? { program: opticsProgram, image: uniform(opticsProgram, 'uImage'),
 			kind: uniform(opticsProgram, 'uOpticsKind'), extent: uniform(opticsProgram, 'uExtent'),
 			params0: uniform(opticsProgram, 'uParams0'), params1: uniform(opticsProgram, 'uParams1') } : undefined;
+		const spatialProgram = pipeline.hasSpatial ? compile(SPATIAL_FRAGMENT) : undefined;
+		const spatialUniforms = spatialProgram ? { program: spatialProgram, image: uniform(spatialProgram, 'uImage'),
+			kind: uniform(spatialProgram, 'uSpatialKind'), extent: uniform(spatialProgram, 'uExtent'),
+			params0: uniform(spatialProgram, 'uParams0'), params1: uniform(spatialProgram, 'uParams1') } : undefined;
 		for (let index = 0; index < 2; index++) {
 			const texture = native.createTexture(); if (!texture) return unavailable('execution-unavailable'); textures.push(texture);
 			native.bindTexture(native.TEXTURE_2D, texture);
@@ -128,6 +133,7 @@ export async function openPixelFrameWebGl2ContextCurrentV1(frame: Readonly<Linea
 		native.bindVertexArray(array); native.useProgram(program); native.uniform1i(image, 0);
 		if (geometryUniforms) { native.useProgram(geometryUniforms.program); native.uniform1i(geometryUniforms.image, 0); native.useProgram(program); }
 		if (opticsUniforms) { native.useProgram(opticsUniforms.program); native.uniform1i(opticsUniforms.image, 0); native.useProgram(program); }
+		if (spatialUniforms) { native.useProgram(spatialUniforms.program); native.uniform1i(spatialUniforms.image, 0); native.useProgram(program); }
 		if (cube) {
 			native.uniform1i(cube, 1); native.activeTexture(native.TEXTURE1);
 			const texture = native.createTexture(); if (!texture) return unavailable('execution-unavailable'); cubeTexture = texture;
@@ -166,6 +172,10 @@ export async function openPixelFrameWebGl2ContextCurrentV1(frame: Readonly<Linea
 				for (let row = 0; row < 2; row++) native.uniform3f(geometry.output[row]!, a[row * 3]!, a[row * 3 + 1]!, a[row * 3 + 2]!);
 				for (let row = 0; row < 3; row++) native.uniform3f(geometry.source[row]!, m[row * 3]!, m[row * 3 + 1]!, m[row * 3 + 2]!);
 				if (inverse) for (let row = 0; row < 2; row++) native.uniform3i(geometry.inverse[row]!, inverse[row * 3]!, inverse[row * 3 + 1]!, inverse[row * 3 + 2]!);
+			} else if (pass && 'inputPolicy' in pass) {
+				const spatial = spatialUniforms!; native.useProgram(spatial.program);
+				native.uniform1i(spatial.kind, pass.kind); native.uniform2i(spatial.extent, width, height);
+				native.uniform4f(spatial.params0, ...pass.params0); native.uniform4f(spatial.params1, ...pass.params1);
 			} else if (pass && 'sourceDescriptor' in pass) {
 				const optics = opticsUniforms!; native.useProgram(optics.program);
 				native.uniform1i(optics.kind, pass.kind); native.uniform2i(optics.extent, width, height);

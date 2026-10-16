@@ -8,6 +8,7 @@ import { writePixelFrameWebGl2PassChannelsCurrentV1 } from './pixel-frame-webgl2
 import { planPixelFrameWebGl2PipelineCurrentV1 } from './pixel-frame-webgl2-pipeline-current-v1.ts';
 import { writePixelFrameWebGl2GeometryCurrentV1 } from './pixel-frame-webgl2-geometry-current-v1.ts';
 import { writePixelFrameWebGl2OpticsCurrentV1 } from './pixel-frame-webgl2-optics-current-v1.ts';
+import { writePixelFrameWebGl2SpatialCurrentV1 } from './pixel-frame-webgl2-spatial-current-v1.ts';
 import type { PixelFrameWebGl2LutResourcesCurrentV1 } from './pixel-frame-webgl2-lut-current-v1.ts';
 import { pixelFrameWebGl2ComponentEquivalentCurrentV1 } from './pixel-frame-webgl2-numeric-current-v1.ts';
 import { captureRepairSignalV1, checkRepairSignalV1, RepairTaskBudgetV1 } from './pixel-frame-repair-lifetime-v1.ts';
@@ -47,6 +48,10 @@ function metadata(sourceValue: unknown, resultValue: unknown, values: unknown,
 	// operations and active Defringe propagate it to every output channel.
 	const ancestry: [boolean, boolean, boolean] = [true, true, true];
 	for (const pass of passes) {
+		if ('inputPolicy' in pass) {
+			if (pass.inputPolicy === 'neighborhood' || pass.inputPolicy === 'pointwise-coupled' && ancestry.some(value => !value)) ancestry.fill(false);
+			continue;
+		}
 		if (pass.kind === 9 && !pass.integerPermutation || pass.kind === 10 && pass.params1[3] !== 0 && pass.params1[0] !== 0) ancestry.fill(false);
 		else if (pass.kind === 11 && pass.params1[3] !== 0) {
 			if (pass.params1[0] !== 0) ancestry[0] = false;
@@ -117,6 +122,7 @@ export async function validatePixelFrameWebGl2ReferenceCurrentV1(sourceValue: Re
 					const next = owner.floats(pass.descriptor.width * pass.descriptor.height * 4);
 					check();
 					if (pass.kind === 9) await writePixelFrameWebGl2GeometryCurrentV1(pass, current, next, signal);
+					else if ('inputPolicy' in pass) await writePixelFrameWebGl2SpatialCurrentV1(pass, current, next, signal);
 					else await writePixelFrameWebGl2OpticsCurrentV1(pass, current, next, signal);
 					check();
 					owner.retire(backing); backing = next.buffer;

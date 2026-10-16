@@ -45,15 +45,18 @@ for (const selected of optics) test(`${selected.type} reaches native context adm
 	assert.deepEqual(actual, [...pixels]); assert.deepEqual(pixels, before); assert.equal(calls, 1);
 });
 
-test('unfinished spatial stages still select the entire CPU recipe beside admitted optical families', async () => {
+test('an active mask still selects the entire CPU recipe beside admitted optical and spatial families', async () => {
 	const pixels = Float32Array.of(.125, .25, .5, 1);
 	await withImageDevelopGpuCurrentV1({ frame: { descriptor: descriptor(1, 1), pixels },
-		develop: state([...optics, effect('texture-v1', { amount: 25 })]) }, (_result, execution) => {
+		develop: normalizeImageDevelopStateCurrentV1({ ...state([...optics, effect('texture-v1', { amount: 25 })]),
+			masks: [{ schemaVersion: 1, id: 'local', kind: 'mask', inputs: [], nodes: [{ id: 'rect', kind: 'vector-shape',
+				shape: 'rectangle', x: 0, y: 0, width: .5, height: 1 }], outputNodeId: 'rect' }], maskBindings: [{ maskId: 'local', effectId: 'texture-v1' }],
+		}) }, (_result, execution) => {
 		assert.equal(execution.backend, 'cpu'); assert.equal(execution.reason, 'unsupported-stage');
 	}, LIMITS);
 });
 
-test('invalid optical metadata refuses before pixels and no later unsupported stage hides it', async () => {
+test('invalid optical metadata refuses before pixels beside spatial stages', async () => {
 	let reads = 0;
 	await assert.rejects(withImageDevelopGpuCurrentV1({ frame: { descriptor: descriptor(1, 1), get pixels() { reads++; throw new Error('pixels'); } },
 		develop: { ...defaultImageDevelopStateV2(), effects: [effect('lens-distortion-v1', { amount: 101 }), effect('texture-v1', { amount: 25 })] } },

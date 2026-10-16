@@ -14,11 +14,12 @@ const NATIVE = 'editor-native-image-develop', GPU = 'editor-image-develop-gpu';
 const HOSTS = ['image-develop-gpu-current-v1.ts', 'pixel-frame-webgl2-current-v1.ts', 'pixel-frame-webgl2-global-current-v1.ts',
 	'pixel-frame-webgl2-color-current-v1.ts', 'linear-curve-metadata-current-v1.ts', 'image-develop-gpu-plan-current-v1.ts',
 	'pixel-frame-webgl2-pass-current-v1.ts', 'pixel-frame-webgl2-lut-current-v1.ts', 'linear-cube-lut-sampling-current-v1.ts',
-	'pixel-frame-webgl2-geometry-current-v1.ts', 'pixel-frame-webgl2-pipeline-current-v1.ts', 'pixel-frame-webgl2-optics-current-v1.ts'];
+	'pixel-frame-webgl2-geometry-current-v1.ts', 'pixel-frame-webgl2-pipeline-current-v1.ts', 'pixel-frame-webgl2-optics-current-v1.ts', 'pixel-frame-webgl2-spatial-current-v1.ts'];
 const CONTEXT = 'pixel-frame-webgl2-context-current-v1.ts';
 const EXECUTION = [CONTEXT, 'pixel-frame-webgl2-numeric-current-v1.ts', 'pixel-frame-webgl2-chroma-glsl-current-v1.ts',
 	'pixel-frame-webgl2-curves-glsl-current-v1.ts', 'pixel-frame-webgl2-color-glsl-current-v1.ts', 'pixel-frame-webgl2-lut-glsl-current-v1.ts',
-	'pixel-frame-webgl2-geometry-glsl-current-v1.ts', 'pixel-frame-webgl2-reference-current-v1.ts', 'pixel-frame-webgl2-optics-glsl-current-v1.ts'];
+	'pixel-frame-webgl2-geometry-glsl-current-v1.ts', 'pixel-frame-webgl2-reference-current-v1.ts', 'pixel-frame-webgl2-optics-glsl-current-v1.ts',
+	'pixel-frame-webgl2-spatial-glsl-current-v1.ts', 'pixel-frame-webgl2-spatial-neighborhood-glsl-current-v1.ts', 'pixel-frame-webgl2-spatial-lattice-glsl-current-v1.ts'];
 function source(path: string): string { return transformSync(readFileSync(path, 'utf8'), { loader: 'ts', format: 'esm' }).code; }
 function exactOwner(name: string, expected: string): void {
 	for (const path of [IMAGING + name, (IMAGING + name).replaceAll('/', '\\')]) {

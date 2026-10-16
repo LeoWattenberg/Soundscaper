@@ -11,20 +11,20 @@ import { readPixelFrameWebGl2PassCurrentV1 } from './pixel-frame-webgl2-pass-cur
 export function planPixelFrameWebGl2PipelineCurrentV1(descriptorValue: unknown, values: unknown) {
 	const sourceDescriptor = captureLinearKernelDescriptorV1(descriptorValue);
 	const passes = Object.freeze(array(values, 'Native GPU passes', 0, 257).map(readPixelFrameWebGl2PassCurrentV1));
-	let current = sourceDescriptor, maximumFrameBytes = current.width * current.height * 16, hasGeometry = false, hasOptics = false;
+	let current = sourceDescriptor, maximumFrameBytes = current.width * current.height * 16, hasGeometry = false, hasOptics = false, hasSpatial = false;
 	const steps = passes.map(pass => {
 		const sourceDescriptor = current;
 		if ('sourceDescriptor' in pass) {
 			if (pass.sourceDescriptor.width !== current.width || pass.sourceDescriptor.height !== current.height
 				|| pass.sourceDescriptor.primaries !== current.primaries) throw new RangeError('Native GPU descriptor chain does not match its prepared binding.');
 			current = pass.descriptor;
-			if (pass.kind === 9) hasGeometry = true; else hasOptics = true;
+			if (pass.kind === 9) hasGeometry = true; else if ('inputPolicy' in pass) hasSpatial = true; else hasOptics = true;
 		}
 		maximumFrameBytes = Math.max(maximumFrameBytes, current.width * current.height * 16);
 		return Object.freeze({ pass, sourceDescriptor, descriptor: current });
 	});
-	const hasPlaneReference = hasGeometry || hasOptics;
+	const hasPlaneReference = hasGeometry || hasOptics || hasSpatial;
 	return Object.freeze({ sourceDescriptor, finalDescriptor: current, passes, steps: Object.freeze(steps), maximumFrameBytes,
-		hasGeometry, hasOptics, hasPlaneReference, textureBytes: maximumFrameBytes * 2, referenceBytes: hasPlaneReference ? maximumFrameBytes * 2 : 0,
+		hasGeometry, hasOptics, hasSpatial, hasPlaneReference, textureBytes: maximumFrameBytes * 2, referenceBytes: hasPlaneReference ? maximumFrameBytes * 2 : 0,
 		readbackBytes: current.width * current.height * 16 });
 }

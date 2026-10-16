@@ -20,7 +20,7 @@ function nonlinear(pass: Pass): boolean {
 	return pass.kind === 2 && (p[1] !== 1 || p[2] !== 0 || p[3] !== 0 || q[0] !== 0 || q[1] !== 0);
 }
 function globalOutputEligible(current: number, value: number, pass: Pass, arithmetic: boolean): boolean {
-	if (pass.kind === 8 || 'sourceDescriptor' in pass) throw new TypeError('LUTs, geometry and optics require their normative native oracle.');
+	if (pass.kind === 8 || 'sourceDescriptor' in pass) throw new TypeError('LUTs and native plane stages require their normative native oracle.');
 	const next = Math.fround(value);
 	if (!Number.isFinite(next)) throw new RangeError('Native GPU recipe exceeds finite Float32 range.');
 	if (nonlinear(pass)) {
@@ -101,7 +101,7 @@ export function pixelFrameWebGl2ComponentEquivalentCurrentV1(expected: number, a
 export async function validatePixelFrameWebGl2ColorReadbackCurrentV1(source: Float32Array<ArrayBuffer>, result: Float32Array<ArrayBuffer>,
 	values: readonly unknown[], check: () => void, resources?: Readonly<PixelFrameWebGl2LutResourcesCurrentV1>): Promise<boolean> {
 	check(); const passes = capture(values);
-	if (passes.some(pass => 'sourceDescriptor' in pass)) throw new TypeError('Native GPU geometry and optics require a whole-plane normative reference.');
+	if (passes.some(pass => 'sourceDescriptor' in pass)) throw new TypeError('Native GPU geometry, optics and spatial effects require a whole-plane normative reference.');
 	if (!(source instanceof Float32Array) || !(result instanceof Float32Array) || !source.length
 		|| source.length !== result.length || source.length % 4 !== 0) throw new RangeError('Native GPU comparison requires equal RGBA Float32 planes.');
 	const target = { red: 0, green: 0, blue: 0 }, budget = new RepairTaskBudgetV1(check);
