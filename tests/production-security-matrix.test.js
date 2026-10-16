@@ -200,7 +200,7 @@ test('native plug-in surfaces are conditional for testing and portable archive c
 	assert.deepEqual(helperProcesses.currentControls.map(({ id }) => id), [
 		'pathless-probe-helper-bridge',
 		'helper-contract-v1-wire-validation',
-		'supervised-helper-lifecycle',
+		'authenticated-local-assistance-gpu-execution', 'supervised-helper-lifecycle',
 		'verified-helper-engine-payload',
 		'verified-native-helper-payload-selection',
 		'native-helper-real-process-proof',

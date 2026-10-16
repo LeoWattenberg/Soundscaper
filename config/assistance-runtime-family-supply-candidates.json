@@ -60,22 +60,22 @@
 				{
 					"id": "linux-x64",
 					"status": "package-generated",
-					"packageBehavior": "The Linux x64 package compiles and verifies the exact whisper.cpp CPU executable closure."
+					"packageBehavior": "The Linux x64 package compiles and verifies the exact whisper.cpp portable CPU and separate Vulkan GPU executable closure; the CPU executable has no Vulkan loader dependency."
 				},
 				{
 					"id": "linux-arm64",
 					"status": "package-generated",
-					"packageBehavior": "The Linux ARM64 package compiles and verifies the exact whisper.cpp CPU executable closure."
+					"packageBehavior": "The Linux ARM64 package compiles and verifies the exact whisper.cpp portable CPU and separate Vulkan GPU executable closure; the CPU executable has no Vulkan loader dependency."
 				},
 				{
 					"id": "win-x64",
 					"status": "package-generated",
-					"packageBehavior": "The Windows x64 package compiles and verifies the exact whisper.cpp CPU executable closure."
+					"packageBehavior": "The Windows x64 package compiles and verifies the exact whisper.cpp portable CPU and separate Vulkan GPU executable closure; the CPU executable has no Vulkan loader dependency."
 				},
 				{
 					"id": "win-arm64",
 					"status": "package-generated",
-					"packageBehavior": "The Windows ARM64 package compiles and verifies the exact whisper.cpp CPU executable closure."
+					"packageBehavior": "The Windows ARM64 package compiles and verifies the exact whisper.cpp portable CPU and separate Vulkan GPU executable closure; the CPU executable has no Vulkan loader dependency."
 				}
 			]
 		},
@@ -98,22 +98,22 @@
 				{
 					"id": "linux-x64",
 					"status": "package-generated",
-					"packageBehavior": "The Linux x64 package compiles and verifies the exact llama.cpp CPU executable closure."
+					"packageBehavior": "The Linux x64 package compiles and verifies the exact llama.cpp portable CPU and separate Vulkan GPU executable closure; the CPU executable has no Vulkan loader dependency."
 				},
 				{
 					"id": "linux-arm64",
 					"status": "package-generated",
-					"packageBehavior": "The Linux ARM64 package compiles and verifies the exact llama.cpp CPU executable closure."
+					"packageBehavior": "The Linux ARM64 package compiles and verifies the exact llama.cpp portable CPU and separate Vulkan GPU executable closure; the CPU executable has no Vulkan loader dependency."
 				},
 				{
 					"id": "win-x64",
 					"status": "package-generated",
-					"packageBehavior": "The Windows x64 package compiles and verifies the exact llama.cpp CPU executable closure."
+					"packageBehavior": "The Windows x64 package compiles and verifies the exact llama.cpp portable CPU and separate Vulkan GPU executable closure; the CPU executable has no Vulkan loader dependency."
 				},
 				{
 					"id": "win-arm64",
 					"status": "package-generated",
-					"packageBehavior": "The Windows ARM64 package compiles and verifies the exact llama.cpp CPU executable closure."
+					"packageBehavior": "The Windows ARM64 package compiles and verifies the exact llama.cpp portable CPU and separate Vulkan GPU executable closure; the CPU executable has no Vulkan loader dependency."
 				}
 			]
 		}
@@ -163,7 +163,7 @@
 			},
 			"targetIds": ["mac-arm64", "linux-x64", "linux-arm64", "win-x64", "win-arm64"],
 			"executionProvider": "cpu",
-			"recipeId": "whisper-cpp-locked-accelerated-build-v1",
+			"recipeId": "whisper-cpp-locked-accelerated-build-v2",
 			"steps": [
 				"fetch-pinned-source",
 				"build-or-extract-reviewed-target",
@@ -179,7 +179,7 @@
 			},
 			"payloadStatus": "package-generated",
 			"payloadManifestSha256": null,
-			"packageBehavior": "Each target package compiles the pinned source with embedded Metal on macOS ARM64 and CPU fallback on all targets, records its exact executable closure and hashes, and verifies the installed runtime before publishing the package."
+			"packageBehavior": "Each target package compiles the pinned source with embedded Metal on macOS ARM64 or separate portable CPU and Vulkan GPU executables on Windows/Linux x64 and ARM64. The digest-pinned Vulkan toolchain and upstream notices accompany authenticated build provenance; system Vulkan loaders and vendor drivers are host dependencies. Exact executable inventories and hashes are verified before package publication."
 		},
 		{
 			"schemaVersion": 1,
@@ -194,7 +194,7 @@
 			},
 			"targetIds": ["mac-arm64", "linux-x64", "linux-arm64", "win-x64", "win-arm64"],
 			"executionProvider": "cpu",
-			"recipeId": "llama-cpp-locked-accelerated-build-v1",
+			"recipeId": "llama-cpp-locked-accelerated-build-v2",
 			"steps": [
 				"fetch-pinned-source",
 				"build-or-extract-reviewed-target",
@@ -210,7 +210,7 @@
 			},
 			"payloadStatus": "package-generated",
 			"payloadManifestSha256": null,
-			"packageBehavior": "Each target package compiles the pinned source with embedded Metal on macOS ARM64 and CPU fallback on all targets, records its exact executable closure and hashes, and verifies the installed runtime before publishing the package."
+			"packageBehavior": "Each target package compiles the pinned source with embedded Metal on macOS ARM64 or separate portable CPU and Vulkan GPU executables on Windows/Linux x64 and ARM64. The digest-pinned Vulkan toolchain and upstream notices accompany authenticated build provenance; system Vulkan loaders and vendor drivers are host dependencies. Exact executable inventories and hashes are verified before package publication."
 		}
 	],
 	"sherpaWindowsArm64": {

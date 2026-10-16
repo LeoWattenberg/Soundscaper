@@ -20,12 +20,15 @@ Preparation fails when an engine cannot be built or authenticated.
 ## Build prerequisites
 
 Use the repository's Node.js 26.5.0 and npm 12.0.1. Install dependencies with
-`npm ci`. Building whisper.cpp also requires CMake and a C/C++ compiler:
+`npm ci`. Building whisper.cpp and llama.cpp also requires CMake, Python 3,
+and a C/C++ compiler:
 
-- Linux: `build-essential` and `cmake`; the desktop CI jobs install them.
+- Linux: `build-essential`, `cmake` (3.22.1 or later), `pkg-config`, and
+  `python3`; the desktop CI jobs install them.
 - macOS: Xcode command-line tools and CMake. Build the macOS ARM64 package on
   Apple Silicon.
-- Windows: Visual Studio 2022 or later with the C++ build tools and CMake.
+- Windows: Visual Studio 2022 or later with the C++ build tools, Python 3,
+  and CMake 3.26 or later for ARM64 loader assembly support.
   Include the ARM64 compiler tools and **C++ Clang tools for Windows** when
   building Windows ARM64. Whisper requires the ClangCL toolset on ARM64; the
   Windows ARM64 CI image already includes it. The target architecture is passed
@@ -63,9 +66,25 @@ The runtime archive includes the upstream license and third-party notices.
 whisper.cpp comes from the pinned source archive recorded in
 `scripts/lib/desktop-assistance-whisper-runtime.mjs`. The macOS ARM64 Whisper and
 llama.cpp recipes enable Metal with embedded shader source while retaining the
-CPU backend. Other targets retain CPU builds. CUDA, Vulkan, and host-specific
-CPU tuning remain disabled. No separate shader download is needed. A small
-source-checked Whisper patch routes JSON
+CPU backend. Windows and Linux x64/ARM64 builds produce a portable CPU
+executable and a separate Vulkan executable under `gpu/`; both are authenticated
+in the same archive. The CPU executable has no Vulkan loader dependency. Workers
+prefer the authenticated GPU companion and fall back to CPU for unavailable
+loaders/devices or backend execution failures. Vulkan requires the system loader
+(`vulkan-1.dll` on Windows or `libvulkan.so.1` on Linux) and a compatible vendor
+graphics driver. These host dependencies are not bundled or authenticated by the
+runtime archive. CUDA, DirectML, and host-specific CPU tuning remain disabled.
+
+The Vulkan toolchain is built from the source hashes in
+`config/desktop-assistance-vulkan-sources.json`: Vulkan Headers/Loader plus
+shaderc and its pinned glslang, SPIRV Headers, and SPIRV Tools dependencies.
+The shader compiler runs on the build host; the loader import library targets the
+package architecture, including Windows ARM64. Packaging requires this toolchain
+to build successfully and never substitutes a host SDK or silently omits the GPU
+executable. Embedded shaders need no separate download. Build provenance retains
+the source/toolchain identities, and `VULKAN_NOTICES.txt` accompanies the runtime.
+
+A small source-checked Whisper patch routes JSON
 through inherited stdout without reopening `CON` or `/dev/stdout`, which do not
 work with every Electron/Node process pipe. This preserves the existing
 bounded-output worker. Build provenance records the original source, patch,
@@ -109,6 +128,13 @@ product package jobs. The internal Desktop test artifact workflow uses committed
 snapshots of previously published target handoffs. Its package jobs download
 the exact public archives without rebuilding them. Desktop package workflows
 verify staged archives against their published immutable URLs before packaging.
+
+Changes to these GPU recipes require a manual **Update AI assets** run before
+release. Download that run's `assistance-runtime-handoff-*` artifacts, run
+`node scripts/refresh-desktop-test-runtime-snapshots.mjs <downloaded-artifacts-directory>`,
+and commit the refreshed snapshot register and compressed files. Desktop test
+artifacts continue to use the committed snapshots until that refresh; building
+or testing source changes does not publish new runtimes.
 
 On request, the main process downloads a pinned archive, checks its compressed
 digest, extracts only the listed regular files, checks every file digest, and

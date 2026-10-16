@@ -1,6 +1,6 @@
 {
 	"schemaVersion": 1,
-	"groundedAt": "2026-10-15",
+	"groundedAt": "2026-10-16",
 	"modelDocument": "docs/policies/security.md",
 	"productVersions": {
 		"version": "1.0.0-rc.Oct.13.a",
@@ -11300,8 +11300,47 @@
 					"policyAuthority": "family-v1-active"
 				},
 				{
+					"id": "authenticated-local-assistance-gpu-execution",
+					"summary": "Authenticated target manifests may admit native WebGPU on supported ONNX targets, CoreML on macOS, embedded Metal for whisper.cpp and llama.cpp on macOS ARM64, and separate Vulkan GPU executables for Whisper and Qwen on Windows/Linux x64 and ARM64. Each Vulkan companion and its portable CPU executable are authenticated in the same archive; the CPU executable does not link the Vulkan loader. Vulkan requires the system loader and a compatible vendor graphics driver, whose bytes remain host dependencies outside archive authentication. Pinned source archives for Vulkan Headers/Loader, shaderc, glslang, SPIRV Headers and SPIRV Tools build embedded shaders and bind toolchain provenance and upstream notices; no runtime SDK or shader download occurs. CPU fallback remains available when GPU initialization, launch, or backend execution fails. Cancellation, authentication failures, invalid inputs, and invalid outputs remain terminal. Legacy archives without acceleration metadata remain CPU-only. ONNX and Sherpa support and macOS Metal behavior are unchanged; CUDA and DirectML are not packaged. GPU publication, usable target hardware, driver compatibility, and performance require their own evidence; source, fixture, and build checks do not establish them.",
+					"evidence": [
+						{
+							"kind": "implementation",
+							"path": "desktop/assistance-acceleration-entrypoints.ts"
+						},
+						{
+							"kind": "implementation",
+							"path": "desktop/assistance-native-gpu-execution.ts"
+						},
+						{
+							"kind": "implementation",
+							"path": "scripts/lib/desktop-assistance-vulkan-companion.mjs"
+						},
+						{
+							"kind": "implementation",
+							"path": "scripts/lib/desktop-assistance-vulkan-toolchain.mjs"
+						},
+						{
+							"kind": "document",
+							"path": "config/desktop-assistance-vulkan-sources.json"
+						},
+						{
+							"kind": "test",
+							"path": "tests/desktop-assistance-native-gpu-worker.test.ts"
+						},
+						{
+							"kind": "test",
+							"path": "tests/desktop-assistance-vulkan-admission.test.ts"
+						},
+						{
+							"kind": "test",
+							"path": "tests/desktop-assistance-vulkan-toolchain.test.ts"
+						}
+					],
+					"policyAuthority": "family-v1-active"
+				},
+				{
 					"id": "supervised-helper-lifecycle",
-					"summary": "The supervisor spawns helpers only after payload verification and terminates them on heartbeat silence beyond the two-second crash-detection budget, a missed one-second cancellation acknowledgement, contract violation, or lower-only per-job bound; repeated crashes quarantine the exact runtime family until explicit clearance. Existing Sherpa ONNX 1.13.5 remains the active lazy utility-process family for catalog-bound Parakeet, Silero, and exact Pyannote/ERes2Net jobs, while model-free external-FFmpeg shot detection retains its separate exact-pair admission, canary, fixed grammar, bounds, and process-tree cancellation. Additional isolated utility-process, thread-worker, file-grant, memory-admission, heartbeat, RSS, crash-quarantine, and termination-cancellation contracts are implemented for ONNX Runtime 1.29.0, whisper.cpp v1.9.3, and llama.cpp b10509. Authenticated target manifests may additionally admit native WebGPU on supported ONNX targets, CoreML on macOS, and embedded Metal for whisper.cpp and llama.cpp on macOS ARM64, retaining CPU fallback within the same runtime. Legacy archives without acceleration metadata remain CPU-only. Provider initialization and execution failures may fall back, while cancellation, authentication failures, invalid inputs, and invalid outputs remain terminal. GPU payload publication and target-device validation are separate from source and fixture evidence. Their operation workers cover alignment, enhancement/separation, tagging/beats, accurate shots, embeddings/OCR/vision, and schema-constrained editorial generation. Release preparation builds and verifies all five selected-target closures before archive publication; Windows ARM64 Sherpa builds and verifies its Node addon before archiving. Explicit Model Manager installation downloads required runtime archives, and first inference for preseeded or previously installed weights may fetch a missing runtime. Missing delivery, catalog, conversion, admission, or target evidence returns typed unavailability before native execution. This conditional implementation does not claim an operating-system sandbox, aggregate resource/performance bounds, completed live runtime-payload R2 publication/read-back without its release receipt, or owner-device QA; nightly-with-tests owns the five-target packaged canaries.",
+					"summary": "The supervisor spawns helpers only after payload verification and terminates them on heartbeat silence beyond the two-second crash-detection budget, a missed one-second cancellation acknowledgement, contract violation, or lower-only per-job bound; repeated crashes quarantine the exact runtime family until explicit clearance. Existing Sherpa ONNX 1.13.5 remains the active lazy utility-process family for catalog-bound Parakeet, Silero, and exact Pyannote/ERes2Net jobs, while model-free external-FFmpeg shot detection retains its separate exact-pair admission, canary, fixed grammar, bounds, and process-tree cancellation. Additional isolated utility-process, thread-worker, file-grant, memory-admission, heartbeat, RSS, crash-quarantine, and termination-cancellation contracts are implemented for ONNX Runtime 1.29.0, whisper.cpp v1.9.3, and llama.cpp b10509. Authenticated provider and companion admission follows the separately recorded local-assistance GPU execution contract. Their operation workers cover alignment, enhancement/separation, tagging/beats, accurate shots, embeddings/OCR/vision, and schema-constrained editorial generation. Release preparation builds and verifies all five selected-target closures before archive publication; Windows ARM64 Sherpa builds and verifies its Node addon before archiving. Explicit Model Manager installation downloads required runtime archives, and first inference for preseeded or previously installed weights may fetch a missing runtime. Missing delivery, catalog, conversion, admission, or target evidence returns typed unavailability before native execution. This conditional implementation does not claim an operating-system sandbox, aggregate resource/performance bounds, completed live runtime-payload R2 publication/read-back without its release receipt, or owner-device QA; nightly-with-tests owns the five-target packaged canaries.",
 					"evidence": [
 						{
 							"kind": "implementation",

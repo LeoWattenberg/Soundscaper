@@ -441,6 +441,12 @@ export const POLICY_NARRATIVE_BINDINGS = Object.freeze([
 		wrap: 80,
 	}),
 	Object.freeze({
+		marker: 'local-assistance-gpu-execution', register: 'config/production-security-matrix.json',
+		riskId: 'native-helper-processes', controlId: 'authenticated-local-assistance-gpu-execution',
+		field: 'summary', document: 'docs/policies/security.md',
+		intro: null, wrap: 80,
+	}),
+	Object.freeze({
 		marker: 'local-assistance-runtime-diagnostics',
 		register: 'config/production-security-matrix.json',
 		riskId: 'native-helper-processes',

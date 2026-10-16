@@ -9,7 +9,7 @@ qualify, attest to, or sign off a release. Historical “qualified” and
 “admitted” wording in retained version narratives means only that a bounded
 technical input or operation passed its named checks.
 
-The model is grounded on 2026-10-15. It must be updated when a trust boundary, supported input, renderer bridge, worker ABI, native executable, plug-in surface, release channel, or long-job lifecycle changes.
+The model is grounded on 2026-10-16. It must be updated when a trust boundary, supported input, renderer bridge, worker ABI, native executable, plug-in surface, release channel, or long-job lifecycle changes.
 
 ## 1.0 project-identity boundary
 
@@ -1486,13 +1486,33 @@ and quiescent staging cleanup. Catalog-bound Parakeet, Silero, and exact
 Pyannote/ERes2Net remain the active Sherpa routes. The additional ONNX Runtime,
 whisper.cpp, and llama.cpp families implement equivalent isolated grants,
 process/thread protocols, memory admission, quarantine, and termination.
-Release preparation builds these CPU engines, the Sherpa addon, and the Kokoro
+Release preparation builds these engines, the Sherpa addon, and the Kokoro
 G2P closure for each supported target. The macOS native bytes are signed.
 The protected archive pins each immutable R2 download and its extracted file
 inventory, while the Electron package carries none of the assistance payloads.
 Model Manager downloads the required runtime when a model is installed; a
 preseeded or previously installed model can fetch it on first use. The complete
 closure is verified again before native execution.
+
+<!-- policy-narrative:local-assistance-gpu-execution -->
+Authenticated target manifests may admit native WebGPU on supported ONNX
+targets, CoreML on macOS, embedded Metal for whisper.cpp and llama.cpp on macOS
+ARM64, and separate Vulkan GPU executables for Whisper and Qwen on Windows/Linux
+x64 and ARM64. Each Vulkan companion and its portable CPU executable are
+authenticated in the same archive; the CPU executable does not link the Vulkan
+loader. Vulkan requires the system loader and a compatible vendor graphics
+driver, whose bytes remain host dependencies outside archive authentication.
+Pinned source archives for Vulkan Headers/Loader, shaderc, glslang, SPIRV
+Headers and SPIRV Tools build embedded shaders and bind toolchain provenance and
+upstream notices; no runtime SDK or shader download occurs. CPU fallback remains
+available when GPU initialization, launch, or backend execution fails.
+Cancellation, authentication failures, invalid inputs, and invalid outputs
+remain terminal. Legacy archives without acceleration metadata remain CPU-only.
+ONNX and Sherpa support and macOS Metal behavior are unchanged; CUDA and
+DirectML are not packaged. GPU publication, usable target hardware, driver
+compatibility, and performance require their own evidence; source, fixture, and
+build checks do not establish them.
+<!-- /policy-narrative:local-assistance-gpu-execution -->
 
 The conditional external-FFmpeg shot adapter is a separate ordinary child
 process, not a Sherpa job. A current main-only executable-pair admission,

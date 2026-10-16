@@ -27,7 +27,7 @@ identities rather than filesystem or module paths.
 | Runtime family | Current responsibility |
 | --- | --- |
 | Sherpa ONNX | Parakeet speech recognition, Silero voice-activity detection, and the pyannote/ERes2Net diarization pair |
-| ONNX Runtime CPU | Alignment, enhancement, separation, tagging, beats, accurate shots, detection, saliency, OCR, and text/image embeddings |
+| ONNX Runtime | Alignment, enhancement, separation, tagging, beats, accurate shots, detection, saliency, OCR, and text/image embeddings |
 | whisper.cpp | Multilingual Whisper recognition through a fixed-argument, no-shell CLI |
 | llama.cpp | Optional Qwen editorial generation with grammar-constrained JSON |
 | Kokoro offline G2P | Frozen, authenticated pronunciation preprocessing for local text-to-speech |
@@ -43,16 +43,27 @@ archives also authenticate optional GPU providers per target:
 | Engine | macOS ARM64 | Windows x64 / ARM64 | Linux x64 | Linux ARM64 |
 | --- | --- | --- | --- | --- |
 | ONNX Runtime | CoreML, native WebGPU | Native WebGPU | Native WebGPU | CPU |
-| whisper.cpp / llama.cpp | Embedded Metal | CPU | CPU | CPU |
+| whisper.cpp / llama.cpp | Embedded Metal | Vulkan | Vulkan | Vulkan |
 | Sherpa ONNX | CPU | CPU | CPU | CPU |
 
 Existing menu-invoked assistance operations prefer the installed archive's
 authenticated GPU providers, then CPU. Native WebGPU runs inside the desktop
 worker; this does not enable browser inference. Provider initialization or
 device-execution failures can fall back to CPU within the same authenticated
-runtime. Cancellation, invalid inputs, invalid outputs, and authentication
-failures do not permit retries. Older archives without provider metadata remain
-CPU-only, even on a GPU-capable machine. DirectML, CUDA, and Vulkan are not packaged.
+runtime. Windows and Linux Whisper/Qwen archives contain a portable CPU
+executable and a separately authenticated Vulkan executable under `gpu/`. The CPU
+executable does not link the Vulkan loader, so an absent loader or unusable GPU
+can fall back to CPU. Vulkan requires the system loader (`vulkan-1.dll` on Windows
+or `libvulkan.so.1` on Linux) and a compatible vendor graphics driver. Those host
+dependencies are outside the authenticated archive. The macOS embedded Metal
+path is unchanged. Cancellation, invalid inputs, invalid outputs, and
+authentication failures do not permit retries. Older archives without provider
+metadata remain CPU-only, even on a GPU-capable machine. DirectML and CUDA are not packaged.
+
+Vulkan builds use digest-pinned Vulkan Headers/Loader and a host shader compiler
+built from pinned shaderc, glslang, SPIRV Headers, and SPIRV Tools sources. The
+archive binds both executable inventories, build provenance, and upstream notices.
+Shaders are embedded during the build; inference downloads no SDK or shaders.
 
 Accelerated provider metadata describes compiled support, not proof that a
 particular machine has a usable device or enough GPU memory. GPU behavior and

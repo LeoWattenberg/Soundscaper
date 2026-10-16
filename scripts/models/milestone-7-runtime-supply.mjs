@@ -43,7 +43,7 @@ const FAMILIES = Object.freeze({
 		version: 'v1.9.3',
 		manifestUrl: 'https://github.com/ggml-org/whisper.cpp/releases/tag/v1.9.3',
 		revision: 'v1.9.3',
-		recipeId: 'whisper-cpp-locked-accelerated-build-v1',
+		recipeId: 'whisper-cpp-locked-accelerated-build-v2',
 		source: Object.freeze({
 			kind: 'git-revision',
 			url: 'https://github.com/ggml-org/whisper.cpp',
@@ -56,7 +56,7 @@ const FAMILIES = Object.freeze({
 		version: 'b10509',
 		manifestUrl: 'https://github.com/ggml-org/llama.cpp',
 		revision: 'b10509',
-		recipeId: 'llama-cpp-locked-accelerated-build-v1',
+		recipeId: 'llama-cpp-locked-accelerated-build-v2',
 		source: Object.freeze({
 			kind: 'git-revision',
 			url: 'https://github.com/ggml-org/llama.cpp',
