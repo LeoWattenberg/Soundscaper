@@ -1,0 +1,88 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+cmake_minimum_required(VERSION 3.21)
+cmake_policy(SET CMP0091 NEW)
+project(soundscaper_sherpa_gpu LANGUAGES C CXX)
+if(APPLE)
+  set(CMAKE_OSX_DEPLOYMENT_TARGET "13.0" CACHE STRING "Minimum native audio host macOS version" FORCE)
+endif()
+
+foreach(required SHERPA_SOURCE ORT_INCLUDE ORT_LIBRARY NODE_HEADERS NODE_ADDON_API SCAPE_WORK_ROOT)
+  if(NOT DEFINED ${required} OR NOT EXISTS "${${required}}")
+    message(FATAL_ERROR "Missing authenticated ${required}")
+  endif()
+endforeach()
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_BUILD_RPATH_USE_ORIGIN ON)
+set(CMAKE_INSTALL_RPATH_USE_LINK_PATH OFF)
+if(APPLE)
+  set(CMAKE_BUILD_RPATH "@loader_path")
+  set(CMAKE_INSTALL_RPATH "@loader_path")
+  set(CMAKE_INSTALL_NAME_DIR "@rpath")
+else()
+  set(CMAKE_BUILD_RPATH "$ORIGIN")
+  set(CMAKE_INSTALL_RPATH "$ORIGIN")
+endif()
+set(CMAKE_BUILD_WITH_INSTALL_RPATH ON)
+if(MSVC)
+  set(CMAKE_MSVC_RUNTIME_LIBRARY MultiThreaded)
+  add_compile_options(/Brepro "/pathmap:${SCAPE_WORK_ROOT}=/usr/src/sherpa-gpu" /EHsc)
+  add_link_options(/Brepro)
+  file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/onnxruntime.def" "LIBRARY onnxruntime.dll\nEXPORTS\nOrtGetApiBase\n")
+  if(CMAKE_GENERATOR_PLATFORM STREQUAL "ARM64")
+    set(ort_machine ARM64)
+  else()
+    set(ort_machine X64)
+  endif()
+  execute_process(COMMAND "${CMAKE_AR}" "/DEF:${CMAKE_CURRENT_BINARY_DIR}/onnxruntime.def"
+    "/OUT:${CMAKE_CURRENT_BINARY_DIR}/onnxruntime.lib" "/MACHINE:${ort_machine}" /Brepro
+    COMMAND_ERROR_IS_FATAL ANY)
+  set(ORT_IMPLIB "${CMAKE_CURRENT_BINARY_DIR}/onnxruntime.lib")
+else()
+  add_compile_options("-ffile-prefix-map=${SCAPE_WORK_ROOT}=/usr/src/sherpa-gpu" -fno-ident)
+endif()
+add_subdirectory("${SHERPA_SOURCE}" sherpa EXCLUDE_FROM_ALL)
+# Upstream dependency projects change the directory RPATH defaults. Bind the
+# final shipped libraries explicitly to their own authenticated flat closure.
+foreach(target sherpa-onnx-c-api sherpa-onnx-cxx-api)
+  set_target_properties(${target} PROPERTIES
+    BUILD_RPATH_USE_ORIGIN ON BUILD_WITH_INSTALL_RPATH ON INSTALL_RPATH_USE_LINK_PATH OFF)
+  if(APPLE)
+    set_target_properties(${target} PROPERTIES INSTALL_RPATH "@loader_path" INSTALL_NAME_DIR "@rpath")
+  else()
+    set_target_properties(${target} PROPERTIES INSTALL_RPATH "$ORIGIN")
+  endif()
+endforeach()
+target_sources(sherpa-onnx-core PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/webgpu-provider.cc")
+target_include_directories(sherpa-onnx-core PRIVATE "${ORT_INCLUDE}")
+
+set(addon_source "${SHERPA_SOURCE}/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp")
+set(source_names audio-tagging.cc keyword-spotting.cc non-streaming-asr.cc
+  non-streaming-speaker-diarization.cc non-streaming-speech-denoiser.cc non-streaming-tts.cc
+  offline-punctuation.cc online-punctuation.cc streaming-speech-denoiser.cc
+  sherpa-onnx-node-addon-api.cc speaker-identification.cc spoken-language-identification.cc
+  streaming-asr.cc vad.cc version.cc wave-reader.cc wave-writer.cc resampler.cc)
+list(TRANSFORM source_names PREPEND "${addon_source}/")
+add_library(sherpa-onnx-node SHARED ${source_names})
+set_target_properties(sherpa-onnx-node PROPERTIES PREFIX "" SUFFIX ".node" OUTPUT_NAME "sherpa-onnx")
+target_include_directories(sherpa-onnx-node PRIVATE "${addon_source}" "${SHERPA_SOURCE}"
+  "${NODE_HEADERS}/include/node" "${NODE_ADDON_API}")
+# Convert every Ort/std exception at the Node-API boundary into a JS exception,
+# allowing the isolated helper to release the failed GPU job and retry on CPU.
+target_compile_definitions(sherpa-onnx-node PRIVATE NAPI_VERSION=8 NODE_GYP_MODULE_NAME=addon
+  NODE_ADDON_API_CPP_EXCEPTIONS_ALL NAPI_CPP_EXCEPTIONS)
+target_link_libraries(sherpa-onnx-node PRIVATE sherpa-onnx-c-api)
+if(WIN32)
+  foreach(required NODE_LIBRARY NODE_DELAY_HOOK)
+    if(NOT DEFINED ${required} OR NOT EXISTS "${${required}}")
+      message(FATAL_ERROR "Missing authenticated ${required}")
+    endif()
+  endforeach()
+  target_sources(sherpa-onnx-node PRIVATE "${NODE_DELAY_HOOK}")
+  target_compile_definitions(sherpa-onnx-node PRIVATE HOST_BINARY="node.exe")
+  target_link_libraries(sherpa-onnx-node PRIVATE "${NODE_LIBRARY}" delayimp)
+  target_link_options(sherpa-onnx-node PRIVATE /DELAYLOAD:node.exe)
+elseif(APPLE)
+  target_link_options(sherpa-onnx-node PRIVATE "-undefined" "dynamic_lookup")
+endif()

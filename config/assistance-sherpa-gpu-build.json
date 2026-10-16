@@ -1,0 +1,196 @@
+{
+	"schemaVersion": 1,
+	"recipeId": "sherpa-onnx-node-gpu-locked-build-v1",
+	"version": "1.13.5",
+	"sourceRevision": "3dc7c569f31ca2cd4a20ed6f7db780327e6714c5",
+	"nodeHeadersVersion": "26.5.0",
+	"nodeAddonApiVersion": "8.3.1",
+	"nativeRecipeFiles": {
+		"native/assistance-sherpa-gpu/CMakeLists.txt": "49c3365db02c40a026f4c2a211547847e35697883893d51e3a9dbea6ed3a5a99",
+		"native/assistance-sherpa-gpu/webgpu-provider.cc": "cba49305fe6fbcf9f142ddc1961642d77d4a00e6ef47824b2590d899bf8fe3ec"
+	},
+	"patchSourceFiles": {
+		"sherpa-onnx/csrc/provider.h": "bbdac833c579b65caaab0b782d20e05cb1d8ca69afab82fc7a84ed3c5d7b2f4a",
+		"sherpa-onnx/csrc/provider.cc": "d215ae1e926747ef30c296ae11fb5faa5d1cdb4e15a8011696417cd7733ab1df",
+		"sherpa-onnx/csrc/session.cc": "98bb45adf41e78cc87a4718bf34b3bd96554472bf1dafabbc49431662e4e4403",
+		"cmake/onnxruntime.cmake": "63cb67a92e7e484e5b8428f33386165175a0f999215dc17ccfa5c424eecca01d"
+	},
+	"sources": [
+		{
+			"id": "sherpa-source",
+			"url": "https://codeload.github.com/k2-fsa/sherpa-onnx/tar.gz/3dc7c569f31ca2cd4a20ed6f7db780327e6714c5",
+			"root": "sherpa-onnx-3dc7c569f31ca2cd4a20ed6f7db780327e6714c5",
+			"fetchContentId": "",
+			"byteLength": 11451260,
+			"sha256": "33723a7195bc3d3ecf127dac2675293e578a12fdb1d3de891ff17628c118b66c",
+			"integrity": "sha512-Pu5IhMT9dOkU8nXAb3kUQ0X+8RubN+KR3Q1AgwmV/wmXKnW/PSe5IZGf///Gr/7WLVioUZ/urhhW5KiBDVHANw=="
+		},
+		{
+			"id": "kaldi-native-fbank",
+			"url": "https://codeload.github.com/csukuangfj/kaldi-native-fbank/tar.gz/refs/tags/v1.22.3",
+			"root": "kaldi-native-fbank-1.22.3",
+			"fetchContentId": "KALDI_NATIVE_FBANK",
+			"byteLength": 71144,
+			"sha256": "9176cc66fc7ce1edf85cf355b06e320c57db6297df74277f575183468893cf61"
+		},
+		{
+			"id": "kaldi-decoder",
+			"url": "https://codeload.github.com/k2-fsa/kaldi-decoder/tar.gz/refs/tags/v0.3.0",
+			"root": "kaldi-decoder-0.3.0",
+			"fetchContentId": "KALDI_DECODER",
+			"byteLength": 51199,
+			"sha256": "b9f34cfb4fd3b1344100eead79ef4d37aa15962274b9e3056de345021f76a1b0"
+		},
+		{
+			"id": "kaldifst",
+			"url": "https://codeload.github.com/k2-fsa/kaldifst/tar.gz/refs/tags/v1.8.0",
+			"root": "kaldifst-1.8.0",
+			"fetchContentId": "KALDIFST",
+			"byteLength": 172147,
+			"sha256": "3f247b7e5a2409071202f5e2bc6200060f66728c0a3443c03923ad2723e040b3"
+		},
+		{
+			"id": "openfst",
+			"url": "https://codeload.github.com/csukuangfj/openfst/tar.gz/refs/tags/v1.8.5-2026-07-09",
+			"root": "openfst-1.8.5-2026-07-09",
+			"fetchContentId": "OPENFST",
+			"byteLength": 1501685,
+			"sha256": "2ff712a32952fcb01d351121a6bc8ccf4fdc6b2aa06ce8df2b3095dedd518c0e"
+		},
+		{
+			"id": "kissfft",
+			"url": "https://codeload.github.com/mborgerding/kissfft/tar.gz/febd4caeed32e33ad8b2e0bb5ea77542c40f18ec",
+			"root": "kissfft-febd4caeed32e33ad8b2e0bb5ea77542c40f18ec",
+			"fetchContentId": "KISSFFT",
+			"byteLength": 52373,
+			"sha256": "fe840c3e29fc98250ae3ba843696894f190037f947332296e4be281a18f341cd"
+		},
+		{
+			"id": "eigen",
+			"url": "https://gitlab.com/libeigen/eigen/-/archive/5.0.1/eigen-5.0.1.tar.gz",
+			"root": "eigen-5.0.1",
+			"fetchContentId": "EIGEN",
+			"byteLength": 2967272,
+			"sha256": "e9c326dc8c05cd1e044c71f30f1b2e34a6161a3b6ecf445d56b53ff1669e3dec"
+		},
+		{
+			"id": "simple-sentencepiece",
+			"url": "https://codeload.github.com/pkufool/simple-sentencepiece/tar.gz/refs/tags/v0.7",
+			"root": "simple-sentencepiece-0.7",
+			"fetchContentId": "SIMPLE-SENTENCEPIECE",
+			"byteLength": 355335,
+			"sha256": "1748a822060a35baa9f6609f84efc8eb54dc0e74b9ece3d82367b7119fdc75af"
+		},
+		{
+			"id": "json",
+			"url": "https://codeload.github.com/nlohmann/json/tar.gz/refs/tags/v3.12.0",
+			"root": "json-3.12.0",
+			"fetchContentId": "JSON",
+			"byteLength": 9678593,
+			"sha256": "4b92eb0c06d10683f7447ce9406cb97cd4b453be18d7279320f7b2f025c10187"
+		},
+		{
+			"id": "hclust-cpp",
+			"url": "https://codeload.github.com/csukuangfj/hclust-cpp/tar.gz/refs/tags/2026-02-25",
+			"root": "hclust-cpp-2026-02-25",
+			"fetchContentId": "HCLUST_CPP",
+			"byteLength": 22523,
+			"sha256": "8f14e024c709d73afb40ae69cb22de4b73dba67cbce40f2e518813da8139ab56"
+		},
+		{
+			"id": "node-addon-api",
+			"url": "https://registry.npmjs.org/node-addon-api/-/node-addon-api-8.3.1.tgz",
+			"byteLength": 60027,
+			"sha256": "7ca0aa7ad8e07f8134d1b0b5d8677cdd5cf2c4ded5c8e035f337b9e8a97bbde6",
+			"integrity": "sha512-lytcDEdxKjGJPTLEfW4mYMigRezMlyJY8W4wxJK8zE533Jlb8L8dRuObJFWg2P+AuOIxoCgKF+2Oq4d4Zd0OUA==",
+			"root": "package",
+			"fetchContentId": ""
+		},
+		{
+			"id": "node-headers",
+			"url": "https://nodejs.org/dist/v26.5.0/node-v26.5.0-headers.tar.gz",
+			"byteLength": 9963460,
+			"sha256": "b02b9c5922e7fd7bae30d9e97c293059175aa9d267b81d2866d52696445b5cbd",
+			"root": "node-v26.5.0",
+			"fetchContentId": ""
+		},
+		{
+			"id": "node-arm64-lib",
+			"url": "https://nodejs.org/dist/v26.5.0/win-arm64/node.lib",
+			"byteLength": 3026634,
+			"sha256": "c01ce0d5e4e956f0e5e73cdba925d15a6d6f86883aa49f8f0b0de87aa93508ce"
+		},
+		{
+			"id": "node-x64-lib",
+			"url": "https://nodejs.org/dist/v26.5.0/win-x64/node.lib",
+			"byteLength": 3026982,
+			"sha256": "56f06350037085fce04930befd98327afc86ee46f52af6f6f8a68a03630e8380"
+		},
+		{
+			"id": "node-delay-hook",
+			"url": "https://raw.githubusercontent.com/nodejs/node-gyp/v11.5.0/src/win_delay_load_hook.cc",
+			"byteLength": 1003,
+			"sha256": "ec2357ffdf512151c21a52326ad3396aaa650b83e5c4a31153d216a155f68ecc"
+		},
+		{
+			"id": "node-gyp-license",
+			"url": "https://raw.githubusercontent.com/nodejs/node-gyp/v11.5.0/LICENSE",
+			"byteLength": 1102,
+			"sha256": "662a1b0115251cfb29c6aed0f221f8847bc49c6365d1c53a62c9f4bccc2489c3"
+		},
+		{
+			"id": "node-license",
+			"url": "https://raw.githubusercontent.com/nodejs/node/v26.5.0/LICENSE",
+			"byteLength": 157606,
+			"sha256": "148eacf7863ef4329224a29398623077200a27194aa075569faf4a0a85566ca5"
+		}
+	],
+	"targets": [
+		{
+			"id": "mac-arm64",
+			"status": "package-generated",
+			"executionProviders": [
+				"coreml",
+				"webgpu",
+				"cpu"
+			],
+			"packageBehavior": "Build the authenticated Sherpa Node-API, native ONNX Runtime and WebGPU provider closure with CPU fallback."
+		},
+		{
+			"id": "win-x64",
+			"status": "package-generated",
+			"executionProviders": [
+				"webgpu",
+				"cpu"
+			],
+			"packageBehavior": "Build the authenticated Sherpa Node-API, native ONNX Runtime and WebGPU provider closure with CPU fallback."
+		},
+		{
+			"id": "win-arm64",
+			"status": "package-generated",
+			"executionProviders": [
+				"webgpu",
+				"cpu"
+			],
+			"packageBehavior": "Build the authenticated Sherpa Node-API, native ONNX Runtime and WebGPU provider closure with CPU fallback."
+		},
+		{
+			"id": "linux-x64",
+			"status": "package-generated",
+			"executionProviders": [
+				"webgpu",
+				"cpu"
+			],
+			"packageBehavior": "Build the authenticated Sherpa Node-API, native ONNX Runtime and WebGPU provider closure with CPU fallback."
+		},
+		{
+			"id": "linux-arm64",
+			"status": "package-generated",
+			"executionProviders": [
+				"webgpu",
+				"cpu"
+			],
+			"packageBehavior": "Build the authenticated Sherpa Node-API, native ONNX Runtime and WebGPU provider closure with CPU fallback."
+		}
+	]
+}
