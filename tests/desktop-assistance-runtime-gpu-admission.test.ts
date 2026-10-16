@@ -14,12 +14,15 @@ import {
 	type AssistanceRuntimeFamilyId,
 } from '../desktop/assistance-runtime-family-manifest.ts';
 import { validateAssistanceRuntimeFamilyDescriptorV1 } from '../desktop/assistance-runtime-family-process-protocol.ts';
+import { onnxGpuDescriptorFixture, onnxGpuTargetFixture } from './helpers/desktop-assistance-onnx-gpu-fixture.ts';
 
 const BYTES = Buffer.from('authenticated GPU-capable runtime');
 const SHA = createHash('sha256').update(BYTES).digest('hex');
 
 function manifest(familyId: AssistanceRuntimeFamilyId, targetId: string, executionProviders?: unknown) {
 	const template = candidates.manifests[familyId];
+	const gpu = familyId === 'onnxruntime-node' && Array.isArray(executionProviders) && executionProviders.includes('webgpu')
+		? onnxGpuTargetFixture(targetId, BYTES) : null;
 	return {
 		...template,
 		targets: template.targets.map((target) => target.id !== targetId ? target : {
@@ -27,6 +30,7 @@ function manifest(familyId: AssistanceRuntimeFamilyId, targetId: string, executi
 			...(executionProviders === undefined ? {} : { executionProviders }),
 			files: [{ path: 'runtime', byteLength: BYTES.byteLength, sha256: SHA,
 				executable: familyId !== 'onnxruntime-node' }],
+			...(gpu ? { entrypoint: gpu.entrypoint, files: gpu.files } : {}),
 		}),
 	};
 }
@@ -88,16 +92,9 @@ test('legacy CPU archives cannot acquire GPU capabilities when their manifest om
 });
 
 test('process descriptors preserve authenticated GPU capabilities and reject target spoofing', () => {
-	const descriptor = {
-		familyId: 'onnxruntime-node', runtimeVersion: '1.29.0', target: 'win-x64',
-		executionProvider: 'cpu', executionProviders: ['webgpu', 'cpu'],
-		entrypoint: '/runtime/index.js',
-		files: [{ path: '/runtime/index.js', relativePath: 'index.js',
-			byteLength: BYTES.byteLength, sha256: SHA, executable: false }],
-	};
+	const descriptor = onnxGpuDescriptorFixture('win-x64');
 	assert.deepEqual(validateAssistanceRuntimeFamilyDescriptorV1(descriptor), descriptor);
-	assert.deepEqual(validateAssistanceRuntimeFamilyDescriptorV1({ ...descriptor, target: 'linux-arm64' }),
-		{ ...descriptor, target: 'linux-arm64' });
+	assert.throws(() => validateAssistanceRuntimeFamilyDescriptorV1({ ...descriptor, target: 'linux-arm64' }), /WebGPU.*closure/iu);
 	assert.throws(() => validateAssistanceRuntimeFamilyDescriptorV1({
 		...descriptor, target: 'linux-arm64', executionProviders: ['coreml', 'cpu'],
 	}), /provider/iu);

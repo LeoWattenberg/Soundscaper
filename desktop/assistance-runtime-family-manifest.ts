@@ -16,6 +16,7 @@ import {
 	validateAssistanceAccelerationEntrypoints,
 	type AssistanceAccelerationEntrypoints,
 } from './assistance-acceleration-entrypoints.ts';
+import { validateAssistanceOnnxGpuClosure } from './assistance-onnx-gpu-closure.ts';
 
 export const ASSISTANCE_RUNTIME_FAMILY_MANIFEST_SCHEMA_VERSION = 1;
 export const ASSISTANCE_RUNTIME_FAMILY_TARGETS = Object.freeze([
@@ -291,6 +292,7 @@ function validateTarget(
 	}
 	const accelerationEntrypoints = validateAssistanceAccelerationEntrypoints(value.accelerationEntrypoints,
 		{ familyId, entrypoint, executionProviders, files });
+	validateAssistanceOnnxGpuClosure({ familyId, targetId: id, entrypoint, executionProviders, files });
 	return Object.freeze({ id, status: 'authenticated', entrypoint, files: Object.freeze(files),
 		...(executionProviders ? { executionProviders } : {}),
 		...(accelerationEntrypoints ? { accelerationEntrypoints } : {}) });

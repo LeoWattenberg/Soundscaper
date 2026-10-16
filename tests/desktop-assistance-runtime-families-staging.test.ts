@@ -16,6 +16,7 @@ import {
 } from '../desktop/assistance-runtime-family-manifest.ts';
 import { stageDesktopAssistanceRuntimeFamilies } from '../scripts/lib/desktop-assistance-runtime-families.mjs';
 import { verifyDesktopAssistanceRuntimeFamilyPackage } from '../scripts/lib/desktop-assistance-runtime-family-verification.mjs';
+import { onnxGpuTargetFixture } from './helpers/desktop-assistance-onnx-gpu-fixture.ts';
 
 async function fixture() {
 	const root = await mkdtemp(join(tmpdir(), 'assistance-package-'));
@@ -106,10 +107,18 @@ test('packaging retains target GPU capability metadata inside the authenticated 
 			targetId: 'linux-x64', runtimeRoot: f.root,
 			stageOnnx: async () => {
 				const staged = await f.stage('onnxruntime-node');
+				const bytes = Buffer.from('authenticated GPU package fixture');
+				const gpu = onnxGpuTargetFixture('linux-x64', bytes);
+				const targetRoot = join(f.root, staged.manifest.runtimePrefix, 'linux-x64');
+				await rm(join(targetRoot, 'index.js'));
+				for (const file of gpu.files) {
+					await mkdir(join(targetRoot, file.path, '..'), { recursive: true });
+					await writeFile(join(targetRoot, file.path), bytes);
+				}
 				return { ...staged, manifest: {
 					...staged.manifest,
 					targets: staged.manifest.targets.map((target) => target.id === 'linux-x64'
-						? { ...target, executionProviders: ['webgpu', 'cpu'] } : target),
+						? gpu : target),
 				} };
 			},
 			stageWhisper: () => f.stage('whisper-cpp'),

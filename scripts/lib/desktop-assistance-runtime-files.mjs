@@ -27,6 +27,7 @@ export const DESKTOP_ASSISTANCE_RUNTIME_FILES = Object.freeze([
 	'desktop/assistance-native-gpu-execution.js',
 	'desktop/assistance-dereverb-room-onnx-tensors.js',
 	'desktop/assistance-onnx-acceleration.js',
+	'desktop/assistance-onnx-gpu-closure.js',
 	'desktop/assistance-onnx-audio-runtime-worker.js',
 	'desktop/assistance-onnx-dereverb-worker.js',
 	'desktop/assistance-onnx-enhancement-separation-worker.js',

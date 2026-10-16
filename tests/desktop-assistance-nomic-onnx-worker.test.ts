@@ -20,6 +20,8 @@ import { createAssistanceOnnxSessionLeaseCacheV1 } from '../desktop/assistance-o
 import { reviewAssistanceEmbeddingMatrixV1 } from '../src/common/editor/assistance/binary-formats-v1.ts';
 import { createAssistanceTranscript } from '../src/common/editor/assistance/transcript.ts';
 import { nomicTokenizerArtifactFixture } from './assistance-nomic-tokenizer-fixture.ts';
+import { onnxGpuDescriptorFixture } from './helpers/desktop-assistance-onnx-gpu-fixture.ts';
+import { validateAssistanceRuntimeFamilyDescriptorV1 } from '../desktop/assistance-runtime-family-process-protocol.ts';
 
 const JOB_ID = '1'.repeat(40);
 const INPUT_ID = '2'.repeat(40);
@@ -160,7 +162,7 @@ for (const mode of ['gpu', 'creation-failure', 'inference-failure'] as const) {
 		const sessionCache = createAssistanceOnnxSessionLeaseCacheV1({ getRssBytes: () => 1 });
 		context.after(() => sessionCache.dispose());
 		const execute = createAssistanceOnnxRuntimeWorkerAdapterV1({ loadRuntime: async () => runtime, sessionCache });
-		const job = { ...value.job, descriptor: { ...value.job.descriptor, executionProviders: ['webgpu', 'cpu'] as const } };
+		const job = { ...value.job, descriptor: validateAssistanceRuntimeFamilyDescriptorV1(onnxGpuDescriptorFixture('linux-x64')) };
 		for (let index = 0; index < 2; index += 1) {
 			await writeFile(value.output, new Uint8Array());
 			await runAssistanceRuntimeFamilyWorkerJobV1({ job, execute });
@@ -193,7 +195,7 @@ test('a resident GPU session consults the current job signal before CPU retry', 
 	const sessionCache = createAssistanceOnnxSessionLeaseCacheV1({ getRssBytes: () => 1 });
 	context.after(() => sessionCache.dispose());
 	const execute = createAssistanceOnnxRuntimeWorkerAdapterV1({ loadRuntime: async () => runtime, sessionCache });
-	const job = { ...value.job, descriptor: { ...value.job.descriptor, executionProviders: ['webgpu', 'cpu'] as const } };
+	const job = { ...value.job, descriptor: validateAssistanceRuntimeFamilyDescriptorV1(onnxGpuDescriptorFixture('linux-x64')) };
 	await runAssistanceRuntimeFamilyWorkerJobV1({ job, execute });
 	await writeFile(value.output, new Uint8Array());
 	await assert.rejects(runAssistanceRuntimeFamilyWorkerJobV1({ job, execute, signal: controller.signal }), { name: 'AbortError' });

@@ -21,6 +21,7 @@ import {
 import { assertHelperWireEnvelope } from './helper-wire-admission.ts';
 import { validateAssistanceExecutionProviders } from './assistance-execution-providers.ts';
 import { validateAssistanceAccelerationEntrypoints } from './assistance-acceleration-entrypoints.ts';
+import { validateAssistanceOnnxGpuClosure } from './assistance-onnx-gpu-closure.ts';
 
 export type AssistanceRuntimeFamilyHostMessageV1 =
 	| Readonly<{
@@ -128,6 +129,7 @@ export function validateAssistanceRuntimeFamilyDescriptorV1(
 	}
 	const accelerationEntrypoints = validateAssistanceAccelerationEntrypoints(record.accelerationEntrypoints,
 		{ familyId, entrypoint, executionProviders, files, absolute: true });
+	validateAssistanceOnnxGpuClosure({ familyId, targetId: record.target, entrypoint, executionProviders, files, absolute: true });
 	return Object.freeze({
 		familyId, runtimeVersion: definition.runtimeVersion,
 		target: record.target as AssistanceRuntimeFamilyTargetId,
