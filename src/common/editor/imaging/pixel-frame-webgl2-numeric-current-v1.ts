@@ -1,23 +1,26 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { RepairTaskBudgetV1 } from './pixel-frame-repair-lifetime-v1.ts';
-import { readPixelFrameWebGl2ColorCurrentV1, writePixelFrameWebGl2ColorChannelsCurrentV1,
-	type PreparedPixelFrameWebGl2ColorCurrentV1 } from './pixel-frame-webgl2-color-current-v1.ts';
+import { readPixelFrameWebGl2PassCurrentV1, writePixelFrameWebGl2PassChannelsCurrentV1, pixelFrameWebGl2PassSupportedCurrentV1,
+	type PreparedPixelFrameWebGl2PassCurrentV1 } from './pixel-frame-webgl2-pass-current-v1.ts';
+import type { PixelFrameWebGl2LutResourcesCurrentV1 } from './pixel-frame-webgl2-lut-current-v1.ts';
 
 const MINIMUM_NORMAL = 2 ** -126;
 const EXACT_SMALL = 2 ** -60;
 export const PIXEL_FRAME_WEBGL2_COLOR_MAXIMUM_ULPS_CURRENT_V1 = 8;
-type Pass = Readonly<PreparedPixelFrameWebGl2ColorCurrentV1>;
+type Pass = PreparedPixelFrameWebGl2PassCurrentV1;
 
 function capture(passes: readonly unknown[]): readonly Pass[] {
 	if (!Array.isArray(passes) || passes.length > 256) throw new RangeError('Native GPU requires at most256 owning passes.');
-	return passes.map(readPixelFrameWebGl2ColorCurrentV1);
+	return passes.map(readPixelFrameWebGl2PassCurrentV1);
 }
 function nonlinear(pass: Pass): boolean {
+	if (pass.kind === 8) return false;
 	const p = pass.params0, q = pass.params1;
 	return pass.kind === 2 && (p[1] !== 1 || p[2] !== 0 || p[3] !== 0 || q[0] !== 0 || q[1] !== 0);
 }
 function globalOutputEligible(current: number, value: number, pass: Pass, arithmetic: boolean): boolean {
+	if (pass.kind === 8) throw new TypeError('LUTs require their streamed native oracle.');
 	const next = Math.fround(value);
 	if (!Number.isFinite(next)) throw new RangeError('Native GPU recipe exceeds finite Float32 range.');
 	if (nonlinear(pass)) {
@@ -33,9 +36,9 @@ function globalOutputEligible(current: number, value: number, pass: Pass, arithm
  * streamed normative result check after real GPU execution, before delivery.
  * No native source or expected-result plane is allocated by either phase. */
 export async function pixelFrameWebGl2NumericEligibleCurrentV1(pixels: Float32Array<ArrayBuffer>, values: readonly unknown[],
-	copy: boolean, arithmetic: boolean, check: () => void): Promise<boolean> {
+	copy: boolean, arithmetic: boolean, check: () => void, resources?: Readonly<PixelFrameWebGl2LutResourcesCurrentV1>): Promise<boolean> {
 	check(); const passes = capture(values), budget = new RepairTaskBudgetV1(check);
-	if (passes.some(pass => !pass.supported)) return false;
+	if (passes.some(pass => !pixelFrameWebGl2PassSupportedCurrentV1(pass, resources))) return false;
 	const minimum = [Infinity, Infinity, Infinity];
 	for (let offset = 0; offset < pixels.length; offset++) {
 		if (budget.visit()) await budget.yield();
@@ -45,6 +48,7 @@ export async function pixelFrameWebGl2NumericEligibleCurrentV1(pixels: Float32Ar
 	}
 	if (passes.some(pass => pass.kind > 2)) return true;
 	for (const pass of passes) {
+		if (pass.kind === 8) return true;
 		const p = pass.params0, q = pass.params1;
 		if (nonlinear(pass) && (minimum.some(value => value < EXACT_SMALL)
 			|| [...p, ...q].some(value => value !== 0 && Math.abs(value) < EXACT_SMALL))) return false;
@@ -60,7 +64,7 @@ export async function pixelFrameWebGl2NumericEligibleCurrentV1(pixels: Float32Ar
 			let red = pixels[offset]!, green = pixels[offset + 1]!, blue = pixels[offset + 2]!;
 			for (const pass of passes) {
 				if (budget.visit()) await budget.yield();
-				writePixelFrameWebGl2ColorChannelsCurrentV1(pass, red, green, blue, target);
+				writePixelFrameWebGl2PassChannelsCurrentV1(pass, red, green, blue, target, resources);
 				if (!globalOutputEligible(red, target.red, pass, arithmetic) || !globalOutputEligible(green, target.green, pass, arithmetic)
 					|| !globalOutputEligible(blue, target.blue, pass, arithmetic)) return false;
 				red = Math.fround(target.red); green = Math.fround(target.green); blue = Math.fround(target.blue);
@@ -85,7 +89,7 @@ function ordered(value: number): number {
  * A refusal occurs before the consumer and retires GL before whole CPU fallback.
  * This correctness check currently also costs CPU work; it is not a speed claim. */
 export async function validatePixelFrameWebGl2ColorReadbackCurrentV1(source: Float32Array<ArrayBuffer>, result: Float32Array<ArrayBuffer>,
-	values: readonly unknown[], check: () => void): Promise<boolean> {
+	values: readonly unknown[], check: () => void, resources?: Readonly<PixelFrameWebGl2LutResourcesCurrentV1>): Promise<boolean> {
 	check(); const passes = capture(values);
 	if (!(source instanceof Float32Array) || !(result instanceof Float32Array) || !source.length
 		|| source.length !== result.length || source.length % 4 !== 0) throw new RangeError('Native GPU comparison requires equal RGBA Float32 planes.');
@@ -103,7 +107,7 @@ export async function validatePixelFrameWebGl2ColorReadbackCurrentV1(source: Flo
 			let red = source[at]!, green = source[at + 1]!, blue = source[at + 2]!;
 			for (const pass of passes) {
 				if (budget.visit()) await budget.yield();
-				writePixelFrameWebGl2ColorChannelsCurrentV1(pass, red, green, blue, target);
+				writePixelFrameWebGl2PassChannelsCurrentV1(pass, red, green, blue, target, resources);
 				red = Math.fround(target.red); green = Math.fround(target.green); blue = Math.fround(target.blue);
 				if (!Number.isFinite(red) || !Number.isFinite(green) || !Number.isFinite(blue)) throw new RangeError('Native GPU recipe exceeds finite Float32 range.');
 			}

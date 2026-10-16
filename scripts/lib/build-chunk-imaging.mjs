@@ -26,7 +26,7 @@ export const imagingChunkGroups = [{
 	// Actual native GL initialization is loaded only after an opted-in GPU
 	// request captures its source. CPU and scalar preparation do not load it.
 	name: 'editor-image-develop-gpu',
-	test: /src[\\/]common[\\/]editor[\\/]imaging[\\/]pixel-frame-webgl2-(?:context|numeric|(?:chroma|curves|color)-glsl)-current-v1\.ts$/,
+	test: /src[\\/]common[\\/]editor[\\/]imaging[\\/]pixel-frame-webgl2-(?:context|numeric|(?:chroma|curves|color|lut)-glsl)-current-v1\.ts$/,
 	priority: 99,
 	minSize: 0,
 	maxSize: 400_000,
@@ -35,7 +35,7 @@ export const imagingChunkGroups = [{
 	// Native word/float processing is reached by opted-in Develop consumers.
 	// Inert descriptors and scalar memory planning stay with image contracts.
 	name: 'editor-native-image-develop',
-	test: /src[\\/]common[\\/]editor[\\/]imaging[\\/](?:image-develop-linear-(?:frame|owner|current|lut-stage|plan)-v1|image-develop-raw-(?:request|source)-current-v1|image-develop-gpu-current-v1|pixel-frame-webgl2-(?:current-v1|(?:global|color)-current-v1)|linear-curve-metadata-current-v1|native-develop-proxy-source-current-v1|image-repair-spots-native-current-v1|pixel-frame-linear-[^\\/]+-v1|linear-(?:kernel-planes|spatial-(?:noise|neighborhood)|output-sampling)-v1)\.ts$/,
+	test: /src[\\/]common[\\/]editor[\\/]imaging[\\/](?:image-develop-linear-(?:frame|owner|current|lut-stage|plan)-v1|image-develop-raw-(?:request|source)-current-v1|image-develop-gpu-(?:plan-)?current-v1|pixel-frame-webgl2-(?:current-v1|(?:global|color|pass|lut)-current-v1)|linear-(?:curve-metadata|cube-lut-sampling)-current-v1|native-develop-proxy-source-current-v1|image-repair-spots-native-current-v1|pixel-frame-linear-[^\\/]+-v1|linear-(?:kernel-planes|spatial-(?:noise|neighborhood)|output-sampling)-v1)\.ts$/,
 	priority: 99,
 	minSize: 0,
 	maxSize: 400_000,

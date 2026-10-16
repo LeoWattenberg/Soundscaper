@@ -89,7 +89,7 @@ test('unsupported mixed recipes preserve original-space Clone, masks, geometry, 
 	}
 });
 
-test('fallback captures the native source and resource method before an asynchronous authenticated LUT borrow', async () => {
+test('GPU authentication and whole CPU fallback share the captured native source and pinned resource method', async () => {
 	const api = await owner(), resource = lut(), source = frame([.125, .25, .5, .375]), entered = deferred<void>(), release = deferred<void>();
 	let reads = 0, delivered = 0;
 	const port: CubeLutSourcePortV1 = { async withBytes(reference, consume) {
@@ -103,7 +103,8 @@ test('fallback captures the native source and resource method before an asynchro
 		await Promise.race([entered.promise, work.then(() => assert.fail('The resource must be borrowed before delivery.'))]);
 		source.pixels.fill(.75); port.withBytes = () => { throw new Error('A replaced resource method has no authority.'); };
 		assert.equal(await remainsPending(work), true); release.resolve(); assert.deepEqual(await work, [.5, .25, .125, .375]);
-		assert.equal(reads, 1); assert.equal(delivered, 1); assert.deepEqual([...source.pixels], [.75, .75, .75, .75]);
+		assert.equal(reads, 2, 'GPU authentication retires before the separate whole CPU phase.');
+		assert.equal(delivered, 1); assert.deepEqual([...source.pixels], [.75, .75, .75, .75]);
 	} finally { release.resolve(); await Promise.allSettled([work]); }
 });
 

@@ -4,34 +4,18 @@ import type { ParsedCubeLutV1 } from '../video-color-cube-lut-v27.ts';
 import { withCubeLutResourceV1 } from './cube-lut-resource-v1.ts';
 import { captureRepairSignalV1, checkRepairSignalV1 } from './pixel-frame-repair-lifetime-v1.ts';
 import { captureLinearKernelDescriptorV1, captureLinearKernelPlanesV1, writeLinearKernelPixelV1 } from './linear-kernel-planes-v1.ts';
+import { sampleLinearCubeLutChannelCurrentV1 as sample } from './linear-cube-lut-sampling-current-v1.ts';
 
 /** Conservative parser/transient planning reserve, not an exact JS heap claim.
  * The outer pipeline also charges both selected/raw byte spans separately.
  * The existing parser caps16MiB text and65³×3 numeric lattice scalars. */
-export const LINEAR_LUT_TRANSIENT_RESERVE_BYTES_V1 = 128 * 1024 * 1024;
+export { LINEAR_LUT_TRANSIENT_RESERVE_BYTES_V1 } from './linear-cube-lut-sampling-current-v1.ts';
 
 function gradeChannel(value: number, grade: VideoColorGradeV1, channel: 0 | 1 | 2, exposure: number): number {
 	const contrasted = value * exposure * grade.contrast + grade.pivot * (1 - grade.contrast);
 	const gained = (contrasted + grade.lift[channel]) * grade.gain[channel];
 	return grade.gamma[channel] === 1 ? gained : Math.sign(gained) * Math.abs(gained) ** (1 / grade.gamma[channel]);
 }
-function axis(value: number, minimum: number, maximum: number, size: number): number { return Math.max(0, Math.min(1, (value - minimum) / (maximum - minimum))) * (size - 1); }
-function mix(a: number, b: number, amount: number): number { return a + (b - a) * amount; }
-
-/** Same red-fastest trilinear lattice as the authenticated V27 sampler, without
- * allocating its axis objects/channel arrays for every native image pixel. */
-function sample(lut: ParsedCubeLutV1, red: number, green: number, blue: number, channel: number): number {
-	const size = lut.size, values = lut.values;
-	const r = axis(red, lut.domainMin[0], lut.domainMax[0], size), g = axis(green, lut.domainMin[1], lut.domainMax[1], size), b = axis(blue, lut.domainMin[2], lut.domainMax[2], size);
-	const r0 = Math.floor(r), g0 = Math.floor(g), b0 = Math.floor(b), r1 = Math.min(size - 1, r0 + 1), g1 = Math.min(size - 1, g0 + 1), b1 = Math.min(size - 1, b0 + 1);
-	const stride = size * size;
-	const z00 = mix(values[(b0 * stride + g0 * size + r0) * 3 + channel]!, values[(b1 * stride + g0 * size + r0) * 3 + channel]!, b - b0);
-	const z01 = mix(values[(b0 * stride + g1 * size + r0) * 3 + channel]!, values[(b1 * stride + g1 * size + r0) * 3 + channel]!, b - b0);
-	const z10 = mix(values[(b0 * stride + g0 * size + r1) * 3 + channel]!, values[(b1 * stride + g0 * size + r1) * 3 + channel]!, b - b0);
-	const z11 = mix(values[(b0 * stride + g1 * size + r1) * 3 + channel]!, values[(b1 * stride + g1 * size + r1) * 3 + channel]!, b - b0);
-	return mix(mix(z00, z01, g - g0), mix(z10, z11, g - g0), r - r0);
-}
-
 /** Write one managed native-linear stage into a caller-owned destination.
  * Complete grade/geometry/native planes are captured synchronously. A real LUT
  * is digest/geometry authenticated before any destination write and remains
