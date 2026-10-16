@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import { readClosedDomainField as field, readClosedDomainRecord as record } from '../closed-domain-value.ts';
+import { captureLinearDevelopAuthoredSlotsCurrentV1, type LinearDevelopAuthoredSlotsCurrentV1 } from './image-develop-linear-authored-slots-current-v1.ts';
 import { normalizeImageDevelopStateCurrentV1 } from './image-develop-state-current-v1.ts';
 import { normalizeImageDevelopStateV2 } from './image-develop-state-v2.ts';
 import { captureImageDevelopFrameProfileV3 } from './image-develop-frame-owned-pixels-v1.ts';
@@ -45,6 +46,18 @@ export type LinearDevelopMetadataStageCurrentV1 = Readonly<{ kind: 'geometry'; g
 	| Readonly<{ kind: 'lut'; id: string; reference: Reference }>
 	| Readonly<{ kind: 'noop'; id: string }>;
 
+// Only this complete scalar metadata factory enrolls an owner. Public slot
+// copies and the internal recorder alone do not authorize GPU checkpoints.
+const AUTHORED_METADATA = new WeakMap<object, Readonly<LinearDevelopAuthoredSlotsCurrentV1>>();
+export function isLinearDevelopAuthoredSlotsCurrentV1(value: unknown): boolean {
+	return typeof value === 'object' && value !== null && AUTHORED_METADATA.has(value);
+}
+export function readLinearDevelopAuthoredSlotsCurrentV1(value: unknown): Readonly<LinearDevelopAuthoredSlotsCurrentV1> {
+	const slots = typeof value === 'object' && value !== null ? AUTHORED_METADATA.get(value) : undefined;
+	if (!slots) throw new TypeError('Authored slots require their owning Current scalar metadata.');
+	return slots;
+}
+
 /** The single scalar phase plan serves eager Frame admission and lazy native
  * execution. It imports no native writer or executable prepared identity and
  * never reads source pixels or resource bodies. */
@@ -76,7 +89,7 @@ function prepareDevelopMetadata(value: unknown, profileValue: ImageDevelopFrameP
 	const selectedBinding = selection && masks.plan.bindings.find(binding => binding.maskId === selection.maskId && binding.effectId === selection.effectId);
 	const repairPlan = develop.processVersion === 3 ? planImageDevelopRepairSpotsV1(develop.repairs, descriptor.width, descriptor.height) : undefined;
 	const repairs = develop.processVersion === 3 && develop.repairs.spots.some(spot => spot.enabled && spot.opacity > 0) ? repairPlan : undefined;
-	const stages: LinearDevelopMetadataStageCurrentV1[] = [];
+	const stages: LinearDevelopMetadataStageCurrentV1[] = [], authored = captureLinearDevelopAuthoredSlotsCurrentV1(masks.plan);
 	let current = descriptor, peak = sourcePlan.byteLength + descriptor.width * descriptor.height * 16 + masks.peakWorkingBytes;
 	const charge = (nextBytes: number, scratch = 0) => {
 		peak = Math.max(peak, sourcePlan.byteLength + current.width * current.height * 16 + nextBytes + scratch + masks.peakWorkingBytes);
@@ -93,9 +106,12 @@ function prepareDevelopMetadata(value: unknown, profileValue: ImageDevelopFrameP
 		stages.push(Object.freeze({ kind: 'geometry', geometry, descriptor: output })); current = output;
 	};
 	const legacy = develop.geometry;
-	if (legacy.crop !== null || legacy.rotationDegrees !== 0 || legacy.flipHorizontal || legacy.flipVertical) geometry(legacy);
+	if (legacy.crop !== null || legacy.rotationDegrees !== 0 || legacy.flipHorizontal || legacy.flipVertical) {
+		const incoming = current, index = stages.length; geometry(legacy); authored.legacy(incoming, current, index);
+	}
 	let source: ReturnType<typeof captureCubeLutSourceV1> | undefined;
-	for (const effect of develop.effects) {
+	for (const [effectIndex, effect] of develop.effects.entries()) {
+		const incoming = current, metadataIndex = stages.length;
 		if (effect.type === OPTICAL_VIGNETTE_EFFECT_TYPE_V1) {
 			const optical = prepareOpticalVignetteEffectV1(effect), active = optical.enabled && !optical.neutral;
 			if (active) charge(current.width * current.height * 16);
@@ -131,17 +147,21 @@ function prepareDevelopMetadata(value: unknown, profileValue: ImageDevelopFrameP
 			} else {
 				if (!COLORS.has(effect.type)) {
 					if (sourcePlan.descriptor.sampleFormat !== 'unorm8' || effect.enabled) throw new RangeError('Unsupported linear color develop family.');
-					stages.push(Object.freeze({ kind: 'noop', id: effect.id })); continue;
+					stages.push(Object.freeze({ kind: 'noop', id: effect.id }));
+					authored.effect(effect, effectIndex, incoming, current, metadataIndex); continue;
 				}
 				if (masks.plan.bindings.some(binding => binding.effectId === effect.id)) charge(current.width * current.height * 16);
 				stages.push(Object.freeze({ kind: 'color', effect }));
 			}
 		}
+		authored.effect(effect, effectIndex, incoming, current, stages.length === metadataIndex ? null : metadataIndex);
 	}
 	charge(current.width * current.height * 4 + Math.min(current.width * current.height, 4_194_304) * 4);
 	if (peak > CURRENT_LINEAR_WORKING_BYTES_V1) throw new RangeError('Current linear Develop exceeds its 768 MiB working byte budget.');
-	return Object.freeze({ raw, develop, profile, sourcePlan, descriptor, repairs, stages: Object.freeze(stages), finalDescriptor: current,
-		masks, maskSource, selectedBinding, source, peakWorkingBytes: peak });
+	const ownedSlots = authored.finish();
+	const metadata = Object.freeze({ raw, develop, profile, sourcePlan, descriptor, repairs, stages: Object.freeze(stages), finalDescriptor: current,
+		masks, maskSource, selectedBinding, source, peakWorkingBytes: peak, authoredSlots: ownedSlots.slots });
+	AUTHORED_METADATA.set(metadata, ownedSlots); return metadata;
 }
 function prepareSpatialMetadata(effect: Effect) {
 	switch (effect.type) {
