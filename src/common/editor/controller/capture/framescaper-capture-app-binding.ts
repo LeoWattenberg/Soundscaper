@@ -43,7 +43,7 @@ export type { FramescaperCaptureAppProject } from './internal/framescaper-captur
 type PassThroughOptions = Pick<FramescaperCaptureAppCompositionOptions,
 	'mediaDevices' | 'createStream' | 'MediaRecorder' | 'MediaStreamTrackProcessor'
 	| 'MediaStreamTrackGenerator' | 'VideoFrame'
-	| 'recordingControllerFactory' | 'getAudioContext' | 'AudioWorkletNode'
+	| 'recordingControllerFactory' | 'getAudioContext' | 'getMonitorDestination' | 'AudioWorkletNode'
 	| 'videoProbe' | 'helperTimingProbe' | 'ffmpeg' | 'desktopBridge' | 'webVcrBridge'
 	| 'webVcrEnabled' | 'showWebVcrPanel' | 'hideWebVcrPanel'
 	| 'createId' | 'now' | 'waitCountdown' | 'receiptTime'
@@ -423,7 +423,7 @@ function passThroughOptions(options: FramescaperCaptureAppBindingOptions): Parti
 const PASS_THROUGH_KEYS = Object.freeze([
 	'mediaDevices', 'createStream', 'MediaRecorder', 'MediaStreamTrackProcessor',
 	'MediaStreamTrackGenerator', 'VideoFrame',
-	'recordingControllerFactory', 'getAudioContext', 'AudioWorkletNode', 'videoProbe',
+	'recordingControllerFactory', 'getAudioContext', 'getMonitorDestination', 'AudioWorkletNode', 'videoProbe',
 	'helperTimingProbe', 'ffmpeg', 'createId', 'now', 'waitCountdown', 'receiptTime',
 	'webVcrBridge', 'webVcrEnabled', 'showWebVcrPanel', 'hideWebVcrPanel',
 	'recordRetryableRecovery', 'scheduleDerivatives', 'onWarning', 'onChange',

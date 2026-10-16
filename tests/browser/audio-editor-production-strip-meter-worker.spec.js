@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { expect, longTone, test } from './audio-editor-test-fixtures.js';
+import { installDesktopSpeedWarmupManifest } from './helpers/desktop-speed-warmup-fixture.js';
+import { expect, halfMinuteTone, test } from './audio-editor-test-fixtures.js';
 import {
 	bootEditor,
 	chooseNestedCommandAction,
@@ -11,6 +12,7 @@ import {
 for (const platform of ['web', 'desktop']) {
 	test(`${platform} playback computes production strip meters in a dedicated worker`, async ({ page }) => {
 		test.setTimeout(90_000);
+		if (platform === 'desktop') await installDesktopSpeedWarmupManifest(page);
 		await page.addInitScript((desktop) => {
 			const probe = { created: 0, submissions: 0, results: 0, transferredBuffers: 0,
 				maximumPeak: 0, workerErrors: [] };
@@ -59,7 +61,8 @@ for (const platform of ['web', 'desktop']) {
 
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');
-		await importFiles(editor, [longTone]);
+		// The 20-second observation must fit inside audible playback.
+		await importFiles(editor, [halfMinuteTone]);
 		await chooseNestedCommandAction(page, editor, 'Window', ['Mixer']);
 		const mixer = editor.locator('[data-mixer-panel]');
 		await expect(mixer).toBeVisible();

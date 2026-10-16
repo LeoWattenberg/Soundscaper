@@ -3,6 +3,7 @@
 import { materializeBundledWavPackDecodeGroup, parseBundledWavPackStream } from '../../../desktop/bundled-wavpack-stream.ts';
 import type { StreamedAudioImportSession } from './browser-streamed-audio-import.ts';
 import type { BrowserContainerAudioSample } from './browser-container-audio-decode.ts';
+import { wavPackAudioBlob } from './ape-metadata-reader.ts';
 
 export interface WavPackImportGroupDecoder {
 	decode(file: Blob, options: Readonly<Record<string, unknown>>): PromiseLike<Readonly<{
@@ -30,6 +31,7 @@ export async function openStreamedWavPackImportSession(
 	file: Blob, signal?: AbortSignal, suppliedDecoder?: WavPackImportGroupDecoder,
 ): Promise<StreamedAudioImportSession> {
 	signal?.throwIfAborted();
+	file = await wavPackAudioBlob(file, signal);
 	const first = await readGroup(file, 0, signal);
 	if (first.blockIndex !== 0) throw new Error('The WavPack original does not begin at source frame zero.');
 	let decoder = suppliedDecoder;

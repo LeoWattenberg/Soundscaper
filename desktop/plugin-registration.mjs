@@ -6,6 +6,7 @@ import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { readFileSync, statSync } from 'node:fs';
 import { createHash, randomBytes } from 'node:crypto';
 import { dirname, join } from 'node:path';
+import { homedir } from 'node:os';
 
 import { dialog } from 'electron/main';
 
@@ -22,11 +23,14 @@ import {
 	pluginObservationFromScanEntry,
 } from './project-library-runtime/desktop/plugin-registry.js';
 import { DesktopPluginScanService } from './project-library-runtime/desktop/plugin-scan-service.js';
+import { createPluginScanProgressSupervisor } from './project-library-runtime/desktop/plugin-scan-progress.js';
+import { createDefaultPluginDiscoveryConsent } from './project-library-runtime/desktop/plugin-discovery-defaults.js';
 import { createDesktopNativeAddonHelperSupervisor } from './native-helper-registration.mjs';
 import { productionSoundscaperPluginFormatActivated } from './soundscaper-native-activation-policy.mjs';
 import { createPluginRegistryAllowanceStore } from './plugin-registry-allowance-store.mjs';
 import { authenticatePluginBinary } from './plugin-binary-authentication.mjs';
 import { registerDesktopVampAnalyzers } from './vamp-analyzer-registration.mjs';
+import { registerDesktopAra } from './ara-registration.mjs';
 
 const CONSENT_FILE = 'native-plugin-consent-v1.json';
 const QUARANTINE_FILE = 'native-plugin-quarantine-v1.json';
@@ -183,7 +187,8 @@ export function registerDesktopPluginDiscovery({
 		serviceName: 'soundscaper-native-plugin-scanner',
 		payloadKind: 'professional',
 	});
-	const supervisor = injectedSupervisor ?? helper.supervisor;
+	const progress = createPluginScanProgressSupervisor(injectedSupervisor ?? helper.supervisor);
+	const supervisor = progress.supervisor;
 	const describePayload = injectedDescribePayload ?? helper.describePayload;
 	const durable = createDurableFileSystem();
 	const consentPath = join(userDataPath, CONSENT_FILE);
@@ -199,7 +204,8 @@ export function registerDesktopPluginDiscovery({
 			? dialog.showOpenDialog(window, { title: pickerTitle(format), properties: ['openDirectory'] })
 			: dialog.showOpenDialog({ title: pickerTitle(format), properties: ['openDirectory'] }));
 		return result.canceled || result.filePaths.length !== 1 ? null : result.filePaths[0];
-	});
+	}, { enabled: settings.snapshot().nativePluginDiscoveryEnabled === true,
+		isFormatActivated: isPluginHostFormatActivated });
 	let consentWrites = Promise.resolve();
 	const persistConsent = () => {
 		const contents = JSON.stringify(consent.exportState());
@@ -254,6 +260,9 @@ export function registerDesktopPluginDiscovery({
 		})),
 		openPersistentPluginSession,
 	});
+	const ara = registerDesktopAra({ handle, ownerFor, registry, settings, consent, quarantine,
+		isFormatActive: formatIsActive, desktopRoot, packaged, resourcesPath,
+		rebind: (id) => rebindPluginInstallation(allowances, registry, id) });
 	const vamp = registerDesktopVampAnalyzers({
 		channels, handle, ownerFor, userDataPath, fileSystem: durable, supervisor,
 		consent: discoveryConsent, quarantine: scannerQuarantine, roots: discoveryRoots,
@@ -263,6 +272,7 @@ export function registerDesktopPluginDiscovery({
 		...(vampAnalyzerRuntime ? { runtime: vampAnalyzerRuntime } : {}),
 		...(vampAnalyzerBackend ? { backend: vampAnalyzerBackend } : {}),
 		effects: Object.freeze({ service, registry, allowances, hosting, isFormatActive: formatIsActive,
+			onInstallationRevoked: (id) => ara.withdrawInstallation(id),
 			settleQuarantine: () => scannerQuarantine.settle() }),
 	});
 
@@ -270,6 +280,9 @@ export function registerDesktopPluginDiscovery({
 		...(await service.availability()),
 		consent: activatedConsentProjection(consent.describe(), formatIsActive),
 		quarantine: quarantine.snapshot(),
+	}));
+	handle(channels.nativePluginScanProgress, () => Object.freeze({
+		enabled: settings.snapshot().nativePluginDiscoveryEnabled === true, scanProgress: progress.getSnapshot(),
 	}));
 	handle(channels.nativePluginConsent, async (event, value) => {
 		void ownerFor(event);
@@ -284,6 +297,7 @@ export function registerDesktopPluginDiscovery({
 			rootId: String(value?.rootId || ''),
 		});
 		if (action === 'revoke' || action === 'remove-root') {
+			if (format === 'vst3') await ara.disable();
 			service.cancelFormat(format);
 			vamp.cancelFormat(format);
 		}
@@ -306,7 +320,7 @@ export function registerDesktopPluginDiscovery({
 		const digest = String(value?.digest || '');
 		// A fault write still in flight lands before the clearance, so the user
 		// clears the quarantine that exists rather than racing its record.
-		await Promise.all([hosting?.settleQuarantineWrites(), vamp.settleQuarantineWrites()]);
+		await Promise.all([hosting?.settleQuarantineWrites(), vamp.settleQuarantineWrites(), ara.settleQuarantineWrites()]);
 		const cleared = await quarantine.clear(digest, clearance);
 		// The in-memory hold releases with the durable one, or an explicit
 		// re-enable would leave the digest dead until the editor restarts.
@@ -352,10 +366,11 @@ export function registerDesktopPluginDiscovery({
 		registry,
 		quarantine,
 		settlePluginQuarantineWrites: () => Promise.all([
-			hosting?.settleQuarantineWrites(), vamp.settleQuarantineWrites(),
+			hosting?.settleQuarantineWrites(), vamp.settleQuarantineWrites(), ara.settleQuarantineWrites(),
 		]),
 		ready: async () => {
 			await quarantine.load();
+			await persistConsent();
 			return Object.freeze([]);
 		},
 		setEnabled: async (enabled) => {
@@ -363,6 +378,7 @@ export function registerDesktopPluginDiscovery({
 			if (!result) {
 				service.cancelAll();
 				const vampDisabled = vamp.disable();
+				await ara.disable();
 				await hosting?.closeAll();
 				hosting?.service.closeAll();
 				await vampDisabled;
@@ -373,13 +389,14 @@ export function registerDesktopPluginDiscovery({
 			service.revokeOwner(owner);
 			void hosting?.revokeOwner(owner);
 			hosting?.service.revokeOwner(owner);
-			return vamp.revokeOwner(owner);
+			return Promise.all([vamp.revokeOwner(owner), ara.revokeOwner(owner)]);
 		},
 		dispose: async () => {
 			void hosting?.closeAll();
 			hosting?.service.dispose();
 			service.dispose();
 			await vamp.dispose();
+			await ara.dispose();
 		},
 	});
 }
@@ -434,11 +451,13 @@ async function applyConsentAction(consent, { action, format, rootId }) {
  * cannot be trusted starts the format table empty rather than refusing to
  * start, exactly as the durable quarantine does.
  */
-function createConsent(filePath, pickDirectory) {
+function createConsent(filePath, pickDirectory, defaults) {
 	const state = readConsentState(filePath);
+	const options = { pickDirectory, homeDirectory: homedir() };
+	if (state === undefined) return createDefaultPluginDiscoveryConsent(options, defaults);
 	if (state === null) return new DesktopPluginConsent({ pickDirectory });
 	try {
-		return new DesktopPluginConsent({ pickDirectory, state });
+		return new DesktopPluginConsent({ ...options, state });
 	} catch (error) {
 		console.error('The persisted plug-in consent was not admitted; starting with none:', error);
 		return new DesktopPluginConsent({ pickDirectory });
@@ -449,6 +468,7 @@ function readConsentState(filePath) {
 	try {
 		return JSON.parse(readFileSync(filePath, 'utf8'));
 	} catch (error) {
+		if (error?.code === 'ENOENT') return undefined;
 		if (error?.code !== 'ENOENT') {
 			console.error('The persisted plug-in consent could not be read; starting with none:', error);
 		}

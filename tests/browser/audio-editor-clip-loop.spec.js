@@ -1,3 +1,4 @@
+import { capturePassingScreenshot } from './helpers/passing-screenshots.js';
 import { expect, test, monoTone, createWavFixture } from './audio-editor-test-fixtures.js';
 import { bootEditor, clipByName, clipField, closeClipProperties, collectClientErrors, commitInput, disableNativeSavePicker, importFiles, openClipProperties, openExportDialog, readDownloadBytes, registerAudioEditorHooks } from './audio-editor-test-helpers.js';
 
@@ -107,7 +108,7 @@ test.describe('clip looping', () => {
 		await drag(page, clip.getByRole('button', { name: 'Trim right edge', exact: true }), -width / 2);
 		await expect(clip).toHaveAttribute('aria-label', overallLength);
 		await expect(clip.locator('[data-loop-boundary-frame]')).toHaveCount(3);
-		await clip.screenshot({ path: testInfo.outputPath('clip-loop.png') });
+		await capturePassingScreenshot(clip, { path: testInfo.outputPath('clip-loop.png') });
 		await editor.getByRole('button', { name: 'Undo', exact: true }).click();
 		await expect(clip.locator('[data-loop-boundary-frame]')).toHaveCount(1);
 		await editor.getByRole('button', { name: 'Undo', exact: true }).click();
@@ -204,7 +205,7 @@ test.describe('clip looping', () => {
 			expect(low).toBeCloseTo(during[0][0], 2);
 			expect(high).toBeCloseTo(during[0][1], 2);
 		}
-		await clip.screenshot({ path: testInfo.outputPath('loop-stretch-preview.png') });
+		await capturePassingScreenshot(clip, { path: testInfo.outputPath('loop-stretch-preview.png') });
 		await page.mouse.up();
 		await expect(clip.locator('[data-loop-boundary-frame]')).toHaveCount(3);
 		await expect.poll(async () => {

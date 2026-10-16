@@ -82,3 +82,17 @@ export function documentationUrl(
 
 	return `${documentationBaseUrl(normalizedProductId)}${handbookLanguagePath(locale)}/${DOCUMENTATION_DESTINATION_PATHS[normalizedProductId][destination]}`;
 }
+
+/** Names a fixed desktop destination without passing a renderer URL to the host. */
+export function desktopDocumentationDestination(url: string): string | null {
+	for (const productId of ['soundscaper', 'framescaper']) {
+		for (const destination of ['manual', 'tutorials'] as const) {
+			for (const locale of ['', ...HANDBOOK_LANGUAGES]) {
+				if (url === documentationUrl(productId, destination, locale)) {
+					return locale ? `${destination}-${locale}` : destination;
+				}
+			}
+		}
+	}
+	return null;
+}

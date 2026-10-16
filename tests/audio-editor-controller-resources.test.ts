@@ -4,11 +4,37 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { ClipTimePitchRenderCacheCoordinator } from '../src/common/editor/clip-time-pitch-cache.js';
 import { createControllerResources } from '../src/common/editor/controller/composition/controller-resources.ts';
+import { createAudioEditorFileService } from '../src/common/editor/file-service.js';
+import { parallelStackPlaybackEnabled } from '../src/common/editor/engine/parallel-stack-playback.ts';
+import { readParallelStackPreferences, writeParallelStackPreferences } from '../src/common/editor/engine/parallel-stack-preferences.ts';
 
 const callbacks = {
 	copy: { staffPadRangeWarning: '{stageCount} stages', ffmpegLoading: 'Loading' },
 	onPosition() {}, onMeter() {}, onState() {}, setStatus() {}, updateExportProgress() {},
 };
+
+test('parallel processing registers both browser and desktop Soundscaper playback engines only', async () => {
+	const preferences = readParallelStackPreferences();
+	try {
+		writeParallelStackPreferences({ ...preferences, enabled: true });
+		for (const [productId, desktop, expected] of [
+			['soundscaper', false, true], ['soundscaper', true, true], ['framescaper', false, false],
+		] as const) {
+			const resources = createControllerResources({
+				productId, fileService: createAudioEditorFileService({ bridge: desktop ? {} : null }),
+			}, callbacks);
+			try {
+				assert.equal(parallelStackPlaybackEnabled(resources.engine), expected);
+			} finally {
+				await resources.clipTimePitchCache.dispose?.();
+				await resources.engine.dispose();
+				resources.ffmpeg.dispose();
+				resources.nyquistClient?.dispose();
+				await resources.store.close();
+			}
+		}
+	} finally { writeParallelStackPreferences(preferences); }
+});
 
 test('controller resources give workers owned PCM without detaching resident channel views', async () => {
 	const resources = createControllerResources({}, callbacks);

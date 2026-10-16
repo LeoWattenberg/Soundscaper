@@ -147,13 +147,13 @@ test('common strategy preserves video format aliases and refuses unsupported for
 	assert.equal(invalid.events.includes('product-plan'), false);
 });
 
-test('desktop keyed delivery stays on external FFmpeg when WebCodecs is available', async () => {
-	const browser = createFixture({ mode: 'blob' }); await browser.exportVideo({ format: 'video-mp4' });
-	assert.ok(browser.events.includes('product-encoder:webcodecs'));
-	const desktop = createFixture({ mode: 'direct', desktop: true });
-	await desktop.exportVideo({ format: 'video-mp4' });
-	assert.ok(desktop.events.includes('product-encoder:ffmpeg'));
-	assert.equal(desktop.events.includes('product-encoder:webcodecs'), false);
+test('desktop keyed delivery prefers WebCodecs and falls back to verified external FFmpeg', async () => {
+	for (const supported of [true, false]) {
+		Object.defineProperty(globalThis, 'VideoEncoder', { configurable: true, value: { isConfigSupported: async () => ({ supported }) } });
+		const fixture = createFixture({ mode: 'direct', desktop: true });
+		assert.ok(await fixture.exportVideo({ format: 'video-mp4' }));
+		assert.ok(fixture.events.includes(`product-encoder:${supported ? 'webcodecs' : 'ffmpeg'}`));
+	}
 });
 test('product picture authority exports stills and generators without fake video timing or audio', async () => {
 	for (const kind of ['still', 'generator'] as const) {

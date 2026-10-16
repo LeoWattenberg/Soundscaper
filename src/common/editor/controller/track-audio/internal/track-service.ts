@@ -232,7 +232,7 @@ export function createEditorTrackService(
 			: null;
 		const discoveredChannelCount = Math.max(0, Number(displaySource?.channelCount ?? device?.channelCount) || 0);
 		if (discoveredChannelCount > 0 && discoveredChannelCount < channelCount) return false;
-		const maximumChannels = Math.max(channelCount, discoveredChannelCount || 2);
+		const maximumChannels = Math.max(channelCount, discoveredChannelCount || channelCount);
 		for (let channelStart = 0; channelStart + channelCount <= maximumChannels; channelStart += channelCount) {
 			try {
 				const next = dependencies.recording.setTrackRoute(routing, track, {

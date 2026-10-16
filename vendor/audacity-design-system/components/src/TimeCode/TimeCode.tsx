@@ -10,6 +10,7 @@ import { timeCodeFrameFormat, timeCodeFrameCount, timeCodeLabelledFrameCount, ti
 import { useTheme } from '../ThemeProvider';
 import { timeCodeWholeUnits } from './time-code-precision';
 import { TimeCodeMusicalContext, type TimeCodeMusicalMap } from './time-code-musical-context';
+import { timeCodePreviousMusicalBeat } from './time-code-musical-step';
 import './TimeCode.css';
 import './TimeCodeDigit.css';
 import './TimeCodeUnit.css';
@@ -147,10 +148,9 @@ export function TimeCode({
     setEditingDigitIndex(digitGlobalIndex);
   };
 
-  const handleDigitChange = useCallback((digitGlobalIndex: number, newDigitValue: string, autoAdvance = true) => {
+  const handleDigitChange = useCallback((digitGlobalIndex: number, newDigitValue: string, autoAdvance = true, stepBack = false) => {
     if (!onChange) return;
 
-    // Find which segment and digit position this corresponds to
     let targetSegmentIndex = -1;
     let targetDigitPosition = -1;
 
@@ -172,7 +172,6 @@ export function TimeCode({
 
     if (targetSegmentIndex === -1) return;
 
-    // Create new segments with the updated digit
     const newSegments = [...segments];
     const targetSegment = newSegments[targetSegmentIndex];
     const newValue =
@@ -182,12 +181,13 @@ export function TimeCode({
 
     newSegments[targetSegmentIndex] = { ...targetSegment, value: newValue };
 
-    // Convert segments back to seconds
-    const newSeconds = value + segmentsToSeconds(newSegments, format, sampleRate, frameRate, musicalMap)
-      - segmentsToSeconds(segments, format, sampleRate, frameRate, musicalMap);
+    const newSeconds = stepBack && format === 'beats:bars' && targetSegmentIndex === 1
+      && Number(targetSegment.value) === 1 && targetDigitPosition === targetSegment.value.length - 1
+      ? timeCodePreviousMusicalBeat(value, musicalMap)
+      : value + segmentsToSeconds(newSegments, format, sampleRate, frameRate, musicalMap)
+        - segmentsToSeconds(segments, format, sampleRate, frameRate, musicalMap);
     onChange(newSeconds);
 
-    // Move to next digit (only if autoAdvance is true)
     if (autoAdvance) {
       const nextDigitIndex = findNextEditableDigit(digitGlobalIndex, segments);
       if (nextDigitIndex !== null) {
@@ -205,7 +205,7 @@ export function TimeCode({
     setShowMenu(false);
   };
 
-  const openMenu = (viaKeyboard = false) => {
+  const openMenu = useCallback((viaKeyboard = false) => {
     if (disabled || !buttonRef.current) return;
     setIsEditing(false);
     setEditingDigitIndex(null);
@@ -218,7 +218,7 @@ export function TimeCode({
 
     setMenuOpenedViaKeyboard(viaKeyboard);
     setShowMenu(!showMenu);
-  };
+  }, [disabled, showMenu]);
 
   const handleMenuButtonClick = () => {
     openMenu(false);
@@ -230,12 +230,11 @@ export function TimeCode({
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!containerRef.current?.contains(document.activeElement?.closest('.timecode-digit') ?? null)) return;
-      // Tab (with or without Shift): Exit edit mode and move to next/prev tab group
+      if (e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey) return;
       if (e.key === 'Tab') {
         setIsEditing(false);
         setEditingDigitIndex(null);
         containerRef.current?.focus();
-        // Don't preventDefault - let the browser handle Tab naturally
         return;
       }
 
@@ -285,7 +284,7 @@ export function TimeCode({
           }
 
           // Don't auto-advance when using up/down arrows
-          handleDigitChange(editingDigitIndex, newDigitValue.toString(), false);
+          handleDigitChange(editingDigitIndex, newDigitValue.toString(), false, e.key === 'ArrowDown');
         }
       }
       // Arrow Right: Move to next digit, wrap to first
@@ -365,7 +364,7 @@ export function TimeCode({
       document.removeEventListener('keydown', handleKeyDown, true);
       document.removeEventListener('click', handleClick);
     };
-  }, [isEditing, editingDigitIndex, disabled, segments, handleDigitChange, onCommit]);
+  }, [isEditing, editingDigitIndex, disabled, segments, handleDigitChange, onCommit, openMenu, showFormatSelector]);
 
 
   const caretColor = variant === 'light' ? theme.foreground.text.primary : '#f4f5f9';
@@ -386,7 +385,7 @@ export function TimeCode({
 
   // Handle arrow key navigation within TimeCode
   const handleContainerKeyDown = (e: React.KeyboardEvent) => {
-    if (disabled) return;
+    if (disabled || e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey) return;
 
     // Only handle keys when the container itself is focused (not bubbling from children)
     if (e.target !== e.currentTarget) return;
@@ -427,9 +426,9 @@ export function TimeCode({
       aria-description={ariaDescription}
       aria-describedby={ariaDescribedBy}
       tabIndex={disabled ? -1 : 0}
-      onKeyDown={handleContainerKeyDown}
+      onKeyDown={handleContainerKeyDown} onClickCapture={(event) => event.preventDefault()}
     >
-      <div className="timecode__display" onClick={(event) => event.preventDefault()}>
+      <div className="timecode__display">
         {segments.map((segment, index) => (
           <React.Fragment key={index}>
             {segment.type === 'unit' ? (

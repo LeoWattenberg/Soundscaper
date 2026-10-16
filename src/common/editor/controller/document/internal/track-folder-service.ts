@@ -7,11 +7,13 @@ import {
 	createUpdateTrackFolderCommand,
 } from '../../../commands/factories.ts';
 import type { AudioEditorCommand, CommandObject } from '../../../commands/protocol.ts';
+import { resolveTrackNodeSpanV12, trackNodeLaneGroupsV12 } from '../../../track-hierarchy-mutation-v12.ts';
 import type { EditorControllerLifetime } from '../../shared/lifecycle.ts';
 
 type RuntimeValue = string | number | boolean | null | undefined;
 
 interface FolderedProjectShape {
+	readonly tracks?: readonly Readonly<{ readonly id?: unknown; readonly laneGroupId?: unknown }>[];
 	readonly trackFolders?: readonly Readonly<{ readonly id: string; readonly name: string }>[];
 	readonly primarySequenceId?: string;
 	readonly sequences?: readonly Readonly<{
@@ -171,9 +173,13 @@ function locateNode(project: FolderedProjectShape, nodeId: string): NodeLocation
 	for (const sequence of project.sequences ?? []) {
 		const nodeIndex = sequence.trackNodes.findIndex((node) => node.id === nodeId);
 		if (nodeIndex < 0) continue;
-		const parentFolderId = sequence.trackNodes[nodeIndex].parentFolderId;
+		// Insert ahead of the complete media block, so the new folder cannot
+		// interrupt the adjacent camera lanes before the move expands to both.
+		const firstIndex = resolveTrackNodeSpanV12(sequence.trackNodes, nodeId,
+			trackNodeLaneGroupsV12(project.tracks ?? [])).start;
+		const parentFolderId = sequence.trackNodes[firstIndex].parentFolderId;
 		let childIndex = 0;
-		for (let cursor = 0; cursor < nodeIndex; cursor += 1) {
+		for (let cursor = 0; cursor < firstIndex; cursor += 1) {
 			if (sequence.trackNodes[cursor].parentFolderId === parentFolderId) childIndex += 1;
 		}
 		return { sequenceId: sequence.id, parentFolderId, childIndex };

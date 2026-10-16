@@ -112,7 +112,7 @@ export function createToolbarDockingSession(options: SessionOptions) {
 		options.events.subscribe('mousemove', (event) => {
 			if ('clientX' in event) move({ x: event.clientX, y: event.clientY });
 		}),
-		options.events.subscribe('mouseup', finish),
+		options.events.subscribe('mouseup', (event) => { if ('button' in event && event.button === 0) finish(); }),
 		options.events.subscribe('blur', cancel),
 		options.events.subscribe('keydown', (event) => {
 			if ('key' in event && event.key === 'Escape' && drag) { event.preventDefault(); cancel(); }

@@ -58,6 +58,7 @@ export const POLICY_NARRATIVE_BINDINGS = Object.freeze([
 		['scape-archive-expansion', 'overridable-scape-size-admission'],
 		['scape-archive-expansion', 'bounded-streaming-media-extraction'],
 		['external-project-document-validation', 'maintained-project-publication-admission'],
+		['audiocom-proxy-boundary', 'bounded-audiocom-oauth-media-proxy'],
 	].map(([riskId, controlId]) => Object.freeze({
 		marker: controlId,
 		register: 'config/production-security-matrix.json',
@@ -438,6 +439,12 @@ export const POLICY_NARRATIVE_BINDINGS = Object.freeze([
 		document: 'docs/policies/project-compatibility.md',
 		intro: null,
 		wrap: 80,
+	}),
+	Object.freeze({
+		marker: 'local-assistance-gpu-execution', register: 'config/production-security-matrix.json',
+		riskId: 'native-helper-processes', controlId: 'authenticated-local-assistance-gpu-execution',
+		field: 'summary', document: 'docs/policies/security.md',
+		intro: null, wrap: 80,
 	}),
 	Object.freeze({
 		marker: 'local-assistance-runtime-diagnostics',

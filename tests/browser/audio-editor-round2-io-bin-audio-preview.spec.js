@@ -42,6 +42,7 @@ test('Project Bin video preview retains its companion audio', async ({ page }) =
 	await card.getByRole('button', { name: /^Play:/u }).click();
 	const media = card.locator('video');
 	await expect(media).toBeVisible();
-	await expect(media).toHaveJSProperty('muted', false);
-	await expect(media).toHaveJSProperty('defaultMuted', false);
+	// The owned preview engine plays the current companion, so embedded audio stays muted.
+	await expect(media).toHaveJSProperty('muted', true);
+	await expect(media).toHaveJSProperty('defaultMuted', true);
 });

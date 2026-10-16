@@ -3,6 +3,7 @@
 import { projectForRuntimeConsumers } from '../project-current-runtime.ts';
 import {
 	FRAMESCAPER_PROJECT_SCHEMA_FAMILY,
+	SOUNDSCAPER_PROJECT_SCHEMA_FAMILY,
 	isCurrentProjectSchemaIdentity,
 } from '../project-schema-identity.ts';
 import type { RuntimeClipProject } from '../runtime-clip-projection.ts';
@@ -70,8 +71,10 @@ export interface FramescaperEditControlMenuItems {
 export function createFramescaperEditControlMenuModel(
 	input: FramescaperEditControlMenuInput,
 ): Readonly<FramescaperEditControlMenuModel> {
-	if (input.productId !== 'framescaper'
-		|| !isCurrentProjectSchemaIdentity(input.project, FRAMESCAPER_PROJECT_SCHEMA_FAMILY)) {
+	const framescaper = input.productId === 'framescaper';
+	if ((!framescaper && input.productId !== 'soundscaper')
+		|| !isCurrentProjectSchemaIdentity(input.project, framescaper
+			? FRAMESCAPER_PROJECT_SCHEMA_FAMILY : SOUNDSCAPER_PROJECT_SCHEMA_FAMILY)) {
 		return Object.freeze({ link: null, visibility: null });
 	}
 	const persistedProject = record(input.project);
@@ -84,6 +87,12 @@ export function createFramescaperEditControlMenuModel(
 	const tracks = recordArray(project?.tracks);
 	const clips = recordArray(project?.clips);
 	const linkOperation = resolveLinkOperation(tracks, clips, input.selectedClipId);
+	// Imported camera audio can use the existing Unlink recovery in Soundscaper.
+	// Its picture authoring controls remain owned by Framescaper.
+	if (!framescaper && (linkOperation?.kind !== 'unlink'
+		|| clips.find(clip => clip.id === input.selectedClipId)?.kind !== 'audio')) {
+		return Object.freeze({ link: null, visibility: null });
+	}
 	const visibilityOperation = resolveVisibilityOperation(tracks, input.selectedTrackId);
 	return Object.freeze({
 		link: menuItem<FramescaperLinkOperation>(
@@ -92,12 +101,12 @@ export function createFramescaperEditControlMenuModel(
 			input.editBlocked || linkOperation === null,
 			linkOperation,
 		),
-		visibility: menuItem<FramescaperVisibilityOperation>(
+		visibility: framescaper ? menuItem<FramescaperVisibilityOperation>(
 			'video-track-visibility',
 			visibilityOperation?.hidden === false ? input.copy.showVideo : input.copy.hideVideo,
 			input.editBlocked || visibilityOperation === null,
 			visibilityOperation,
-		),
+		) : null,
 	});
 }
 

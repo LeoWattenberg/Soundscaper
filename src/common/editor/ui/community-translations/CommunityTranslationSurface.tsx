@@ -20,6 +20,7 @@ import {
 } from './community-translation-picker.ts';
 import type { CommunityTranslationPresentationPort } from './community-translation-presentation.ts';
 import { useCommunityTranslationDraft } from './useCommunityTranslationDraft.ts';
+import { useTranslationRemovalFocus } from './useTranslationRemovalFocus.ts';
 import { communityTranslationMessageKeys } from './community-translation-message-filter.ts';
 import { feedbackFailure, usePresentationFeedback } from '../presentation-feedback.ts';
 import { useAudioEditorThemeVariables } from '../DesignSystemRuntime.jsx';
@@ -53,6 +54,7 @@ export default function CommunityTranslationSurface({ port, initialLocale, copy:
 	const [pickedObject, setPickedObject] = useState<Element | null>(null);
 	const panelRef = useRef<HTMLElement>(null);
 	const searchRef = useRef<HTMLInputElement>(null);
+	const rememberRemovalFocus = useTranslationRemovalFocus(locale, searchRef);
 	const importRef = useRef<HTMLInputElement>(null);
 	const baseline = loaded?.snapshot.entries[selectedKey];
 	const selectedDraft = loaded?.draft.entries.find(({ key }) => key === selectedKey);
@@ -104,7 +106,7 @@ export default function CommunityTranslationSurface({ port, initialLocale, copy:
 			searchRef.current?.focus({ preventScroll: true });
 		};
 		const cancel = (event: KeyboardEvent): void => {
-			if (event.key !== 'Escape') return;
+			if (event.isComposing || event.keyCode === 229 || event.key !== 'Escape') return;
 			event.preventDefault();
 			event.stopImmediatePropagation();
 			setPicking(false);
@@ -129,8 +131,9 @@ export default function CommunityTranslationSurface({ port, initialLocale, copy:
 		setQuery('');
 		setMessage({ key: 'imported' });
 	}
-	function removeChange(): void {
+	function removeChange(control: HTMLButtonElement): void {
 		if (!loaded) return;
+		rememberRemovalFocus(control);
 		const draft: TranslationContribution = { ...loaded.draft, entries: loaded.draft.entries.filter(({ key }) => key !== selectedKey) };
 		run(() => save(draft));
 	}
@@ -152,6 +155,7 @@ export default function CommunityTranslationSurface({ port, initialLocale, copy:
 	return <section ref={panelRef} role="dialog" aria-label={copy.title} tabIndex={-1}
 		data-community-translation-surface data-side={side} dir={getLocaleDescriptor(locale)?.direction ?? 'ltr'}
 		className="community-translations" style={themeVariables as CSSProperties} onKeyDown={(event) => {
+			if (event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229) return;
 			if (event.key === 'Tab') event.stopPropagation();
 			if (event.key === 'Escape' && !picking) { event.preventDefault(); event.stopPropagation(); onClose(); }
 		}}>
@@ -191,7 +195,7 @@ export default function CommunityTranslationSurface({ port, initialLocale, copy:
 				<p>{copy.validation}</p>
 				{reviewMessage && <p role="alert">{reviewMessage}</p>}
 				<div className="community-translations__actions"><button type="submit" disabled={!baseline}>{copy.save}</button>
-					<button type="button" disabled={!selectedDraft} onClick={removeChange}>{copy.remove}</button>
+						<button type="button" disabled={!selectedDraft} onClick={(event) => removeChange(event.currentTarget)}>{copy.remove}</button>
 					{reviewMessage && baseline && <button type="button" onClick={useCurrentBaseline}>{copy.useCurrent}</button>}</div>
 			</form>}
 			<label>{copy.contributor}<input value={loaded.draft.contributor ?? ''} onChange={(event) => {

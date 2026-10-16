@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Knob } from '@soundscaper/design-system/Knob';
 import AudacityParameterKnob from '../AudacityParameterKnob.tsx';
 
@@ -39,7 +39,9 @@ export default function ParameterNumber({
 	onGestureCancel,
 }) {
 	const [gestureValue, setGestureValue] = useState(null);
+	const [gestureEpoch, setGestureEpoch] = useState(0);
 	const gestureActiveRef = useRef(false);
+	const authoredValueRef = useRef(value);
 	const gestureValueRef = useRef(null);
 	const gestureCallbacksRef = useRef({});
 	gestureCallbacksRef.current = {
@@ -54,6 +56,15 @@ export default function ParameterNumber({
 		: 0.01;
 	const gestureEnabled = Boolean(onGestureBegin && onGesturePreview && onGestureCommit);
 	const ParameterKnob = audacity ? AudacityParameterKnob : Knob;
+	useLayoutEffect(() => {
+		const changed = !Object.is(authoredValueRef.current, value);
+		authoredValueRef.current = value;
+		if (!changed || !gestureActiveRef.current) return;
+		gestureActiveRef.current = false;
+		setGestureValue(null);
+		setGestureEpoch(epoch => epoch + 1);
+		gestureCallbacksRef.current.cancel?.();
+	}, [value]);
 	useEffect(() => () => {
 		if (!gestureActiveRef.current) return;
 		gestureActiveRef.current = false;
@@ -115,6 +126,7 @@ export default function ParameterNumber({
 		>
 			<span>{displayLabel}</span>
 			{!timeUnit && knobRange && presentation === 'knob' && <ParameterKnob
+				key={gestureEpoch}
 				value={gestureValue ?? (Number(value) || 0)}
 				min={knobRange[0]}
 				max={knobRange[1]}

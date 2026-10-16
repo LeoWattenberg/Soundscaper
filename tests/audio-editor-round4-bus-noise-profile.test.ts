@@ -57,6 +57,13 @@ function busProject(scope: 'group' | 'send') {
 }
 
 for (const scope of ['group', 'send'] as const) {
+	test(`${scope} profiling neutralizes downstream Master mute without editing it`, () => {
+		const { project, effect } = busProject(scope);
+		const muted = { ...project, master: { ...project.master, mute: true } };
+		const capture = createBusNoiseProfileRenderProject(muted, effect, scope, 'bus');
+		assert.equal(capture.master.mute, false);
+		assert.equal(muted.master.mute, true);
+	});
 	test(`${scope} profiling preserves upstream routing and isolates its pre-fader effect prefix`, () => {
 		const { project, effect } = busProject(scope);
 		const original = structuredClone(project);

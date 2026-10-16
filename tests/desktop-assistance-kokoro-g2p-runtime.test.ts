@@ -267,3 +267,27 @@ function alive(pid: number): boolean {
 	try { process.kill(pid, 0); return true; }
 	catch { return false; }
 }
+
+test('G2P admits explicit main/probe executable pins and rejects forged executable data files', async (t) => {
+	const files = await fixture(t, GOOD_PROGRAM);
+	const relative = '_internal/scape-gpu/onnx-webgpu-device-probe';
+	const path = join(dirname(files.executable), relative);
+	const bytes = Buffer.from('#!/bin/sh\nexit 0\n');
+	await mkdir(dirname(path), { recursive: true });
+	await writeFile(path, bytes);
+	await chmod(path, 0o755);
+	Object.assign(files.manifest.files[0]!, { executable: true });
+	files.manifest.files.push(Object.assign({ path: relative, byteLength: bytes.byteLength,
+		sha256: createHash('sha256').update(bytes).digest('hex') }, { executable: true }));
+	files.manifest.files.sort((left, right) => left.path.localeCompare(right.path, 'en'));
+	await writeFile(files.manifestPath, JSON.stringify(files.manifest));
+	assert.deepEqual(await port(files)({ language: 'a', voice: 'af_heart', text: 'hello' }), ['af_hearthello']);
+	if (process.platform !== 'win32') {
+		await chmod(path, 0o644);
+		await assert.rejects(port(files)({ language: 'a', voice: 'af_heart', text: 'hello' }), /EACCES|permission/iu);
+		await chmod(path, 0o755);
+	}
+	Object.assign(files.manifest.files[0]!, { path: '_internal/scape-gpu/data.txt' });
+	await writeFile(files.manifestPath, JSON.stringify(files.manifest));
+	await assert.rejects(port(files)({ language: 'a', voice: 'af_heart', text: 'hello' }), /executable file pin/iu);
+});

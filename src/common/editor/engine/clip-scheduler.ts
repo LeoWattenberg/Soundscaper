@@ -4,13 +4,13 @@ import { createChunkStreamAudioNode } from '../chunk-stream-worklet-node.js';
 import {
 	addNode,
 	connect,
-	getTransientNodes,
-	releaseTransientNodes,
 	setParam,
 	type AudioNodeArray,
 } from './audio-node-utils.ts';
 import { longSourceError, throwIfAborted } from './async-utils.ts';
 import { confirmClockedPlaybackStart, type ClockedPlaybackStartHook } from './clocked-playback-start.ts';
+import { prepareBufferedClip, type PreparedBufferedClip } from './clip-scheduler-buffered-source.ts';
+import { cancelUnstartedProjectAutomation, prepareUnstartedPlaybackStart } from './unstarted-playback-start.ts';
 import {
 	chunkChannels,
 	createClipGainChain,
@@ -26,7 +26,6 @@ import {
 } from './clip-scheduler-live-chunks.ts';
 import {
 	clipStart,
-	getReversedBuffer,
 } from './buffer-math.ts';
 import { scheduleClipGain, scheduleProjectGains } from './clip-gain.ts';
 import {
@@ -123,6 +122,8 @@ export interface ScheduleProjectClipsOptions {
 	readonly onProgress?: ((progress: ScheduleProgress) => void) | null;
 	readonly onStreamUnderrun?: ((details: ScheduledChunkStreamUnderrun) => void) | null;
 	readonly deferStartUntilPrimed?: boolean;
+	/** Ordinary Play may replace one expired automation window before committing any source. */
+	readonly allowUnstartedStartRebase?: boolean;
 	/** Keep clocked capture starts ahead of the audio thread after asynchronous priming. */
 	readonly minimumStartLeadSeconds?: number;
 	readonly onBeforeStart?: ClockedPlaybackStartHook;
@@ -161,6 +162,7 @@ export async function scheduleProjectClips({
 	onProgress = null,
 	onStreamUnderrun = null,
 	deferStartUntilPrimed = false,
+	allowUnstartedStartRebase = false,
 	minimumStartLeadSeconds = 0,
 	onBeforeStart,
 	streamQueuePackets = null,
@@ -171,11 +173,14 @@ export async function scheduleProjectClips({
 	waitForStreamedClips(): Promise<void>;
 }>> {
 	throwIfAborted(signal);
+	const canRebase = allowUnstartedStartRebase && activeSources.size === 0 && !onBeforeStart
+		&& !(parameterRegistry?.entries().some(target => target.binding.kind === 'message'));
 	const plans = buildClipSchedulePlans({
 		project,
 		sources,
 		chunkSources,
 		trackInputs,
+		offlineSampleRate: mode === 'offline' ? context.sampleRate : undefined,
 		fromFrame,
 		toFrame,
 		sampleRate,
@@ -189,6 +194,7 @@ export async function scheduleProjectClips({
 			: Math.ceil(plan.segmentDuration * plan.playbackRate * plan.sourceSampleRate))
 	), 0);
 	const chunkPlans = plans.filter((plan) => !plan.originalBuffer);
+	let actualContextStartTime = contextStartTime;
 	let prepareLater: (() => Promise<void>) | null = null;
 	if (mode === 'offline') {
 		for (const plan of chunkPlans) {
@@ -253,61 +259,45 @@ export async function scheduleProjectClips({
 		}
 	}
 
-	const startLeadSeconds = Math.max(minimumStartLeadSeconds,
-		chunkPlans.length && deferStartUntilPrimed ? 0.02 : 0);
-	const candidateContextStartTime = startLeadSeconds > 0
-		? Math.max(contextStartTime, context.currentTime + startLeadSeconds)
-		: contextStartTime;
-	const actualContextStartTime = onBeforeStart
-		? await confirmClockedPlaybackStart(context, candidateContextStartTime, onBeforeStart)
-		: candidateContextStartTime;
-	throwIfAborted(signal);
-	scheduleProjectGains({
-		context,
-		project,
-		gainParams: projectGainParams || { tracks: trackGainParams },
-		fromFrame,
-		toFrame,
-		contextStartTime: actualContextStartTime,
-		sampleRate,
-		transportRate,
-	});
-	if (parameterRegistry) scheduleProjectAutomationLanesV21(project, parameterRegistry, {
-		fromFrame,
-		toFrame,
-		contextStartTime: actualContextStartTime,
-		sampleRate,
-		contextSampleRate: context.sampleRate || sampleRate,
-		transportRate,
-		tempoMap: project.tempoMap,
-	});
-	const beforeSharedStart = chunkPlans.length && deferStartUntilPrimed
-		? (startTime: number): void => assertSharedPlaybackStart(context, startTime)
-		: null;
+	const resident: PreparedBufferedClip[] = [];
 	try {
 		for (const plan of plans) {
-			if (!plan.originalBuffer) continue;
-			scheduleBufferPlan({
-				plan,
-				context,
-				contextStartTime: actualContextStartTime,
-				fromFrame,
-				sampleRate,
-				transportRate,
-				reversedBuffers,
-				activeSources,
-				allNodes,
-				mode,
-				beforeStart: beforeSharedStart,
-			});
+			throwIfAborted(signal);
+			if (plan.originalBuffer) resident.push(prepareBufferedClip({
+				plan, context, fromFrame, sampleRate, transportRate, reversedBuffers, activeSources, allNodes, mode,
+			}));
 		}
-		for (const prepared of streamed) {
-			prepared.start(actualContextStartTime, fromFrame, sampleRate, transportRate);
+		const checkDeadline = mode === 'live' && chunkPlans.length > 0 && deferStartUntilPrimed;
+		const startLeadSeconds = Math.max(minimumStartLeadSeconds, checkDeadline ? 0.02 : 0);
+		const candidate = startLeadSeconds > 0 ? Math.max(contextStartTime, context.currentTime + startLeadSeconds) : contextStartTime;
+		const confirmed = onBeforeStart ? await confirmClockedPlaybackStart(context, candidate, onBeforeStart) : candidate;
+		const gains = projectGainParams || { tracks: trackGainParams };
+		actualContextStartTime = prepareUnstartedPlaybackStart({
+			context, candidate: confirmed, leadSeconds: startLeadSeconds, checkDeadline, allowRebase: canRebase, signal,
+			prepare(startTime) {
+				scheduleProjectGains({ context, project, gainParams: gains, fromFrame, toFrame, contextStartTime: startTime, sampleRate, transportRate });
+				if (parameterRegistry) scheduleProjectAutomationLanesV21(project, parameterRegistry, {
+					fromFrame, toFrame, contextStartTime: startTime, sampleRate, contextSampleRate: context.sampleRate || sampleRate, transportRate, tempoMap: project.tempoMap,
+				});
+				for (const source of resident) source.prepareStart(startTime);
+				for (const source of streamed) source.prepareStart?.(startTime, fromFrame, sampleRate, transportRate);
+			},
+			cancel(startTime) {
+				cancelUnstartedProjectAutomation(startTime, gains, parameterRegistry);
+				for (const source of resident) source.cancelStartSchedule(startTime);
+				for (const source of streamed) source.cancelStartSchedule?.(startTime);
+			},
+		});
+		const beforeSharedStart = checkDeadline ? (time: number): void => assertSharedPlaybackStart(context, time) : null;
+		for (const source of resident) { throwIfAborted(signal); source.start(beforeSharedStart); }
+		for (const source of streamed) {
+			throwIfAborted(signal);
+			source.start(actualContextStartTime, fromFrame, sampleRate, transportRate);
 		}
+		throwIfAborted(signal);
 	} catch (error) {
-		for (const prepared of streamed) {
-			try { prepared.cancel(); } catch { /* Preserve the scheduling failure. */ }
-		}
+		for (const source of resident) source.cancel();
+		for (const source of streamed) { try { source.cancel(); } catch { /* Preserve the scheduling failure. */ } }
 		throw error;
 	}
 	const laterDone = prepareLater?.() ?? Promise.resolve();
@@ -321,84 +311,6 @@ export async function scheduleProjectClips({
 			await Promise.all([...streamed.map((prepared) => prepared.done), laterDone]);
 		},
 	};
-}
-
-interface BufferPlanOptions {
-	readonly plan: ClipSchedulePlan;
-	readonly context: BaseAudioContext;
-	readonly contextStartTime: number;
-	readonly fromFrame: number;
-	readonly sampleRate: number;
-	readonly transportRate: number;
-	readonly reversedBuffers: WeakMap<AudioBuffer, AudioBuffer>;
-	readonly activeSources: Set<AudioScheduledSourceNode>;
-	readonly allNodes: AudioNodeArray;
-	readonly mode: 'live' | 'offline';
-	readonly beforeStart?: ((startTime: number) => void) | null;
-}
-
-function scheduleBufferPlan({
-	plan,
-	context,
-	contextStartTime,
-	fromFrame,
-	sampleRate,
-	transportRate,
-	reversedBuffers,
-	activeSources,
-	allNodes,
-	mode,
-	beforeStart = null,
-}: BufferPlanOptions): void {
-	if (!plan.originalBuffer) return;
-	const transientNodes = getTransientNodes(allNodes);
-	const source = addNode(transientNodes, context.createBufferSource());
-	const chain = createClipGainChain(context, plan.trackInput, transientNodes);
-	const scheduledNodes = [source, chain.fadeInGain, chain.fadeOutGain, chain.clipGain];
-	const buffer = plan.reversed
-		? getReversedBuffer(context, plan.originalBuffer, reversedBuffers)
-		: plan.originalBuffer;
-	source.buffer = buffer;
-	if (plan.loopSourceStartFrame !== undefined && plan.loopSourceEndFrame !== undefined) {
-		source.loop = true;
-		source.loopStart = plan.loopSourceStartFrame / buffer.sampleRate;
-		source.loopEnd = plan.loopSourceEndFrame / buffer.sampleRate;
-	}
-	connect(source, chain.input);
-	const timelineRate = sampleRate * transportRate;
-	const startTime = contextStartTime + (plan.segmentStart - fromFrame) / timelineRate;
-	setParam(source.playbackRate, plan.playbackRate * transportRate, startTime);
-	scheduleClipGain(
-		chain.fadeInGain.gain,
-		chain.fadeOutGain.gain,
-		chain.clipGain.gain,
-		plan.clip,
-		plan.relativeStart,
-		plan.segmentEnd - clipStart(plan.clip),
-		plan.duration,
-		startTime,
-		timelineRate,
-		plan,
-	);
-	if (beforeStart) {
-		try { beforeStart(startTime); }
-		catch (error) {
-			releaseTransientNodes(transientNodes, scheduledNodes);
-			throw error;
-		}
-	}
-	try {
-		source.start(startTime, plan.offsetFrame / buffer.sampleRate, plan.segmentDuration * plan.playbackRate);
-		activeSources.add(source);
-		source.onended = (): void => {
-			activeSources.delete(source);
-			// Offline rendering owns connected nodes until its graph is disposed.
-			if (mode === 'live') releaseTransientNodes(transientNodes, scheduledNodes);
-		};
-	} catch {
-		// A malformed or out-of-range clip is skipped without stopping the mix.
-		releaseTransientNodes(transientNodes, scheduledNodes);
-	}
 }
 
 interface OfflineChunkPlanOptions {

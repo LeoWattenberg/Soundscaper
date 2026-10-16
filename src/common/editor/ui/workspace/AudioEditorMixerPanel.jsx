@@ -10,7 +10,7 @@ import {
 	isMixerGraphV21Surface,
 	mixerTrackSurfaceRouteV21,
 } from '../../mixer-graph-surface-v21.ts';
-import { resolveTerminalChannelWidths } from '../../terminal-channel-widths.ts';
+import { projectStripPanAvailable, resolveTerminalChannelWidths } from '../../terminal-channel-widths.ts';
 import {
 	folderOwnedMixerBusIds,
 	mixerAudibilityAuthority,
@@ -143,6 +143,7 @@ export default function AudioEditorMixerPanel({ controller, snapshot, copy, run,
 			variant: 'stereo',
 			volume: linearMixerGainToDb(staticGestures.value(stripAddress('gain'), channel.gain ?? 1)),
 			pan: Math.round(staticGestures.value(stripAddress('pan'), channel.pan || 0) * 100),
+			panDisabled: !projectStripPanAvailable(project, stripAddress('pan').strip),
 			muted: Boolean(channel.mute),
 			soloed: Boolean(channel.solo),
 			meterContent: <MixerTelemetryMeters controller={controller} scope={type} targetId={targetId} />,
@@ -152,6 +153,7 @@ export default function AudioEditorMixerPanel({ controller, snapshot, copy, run,
 				updateContinuous(stripAddress('gain'), gain, { gain });
 			},
 			onPanChange: (value) => {
+				if (!projectStripPanAvailable(project, stripAddress('pan').strip)) return;
 				const pan = Math.max(-1, Math.min(1, Number(value) / 100));
 				updateContinuous(stripAddress('pan'), pan, { pan });
 			},
@@ -348,6 +350,7 @@ function MixerSendKnob({ label, value, disabled, onChange, onGestureStart, onGes
 		// steps by the same 1 dB within the same bounds. Handling them here too
 		// moved the send twice per press. Home and End remain ours.
 		const handleKeyDown = (event) => {
+			if (disabled || event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey) return;
 			if (!['Home', 'End'].includes(event.key)) return;
 			event.preventDefault();
 			const next = event.key === 'Home' ? -60 : 12;
@@ -357,7 +360,7 @@ function MixerSendKnob({ label, value, disabled, onChange, onGestureStart, onGes
 		};
 		knob.addEventListener('keydown', handleKeyDown);
 		return () => knob.removeEventListener('keydown', handleKeyDown);
-	}, [label, onChange, onGestureEnd, onGestureStart, value]);
+	}, [disabled, label, onChange, onGestureEnd, onGestureStart, value]);
 	return <div ref={wrapperRef} className="kw-audio-editor__mixer-send-knob"><Knob value={value} defaultValue={-60} min={-60} max={12} step={1} label={label} mode="unipolar" disabled={disabled} onChange={onChange} onGestureStart={onGestureStart} onGestureEnd={onGestureEnd} onGestureCancel={onGestureCancel} /></div>;
 }
 

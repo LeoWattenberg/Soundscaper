@@ -29,6 +29,7 @@ import {
 	TrackAutomationSelectors,
 } from '../soundscaper-workflow-product-runtime.tsx';
 import { COMPACT_TRACK_PANEL_WIDTH } from './constants.ts';
+import { projectStripPanAvailable } from '../../terminal-channel-widths.ts';
 
 export function TrackControls({
 	controller,
@@ -59,6 +60,7 @@ export function TrackControls({
 	const staticGestures = useMixerParameterGestures(controller.actions.mixer,
 		controller.getSnapshot().project?.id ?? null, (error) => run(() => { throw error; }));
 	const staticAddress = (parameterId) => ({ kind: 'strip', strip: { kind: 'track', id: track.id }, parameterId });
+	const panAvailable = projectStripPanAvailable(controller.getSnapshot().project, { kind: 'track', id: track.id });
 	const adapterSelector = '.audio-editor-track-adapters input:not([disabled]), .audio-editor-track-adapters button:not([disabled]), .audio-editor-track-input select:not([disabled]), .audio-editor-track-automation select:not([disabled])';
 	const focusAdapterControl = (last = false) => focusCandidate(
 		controlsRef.current,
@@ -230,6 +232,7 @@ export function TrackControls({
 				volume={gainDbToDesignVolume(linearToDb(staticGestures.value(staticAddress('gain'), track.gain)))}
 				defaultVolume={gainDbToDesignVolume(0)}
 				pan={panToDesignValue(staticGestures.value(staticAddress('pan'), track.pan))}
+				panDisabled={!panAvailable}
 				isMuted={track.mute}
 				isSolo={track.solo}
 				isFocused={selected}
@@ -256,12 +259,12 @@ export function TrackControls({
 				onVolumeGestureCancel={() => cancelAutomationGesture('gain') || staticGestures.cancel(staticAddress('gain'))}
 				onPanChange={(pan) => {
 					const value = designValueToPan(pan);
-					if (!blocked && !previewAutomationGesture('pan', value)
+					if (!blocked && panAvailable && !previewAutomationGesture('pan', value)
 						&& !automationCaptureReserved('pan') && !staticGestures.preview(staticAddress('pan'), value)) {
 						run(() => controller.actions.track.update(track.id, { pan: value }));
 					}
 				}}
-				onPanGestureStart={(pan) => !blocked && (beginAutomationGesture('pan', designValueToPan(pan))
+				onPanGestureStart={(pan) => !blocked && panAvailable && (beginAutomationGesture('pan', designValueToPan(pan))
 					|| (!automationCaptureReserved('pan') && staticGestures.begin(staticAddress('pan'))))}
 				onPanGestureEnd={(pan) => endAutomationGesture('pan', designValueToPan(pan))
 					|| staticGestures.release(staticAddress('pan'), designValueToPan(pan))}

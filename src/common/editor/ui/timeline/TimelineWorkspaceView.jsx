@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useRef } from 'react';
 
 import { isSoundscaperProductionProject } from '../../project-schema-version.ts';
+import { resolveSelectionRange } from '../../selection-range.ts';
 import AudioEditorSampleTools from '../AudioEditorSampleTools.jsx';
 import { TRACK_HEADER_DRAWER_HANDLE_WIDTH } from './constants.ts';
 import { DEFAULT_TRACK_HEIGHT as TRACK_HEIGHT } from './geometry.ts';
@@ -293,7 +294,7 @@ export function TimelineWorkspaceView({
 							onContextMenu={openTimelineRulerMenu}
 							onKeyDown={(event) => {
 								const createKind = markerLaneVisible && event.target === event.currentTarget
-									? timelineAnnotationCreateKind(event, project.selection)
+									? timelineAnnotationCreateKind(event, resolveSelectionRange(project) ?? project.selection)
 									: null;
 								if (createKind) {
 									event.preventDefault();

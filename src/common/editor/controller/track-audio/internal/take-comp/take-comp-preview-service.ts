@@ -40,7 +40,7 @@ export interface TakeCompPreviewDependencies {
 	captureProject(): EditorProjectToken;
 	assertProject(token: EditorProjectToken): void;
 	getProject(): TakeCompProject;
-	stopPlayback(): void;
+	stopPlayback(): Promise<void> | void;
 }
 
 export interface TakeCompPreviewService {
@@ -99,7 +99,9 @@ export function createTakeCompPreviewService(
 		const selectedTakes = takeIds.map((takeId) => requireTake(group, takeId));
 		const task = dependencies.lifetime.startTask(TAKE_COMP_PREVIEW_TASK);
 		try {
-			dependencies.stopPlayback();
+			await dependencies.stopPlayback();
+			task.assertCurrent();
+			dependencies.assertProject(token);
 			engine ??= createOwnedPreviewEngine();
 			engine.setSourceResolver?.(dependencies.sourceResolver);
 			engine.loadProject(previewProject(project, group, selectedTakes, dependencies.createId), dependencies.sourceBuffers, {

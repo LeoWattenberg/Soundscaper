@@ -39,6 +39,12 @@ export const FOUNDATION_RATE_CONVERSION_AUDIT_SITES: readonly FoundationTimeConv
 		conversions: [{ helper: 'scaleSampleFrame', policies: ['enclosingEnd'] }],
 	},
 	{
+		id: 'aup4-warp-material-native-extent',
+		file: 'src/common/editor/aup4-warp-material.ts',
+		behavior: 'AUP4 warped material renders the authoritative visible clip in project frames, then converts that exact duration to the fixed native track rate with point rounding before resampling. The delivered source duration replaces the prior unwarped source window.',
+		conversions: [{ helper: 'scaleSampleFrame', policies: ['point'] }],
+	},
+	{
 		id: 'aup4-export-resample-length',
 		file: 'src/common/editor/aup4-export-variants.js',
 		behavior: 'AUP4 export derives the destination PCM extent from the admitted source length and source/output rates under point rounding before the bounded resampler runs.',

@@ -11,13 +11,25 @@ in [`config/soundscaper-professional-native-notices.json`](config/soundscaper-pr
 - JUCE 9.0.1 — AGPL-3.0-only selected; all five targets
 - CLAP 1.2.4 — MIT; all five targets
 - VST3 SDK 3.8.0 build 66 — MIT; all five targets
+- Vamp SDK 2.10.0 — BSD-3-Clause; all five targets
+- ARA API 2.3.0 — Apache-2.0; all five targets
+- ARA Library 2.3.0 — Apache-2.0; all five targets
 - ASIO SDK 2.3.4 — GPL-3.0-only selected; Windows x64 and ARM64 only
+- LADSPA SDK 1.17 — LGPL-2.1-or-later; Linux x64 and ARM64 only
 - LV2 1.18.10 — ISC; Linux x64 and ARM64 only
 
-The Stable release inventory includes the exact six authenticated upstream
-source archives and a canonical compliance receipt binding them to all five
-packaged runtime manifests and their source-authentication receipts. No
-Framescaper video-codec source enters that inventory. This checked technical
+The release edition of this document appends the complete authenticated native
+license texts. They are published in this single document, with byte offsets and
+SHA-256 digests in each product's CI compliance receipt, rather than as individual
+native-notice release downloads. Installed packages retain the target-specific
+notice files described above.
+
+The single `sources.zip` release download contains the committed application
+source, bundled-codec corresponding source, and exact ten authenticated native
+SDK source archives. CI retains the per-target runtime manifests and a canonical
+compliance receipt binding the native sources to all five packaged builds and
+their source-authentication receipts. The native SDK inventory excludes
+Framescaper video-codec archives. This checked technical
 inventory does not claim legal, trademark, or patent clearance beyond the
 recorded owner review.
 

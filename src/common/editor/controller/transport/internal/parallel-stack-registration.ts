@@ -30,7 +30,7 @@ const resources: ParallelStackRegistrationResources = {
 	},
 };
 
-/** Called only for the Soundscaper desktop playback engine, never a renderer/export engine. */
+/** Called only for the Soundscaper playback engine, never a renderer/export engine. */
 export function installParallelStackPlayback(engine: object, ports: ParallelStackRegistrationResources = resources): void {
 	let failedConfiguration: string | null = null;
 	registerParallelStackPlayback(engine, async (request, signal) => {
@@ -43,7 +43,7 @@ export function installParallelStackPlayback(engine: object, ports: ParallelStac
 		const signature = `${JSON.stringify(preferences)}:${String(parallelStackConfigurationRevision())}`;
 		if (failedConfiguration === signature) return null;
 		let refusal = '';
-		if (!ports.supported()) refusal = 'Shared-memory audio workers are unavailable in this desktop session.';
+		if (!ports.supported()) refusal = 'Shared-memory audio workers are unavailable in this session.';
 		else if (request.playbackMode !== 'normal' || request.playbackRate !== 1) refusal = 'Parallel effect stacks currently support normal-speed playback.';
 		if (refusal) {
 			publishParallelStackStatus(engine, { state: 'unsupported', reason: refusal });

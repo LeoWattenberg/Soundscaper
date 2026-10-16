@@ -95,4 +95,6 @@ export interface TakeCycleRoutedCaptureService {
 	): Promise<TakeCycleRoutedCaptureStarted>;
 	stop(options?: TakeCycleRecordingOptions): Promise<TakeCycleRoutedCaptureResult>;
 	pause(): never;
+	setInputGain(value: number): void;
+	setMonitoring(enabled: boolean): void;
 }

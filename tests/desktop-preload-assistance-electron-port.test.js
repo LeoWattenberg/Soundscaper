@@ -2,7 +2,7 @@
 
 import assert from 'node:assert/strict';
 import { createHash, webcrypto } from 'node:crypto';
-import { readFile } from 'node:fs/promises';
+import { readDesktopPreloadSource } from './helpers/desktop-preload-source.mjs';
 import test from 'node:test';
 import vm from 'node:vm';
 import { MessageChannel } from 'node:worker_threads';
@@ -46,7 +46,7 @@ for (const workflow of [false, true]) {
 		const channelName = `soundscaper:v1:assistance:${workflow ? 'workflow' : 'operation'}:input-port`;
 		const completion = Promise.withResolvers();
 		let bridge;
-		const source = await readFile(new URL('../desktop/preload.mjs', import.meta.url), 'utf8');
+		const source = await readDesktopPreloadSource();
 		vm.runInNewContext(source, { AggregateError, ArrayBuffer, Array, Blob, clearTimeout, console,
 			crypto: webcrypto, Error, Map, MessageChannel: ElectronMessageChannel, Number, Object,
 			Promise, RangeError, Reflect, setTimeout, String, structuredClone, TypeError, Uint8Array, URL,

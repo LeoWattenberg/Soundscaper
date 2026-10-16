@@ -28,6 +28,10 @@ test('canonical handoff inspection stays with the optional archive implementatio
 	assert.equal(chunkGroupForModulePath(path), null, `${path} must stay behind its lazy action`);
 });
 
+test('Framescaper source compaction shares its feature declaration foundation', () => {
+	assert.equal(chunkGroupForModulePath('src/framescaper/editor-project-source-compaction.ts'), 'framescaper-project-foundations');
+});
+
 test('the Framescaper project command spine has one non-recursive semantic owner', () => {
 	for (const path of [
 		'src/framescaper/editor-project-retime-command-admission.ts',
@@ -47,6 +51,9 @@ test('the Framescaper project command spine has one non-recursive semantic owner
 		'src/framescaper/editor-timeline-image-trim-command.ts',
 		'src/framescaper/editor-timeline-generator-trim-command.ts',
 		'src/framescaper/editor-timeline-generator-split-command.ts',
+		'src/framescaper/editor-timeline-native-insert-command.ts',
+		'src/framescaper/editor-timeline-native-overwrite-command.ts',
+		'src/framescaper/editor-split-visual-presentations.ts',
 		'src/framescaper/editor-project-assistance-commands.ts',
 		'src/framescaper/editor-project-assistance-transition-allocation.ts',
 	]) {
@@ -71,12 +78,14 @@ test('the Framescaper project command spine has one non-recursive semantic owner
 
 test('new clipboard generations stay out of the timeline-image owner', () => {
 	for (const path of [
+		'src/framescaper/editor-session-clipboard-visual-collisions.ts',
 		'src/framescaper/editor-session-clipboard-v12.ts',
 		'src/framescaper/editor-session-clipboard-v12-controller.ts',
 		'src/framescaper/editor-session-clipboard-v13.ts',
 		'src/framescaper/editor-session-clipboard-v13-paste.ts',
 	]) assert.equal(chunkGroupForModulePath(path), 'framescaper-session-clipboard');
 	for (const path of [
+		'src/framescaper/editor-session-clipboard-visual-collisions.ts',
 		'src/framescaper/editor-session-clipboard-v8.ts',
 		'src/framescaper/editor-session-clipboard-v11.ts',
 		'src/framescaper/editor-session-clipboard-v11-controller.ts',

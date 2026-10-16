@@ -51,5 +51,6 @@ test('Audacity selection renders are copied into their resolved mono or stereo l
 	assert.deepEqual(upmixed, [left, left]);
 	assert.notStrictEqual(upmixed[0], upmixed[1]);
 	assert.throws(() => matchAudacitySelectionChannels([], 1), /PCM channels/);
-	assert.throws(() => matchAudacitySelectionChannels([left], 3), /one or two channels/);
+	assert.throws(() => matchAudacitySelectionChannels([left], 33), /one and 32 channels/);
+	assert.throws(() => matchAudacitySelectionChannels([left, right], 4), /omitted native channels/);
 });

@@ -130,7 +130,11 @@ export function ShortcutEditorRow({ productId = 'soundscaper', command, preferen
 	const persistedKey = persistedShortcutBindings(preferences.shortcuts, command).join(' ');
 	const persisted = useMemo(() => (persistedKey ? persistedKey.split(' ') : []), [persistedKey]);
 	const [entries, setEntries] = useState<string[]>(() => editableEntries(persisted));
-	useLayoutEffect(() => setEntries(editableEntries(persisted)), [persisted]);
+	// A pending save may roll back after the user starts the next binding draft.
+	const unassignedDraft = useRef(false);
+	useLayoutEffect(() => {
+		if (!unassignedDraft.current) setEntries(editableEntries(persisted));
+	}, [persisted]);
 	const errorId = useId();
 	const bindingsRef = useRef<HTMLDivElement | null>(null);
 	// Adding or removing a binding replaces the pressed control. Hand focus to
@@ -161,16 +165,19 @@ export function ShortcutEditorRow({ productId = 'soundscaper', command, preferen
 			: '';
 	const unchanged = draft.bindings.length === persisted.length
 		&& draft.bindings.every((binding, index) => binding === persisted[index]);
-	const setEntry = (index: number, value: string) => setEntries((current) => (
-		current.map((entry, position) => position === index ? value : entry)
-	));
+	const updateDraft = (next: string[]) => {
+		const saved = editableEntries(persisted);
+		unassignedDraft.current = next.length !== saved.length || next.some((entry, index) => entry !== saved[index]);
+		setEntries(next);
+	};
+	const setEntry = (index: number, value: string) => updateDraft(entries.map((entry, position) => position === index ? value : entry));
 	const removeEntry = (index: number) => {
 		const remaining = editableEntries(entries.filter((entry, position) => position !== index));
-		setEntries(remaining);
+		updateDraft(remaining);
 		setFocusAfterChange({ selector: shortcutFocusTargetAfterRemove(index, remaining.length) });
 	};
 	const addEntry = () => {
-		setEntries((current) => [...current, '']);
+		updateDraft([...entries, '']);
 		setFocusAfterChange({ selector: `[data-shortcut-binding="${entries.length}"]` });
 	};
 	return (
@@ -232,7 +239,10 @@ export function ShortcutEditorRow({ productId = 'soundscaper', command, preferen
 			<Button
 				variant="secondary"
 				disabled={command.disabled || Boolean(error) || unchanged}
-				onClick={() => run(() => controller.actions.preferences.setShortcut(preferenceId, draft.bindings))}
+				onClick={() => {
+					unassignedDraft.current = false;
+					return run(() => controller.actions.preferences.setShortcut(preferenceId, draft.bindings));
+				}}
 			>{copy.shortcutAssign}</Button>
 			{error && <small id={errorId} role="alert">{error}</small>}
 			{command.disabledReason && <small data-shortcut-disabled-reason>{command.disabledReason}</small>}

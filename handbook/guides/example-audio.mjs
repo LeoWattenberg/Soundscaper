@@ -34,6 +34,7 @@ const RECIPES = Object.freeze({
 		return (time) => random() * 0.04 + (time >= 0.5 ? voice(time) : 0);
 	},
 	'quiet-tone': ({ channel }) => tone(330, 0.05, channel * Math.PI / 3),
+	'clipped-tone': () => tone(220, 1.02),
 	tone: ({ channel }) => tone(261.6, 0.35, channel * Math.PI / 3),
 	'tone-high': ({ channel }) => tone(392, 0.3, channel * Math.PI / 3),
 	'tone-with-gaps': () => {

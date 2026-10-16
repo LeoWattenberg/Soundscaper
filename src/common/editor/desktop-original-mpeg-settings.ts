@@ -12,6 +12,26 @@ const MPEG1_LAYER3_RATES = [0, 32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 2
 const MPEG1_LAYER2_RATES = [0, 32, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320, 384];
 const MPEG2_RATES = [0, 8, 16, 24, 32, 40, 48, 56, 64, 80, 96, 112, 128, 144, 160];
 
+/** Seek past the ordinary ID3 album-art payload without retaining that payload to inspect a frame. */
+export async function readOriginalMpegFrameHeader(file: Readonly<{
+	readonly size: number;
+	slice(start: number, end: number): Readonly<{ arrayBuffer(): PromiseLike<ArrayBuffer> }>;
+}>, prefix: Uint8Array): Promise<Uint8Array | null> {
+	if (ascii(prefix, 0, 3) !== 'ID3') return prefix;
+	if (prefix.length < 10) return null;
+	let size = 0;
+	for (let index = 6; index < 10; index += 1) {
+		const byte = prefix[index]!;
+		if (byte & 0x80) return null;
+		size = size * 128 + byte;
+	}
+	const offset = 10 + size + (prefix[5]! & 0x10 ? 10 : 0);
+	if (offset + 4 > file.size) return null;
+	const end = Math.min(file.size, offset + 4096);
+	if (end <= prefix.length) return prefix.subarray(offset, end);
+	return new Uint8Array(await file.slice(offset, end).arrayBuffer());
+}
+
 /** The source's first frame and Xing/LAME tag retain its bitrate strategy. */
 export function originalMpegExportSettings(
 	bytes: Uint8Array,

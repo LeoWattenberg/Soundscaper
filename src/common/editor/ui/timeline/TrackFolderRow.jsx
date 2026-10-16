@@ -76,6 +76,7 @@ export function TrackFolderRow({
 				if (!openTrackFolderMenuFromKeyboard(event, row.id, onMenu)) onKeyDown(event, row.id);
 			}}
 			onContextMenu={(event) => {
+				if (event.target.closest('input, textarea, [contenteditable="true"]')) return;
 				event.preventDefault();
 				onMenu(row.id, { x: event.clientX, y: event.clientY });
 			}}

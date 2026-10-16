@@ -62,6 +62,21 @@ test('nightly test staging creates a hermetic, manifest-bound Playwright payload
 
 	assert.equal(result.outputRoot, fixture.outputRoot);
 	const releaseReader = await import(pathToFileURL(join(fixture.outputRoot, 'scripts/lib/product-release-lines.mjs')).href);
+	const recorderUrl = new URL('../fixtures/bwfmetaedit-ixml-clock.wav.base64',
+		pathToFileURL(join(fixture.outputRoot, 'tests/browser/example.spec.js')));
+	const recorder = Buffer.from(await readFile(recorderUrl, 'utf8'), 'base64');
+	const originalRecorder = Buffer.from(await readFile(new URL('./fixtures/bwfmetaedit-ixml-clock.wav.base64', import.meta.url), 'utf8'), 'base64');
+	assert.deepEqual(recorder, originalRecorder);
+	assert.equal(recorder.readUInt32LE(recorder.indexOf('fmt ') + 12), 48_000);
+	assert.ok(recorder.toString('utf8').includes('<SYNC_POINT_LOW>24000</SYNC_POINT_LOW>'));
+	for (const file of [
+		'chromium-audio-only.webm.base64', 'libsndfile-float32.aifc.base64',
+		'libsndfile-utf8-text.aiff.base64', 'libsndfile-zero-based-cues.wav.base64', 'python-uncompressed.aif.base64',
+	]) {
+		const url = new URL(`../fixtures/${file}`, recorderUrl);
+		assert.deepEqual(await readFile(url), await readFile(new URL(`./fixtures/${file}`, import.meta.url)),
+			`the staged browser must read the original ${file} bytes`);
+	}
 	const releaseLines = await readJson(join(fixture.outputRoot, 'config/product-release-lines.json'));
 	const soundscaper = releaseLines.products.soundscaper;
 	assert.equal(releaseReader.resolveProductApplicationVersion('soundscaper'),
@@ -183,6 +198,9 @@ test('nightly test staging creates a hermetic, manifest-bound Playwright payload
 		'tests/helpers/png-fixture.mjs',
 		'tests/helpers/lightscaper-current-catalog-companions-fixture.ts',
 		'tests/helpers/lightscaper-current-library-loop-fixture.ts',
+		'tests/helpers/framescaper-ordinary-animation-fixture.ts',
+		'tests/helpers/framescaper-ordinary-high-precision-image-fixture.ts',
+		'tests/helpers/interchange-reference.ts',
 		'tests/helpers/libsndfile-rifx-fixture.ts',
 		'tests/fixtures/aup4-native-rich.js',
 		'tests/fixtures/bwfmetaedit-cp1252-info.wav.base64',

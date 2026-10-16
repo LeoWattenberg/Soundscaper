@@ -18,7 +18,7 @@ const CHAPTERS = Object.freeze([{ startFrame: 0, endFrame: 48_000, title: 'Openi
 test('the actual streamed MP3 encoder embeds chapters after validating its gapless audio', async () => {
 	const sink = temporarySink();
 	const result = await encodeBrowserAudioFileStreamed(wavFixture(50_123), 'mp3', {
-		bitRate: 192, embeddedChapters: CHAPTERS,
+		bitRate: 192, embeddedChapters: CHAPTERS, metadata: { title: 'Episode', genre: 'Ambient' },
 	}, createMediaExportCapabilities(), {
 		createSink: async () => sink,
 		async openSession(request) {
@@ -36,6 +36,9 @@ test('the actual streamed MP3 encoder embeds chapters after validating its gaple
 	assert.equal(bytes.subarray(0, 3).toString(), 'ID3');
 	assert.ok(bytes.includes(Buffer.from('CHAP')));
 	assert.ok(bytes.includes(Buffer.from('Opening chapter')));
+	assert.ok(bytes.includes(Buffer.from('TCON')));
+	assert.ok(bytes.includes(Buffer.from('Ambient')));
+	assert.equal(bytes.indexOf(Buffer.from('ID3'), 3), -1);
 	assert.equal(isFileBackedAudioExport(result.blob), true);
 	assert.equal(sink.removed, false);
 	const published: Uint8Array<ArrayBuffer>[] = [];

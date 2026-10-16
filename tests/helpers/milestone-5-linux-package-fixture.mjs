@@ -120,7 +120,7 @@ export async function createSoundscaperLinuxPackageFixture({
 	});
 
 	const appImageName = `Soundscaper-${applicationVersion}-linux-x64.AppImage`;
-	const debianName = `Soundscaper-${applicationVersion}-linux-amd64.deb`;
+	const debianName = `Soundscaper-${applicationVersion}-linux-x64.deb`;
 	// electron-builder places the installed application itself at the AppImage
 	// SquashFS root; only the Debian package wraps it in /opt or /usr/lib.
 	const appImageRoot = join(workRoot, 'appimage-root');

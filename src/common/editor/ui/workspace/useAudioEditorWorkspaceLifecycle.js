@@ -12,6 +12,7 @@ import { useWorkspaceMeterPanels } from './useWorkspaceMeterPanels.ts';
 import { workspaceSwitcherOptions } from './workspace-switcher-options.ts';
 import { workspaceErrorMessage } from './workspace-error-presentation.ts';
 import { WebFileLoadLimitError } from '../../web-file-limit-failure.ts';
+import { disposeBlenderWorkspaceSession } from './blender-workspace-menu.ts';
 
 export function useAudioEditorWorkspaceLifecycle({
 	controller,
@@ -41,6 +42,7 @@ export function useAudioEditorWorkspaceLifecycle({
 			setParityUi(parityRuntime.uiController.getSnapshot());
 		});
 		return () => {
+			disposeBlenderWorkspaceSession(controller);
 			unsubscribe();
 			parityRuntime.dispose();
 			void controller.dispose();

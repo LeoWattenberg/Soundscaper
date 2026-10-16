@@ -6,6 +6,7 @@ import { DialogSideNav } from '@soundscaper/design-system/DialogSideNav/DialogSi
 import { DialogFooter } from '@soundscaper/design-system/Footer';
 import { PreferencePanel } from '@soundscaper/design-system/PreferencePanel';
 import AppearancePreferencesPage from './AppearancePreferencesPage.jsx';
+import AdvancedPreferencesPage from './AdvancedPreferencesPage.tsx';
 import { Separator } from '@soundscaper/design-system/Separator';
 
 import { productProfile } from '../../../products.js';
@@ -24,6 +25,7 @@ import PlaybackRecordingPreferencesPage from './PlaybackRecordingPreferencesPage
 import PreferenceDropdownField from './PreferenceDropdownField.jsx';
 import TrackDisplayPreferencesPage from './TrackDisplayPreferencesPage.jsx';
 import { ShortcutEditorRow } from './ShortcutEditorRow.tsx';
+import { useWorkspaceDeletionFocus } from './useWorkspaceDeletionFocus.ts';
 import { useShortcutCommands, useShortcutCommandGroups } from './useShortcutPresentation.ts';
 import { createShortcutDraftConflictIndex } from './shortcut-draft-conflict-index.ts';
 import { shortcutCategoryMessageKey } from './workspace-preferences-shortcut-categories.ts';
@@ -53,10 +55,12 @@ export default function WorkspacePreferencesDialog({
 	productId = 'soundscaper',
 }) {
 	const sideNavRef = useRef(null);
+	const workspacePresetRef = useRef(null);
 	const [selectedPage, setSelectedPage] = useState(workspacePreferencesPage(initialPage));
 	const [shortcutSearch, setShortcutSearch] = useState('');
 	const [shortcutSort, setShortcutSort] = useState(DEFAULT_SHORTCUT_SORT_MODE);
 	const [workspaceName, setWorkspaceName] = useState('');
+	const workspaceNameRevision = useRef(0);
 	const preferences = snapshot.preferences;
 	const commands = useShortcutCommands(menus, {
 		locale,
@@ -66,6 +70,7 @@ export default function WorkspacePreferencesDialog({
 	const shortcutGroups = useShortcutCommandGroups(commands, shortcutSearch, shortcutSort);
 	const conflictFor = useMemo(() => selectedPage === 'shortcuts' ? createShortcutDraftConflictIndex(preferences.shortcuts) : undefined, [preferences.shortcuts, selectedPage]);
 	const activeCustom = preferences.workspace.custom.find((workspace) => workspace.id === preferences.workspace.activeId);
+	const captureWorkspaceDeletion = useWorkspaceDeletionFocus(workspacePresetRef, preferences.workspace.custom, controller);
 	// Audacity's own page order, with the one page it has no counterpart for —
 	// Workspace, holding both the presets and the panel inventory — kept after
 	// Shortcuts.
@@ -80,11 +85,16 @@ export default function WorkspacePreferencesDialog({
 		{ id: 'effects', label: copy.preferencesEffects, icon: iconNameToChar('WAVEFORM') },
 		{ id: 'shortcuts', label: copy.shortcuts, icon: iconNameToChar('SHORTCUTS') },
 		{ id: 'workspace', label: copy.workspace, icon: iconNameToChar('WORKSPACE') },
+		...(productId === 'soundscaper' ? [{ id: 'advanced', label: copy.preferencesAdvanced, icon: iconNameToChar('SETTINGS_COG') }] : []),
 	];
 	const selectedPageLabel = pages.find((page) => page.id === selectedPage)?.label || copy.preferencesTitle;
 	useEffect(() => setSelectedPage(workspacePreferencesPage(initialPage)), [initialPage]);
 	const handleSideNavKeyDown = (event) => {
 		if (!event.target.closest('[role="tab"]') || !['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+		if (event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey) {
+			event.stopPropagation();
+			return;
+		}
 		event.preventDefault();
 		event.stopPropagation();
 		const currentIndex = Math.max(0, pages.findIndex((page) => page.id === selectedPage));
@@ -168,29 +178,39 @@ export default function WorkspacePreferencesDialog({
 							<AppearancePreferencesPage controller={controller} preferences={preferences} copy={copy} run={run} />
 						)}
 
+						{selectedPage === 'advanced' && productId === 'soundscaper' && (
+							<AdvancedPreferencesPage controller={controller} preferences={preferences} copy={copy} run={run} />
+						)}
+
 						{selectedPage === 'workspace' && (
 							<>
 							<PreferencePanel title={copy.workspace}>
-								<PreferenceDropdownField
+								<div ref={workspacePresetRef}><PreferenceDropdownField
 									label={copy.workspacePreset}
 									value={preferences.workspace.activeId}
 									onChange={(value) => run(() => controller.actions.preferences.setWorkspace(value))}
 									options={workspaceSwitcherOptions(productId, copy, preferences.workspace.custom)
 										.map(({ id, name }) => ({ value: id, label: name }))}
-								/>
+								/></div>
 								<label className="kw-audio-editor-preferences__workspace-name">
 									<span>{copy.workspaceName}</span>
-									<input aria-label={copy.workspaceName} placeholder={copy.workspaceName} value={workspaceName} onChange={(event) => setWorkspaceName(event.currentTarget.value)} />
+									<input aria-label={copy.workspaceName} placeholder={copy.workspaceName} value={workspaceName} onChange={(event) => {
+										workspaceNameRevision.current += 1;
+										setWorkspaceName(event.currentTarget.value);
+									}} />
 								</label>
 								<div className="kw-audio-editor__custom-workspace-actions">
 									<Button variant="secondary" disabled={!workspaceName.trim()} onClick={() => {
+										const submittedRevision = workspaceNameRevision.current;
 										void runAwaitedAudioEditorOperation(
 											run,
 											() => controller.actions.preferences.createWorkspace(workspaceName.trim()),
-										).then(() => { setWorkspaceName(''); }).catch(() => undefined);
+										).then(() => {
+											setWorkspaceName(current => workspaceNameRevision.current === submittedRevision ? '' : current);
+										}).catch(() => undefined);
 									}}>{copy.workspaceCreate}</Button>
 									<Button variant="secondary" disabled={!activeCustom} onClick={() => run(() => controller.actions.preferences.updateWorkspace(activeCustom.id, workspaceName.trim() ? { name: workspaceName.trim() } : {}))}>{copy.workspaceUpdate}</Button>
-									<Button variant="secondary" disabled={!activeCustom} onClick={() => run(() => controller.actions.preferences.deleteWorkspace(activeCustom.id))}>{copy.workspaceDelete}</Button>
+									<Button variant="secondary" disabled={!activeCustom} onClick={(event) => { captureWorkspaceDeletion(event.currentTarget, activeCustom.id); run(() => controller.actions.preferences.deleteWorkspace(activeCustom.id)); }}>{copy.workspaceDelete}</Button>
 								</div>
 							</PreferencePanel>
 							<Separator />

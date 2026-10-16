@@ -203,18 +203,23 @@ export function createFreesoundPanelSession(
 	let initialized: Promise<void> | null = null;
 	let connecting: Promise<void> | null = null;
 	let connectAbort: AbortController | null = null;
+	let accountGeneration = 0;
 
 	queue.subscribe(publishSnapshot);
 
 	const initialize = (): Promise<void> => {
+		const generation = accountGeneration;
 		initialized ??= client.session().then(async (session) => {
+			if (generation !== accountGeneration) return;
 			if (!session.connected) {
 				setAuth({ status: 'disconnected' });
 				return;
 			}
 			setAuth({ status: 'connected', user: session.user });
-			await restorePending(() => authenticatedOperation(() => client.pending()), queue);
+			await restorePending(() => authenticatedOperation(() => client.pending()), queue,
+				() => generation === accountGeneration && auth.status === 'connected');
 		}).catch((error: unknown) => {
+			if (generation !== accountGeneration) return;
 			setAuth({ status: 'disconnected', errorMessage: errorMessage(error, 'Freesound sign-in is unavailable.') });
 		});
 		return initialized;
@@ -223,6 +228,7 @@ export function createFreesoundPanelSession(
 	const connect = (): Promise<void> => {
 		if (connecting) return connecting;
 		connectAbort?.abort();
+		const generation = ++accountGeneration;
 		const abort = new AbortController();
 		connectAbort = abort;
 		setAuth({ status: 'connecting' });
@@ -245,9 +251,11 @@ export function createFreesoundPanelSession(
 					const session = await client.pollOAuth(
 						attempt.attemptId, attempt.handoffToken, abort.signal,
 					);
+					abort.signal.throwIfAborted();
 					if (session?.connected) {
 						setAuth({ status: 'connected', user: session.user });
-						await restorePending(() => authenticatedOperation(() => client.pending()), queue);
+						await restorePending(() => authenticatedOperation(() => client.pending()), queue,
+							() => generation === accountGeneration && auth.status === 'connected');
 						return;
 					}
 					await wait(1_000, abort.signal);
@@ -259,8 +267,7 @@ export function createFreesoundPanelSession(
 					setAuth({ status: 'error', errorMessage: errorMessage(error, 'Freesound sign-in failed.') });
 				}
 			} finally {
-				if (connectAbort === abort) connectAbort = null;
-				connecting = null;
+				if (connectAbort === abort) { connectAbort = null; connecting = null; }
 			}
 		})();
 		return connecting;
@@ -272,15 +279,18 @@ export function createFreesoundPanelSession(
 	}
 
 	async function authenticatedOperation<Value>(operation: () => Promise<Value>): Promise<Value> {
+		const generation = accountGeneration;
 		try { return await operation(); }
 		catch (error) {
-			if (isFreesoundAuthenticationError(error)) expireAuthentication(error);
+			if (generation === accountGeneration && isFreesoundAuthenticationError(error)) expireAuthentication(error);
 			throw error;
 		}
 	}
 
 	function expireAuthentication(error?: unknown): void {
+		accountGeneration += 1;
 		connectAbort?.abort();
+		connectAbort = null; connecting = null;
 		setAuth({
 			status: 'disconnected',
 			errorMessage: errorMessage(error, 'Reconnect Freesound to continue.'),
@@ -302,12 +312,16 @@ export function createFreesoundPanelSession(
 		connect,
 		expireAuthentication,
 		disconnect: async () => {
+			const generation = ++accountGeneration;
 			connectAbort?.abort();
+			connectAbort = null; connecting = null;
 			queue.clear();
 			try {
 				await client.disconnect();
+				if (generation !== accountGeneration) return;
 				setAuth({ status: 'disconnected' });
 			} catch (error) {
+				if (generation !== accountGeneration) return;
 				setAuth({ status: 'error', errorMessage: errorMessage(error, 'Freesound sign-out failed.') });
 			}
 		},
@@ -327,8 +341,12 @@ export function createFreesoundPanelSession(
 async function restorePending(
 	load: () => ReturnType<FreesoundApiClient['pending']>,
 	queue: FreesoundUploadQueue,
+	isCurrent: () => boolean,
 ): Promise<void> {
-	try { queue.restorePending(await load()); }
+	try {
+		const pending = await load();
+		if (isCurrent()) queue.restorePending(pending);
+	}
 	catch { /* Restoring remote status is best-effort and must not undo a valid sign-in. */ }
 }
 

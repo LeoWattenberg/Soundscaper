@@ -28,6 +28,8 @@ export interface RecordingCaptureControllerLike extends RecordingControllerLike 
 	startConfirmed?(options: Readonly<{ startFrame: number; stopFrame?: number }>): Promise<Readonly<{ startFrame: number }>>;
 	rescheduleConfirmed?(options: Readonly<{ startFrame: number; stopFrame?: number }>): Promise<Readonly<{ startFrame: number }>>;
 	pause(): boolean | void;
+	/** Invoke after native Pause flushes and serializes every preceding PCM write. */
+	pauseAfterFlush?(onFlushed: () => void): boolean | void;
 	resume(): boolean | void;
 	setMonitoring(enabled: boolean): void;
 	setInputGain(value: number): void;

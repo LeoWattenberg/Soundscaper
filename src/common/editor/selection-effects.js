@@ -15,6 +15,7 @@ import { isBandDynamicsEffect } from './first-party-effects/dynamics/definition.
 import { isStandardEffect } from './first-party-effects/standard/definition.ts';
 import { standardSelectionEffectPeakBytes } from './first-party-effects/standard/selection-contract.ts';
 import { standardDelaySelectionOutputFrames } from './first-party-effects/standard/delay-selection-contract.ts';
+import { selectionEffectSpectralScratchBytes } from './selection-effect-spectral-context-contract.ts';
 
 const FLOAT32_BYTES = Float32Array.BYTES_PER_ELEMENT;
 const MEMORY_ESTIMATE_OVERHEAD_BYTES = 2 * 1024 ** 2;
@@ -40,7 +41,8 @@ export function estimateAudioSelectionEffectPeakBytes(type, inputFrames, params 
 	if (isStandardEffect(type)) return standardSelectionEffectPeakBytes(type, inputFrames,
 		normalizeAudioSelectionEffectParams(type, params), options);
 	if (type === REVIEWED_UTILITY_GAIN_SELECTION_EFFECT_TYPE) {
-		return estimateReviewedUtilityGainPeakBytes(inputFrames, params, options.channelCount ?? 2);
+		return safeBytes(estimateReviewedUtilityGainPeakBytes(inputFrames, params, options.channelCount ?? 2)
+			+ selectionEffectSpectralScratchBytes(inputFrames, options.channelCount ?? 2, options.spectralWindowSize));
 	}
 	if (type === BITCRUSHER_EFFECT_TYPE || isBandDynamicsEffect(type)) {
 		// One input copy, one output copy, and a few doubles of per-channel state.
@@ -48,7 +50,8 @@ export function estimateAudioSelectionEffectPeakBytes(type, inputFrames, params 
 		const bitcrusherChannels = positiveInteger(options.channelCount ?? 2, 'channelCount', 32);
 		normalizeAudioSelectionEffectParams(type, params);
 		return safeBytes(
-			bitcrusherFrames * bitcrusherChannels * FLOAT32_BYTES * 2 + MEMORY_ESTIMATE_OVERHEAD_BYTES,
+			bitcrusherFrames * bitcrusherChannels * FLOAT32_BYTES * 2 + MEMORY_ESTIMATE_OVERHEAD_BYTES
+				+ selectionEffectSpectralScratchBytes(bitcrusherFrames, bitcrusherChannels, options.spectralWindowSize),
 		);
 	}
 	if (type !== 'eq') return estimateAudacityEffectPeakBytes(type, inputFrames, params, options);

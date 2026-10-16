@@ -10,13 +10,14 @@ export function retainResizableSurfaceMouseLifecycle(
 		cancel(): void;
 	}>,
 ): () => void {
+	const finish = (event: MouseEvent) => { if (event.button === 0) callbacks.finish(); };
 	const releaseEscape = retainAudioEditorDialogEscapeOwner(document, callbacks.cancel);
 	document.addEventListener('mousemove', callbacks.move);
-	document.addEventListener('mouseup', callbacks.finish);
+	document.addEventListener('mouseup', finish);
 	return () => {
 		releaseEscape();
 		document.removeEventListener('mousemove', callbacks.move);
-		document.removeEventListener('mouseup', callbacks.finish);
+		document.removeEventListener('mouseup', finish);
 		callbacks.cancel();
 	};
 }

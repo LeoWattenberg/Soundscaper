@@ -177,6 +177,8 @@ export interface LiveChunkPlanOptions {
 
 export interface PreparedLiveChunkPlan {
 	readonly done: Promise<unknown>;
+	prepareStart?(contextStartTime: number, fromFrame: number, sampleRate: number, transportRate: number): void;
+	cancelStartSchedule?(time: number): void;
 	start(contextStartTime: number, fromFrame: number, sampleRate: number, transportRate: number): void;
 	cancel(): void;
 }
@@ -271,6 +273,13 @@ export async function prepareLiveChunkPlan({
 		};
 		activeSources.add(sourceControl);
 		const scheduledNodes = [node, chain.fadeInGain, chain.fadeOutGain, chain.clipGain];
+		let preparedStartTime: number | null = null;
+		const prepareStart = (contextStartTime: number, fromFrame: number, sampleRate: number, activeTransportRate: number): void => {
+			const timelineRate = sampleRate * activeTransportRate;
+			preparedStartTime = contextStartTime + (plan.segmentStart - fromFrame) / timelineRate;
+			scheduleClipGain(activeChain.fadeInGain.gain, activeChain.fadeOutGain.gain, activeChain.clipGain.gain,
+				plan.clip, plan.relativeStart, plan.segmentEnd - clipStart(plan.clip), plan.duration, preparedStartTime, timelineRate, plan);
+		};
 		const release = (): void => {
 			if (sourceControl) activeSources.delete(sourceControl);
 			releaseTransientNodes(transientNodes, scheduledNodes);
@@ -279,21 +288,15 @@ export async function prepareLiveChunkPlan({
 		return {
 			done: activeHandle.done,
 			cancel(): void { activeHandle.cancel(); },
+			prepareStart,
+			cancelStartSchedule(time): void {
+				for (const param of [activeChain.fadeInGain.gain, activeChain.fadeOutGain.gain, activeChain.clipGain.gain]) param.cancelScheduledValues?.(time);
+				preparedStartTime = null;
+			},
 			start(contextStartTime, fromFrame, sampleRate, activeTransportRate): void {
 				const timelineRate = sampleRate * activeTransportRate;
 				const startTime = contextStartTime + (plan.segmentStart - fromFrame) / timelineRate;
-				scheduleClipGain(
-					activeChain.fadeInGain.gain,
-					activeChain.fadeOutGain.gain,
-					activeChain.clipGain.gain,
-					plan.clip,
-					plan.relativeStart,
-					plan.segmentEnd - clipStart(plan.clip),
-					plan.duration,
-					startTime,
-					timelineRate,
-					plan,
-				);
+				if (preparedStartTime !== startTime) prepareStart(contextStartTime, fromFrame, sampleRate, activeTransportRate);
 				if (enforceSharedStartDeadline) assertSharedPlaybackStart(context, startTime);
 				void Promise.resolve(activeHandle.play({
 					contextStartFrame: Math.max(0, Math.round(startTime * context.sampleRate)),

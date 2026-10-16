@@ -7,11 +7,10 @@
 
 import { publishedCopyFor } from '../../shared/presentation-localization.ts'; import { createAddClipCommand, createAddSourceCommand } from '../../../commands/factories.ts'; import { setLocalizedStatus } from '../../../../i18n/presentation-message.ts';
 import { projectForAudioGeneratorCommands } from './generator-project-view.ts';
-import type { AudioEditorCommand } from '../../../commands/protocol.ts';
-import { prepareDisjointRangeDeleteCommand } from '../../../commands/range-runtime.js';
+import { prepareLabeledAudioSilenceRemoval } from './labeled-audio-silence-removal.ts';
 import { generateAudioEditorSignal } from '../../../generators.js';
 import { normalizeProjectSampleRate } from '../../shared/app-helpers.ts';
-import { publishGeneratedAudioSource } from './generated-source-publication.ts';
+import { publishGeneratedAudioSource, type GeneratedAudioSource } from './generated-source-publication.ts';
 import type {
 	AudioGeneratorClip,
 	AudioGeneratorEffectTarget,
@@ -46,8 +45,8 @@ export function createLabeledAudioSilence<Context, Target extends AudioGenerator
 	/**
 	 * Silence every labelled region on the tracks being edited, the way
 	 * OnSilenceLabels does upstream. Soundscaper models silence as real
-	 * material rather than zeroed samples, so one generated source backs a
-	 * silent clip per region: the region is lifted out, leaving the timeline
+	 * material rather than zeroed samples, so one generated source per channel
+	 * width backs a silent clip per region: the region is lifted out, leaving the timeline
 	 * intact, and the clip fills the gap it left.
 	 */
 	async function generateLabeledSilence(
@@ -69,67 +68,74 @@ export function createLabeledAudioSilence<Context, Target extends AudioGenerator
 			// holds nothing there silences nothing. Only the stretches that
 			// actually cover audio become silent clips.
 			const plan = targets
-				.map((track) => Object.freeze({ trackId: track.id, spans: coveredSpans(project, track, spans) }))
+				.map((track) => Object.freeze({ trackId: track.id, spans: coveredSpans(project, track, spans),
+					channelCount: Number(dependencies.trackChannelCount(project, track, project.masterChannels || 2)) }))
 				.filter((entry) => entry.spans.length > 0);
 			if (plan.length === 0) return false;
 			const sampleRate = normalizeProjectSampleRate(project.sampleRate);
 			const longestRegionFrames = Math.max(...plan.flatMap((entry) => (
 				entry.spans.map((region) => region.endFrame - region.startFrame)
 			)));
-			const channelCount = Number(dependencies.trackChannelCount(project, targets[0]!, project.masterChannels || 2));
 			// One frame of headroom keeps every clip inside the source bounds
 			// however the requested duration rounds.
-			const generated = generateAudioEditorSignal('silence', {
+			const signals = [...new Set(plan.map(entry => entry.channelCount))].map(channelCount => generateAudioEditorSignal('silence', {
 				durationSeconds: (longestRegionFrames + 1) / sampleRate,
 				sampleRate,
 				channelCount,
-			}) as GeneratedSignal;
+			}) as GeneratedSignal);
 			await dependencies.preflightStorage(
-				generated.frameCount * generated.channelCount * Float32Array.BYTES_PER_ELEMENT,
+				signals.reduce((bytes, generated) => bytes + generated.frameCount * generated.channelCount * Float32Array.BYTES_PER_ELEMENT, 0),
 				'effect',
 			);
 			ownership.assert(owned);
 			processing = ownership.markProcessing();
 			const name = publishedCopyFor(dependencies.copy).silenceAudio;
-			return await publishGeneratedAudioSource(dependencies, {
-				name,
-				sampleRate,
-				channelCount,
-				frameCount: generated.frameCount,
-				channels: generated.channels,
-				ownership: {
-					signal: owned.task.signal,
-					assertCurrent: () => ownership.assert(owned),
-				},
-				prepare: () => undefined,
-				accept: (source) => {
-					dependencies.commit({
-						type: 'batch',
-						commands: [
-							createAddSourceCommand(source),
-							prepareDisjointRangeDeleteCommand(project, {
-								ranges: spans.map((region) => ({
-									startFrame: region.startFrame,
-									endFrame: region.endFrame,
-								})),
-								trackIds: plan.map((entry) => entry.trackId),
-								rippleMode: 'none',
-							}) as AudioEditorCommand,
-							...plan.flatMap((entry) => entry.spans.map((region) => createAddClipCommand(entry.trackId, {
-								id: dependencies.createId('clip'),
-								sourceId: source.id,
-								title: name,
-								timelineStartFrame: region.startFrame,
-								sourceStartFrame: 0,
-								sourceDurationFrames: region.endFrame - region.startFrame,
-								durationFrames: region.endFrame - region.startFrame,
-							}))),
-						],
-					});
-					setLocalizedStatus(dependencies.setStatus, dependencies.copy, "done", undefined, 'success');
-					return true;
-				},
-			});
+			const sources = new Map<number, GeneratedAudioSource>();
+			// Nested publication keeps every prepared width under its existing
+			// rollback owner until all sources and the one edit are accepted.
+			return await publishWidth(0);
+
+			async function publishWidth(index: number): Promise<boolean> {
+				const generated = signals[index];
+				if (!generated) return commitSilence();
+				return publishGeneratedAudioSource(dependencies, {
+					name,
+					sampleRate,
+					channelCount: generated.channelCount,
+					frameCount: generated.frameCount,
+					channels: generated.channels,
+					ownership: {
+						signal: owned.task.signal,
+						assertCurrent: () => ownership.assert(owned),
+					},
+					prepare: () => undefined,
+					accept: (source) => {
+						sources.set(source.channelCount, source);
+						return publishWidth(index + 1);
+					},
+				});
+			}
+
+			function commitSilence(): true {
+				dependencies.commit({
+					type: 'batch',
+					commands: [
+						...[...sources.values()].map(createAddSourceCommand),
+						prepareLabeledAudioSilenceRemoval(project, spans, plan.map(entry => entry.trackId), dependencies.createId),
+						...plan.flatMap((entry) => entry.spans.map((region) => createAddClipCommand(entry.trackId, {
+							id: dependencies.createId('clip'),
+							sourceId: sources.get(entry.channelCount)!.id,
+							title: name,
+							timelineStartFrame: region.startFrame,
+							sourceStartFrame: 0,
+							sourceDurationFrames: region.endFrame - region.startFrame,
+							durationFrames: region.endFrame - region.startFrame,
+						}))),
+					],
+				});
+				setLocalizedStatus(dependencies.setStatus, dependencies.copy, "done", undefined, 'success');
+				return true;
+			}
 		} finally {
 			ownership.finish(owned, processing);
 		}

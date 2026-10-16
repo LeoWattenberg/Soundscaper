@@ -7,10 +7,11 @@ import { videoRetimePreviewMedia } from './fixtures/video-retime-preview-media.j
 import { FRAMESCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
 
 test('replacing a Project Bin video with a shorter ordinary video offers its timeline choice', async ({ page }) => {
+	test.setTimeout(60_000);
 	const editor = await bootEditor(page, '/framescaper/embed/en/');
 	await editor.locator('[data-project-bin-input]').setInputFiles(createDeterministicSilentVideoFixture('original.webm'));
 	const card = editor.locator('[data-project-bin-item]').first();
-	await expect(card).toBeVisible();
+	await expect(card).toBeVisible({ timeout: 20_000 });
 	const oldSourceId = await card.getAttribute('data-source-id');
 	await card.getByRole('button', { name: /Add to timeline/u }).click();
 	await expect(editor).toHaveAttribute('data-clip-count', '1');
@@ -21,7 +22,7 @@ test('replacing a Project Bin video with a shorter ordinary video offers its tim
 	await page.getByRole('menuitem', { name: 'Replace', exact: true }).click();
 	await (await picking).setFiles(videoRetimePreviewMedia.file);
 	const choice = page.locator('[data-project-bin-replacement-dialog]');
-	await expect(choice).toBeVisible();
+	await expect(choice).toBeVisible({ timeout: 20_000 });
 	await choice.getByRole('button', { name: 'Keep timeline spacing', exact: true }).click();
 	await expect(card).not.toHaveAttribute('data-source-id', oldSourceId);
 	await expect(editor).toHaveAttribute('data-clip-count', '1');

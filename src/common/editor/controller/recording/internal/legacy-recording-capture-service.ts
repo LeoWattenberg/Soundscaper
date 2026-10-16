@@ -17,6 +17,9 @@ import { recordingCapturePeakDb } from './recording-capture-channels.ts';
 import { scaleSampleFrame, secondsToSampleFrame } from '../../../timeline-time.ts';
 import { timedRecordingStopFrame } from '../recording-model.ts';
 import { audibleRecordingStartTime, planRecordingStartTiming } from './recording-start-timing.ts';
+import { recordingSourceAlignment } from './recording-source-alignment.ts';
+import { assertRecordingTargetsUnlocked } from '../../../recording-target-admission.ts';
+import { probeCaptureAudioInputChannelCount } from '../../../capture-audio-input-channel-probe.ts';
 
 function errorName(error: unknown): string | undefined {
 	return (error as Readonly<{ name?: string }> | null)?.name;
@@ -42,6 +45,7 @@ export function createLegacyRecordingCaptureService(runtime: RecordingCaptureCom
 			? runtime.findTrack(project, options.trackId)
 			: project.tracks.find((item) => item.armed) || null;
 		if (!track) throw createLocalizedError(Error, { ['armTrackForRecording']: runtime.messages.armTrack }, 'armTrackForRecording');
+		assertRecordingTargetsUnlocked([track]);
 		state.recordingStarting = true;
 		state.recordingFatalError = null;
 		state.recordingDiscardRequested = false;
@@ -60,10 +64,10 @@ export function createLegacyRecordingCaptureService(runtime: RecordingCaptureCom
 			const sampleRate = runtime.projectSampleRate(project);
 			let stream = runtime.capturePool.getHardware?.(runtime.defaultDeviceId) || null;
 			if (options.reusePreparedInputsOnly
-				&& (!stream || runtime.streamAudioChannelCount(stream) < 2)) {
+				&& (!stream || !runtime.recordingStreamIsLive(stream, 'device'))) {
 				throw createLocalizedError(Error, { ['recordingPreparedInputClosed']: runtime.messages.preparedInputClosed }, 'recordingPreparedInputClosed');
 			}
-			stream = await runtime.capturePool.acquireHardware(runtime.defaultDeviceId, {
+			if (!options.reusePreparedInputsOnly || !stream) stream = await runtime.capturePool.acquireHardware(runtime.defaultDeviceId, {
 				channelCount: 2,
 				sampleRate,
 			});
@@ -81,7 +85,10 @@ export function createLegacyRecordingCaptureService(runtime: RecordingCaptureCom
 			scope.assertCurrent();
 			const inputTrack = stream.getAudioTracks()[0];
 			const trackSettings = inputTrack?.getSettings?.() || {};
-			const channelCount = Math.min(2, Number(trackSettings.channelCount) || 1);
+			const channelCount = Math.min(2, trackSettings.channelCount === undefined
+				? await probeCaptureAudioInputChannelCount(context, stream)
+				: Number(trackSettings.channelCount) || 1);
+			scope.assertCurrent();
 			const captureSampleRate = context.sampleRate || sampleRate;
 			const selection = runtime.activeSelection(project);
 			await runtime.preflightStorage(
@@ -104,11 +111,9 @@ export function createLegacyRecordingCaptureService(runtime: RecordingCaptureCom
 			const automaticLatency = (context.baseLatency || 0)
 				+ (context.outputLatency || 0)
 				+ (Number(trackSettings.latency) || 0);
-			const latencyFrames = Math.max(0, Math.round(
-				(automaticLatency + state.latencyOffsetMs / 1_000) * sampleRate,
-			));
-			const recordingStartFrame = selection ? requestedStartFrame : Math.max(0, requestedStartFrame - latencyFrames);
-			const sourceOffsetProjectFrames = selection ? latencyFrames : Math.max(0, latencyFrames - requestedStartFrame);
+			const alignment = recordingSourceAlignment({ sampleRate, requestedStartFrame,
+				automaticLatencySeconds: automaticLatency, manualOffsetMs: state.latencyOffsetMs, selection });
+			const { recordingStartFrame, sourceOffsetProjectFrames } = alignment;
 			const sourceOffsetFrames = runtime.scaleFrames(sourceOffsetProjectFrames, sampleRate, captureSampleRate);
 			// A gated selection would compact PCM and make punch/replace stretch it
 			// over the exact deletion range. Keep the exact punch path ungated until
@@ -143,6 +148,7 @@ export function createLegacyRecordingCaptureService(runtime: RecordingCaptureCom
 				channelCount,
 				discreteChannels: false,
 				monitor: state.monitoring,
+				fixedStopFrame: options.timedEndTimeMs !== undefined,
 				inputGain: state.recordingInputGain,
 				onChunk: async (chunk) => {
 					if (!ownsStart() || state.recorder !== recorder || state.recordingFinishing) return;
@@ -185,7 +191,7 @@ export function createLegacyRecordingCaptureService(runtime: RecordingCaptureCom
 			state.recordingStream = stream;
 			state.recordingSourceId = sourceId;
 			state.recordingTrackId = track.id;
-			state.recordingSelection = selection ? { ...selection } : null;
+			state.recordingSelection = alignment.selection;
 			state.recordingResampler = previewResampler;
 			state.recordingSampleRate = captureSampleRate;
 			state.recorder = recorder;
@@ -206,7 +212,7 @@ export function createLegacyRecordingCaptureService(runtime: RecordingCaptureCom
 			});
 			const { scheduledTime } = timing;
 			const selectionProjectFrames = selection
-				? selection.endFrame - selection.startFrame + sourceOffsetProjectFrames
+				? selection.endFrame - recordingStartFrame + sourceOffsetProjectFrames
 				: 0;
 			const recorderSchedule = (contextStartTime: number) => {
 				const startFrame = timing.captureStartFrame(contextStartTime);

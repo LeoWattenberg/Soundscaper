@@ -422,10 +422,10 @@ export const EffectsPanel: React.FC<EffectsPanelProps> = ({
 
   // Handle vertical resize
   const handleVerticalResizeStart = (e: React.MouseEvent) => {
+    if (e.button !== 0) return;
     e.preventDefault();
     setIsResizingVertical(true);
   };
-
   React.useEffect(() => {
     if (!isResizingVertical) return;
 
@@ -440,8 +440,8 @@ export const EffectsPanel: React.FC<EffectsPanelProps> = ({
       setMasterSectionHeight(clampedHeight);
     };
 
-    const handleMouseUp = () => {
-      setIsResizingVertical(false);
+    const handleMouseUp = (event: MouseEvent) => {
+      if (event.button === 0) setIsResizingVertical(false);
     };
 
     document.addEventListener('mousemove', handleMouseMove);

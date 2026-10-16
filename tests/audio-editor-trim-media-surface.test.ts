@@ -2,6 +2,7 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { createMenuActionFixture } from './helpers/application-menu-fixture.ts';
 
 import createApplicationMenus from '../src/common/editor/ui/application-menus.js';
 import { WORKSPACE_PANEL_IDS } from '../src/common/editor/ui/workspace/workspace-panel-model.ts';
@@ -282,13 +283,7 @@ function menuInput({ editBlocked, actions }: Readonly<{ editBlocked: boolean; ac
 }
 
 function actionPorts(overrides: Readonly<Record<string, unknown>>): object {
-	return new Proxy({ ...overrides }, {
-		get(target, property, receiver) {
-			return Reflect.has(target, property)
-				? Reflect.get(target, property, receiver)
-				: () => undefined;
-		},
-	});
+	return createMenuActionFixture(overrides);
 }
 
 function copyValues(): object {

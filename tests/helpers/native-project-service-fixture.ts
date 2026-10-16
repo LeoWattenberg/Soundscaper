@@ -122,9 +122,11 @@ export function createFixture(overrides: Partial<NativeProjectServiceRuntime> = 
 		importScapeProject: async () => ({ project: activeProject, readOnly: false, manifest: {} }),
 		exportScapeProject: async () => ({ blob: new Blob(['scape']), manifest: {} }),
 		copyFutureScapeArchive: async (input, write) => {
-			const bytes = new Uint8Array(await input.arrayBuffer());
-			await write(bytes);
-			return { byteLength: bytes.byteLength, schemaVersion: 15 };
+			if (input instanceof Blob) await write(new Uint8Array(await input.arrayBuffer()));
+			else for (let offset = 0; offset < input.size; offset += input.maximumReadBytes) {
+				await write(await input.read({ offset, length: Math.min(input.maximumReadBytes, input.size - offset) }));
+			}
+			return { byteLength: input.size, schemaVersion: 15 };
 		},
 		normalizeCompatibilityReport: (report, direction) => ({
 			...((report && typeof report === 'object') ? report : {}),

@@ -2,7 +2,7 @@
 
 import { createWavFixture, expect, test } from './audio-editor-test-fixtures.js';
 import {
-	bootEditor, clipByName, collectClientErrors, importFiles, registerAudioEditorHooks,
+	bootEditor, chooseNestedCommandAction, clipByName, collectClientErrors, importFiles, registerAudioEditorHooks,
 } from './audio-editor-test-helpers.js';
 
 const quietTone = createWavFixture({
@@ -73,6 +73,9 @@ test('opts into a logarithmic dB waveform per track and restores both linear sca
 	const errors = collectClientErrors(page);
 	const editor = await bootEditor(page, '/embed/en/');
 	await importFiles(editor, [quietTone, otherTone]);
+	// Fix the lane heights before comparing rasters: automatic fitting can
+	// resize them while the imported tracks settle into the scrollport.
+	await chooseNestedCommandAction(page, editor, 'View', ['Zoom', 'Decrease all track heights']);
 	const clip = clipByName(editor, quietTone.name);
 	const track = clip.locator('xpath=ancestor::div[@data-track-row]');
 	const canvas = clip.locator('canvas.clip-body__waveform');

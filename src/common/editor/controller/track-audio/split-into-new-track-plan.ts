@@ -3,6 +3,7 @@
 import { trackHierarchyPlacement } from '../../track-hierarchy-placement.ts';
 import { copyDerivedTrackStripAutomation } from '../../derived-track-strip-automation.ts';
 import { copyDerivedTrackProcessors } from '../../derived-track-processors.ts';
+import type { AudioEditorCommand } from '../../commands/protocol.ts';
 
 /**
  * Plan the time-range half of "Split into new track".
@@ -26,6 +27,10 @@ import { copyDerivedTrackProcessors } from '../../derived-track-processors.ts';
 type RuntimeValue = any;
 
 export interface SplitIntoNewTrackRuntime {
+	readonly preserveTrackRouting?: (
+		command: Extract<AudioEditorCommand, { type: 'batch' }>,
+		copies: readonly Readonly<{ sourceTrackId: string; targetTrackId: string }>[],
+	) => Extract<AudioEditorCommand, { type: 'batch' }>;
 	readonly getProject: () => RuntimeValue;
 	readonly supportsTrackFolders?: boolean;
 	readonly findClip: (project: RuntimeValue, clipId: string) => RuntimeValue;
@@ -60,16 +65,20 @@ export function prepareSplitRangeIntoNewTrackCommand(
 	if (!perTrack.size) return null;
 	const commands: RuntimeValue[] = [];
 	const moves: RuntimeValue[] = [];
+	const routingCopies: { sourceTrackId: string; targetTrackId: string }[] = [];
 	let selectTrackId = '';
 	let selectClipId = '';
-	for (const [trackId, entries] of perTrack) {
+	// Insert later siblings first so each captured position still names its source.
+	for (const [trackId, entries] of [...perTrack].reverse()) {
 		const sourceTrack = project.tracks.find((track: RuntimeValue) => track.id === trackId);
 		if (!sourceTrack) continue;
 		const newTrackId = runtime.createStableId('track');
+		routingCopies.push({ sourceTrackId: trackId, targetTrackId: newTrackId });
 		const processors = copyDerivedTrackProcessors(project, sourceTrack, newTrackId, runtime.createStableId);
 		commands.push({ ...runtime.createAddTrackCommand({
 			...sourceTrack,
 			id: newTrackId,
+			laneGroupId: null,
 			name: `${sourceTrack.name} 2`,
 			clipIds: [],
 			effects: processors.effects,
@@ -84,12 +93,13 @@ export function prepareSplitRangeIntoNewTrackCommand(
 				timelineStartFrame: entry.timelineStartFrame,
 			});
 		}
-		selectTrackId ||= newTrackId;
-		selectClipId ||= entries[0]?.clipId ?? '';
+		selectTrackId = newTrackId;
+		selectClipId = entries[0]?.clipId ?? '';
 	}
 	if (!moves.length) return null;
+	const command: Extract<AudioEditorCommand, { type: 'batch' }> = { type: 'batch', commands: [...commands, ...moves] };
 	return {
-		command: { type: 'batch', commands: [...commands, ...moves] },
+		command: runtime.preserveTrackRouting?.(command, routingCopies) ?? command,
 		selectTrackId,
 		selectClipId,
 	};

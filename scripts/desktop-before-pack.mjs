@@ -135,14 +135,12 @@ export async function verifyStagedSoundscaperProfessionalNativeBeforePack({
 	repositoryRoot, stageManifestPath, packagedTarget,
 }) {
 	const stage = JSON.parse(await readFile(stageManifestPath, 'utf8'));
-	if (stage?.productId === 'framescaper') {
-		if (stage.soundscaperProfessionalNative !== null) {
-			throw new Error('A Framescaper desktop stage cannot carry the Soundscaper professional payload.');
-		}
-		return null;
-	}
-	if (stage?.productId !== 'soundscaper' || stage.soundscaperProfessionalNative?.target !== packagedTarget) {
-		throw new Error('The Soundscaper desktop stage has no exact professional native payload authority.');
+	const pluginOnly = stage?.productId === 'framescaper';
+	if (pluginOnly && stage.soundscaperProfessionalNative === null) return null;
+	if (!['soundscaper', 'framescaper'].includes(stage?.productId)
+		|| stage.soundscaperProfessionalNative?.target !== packagedTarget
+		|| pluginOnly && stage.soundscaperProfessionalNative.hostingScope !== 'audio-plugin-host') {
+		throw new Error('The desktop stage has no exact professional native payload authority.');
 	}
 	const release = await verifySoundscaperProfessionalNativePayload({
 		repositoryRoot,
@@ -150,7 +148,7 @@ export async function verifyStagedSoundscaperProfessionalNativeBeforePack({
 		targetSource: stage.soundscaperProfessionalNative.targetSource === 'build-host' ? 'build-host' : 'declared',
 	});
 	return verifyStagedSoundscaperProfessionalNativePayload({
-		release,
+		release, pluginOnly,
 		outputRoot: professionalNativePayloadOutputRoot(resolve(repositoryRoot, '.desktop-build/runtime'), release),
 		stageManifestPath,
 	});

@@ -56,6 +56,8 @@ export function VideoTrackRow({
 }) {
 	const trackWindowRef = useRef(null);
 	const [renameRequest, setRenameRequest] = useState(null);
+	const renameBlockedRef = useRef(blocked || track.locked);
+	renameBlockedRef.current = blocked || track.locked;
 	const renameRequestIdRef = useRef(0);
 	const trackHeight = visualHeight;
 	const clips = useMemo(() => {
@@ -149,7 +151,7 @@ export function VideoTrackRow({
 				&& !event.metaKey
 				&& !event.shiftKey
 				&& !event.repeat
-				&& !blocked
+				&& !renameBlockedRef.current
 				&& selectedClipIdSet.has(String(event.target.dataset.clipId))
 			) {
 				event.preventDefault();
@@ -236,6 +238,7 @@ export function VideoTrackRow({
 							if (selectedTrackId !== track.id) run(() => controller.actions.timeline.selectTrack(track.id));
 						}}
 						onKeyDown={(event) => {
+							if (event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey) return;
 							if (event.key === 'Tab') {
 								event.preventDefault();
 								if (event.shiftKey) focusBeforeTrack();
@@ -263,16 +266,16 @@ export function VideoTrackRow({
 								dragging={Boolean(draggingClipIds?.has(clip.id))}
 								invalidOverlap={overlapPresentation.invalidClipIds.has(clip.id)}
 								hidden={track.hidden}
-								blocked={blocked}
+								blocked={blocked || Boolean(track.locked)}
 								copy={copy}
 								color={clip.color === 'auto' ? track.color : clip.color}
 								clipStyle={clipStyle}
 								run={run}
 								onFadeTabOut={focusAfterTrack}
 								onOpenMenu={onOpenClipMenu}
-								onRename={(title) => {
+								onRename={renameBlockedRef.current ? undefined : (title) => {
 									const nextTitle = String(title).trim();
-									if (blocked || !nextTitle) return;
+									if (renameBlockedRef.current || !nextTitle) return;
 									run(() => controller.actions.clip.update(clip.id, { title: nextTitle }));
 								}}
 								renameRequestId={renameRequest?.clipId === String(clip.id) ? renameRequest.id : undefined}

@@ -40,6 +40,16 @@ function createNoiseGateState({ sampleRate, channelCount, params = {} }: Options
 	const opening = new Float64Array(channelCount);
 	const openingGain = new Float64Array(channelCount);
 	let crossovers: ComplementaryCrossover[] = [];
+	function joinEnvelopes() {
+		let loudest = 0;
+		for (let channel = 1; channel < channelCount; channel += 1) {
+			if (gains[channel] > gains[loudest]) loudest = channel;
+		}
+		gains.fill(gains[loudest]);
+		opening.fill(opening[loudest]);
+		openingGain.fill(openingGain[loudest]);
+		held.fill(Math.max(...held));
+	}
 	function configure(changes: Readonly<Record<string, unknown>>) {
 		const merged = { ...current, ...changes };
 		const next = normalizeNoiseGateParams(merged);
@@ -59,6 +69,7 @@ function createNoiseGateState({ sampleRate, channelCount, params = {} }: Options
 		attackFrames = Math.ceil(Number(next.attack) * sampleRate);
 		release = Math.exp(-1 / (Number(next.release) * sampleRate));
 		hold = Math.round(Number(next.hold) * sampleRate);
+		if (!linked && next.stereoLink === 'linked') joinEnvelopes();
 		linked = next.stereoLink === 'linked';
 		if (nextFrequency > 0) for (const crossover of crossovers) crossover.configure(nextFrequency);
 		frequency = nextFrequency;
@@ -106,8 +117,8 @@ function createNoiseGateState({ sampleRate, channelCount, params = {} }: Options
 							opening[channel] += 1;
 							const progress = Math.min(1, opening[channel] / attackFrames);
 							// Finish the exponential attack on time, so full preview preserves the first transient.
-							gains[channel] = progress === 1 ? 1
-								: openingGain[channel] + (1 - openingGain[channel]) * -Math.expm1(-progress) / ATTACK_NORMALIZATION;
+							gains[channel] = progress === 1 ? target
+								: openingGain[channel] + (target - openingGain[channel]) * -Math.expm1(-progress) / ATTACK_NORMALIZATION;
 						} else {
 							opening[channel] = 0;
 							gains[channel] = target + release * (gains[channel] - target);

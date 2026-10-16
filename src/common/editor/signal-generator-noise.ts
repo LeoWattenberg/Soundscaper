@@ -33,6 +33,10 @@ function channelJump(draws: number): Uint32Array {
 export function createNoiseBlockRenderer(frameCount: number, channelCount: number, amplitude: number,
 	color: NoiseColor, seed: number, sampleRate: number): (frames: number) => Float32Array[] {
 	const binCount = color === 'pink' ? Math.max(8, Math.ceil(Math.log2(sampleRate / 20)) + 2) : 0;
+	// Keep the existing 8 kHz Brown pole's physical time constant below the
+	// audible band, with the same stationary power at every rendering clock.
+	const brownRetention = .995 ** (8_000 / sampleRate);
+	const brownStep = .05 * Math.sqrt((1 - brownRetention ** 2) / (1 - .995 ** 2));
 	// Pink initializes every row, then draws white plus one row except at a full row cycle.
 	const draws = color === 'pink' ? binCount + 2 * frameCount - Math.floor(frameCount / 2 ** binCount) : frameCount;
 	const jump = channelCount > 1 ? channelJump(draws) : null;
@@ -63,7 +67,7 @@ export function createNoiseBlockRenderer(frameCount: number, channelCount: numbe
 			for (let frame = 0; frame < frames; frame++) {
 				random = xorshift(random);
 				const white = random / 0x8000_0000 - 1;
-				brown = Math.max(-1, Math.min(1, brown * 0.995 + white * 0.05));
+				brown = Math.max(-1, Math.min(1, brown * brownRetention + white * brownStep));
 				output[frame] = brown * amplitude;
 			}
 		} else {

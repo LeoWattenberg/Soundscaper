@@ -3,7 +3,8 @@
 import { inspectEncodedAudioSampleRate } from './audio-file-metadata.js';
 import { inspectAiffBlobPcm } from './aiff-pcm-chunk-reader.ts';
 import { inspectWavBlobPcm } from './wav-import.js';
-import { originalMpegExportSettings } from './desktop-original-mpeg-settings.ts';
+import { originalMpegExportSettings, readOriginalMpegFrameHeader } from './desktop-original-mpeg-settings.ts';
+import { readDesktopOriginalM4aMovie } from './desktop-original-m4a-movie.ts';
 import { BIT_RATES } from './media-export-values.js';
 import { sampleFrameToSeconds } from './timeline-time.ts';
 
@@ -17,6 +18,7 @@ interface NamedByteSource {
 }
 
 interface PcmSettings {
+	readonly format?: string;
 	readonly sampleRate: number;
 	readonly channelCount: number;
 	readonly sampleFormat: string;
@@ -42,17 +44,27 @@ export async function resolveDesktopOriginalExportSettings(
 	const video = sources.find((source) => source.kind === 'video');
 	if (video) return videoSettings(extension, video, sources);
 	const source = sources.find((candidate) => candidate.kind === 'audio' || candidate.kind == null);
-	const format = EXTENSIONS[extension];
+	let format = EXTENSIONS[extension];
 	if (!source || !format) return null;
 	try {
-		const header = new Uint8Array(await file.slice(0, Math.min(file.size, MAXIMUM_HEADER_BYTES)).arrayBuffer());
+		let header: Uint8Array = new Uint8Array(await file.slice(0, Math.min(file.size, MAXIMUM_HEADER_BYTES)).arrayBuffer());
+		if (format === 'mp3' || format === 'mp2') {
+			const frameHeader = await readOriginalMpegFrameHeader(file, header);
+			if (!frameHeader) return null;
+			header = frameHeader;
+		}
+		if (format === 'ogg-vorbis' && matchesEncodedContainer('opus', header)) format = 'opus';
 		const pcm = await pcmSettings(format, file, header);
 		if (pcm !== undefined) {
 			if (!pcm || pcm.channelCount > 2) return null;
-			return Object.freeze({ ...audioBase(format, pcm.sampleRate, pcm.channelCount),
+			return Object.freeze({ ...audioBase(pcm.format ?? format, pcm.sampleRate, pcm.channelCount),
 				sampleFormat: pcm.sampleFormat, bitDepth: pcm.bitDepth });
 		}
-		if (!matchesEncodedContainer(format, header)) return null;
+		if (!matchesEncodedContainer(format, header)) {
+			const movie = format === 'aac-m4a' && ascii(header, 4, 4) === 'ftyp'
+				? await readDesktopOriginalM4aMovie(file, MAXIMUM_HEADER_BYTES) : null;
+			if (!movie || !hasAacSampleEntry(movie)) return null;
+		}
 		const sampleRate = positiveInteger(source.originalSampleRate) ?? positiveInteger(source.sampleRate)
 			?? inspectEncodedAudioSampleRate(header);
 		const channels = positiveInteger(source.channelCount);
@@ -102,7 +114,9 @@ async function pcmSettings(format: string, file: NamedByteSource, header: Uint8A
 		const bitDepth = descriptor.validBitsPerSample ?? descriptor.bitDepth;
 		const sampleFormat = descriptor.sampleFormat === 'float32' ? 'float32' : `int${String(bitDepth)}`;
 		if (!['int16', 'int20', 'int24', 'float32'].includes(sampleFormat)) return null;
-		return { ...descriptor, sampleFormat, bitDepth };
+		const deliveryFormat = format === 'wav' && (descriptor.bext || descriptor.cart) ? 'bwf' : format;
+		if (deliveryFormat !== 'wav' && sampleFormat === 'float32') return null;
+		return { ...descriptor, sampleFormat, bitDepth, format: deliveryFormat };
 	}
 	if (format === 'aiff') {
 		if (ascii(header, 0, 4) !== 'FORM') return null;

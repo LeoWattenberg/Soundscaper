@@ -25,6 +25,19 @@ const MP3_RATE_MODE_AVERAGE = 1;
 const MP3_RATE_MODE_VARIABLE = 2;
 const MP3_RATE_MODE_PRESET = 3;
 
+/** Project the payload's admitted rates, including MP2's channel-dependent limits. */
+export function browserDedicatedAudioEncodeBitRates(
+	format: unknown,
+	channelCount?: unknown,
+): readonly number[] {
+	if (format === 'mp3') return Object.freeze([...MP3_BITRATES]);
+	if (format === 'opus') return Object.freeze([...OPUS_BITRATES]);
+	if (format !== 'mp2') return Object.freeze([]);
+	return Object.freeze([...MP2_BITRATES].filter((bitrate) => (
+		Number(channelCount) === 1 ? bitrate <= 192 : bitrate >= 64 && bitrate !== 80
+	)));
+}
+
 export function validateProfile(
 	format: BrowserDedicatedAudioFormat,
 	geometry: Readonly<{ frameCount: number; channelCount: number; sampleRate: number }>,
@@ -54,7 +67,7 @@ export function validateProfile(
 	else {
 		const bitrate = exactIntegerSetting(settings, 'bitrateKbps', 32, 384);
 		admittedBitrate(bitrate, MP2_BITRATES, format);
-		if (geometry.channelCount === 1 ? bitrate > 192 : bitrate < 64 || bitrate === 80) {
+		if (!browserDedicatedAudioEncodeBitRates('mp2', geometry.channelCount).includes(bitrate)) {
 			throw new RangeError('The dedicated MP2 bitrate is outside its admitted channel tuple.');
 		}
 	}

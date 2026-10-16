@@ -5,16 +5,19 @@ import { DEFAULT_LOCALE_TAGS, getLocaleDescriptor, ROUTE_LOCALES } from '../i18n
 import { TRANSLATION_CATALOG_LOCALES } from '../i18n/translations/index.js';
 import { useSiteCopy } from './use-site-copy.js';
 import { otherProductIds, productIdentity } from '../product-identities.js';
-import { productHref } from '../product-web-links.js';
+import { productHref, productWebOrigin } from '../product-web-links.js';
 import { storeDocumentTheme } from './document-theme.js';
+import { SidebarIcon } from './SidebarIcon.tsx';
 import {
 	PRIVACY_POLICY_REQUEST_EVENT,
 	privacyPolicyUrl,
 } from './privacy-policy-links.js';
 
+const SIDEBAR_LINK_CLASS = 'website-sidebar-link';
+
 export default function BrandSidebar({ locale, productId = 'soundscaper' }) {
 	const profile = productIdentity(productId);
-	const otherProducts = otherProductIds(productId).map(productIdentity);
+	const otherProducts = otherProductIds(productId);
 	const localeDescriptor = getLocaleDescriptor(locale);
 	if (!localeDescriptor) throw new Error(`Unknown editor locale: ${locale}`);
 	const parentSite = localeLanguage(localeDescriptor.locale) === 'de' ? 'https://mindscaper.org/de/' : 'https://mindscaper.org/';
@@ -98,15 +101,16 @@ export default function BrandSidebar({ locale, productId = 'soundscaper' }) {
 				<nav className="website-sidebar-nav" aria-label={copy.label}>
 						<a className="website-sidebar-link website-is-active" href={productHref(productId, locale)} aria-current="page"><img src={productMark} alt="" width="24" height="24" />{editorLabel}</a>
 						<details data-product-menu>
-							<summary className="website-sidebar-link">{copy.editors}</summary>
-							{otherProducts.map((product) => <a key={product.id} className="website-sidebar-link" href={productHref(product.id, locale)}>
-								<img src={`/logo/${product.id}.svg`} alt="" width="24" height="24" />{editorLabels[product.id]}
+							<summary className={SIDEBAR_LINK_CLASS}>{copy.editors}</summary>
+							{otherProducts.map((id) => <a key={id} className={SIDEBAR_LINK_CLASS} href={productHref(id, locale)}>
+								<img src={`/logo/${id}.svg`} alt="" width="24" height="24" />{editorLabels[id]}
 							</a>)}
 						</details>
-						<a className="website-sidebar-link" href={parentSite}>{copy.joinUs}</a>
-						<a className="website-sidebar-link" href={privacyPolicyUrl(productId, locale)} onClick={openPrivacyPolicy}>{copy.legal}</a>
-						<a className="website-sidebar-link" href="https://github.com/LeoWattenberg/Soundscaper/issues/new" target="_blank" rel="noreferrer">{copy.reportIssue}</a>
-						<a className="website-sidebar-link" href="https://github.com/LeoWattenberg/Soundscaper" target="_blank" rel="noreferrer">{copy.github}</a>
+						<a className={SIDEBAR_LINK_CLASS} href={parentSite}><img src="/logo/mindscaper.svg" alt="" width="24" height="24" />{copy.joinUs}</a>
+						<a className={SIDEBAR_LINK_CLASS} href={`${productWebOrigin(productId)}/download/desktop/`} target="_blank" rel="noreferrer"><SidebarIcon icon="download" />{copy.download}</a>
+						<a className={SIDEBAR_LINK_CLASS} href={privacyPolicyUrl(productId, locale)} onClick={openPrivacyPolicy}><SidebarIcon icon="document" />{copy.legal}</a>
+						<a className={SIDEBAR_LINK_CLASS} href="https://github.com/LeoWattenberg/Soundscaper/issues/new" target="_blank" rel="noreferrer"><SidebarIcon icon="bug" />{copy.reportIssue}</a>
+						<a className={SIDEBAR_LINK_CLASS} href="https://github.com/LeoWattenberg/Soundscaper" target="_blank" rel="noreferrer"><SidebarIcon icon="github" />{copy.github}</a>
 				</nav>
 				<section className="website-sidebar-settings" aria-labelledby="sidebar-settings-title">
 					<h2 id="sidebar-settings-title">{copy.settings}</h2>
@@ -163,6 +167,7 @@ function sidebarCopy(catalog) {
 		workspacePhoto: catalog.workspacePhoto,
 		editors: catalog.productEditors,
 		joinUs: catalog.joinUsLink,
+		download: catalog.downloadLink,
 		legal: catalog.legalLink,
 		github: catalog.githubProjectLink,
 		theme: catalog.themeToggle,

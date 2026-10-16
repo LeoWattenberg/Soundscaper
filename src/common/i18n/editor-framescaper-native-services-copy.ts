@@ -101,7 +101,7 @@ export const FRAMESCAPER_NATIVE_SERVICES_COPY = Object.freeze({
 	ofxInteractReady: 'The 64 by 64 offscreen Interact surface is ready.',
 	ofxInteractWorking: 'Sending normalized Interact actions',
 	ofxInteractRedrawn: 'The plug-in requested and completed an offscreen redraw.',
-	ofxInteractSequenceExhausted: 'The Interact action sequence is exhausted.',
+	ofxInteractSequenceExhausted: 'Interact input limit reached. Release held keys or buttons, then leave the surface to apply the interaction.',
 	ofxInteractInstructions: 'Focus the canvas, then use pointer or keyboard actions. No vendor window opens.',
 	ofxInteractTarget: 'Interact target',
 	ofxInteractOverlay: 'Overlay Interact',

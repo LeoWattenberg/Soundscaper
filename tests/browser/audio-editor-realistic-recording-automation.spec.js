@@ -246,6 +246,7 @@ async function persistedEnvelopePointCount(page, projectId) {
 	return project?.clips?.reduce((total, clip) => total + (clip.envelope?.length ?? 0), 0) ?? 0;
 }
 
+// Shared edit/record boundaries retain each rack choice in its original phase.
 const editRecordEffectWorkflows = [
 	{
 		name: 'podcast pickup repair through two recorded fixes and a fresh outro import',
@@ -267,24 +268,27 @@ const editRecordEffectWorkflows = [
 		name: 'field report assembly with a ripple edit, two voiceovers, and room tone',
 		initialFiles: [longTone, toneA], finalFiles: [monoTone], range: [0.24, 0.43],
 		deleteMode: 'Delete and close gap per track', firstRecord: { newTrack: false },
-		firstEffect: { kind: 'rack', name: 'Noise gate' },
-		secondRecord: { newTrack: true }, secondEffect: { kind: 'rack', name: 'Compressor' },
+		firstEffect: [{ kind: 'rack', name: 'Noise gate' }, { kind: 'rack', name: 'Compressor' }],
+		secondRecord: { newTrack: true },
+		secondEffect: [{ kind: 'rack', name: 'Compressor' }, { kind: 'rack', name: 'Noise gate' }],
 		deleteTarget: 'second-recording',
 	},
 	{
 		name: 'live set edit with an all-track ripple, two overdubs, and a replacement sting',
 		initialFiles: [longTone, toneB], finalFiles: [toneA], range: [0.31, 0.49],
 		deleteMode: 'Delete and close gap on all tracks', firstRecord: { newTrack: false },
-		firstEffect: { kind: 'rack', name: 'Invert' },
-		secondRecord: { newTrack: true }, secondEffect: { kind: 'rack', name: 'Bitcrusher' },
+		firstEffect: [{ kind: 'rack', name: 'Invert' }, { kind: 'rack', name: 'Bitcrusher' }],
+		secondRecord: { newTrack: true },
+		secondEffect: [{ kind: 'rack', name: 'Bitcrusher' }, { kind: 'rack', name: 'Tremolo' }],
 		deleteTarget: 'split-head',
 	},
 	{
 		name: 'audiobook chapter repair with gated narration, a retake, and new ambience',
 		initialFiles: [longTone], finalFiles: [monoTone, toneA], range: [0.38, 0.56],
 		deleteMode: 'Delete and leave gap', firstRecord: { newTrack: false },
-		firstEffect: { kind: 'rack', name: 'Noise gate' },
-		secondRecord: { newTrack: true }, secondEffect: { kind: 'rack', name: 'Echo' },
+		firstEffect: [{ kind: 'rack', name: 'Noise gate' }, { kind: 'rack', name: 'Echo' }],
+		secondRecord: { newTrack: true },
+		secondEffect: [{ kind: 'rack', name: 'Echo' }, { kind: 'rack', name: 'Compressor' }],
 		deleteTarget: 'first-recording',
 	},
 	{
@@ -294,30 +298,6 @@ const editRecordEffectWorkflows = [
 		firstEffect: { kind: 'rack', name: 'Tremolo' },
 		secondRecord: { newTrack: true }, secondEffect: { kind: 'selection', effect: selectionEffects.normalize },
 		deleteTarget: 'split-tail',
-	},
-	{
-		name: 'radio segment rebuild with compressed reads, a filtered pickup, and a bumper',
-		initialFiles: [longTone, monoTone], finalFiles: [toneA], range: [0.16, 0.41],
-		deleteMode: 'Delete and close gap per track', firstRecord: { newTrack: false },
-		firstEffect: { kind: 'rack', name: 'Compressor' },
-		secondRecord: { newTrack: true }, secondEffect: { kind: 'rack', name: 'Noise gate' },
-		deleteTarget: 'second-recording',
-	},
-	{
-		name: 'drum-loop reconstruction with two captured layers and a replacement accent',
-		initialFiles: [longTone, toneB], finalFiles: [monoTone], range: [0.52, 0.71],
-		deleteMode: 'Delete and close gap on all tracks', firstRecord: { newTrack: false },
-		firstEffect: { kind: 'rack', name: 'Bitcrusher' },
-		secondRecord: { newTrack: true }, secondEffect: { kind: 'rack', name: 'Tremolo' },
-		deleteTarget: 'split-head',
-	},
-	{
-		name: 'dialogue ADR pass with a cut repair, processed takes, and imported wild sound',
-		initialFiles: [longTone], finalFiles: [toneB, monoTone], range: [0.21, 0.47],
-		deleteMode: 'Delete and leave gap', firstRecord: { newTrack: false },
-		firstEffect: { kind: 'rack', name: 'Echo' },
-		secondRecord: { newTrack: true }, secondEffect: { kind: 'rack', name: 'Compressor' },
-		deleteTarget: 'first-recording',
 	},
 	{
 		name: 'rehearsal edit with ripple cleanup, layered pickups, and a new reference clip',
@@ -409,26 +389,28 @@ async function runRecordingPhase(page, editor, options) {
 	return recording;
 }
 
-async function runEffectPhase(page, editor, recording, effect) {
-	if (effect.kind === 'selection') {
-		await applySelectionEffect(page, editor, recording.clip, effect.effect);
-	} else {
-		const panel = await addTrackRackEffect(page, editor, recording.row, effect.name);
-		await expect(panel.locator('[data-effect-rack]').getByRole('group', {
-			name: effect.name,
-			exact: true,
-		})).toBeVisible();
-		const effectWindow = page.locator('[data-effects-window-host="true"]');
-		if (await effectWindow.count()) {
-			const dialog = page.getByRole('dialog', { name: effect.name, exact: true });
-			await expect(dialog).toBeVisible();
-			await dialog.getByRole('button', { name: 'Close', exact: true }).click();
-			await expect(effectWindow).toHaveCount(0);
+async function runEffectPhase(page, editor, recording, effects) {
+	for (const effect of [effects].flat()) {
+		if (effect.kind === 'selection') {
+			await applySelectionEffect(page, editor, recording.clip, effect.effect);
+		} else {
+			const panel = await addTrackRackEffect(page, editor, recording.row, effect.name);
+			await expect(panel.locator('[data-effect-rack]').getByRole('group', {
+				name: effect.name,
+				exact: true,
+			})).toBeVisible();
+			const effectWindow = page.locator('[data-effects-window-host="true"]');
+			if (await effectWindow.count()) {
+				const dialog = page.getByRole('dialog', { name: effect.name, exact: true });
+				await expect(dialog).toBeVisible();
+				await dialog.getByRole('button', { name: 'Close', exact: true }).click();
+				await expect(effectWindow).toHaveCount(0);
+			}
 		}
+		await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved', {
+			timeout: 20_000,
+		});
 	}
-	await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved', {
-		timeout: 20_000,
-	});
 }
 
 async function expectClipCount(editor, count) {

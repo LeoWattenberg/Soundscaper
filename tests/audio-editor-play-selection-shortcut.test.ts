@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { audioEditorPrimaryShortcut } from '../src/common/editor/audacity-shortcut-bindings.ts';
+import { AUDIO_EDITOR_SHORTCUT_DEFAULTS_VERSION } from '../src/common/editor/shortcut-default-migration.ts';
 import {
 	createAudioEditorPreferencesV1,
 	findAudioEditorShortcutConflicts,
@@ -25,7 +26,7 @@ test('older preferences gain W when Play Selection and its key have no custom bi
 		delete saved.shortcuts[PLAY_SELECTION];
 		const loaded = loadAudioEditorPreferencesV1({ ...saved, shortcutDefaultsVersion }).preferences;
 		assert.deepEqual(loaded.shortcuts[PLAY_SELECTION], ['W'], `version ${String(shortcutDefaultsVersion)}`);
-		assert.equal(loaded.shortcutDefaultsVersion, 3);
+		assert.equal(loaded.shortcutDefaultsVersion, AUDIO_EDITOR_SHORTCUT_DEFAULTS_VERSION);
 	}
 });
 

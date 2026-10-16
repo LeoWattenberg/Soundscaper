@@ -130,7 +130,7 @@ test('the native plug-in hosting row describes the out-of-process host that ship
 	assert.ok(containment, 'consent, isolation and quarantine are controls that exist');
 	assert.match(
 		containment.summary,
-		/consent is per format.*nothing scans at startup.*main-owned directory picker.*raw roots and binary paths stay main-private/iu,
+		/consent is per format.*standard operating-system roots.*scanned automatically.*saved disabled settings and folder choices.*disabling scanning cancels.*main-owned directory picker.*raw roots and binary paths stay main-private/iu,
 	);
 	assert.match(
 		containment.summary,

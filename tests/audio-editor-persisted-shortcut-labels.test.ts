@@ -2,6 +2,7 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { createMenuActionFixture } from './helpers/application-menu-fixture.ts';
 import { findMenuItem } from './helpers/application-menu-fixture.ts';
 
 import { applyAudacityParityToMenus } from '../src/common/editor/audacity-action-parity.js';
@@ -100,11 +101,7 @@ function menuInput(
 		projectBinEffectivelyOpen: false,
 		uiFlags: {},
 		actionRuntime: null,
-		actions: new Proxy(actionOverrides, {
-			get: (target, property, receiver) => Reflect.has(target, property)
-				? Reflect.get(target, property, receiver)
-				: () => undefined,
-		}),
+		actions: createMenuActionFixture(actionOverrides),
 	};
 }
 

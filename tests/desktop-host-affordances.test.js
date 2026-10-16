@@ -59,7 +59,18 @@ test('host affordances retain their closed command and destination sets', async 
 	assert.match(electron.opened.at(-1), /soundscaper\.org\/privacy\/en\/$/u);
 	await handlers.get('external')(null, 'privacy-de');
 	assert.match(electron.opened.at(-1), /soundscaper\.org\/privacy\/de\/$/u);
+	for (const [destination, url] of [
+		['manual', 'https://soundscaper.org/docs/'],
+		['tutorials', 'https://soundscaper.org/docs/tutorials/your-first-project/'],
+		['manual-fr', 'https://soundscaper.org/docs/fr/'],
+		['tutorials-zh-cn', 'https://soundscaper.org/docs/zh-cn/tutorials/your-first-project/'],
+	]) {
+		await handlers.get('external')(null, destination);
+		assert.equal(electron.opened.at(-1), url);
+	}
 	await assert.rejects(() => handlers.get('external')(null, 'unknown'), /unsupported external destination/iu);
+	await assert.rejects(() => handlers.get('external')(null, 'manual-unknown'), /unsupported external destination/iu);
+	await assert.rejects(() => handlers.get('external')(null, 'https://soundscaper.org/docs/'), /unsupported external destination/iu);
 	const opened = electron.opened.length;
 	await assert.rejects(() => handlers.get('external')(null, 'constructor'), /unsupported external destination/iu);
 	assert.equal(electron.opened.length, opened);

@@ -36,7 +36,7 @@ test('Plot Spectrum resolves a windowed tone into the expected frequency bin', (
 	const spectrum = calculateAudioSpectrum([input], sampleRate, { size: 2_048 });
 	const peak = spectrum.bins.reduce((best, bin) => bin.amplitude > best.amplitude ? bin : best);
 	assert.equal(peak.frequency, 1_024);
-	assert.ok(peak.db > -7 && peak.db < -5);
+	assert.ok(Math.abs(peak.db) < 0.001, 'a full-scale sine reports 0 dB after Hann gain compensation');
 });
 
 test('zero-crossing selection uses the nearest linked-channel crossing and quietest fallback', () => {

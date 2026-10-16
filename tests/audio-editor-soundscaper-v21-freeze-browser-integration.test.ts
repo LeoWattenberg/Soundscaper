@@ -26,16 +26,7 @@ import { createSoundscaperProject, type SoundscaperProject } from '../src/sounds
 const NOW = '2026-08-14T12:00:00.000Z';
 
 test('browser freeze actions accept detached controller snapshots through render, refresh, unfreeze, and commit', async () => {
-	const store = new MemoryFreezeStore();
-	store.seed('pcm:voice', [Float32Array.from({ length: 8 }, (_, index) => index / 8)]);
-	const playback = createSoundscaperAudioTrackFreezePlaybackService(
-		createSoundscaperPlaybackProjectService(),
-		store,
-	);
-	const liveSourceSha256 = await playback.hashSourceContent('freeze-browser-project', createAudioSource({
-		id: 'voice-source', storageKey: 'pcm:voice', frameCount: 8, channelCount: 1,
-		sampleRate: 48_000, originalSampleRate: 48_000, sampleFormat: 'float32', chunkFrames: 65_536,
-	}));
+	const { store, playback, liveSourceSha256 } = await prepareVoiceFreeze();
 	let current = projectFixture(liveSourceSha256);
 	const renderCalls: Array<Readonly<{ project: Record<string, unknown>; options: EngineRenderMixOptions }>> = [];
 	const controller = {
@@ -74,9 +65,7 @@ test('browser freeze actions accept detached controller snapshots through render
 		{ gain: renderTrack.gain, pan: renderTrack.pan, mute: renderTrack.mute, solo: renderTrack.solo },
 		{ gain: 1, pan: 0, mute: false, solo: false },
 	);
-	// The capture is pre-master, so the render is sized by the track, not by the
-	// programme. Sizing it from masterChannels re-widthed the track on commit and left
-	// every channel map aimed at it reading channels the frozen source no longer had.
+	// Pre-master capture retains the track width and its existing channel maps.
 	assert.equal(current.masterChannels, 2);
 	assert.equal(renderCalls[0]!.project.masterChannels, 1);
 	assert.deepEqual(renderCalls[0]!.options, {
@@ -157,7 +146,13 @@ test('browser freeze actions accept detached controller snapshots through render
 		timelineStartFrame: committed.timelineStartFrame,
 		durationFrames: committed.durationFrames,
 		gain: committed.gain,
-	}, { sourceId: 'voice-freeze-3', timelineStartFrame: 12, durationFrames: 8, gain: 1 });
+	}, { sourceId: 'voice-freeze-3', timelineStartFrame: 12, durationFrames: 3_393, gain: 1 });
+	assert.equal(renderCalls[2]!.options.outputFrames, 3_393);
+	assert.equal(renderCalls[2]!.options.includeTail, 3_385 / 48_000);
+	const committedPcm = await store.readSourceChunk('voice-freeze-3', 0);
+	assert.equal(committedPcm.frames, 3_393);
+	assert.ok(Math.abs(committedPcm.channels[0]![8]!) > .01, 'the filter release is audible');
+	assert.ok(Math.abs(committedPcm.channels[0]!.at(-1)!) < .0001, 'the captured release settles');
 	assert.deepEqual(playback.projectForPlayback(current).requiredAudioSourceIds, []);
 	assert.doesNotMatch(JSON.stringify(current), /"(?:pcm|channelData|audioBuffer|chunks|bytes|blob|data)"/u);
 
@@ -166,20 +161,8 @@ test('browser freeze actions accept detached controller snapshots through render
 });
 
 test('an unrelated edit during a freeze does not discard the render', async () => {
-	// A freeze asks after every awaited step whether the document still says what
-	// it started against. Answering that by object identity discarded a freeze
-	// whenever any command published a new document — clicking the timeline to
-	// move the selection was enough to lose a long render.
-	const store = new MemoryFreezeStore();
-	store.seed('pcm:voice', [Float32Array.from({ length: 8 }, (_, index) => index / 8)]);
-	const playback = createSoundscaperAudioTrackFreezePlaybackService(
-		createSoundscaperPlaybackProjectService(),
-		store,
-	);
-	const liveSourceSha256 = await playback.hashSourceContent('freeze-browser-project', createAudioSource({
-		id: 'voice-source', storageKey: 'pcm:voice', frameCount: 8, channelCount: 1,
-		sampleRate: 48_000, originalSampleRate: 48_000, sampleFormat: 'float32', chunkFrames: 65_536,
-	}));
+	// A selection edit changes document identity without changing frozen material.
+	const { store, playback, liveSourceSha256 } = await prepareVoiceFreeze();
 	let current = projectFixture(liveSourceSha256);
 	const controller = {
 		get project() { return current; },
@@ -214,16 +197,7 @@ test('an unrelated edit during a freeze does not discard the render', async () =
 });
 
 test('an edit to the frozen material during a freeze still discards the render', async () => {
-	const store = new MemoryFreezeStore();
-	store.seed('pcm:voice', [Float32Array.from({ length: 8 }, (_, index) => index / 8)]);
-	const playback = createSoundscaperAudioTrackFreezePlaybackService(
-		createSoundscaperPlaybackProjectService(),
-		store,
-	);
-	const liveSourceSha256 = await playback.hashSourceContent('freeze-browser-project', createAudioSource({
-		id: 'voice-source', storageKey: 'pcm:voice', frameCount: 8, channelCount: 1,
-		sampleRate: 48_000, originalSampleRate: 48_000, sampleFormat: 'float32', chunkFrames: 65_536,
-	}));
+	const { store, playback, liveSourceSha256 } = await prepareVoiceFreeze();
 	let current = projectFixture(liveSourceSha256);
 	const controller = {
 		get project() { return current; },
@@ -258,16 +232,7 @@ test('an edit to the frozen material during a freeze still discards the render',
 });
 
 test('disposing freeze actions reports a failed cancellation rollback', async () => {
-	const store = new MemoryFreezeStore();
-	store.seed('pcm:voice', [Float32Array.from({ length: 8 }, (_, index) => index / 8)]);
-	const playback = createSoundscaperAudioTrackFreezePlaybackService(
-		createSoundscaperPlaybackProjectService(),
-		store,
-	);
-	const liveSourceSha256 = await playback.hashSourceContent('freeze-browser-project', createAudioSource({
-		id: 'voice-source', storageKey: 'pcm:voice', frameCount: 8, channelCount: 1,
-		sampleRate: 48_000, originalSampleRate: 48_000, sampleFormat: 'float32', chunkFrames: 65_536,
-	}));
+	const { store, playback, liveSourceSha256 } = await prepareVoiceFreeze();
 	let current = projectFixture(liveSourceSha256);
 	const controller = {
 		get project() { return current; },
@@ -312,15 +277,7 @@ test('disposing freeze actions reports a failed cancellation rollback', async ()
 });
 
 test('disposing during source metadata lookup stops before offline graph load', async () => {
-	const store = new MemoryFreezeStore();
-	store.seed('pcm:voice', [Float32Array.from({ length: 8 }, (_, index) => index / 8)]);
-	const playback = createSoundscaperAudioTrackFreezePlaybackService(
-		createSoundscaperPlaybackProjectService(), store,
-	);
-	const liveSourceSha256 = await playback.hashSourceContent('freeze-browser-project', createAudioSource({
-		id: 'voice-source', storageKey: 'pcm:voice', frameCount: 8, channelCount: 1,
-		sampleRate: 48_000, originalSampleRate: 48_000, sampleFormat: 'float32', chunkFrames: 65_536,
-	}));
+	const { store, playback, liveSourceSha256 } = await prepareVoiceFreeze();
 	let current = projectFixture(liveSourceSha256);
 	const controller = {
 		get project() { return current; },
@@ -359,6 +316,17 @@ test('disposing during source metadata lookup stops before offline graph load', 
 	playback.dispose();
 });
 
+async function prepareVoiceFreeze() {
+	const store = new MemoryFreezeStore();
+	store.seed('pcm:voice', [Float32Array.from({ length: 8 }, (_, index) => index / 8)]);
+	const playback = createSoundscaperAudioTrackFreezePlaybackService(createSoundscaperPlaybackProjectService(), store);
+	const liveSourceSha256 = await playback.hashSourceContent('freeze-browser-project', createAudioSource({
+		id: 'voice-source', storageKey: 'pcm:voice', frameCount: 8, channelCount: 1,
+		sampleRate: 48_000, originalSampleRate: 48_000, sampleFormat: 'float32', chunkFrames: 65_536,
+	}));
+	return { store, playback, liveSourceSha256 };
+}
+
 function projectFixture(contentSha256: string): SoundscaperProject {
 	const source = createAudioSource({
 		id: 'voice-source', storageKey: 'pcm:voice', contentSha256,
@@ -395,7 +363,22 @@ function fakeRenderEngine(
 			calls.push({ project, options });
 			onRender?.();
 			const frames = Number(options.outputFrames);
-			return { channels: [Float32Array.from({ length: frames }, (_, index) => (index + 1) / frames)] };
+			const output = Float32Array.from({ length: frames }, (_, index) => index < 8 ? (index + 1) / 8 : 0);
+			if (Number(options.includeTail) > 0) {
+				// The fixture's added default high-pass retains its charged history.
+				const angle = 2 * Math.PI * 80 / 48_000, cosine = Math.cos(angle);
+				const alpha = Math.sin(angle) / (2 * .707), a0 = 1 + alpha;
+				const b0 = (1 + cosine) / (2 * a0), b1 = -(1 + cosine) / a0;
+				const a1 = -2 * cosine / a0, a2 = (1 - alpha) / a0;
+				let x1 = 0, x2 = 0, y1 = 0, y2 = 0;
+				for (let frame = 0; frame < frames; frame++) {
+					const sample = output[frame]!;
+					const filtered = b0 * sample + b1 * x1 + b0 * x2 - a1 * y1 - a2 * y2;
+					x2 = x1; x1 = sample; y2 = y1; y1 = filtered;
+					output[frame] = filtered;
+				}
+			}
+			return { channels: [output] };
 		},
 		async dispose() { /* no-op */ },
 	};

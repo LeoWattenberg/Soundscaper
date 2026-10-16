@@ -39,16 +39,22 @@ export class NativePluginRealtimeProcessor extends ProcessorBase {
 		this.dry = [];
 		this.controlRequests = new Map();
 		this.frameCount = 0;
+		this.silentInput = [];
 		for (let id = 0; id < this.queueCapacity; id += 1) this.free.push({ id, input: null, output: null });
 		this.port.onmessage = (event) => this.#control(event?.data || {}, event?.ports || []);
 		this.port.start?.();
 	}
 
 	process(inputs, outputs) {
-		const input = inputs[0] || [];
+		let input = inputs[0] || [];
 		const output = outputs[0] || [];
 		const frames = output[0]?.length || input[0]?.length || 0;
 		if (!frames) return true;
+		// A disconnected live Web Audio input has no channels until a source connects.
+		if (!input.length && !this.strictRender && output.length === this.outputChannelCount) {
+			if (this.silentInput[0]?.length !== frames) this.silentInput = planes(this.inputChannelCount, frames);
+			input = this.silentInput;
+		}
 		if (this.renderFailed) {
 			for (const channel of output) channel.fill(0);
 			return true;

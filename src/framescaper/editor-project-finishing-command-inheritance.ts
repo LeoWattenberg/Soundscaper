@@ -3,6 +3,7 @@
 import {
 	reconcileFramescaperProjectFeatureRequirementsFinishing,
 	FRAMESCAPER_FINISHING_STATE_FIELDS,
+	restoreFramescaperProjectFinishingEnvelopes,
 } from './editor-project-feature-requirements-finishing.ts';
 import {
 	applyFramescaperProjectCommandVisual,
@@ -26,6 +27,9 @@ export function applyInheritedFramescaperProjectCommandFinishing(
 ): FramescaperProjectFinishing {
 	validateFramescaperProjectFinishing(profile, project);
 	const foundation = framescaperProjectVisualFoundationFinishing(profile, project);
+	const finishing = project as unknown as Readonly<Record<string, unknown>>;
+	// Compatible inherited strip commands must start from the accepted curves.
+	restoreFramescaperProjectFinishingEnvelopes(foundation, finishing);
 	const applied = applyFramescaperProjectCommandVisual(
 		FRAMESCAPER_VISUAL_PROJECT_CANDIDATE_PROFILE,
 		foundation,
@@ -33,7 +37,6 @@ export function applyInheritedFramescaperProjectCommandFinishing(
 		options,
 	) as unknown as Record<string, unknown>;
 	applied.schemaVersion =  1;
-	const finishing = project as unknown as Readonly<Record<string, unknown>>;
 	for (const field of FRAMESCAPER_FINISHING_STATE_FIELDS) {
 		applied[field] = structuredClone(finishing[field]);
 	}

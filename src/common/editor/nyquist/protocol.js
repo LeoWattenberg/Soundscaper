@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
-import { stripNyquistPluginHeader } from './plugin-parser.js';
+import { parseNyquistPluginHeader, stripNyquistPluginHeader } from './plugin-parser.js';
 import { NYQUIST_MAX_TOTAL_AUDIO_SAMPLES } from './audio-budget.ts';
 
 export { NYQUIST_MAX_TOTAL_AUDIO_SAMPLES };
@@ -75,6 +75,8 @@ export function buildNyquistEvaluationSource(value, options = {}) {
 	const request = options.normalized === true ? value : normalizeNyquistRequest(value || {});
 	const inputFrames = request.channels[0]?.length || 0;
 	const selectionEnd = inputFrames / request.sampleRate;
+	const plugin = /^\s*[$;]nyquist\s+plug-?in\s*$/im.test(request.source)
+		? parseNyquistPluginHeader(request.source) : null;
 	const lines = [
 		'(snd-set-latency 0.1)',
 		'(setf S 0.25)',
@@ -91,6 +93,9 @@ export function buildNyquistEvaluationSource(value, options = {}) {
 		`(putprop '*TRACK* ${request.channels.length} 'CHANNELS)`,
 		`(putprop '*TRACK* (float ${request.sampleRate}) 'RATE)`,
 	];
+	// Before version 4, process/analyze plug-ins read selected audio from S.
+	if (request.channels.length && plugin && [1, 2, 3].includes(plugin.version)
+		&& ['process', 'analyze'].includes(plugin.role)) lines.push('(setf S *TRACK*)');
 	for (const [hostObject, properties] of Object.entries(request.properties)) {
 		for (const [property, propertyValue] of Object.entries(properties)) {
 			lines.push(`(putprop '*${hostObject}* ${toLisp(propertyValue)} '${property})`);
@@ -106,9 +111,7 @@ export function buildNyquistEvaluationSource(value, options = {}) {
 	for (const [name, controlValue] of Object.entries(request.controls)) {
 		lines.push(`(setf ${name} ${toLisp(controlValue)})`);
 	}
-	const program = /^\s*[$;]nyquist\s+plug-?in\s*$/im.test(request.source)
-		? stripNyquistPluginHeader(request.source)
-		: request.source;
+	const program = plugin ? stripNyquistPluginHeader(request.source) : request.source;
 	if (request.language === 'lisp') {
 		lines.push(program);
 	} else {

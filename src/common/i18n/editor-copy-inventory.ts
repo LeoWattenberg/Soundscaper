@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { ENGLISH_COPY, GERMAN_COPY } from './catalogs.js';
+import { ARA_COPY_BY_LOCALE } from './editor-ara-copy.ts';
 import { acceptableTranslation } from './translation-catalog.js';
 import { MACRO_MANAGER_COPY_BY_LOCALE } from './editor-macro-manager-copy.ts';
 import { TRACK_AUTOMATION_COPY_BY_LOCALE } from './editor-track-automation-copy.ts';
@@ -34,6 +35,7 @@ import { EFFECTS_OVERLAY_COPY_BY_LOCALE } from './editor-effects-overlay-copy.ts
 import { SELECTED_VISUAL_AUTHORING_COPY, SELECTED_VISUAL_AUTHORING_SURFACE_COPY } from './editor-selected-visual-authoring-copy.ts';
 import { SOURCE_STATUS_COPY_BY_LOCALE } from './editor-source-status-copy.ts';
 import { FREESOUND_ATTRIBUTION_INVENTORY_COPY_BY_LOCALE } from './editor-freesound-attribution-inventory-copy.ts';
+import { AUDIOCOM_INVENTORY_COPY_BY_LOCALE } from './editor-audiocom-inventory-copy.ts';
 import { DESKTOP_MCP_COPY_BY_LOCALE } from './editor-desktop-mcp-copy.ts';
 import { NYQUIST_ARCHIVE_COPY_BY_LOCALE } from './editor-nyquist-archive-copy.ts';
 import { TEXT_TO_SPEECH_COPY_BY_LOCALE } from './editor-text-to-speech-copy.ts';
@@ -41,6 +43,8 @@ import { PARALLEL_STACK_COPY_BY_LOCALE } from './editor-parallel-stack-copy.ts';
 import { CLIP_SPREADSHEET_COPY_BY_LOCALE } from './editor-clip-spreadsheet-copy.ts';
 import { ABOUT_DIALOG_COPY_BY_LOCALE } from './editor-about-dialog-copy.ts';
 import { ORIGINAL_FILE_OVERWRITE_COPY_BY_LOCALE } from './editor-original-file-overwrite-copy.ts';
+import { BLENDER_COPY_BY_LOCALE } from './editor-blender-copy.ts';
+import { ID3_METADATA_COPY_BY_LOCALE } from './editor-id3-metadata-copy.ts';
 
 export interface EditorCopyOwner {
 	readonly owner: string;
@@ -115,7 +119,9 @@ const { pressure: pressureEnglish, preflightStatus: preflightEnglish, operation:
 const { pressure: pressureGerman, preflightStatus: preflightGerman, operation: operationGerman,
 	...storageGerman } = STORAGE_CAPACITY_COPY_BY_LOCALE.de;
 const inventory = buildEditorCopyInventory(ENGLISH_COPY, GERMAN_COPY, [
+	{ owner: 'ara', ...ARA_COPY_BY_LOCALE },
 	{ owner: 'originalFileOverwrite', ...ORIGINAL_FILE_OVERWRITE_COPY_BY_LOCALE },
+	{ owner: 'blender', ...BLENDER_COPY_BY_LOCALE },
 	{ owner: 'about', ...ABOUT_DIALOG_COPY_BY_LOCALE },
 	{ owner: 'macroManager', ...MACRO_MANAGER_COPY_BY_LOCALE },
 	{ owner: 'trackAutomation', ...TRACK_AUTOMATION_COPY_BY_LOCALE },
@@ -157,6 +163,8 @@ const inventory = buildEditorCopyInventory(ENGLISH_COPY, GERMAN_COPY, [
 	{ owner: 'nyquistArchive', ...NYQUIST_ARCHIVE_COPY_BY_LOCALE },
 	{ owner: 'sourceStatus', ...SOURCE_STATUS_COPY_BY_LOCALE },
 	{ owner: 'freesoundAttribution', ...FREESOUND_ATTRIBUTION_INVENTORY_COPY_BY_LOCALE },
+	{ owner: 'audiocom', ...AUDIOCOM_INVENTORY_COPY_BY_LOCALE },
+	{ owner: 'id3Metadata', ...ID3_METADATA_COPY_BY_LOCALE },
 	{ owner: 'selectedVisualAuthoring', en: SELECTED_VISUAL_AUTHORING_COPY },
 	...Object.entries(SELECTED_VISUAL_AUTHORING_SURFACE_COPY).map(([surface, en]) => ({
 		owner: `selectedVisualAuthoring.surfaces.${surface}`, en,

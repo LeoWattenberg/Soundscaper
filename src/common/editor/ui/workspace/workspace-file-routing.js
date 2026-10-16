@@ -7,7 +7,7 @@ import { ACCEPTED_PROJECT_FILE_EXTENSION_LIST, isProjectFileName } from '../../.
 export { isProjectFileName };
 
 export const WORKSPACE_PROJECT_FILE_ACCEPT = `${ACCEPTED_PROJECT_FILE_EXTENSION_LIST},.aup,.aup3,.aup4,.dawproject,application/vnd.soundscaper.scape+zip,application/x-audacity-project,application/vnd.audacity.aup4`;
-export const WORKSPACE_IMPORT_FILE_ACCEPT = 'audio/*,video/mp4,video/webm,.aac,.aif,.aiff,.bw64,.flac,.m4a,.m4v,.mp2,.mp3,.mp4,.oga,.ogg,.opus,.rf64,.wav,.wave,.wavpack,.webm,.wv,.cue,.txt,.srt,.vtt,application/x-cue,text/plain,text/vtt,application/x-subrip';
+export const WORKSPACE_IMPORT_FILE_ACCEPT = 'audio/*,video/mp4,video/webm,.aac,.aif,.aiff,.bw64,.bwf,.flac,.m4a,.m4v,.mp2,.mp3,.mp4,.oga,.ogg,.opus,.rf64,.wav,.wave,.wavpack,.webm,.wv,.cue,.txt,.srt,.vtt,application/x-cue,text/plain,text/vtt,application/x-subrip';
 export const WORKSPACE_OPEN_FILE_ACCEPT = `${WORKSPACE_PROJECT_FILE_ACCEPT},${WORKSPACE_IMPORT_FILE_ACCEPT}`;
 
 const LEGACY_AUDACITY_PROJECT_PATTERN = /\.(?:aup|aup3|aup4|dawproject)$/iu;

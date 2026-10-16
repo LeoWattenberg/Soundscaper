@@ -16,7 +16,7 @@ const DEFAULTS = Object.freeze({
 	nativeAudioHelperEnabled: false,
 	nativeAudioCalibrations: Object.freeze([]),
 	nativeAudioRoutePreference: null,
-	nativePluginDiscoveryEnabled: false,
+	nativePluginDiscoveryEnabled: true,
 	nativeMediaEnabled: false,
 	nativeHardwareDecodeEnabled: false,
 	nativeHardwareEncodeEnabled: false,
@@ -297,7 +297,8 @@ function validateSettings(value) {
 		nativeAudioHelperEnabled: value.nativeAudioHelperEnabled === true,
 		nativeAudioCalibrations: nativeAudioCalibrations(value.nativeAudioCalibrations),
 		nativeAudioRoutePreference: persistedNativeAudioRoutePreference(value.nativeAudioRoutePreference),
-		nativePluginDiscoveryEnabled: value.nativePluginDiscoveryEnabled === true,
+		nativePluginDiscoveryEnabled: typeof value.nativePluginDiscoveryEnabled === 'boolean'
+			? value.nativePluginDiscoveryEnabled : DEFAULTS.nativePluginDiscoveryEnabled,
 		nativeMediaEnabled: value.nativeMediaEnabled === true,
 		nativeHardwareDecodeEnabled: value.nativeHardwareDecodeEnabled === true,
 		nativeHardwareEncodeEnabled: value.nativeHardwareEncodeEnabled === true,

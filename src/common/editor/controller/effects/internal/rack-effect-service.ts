@@ -77,6 +77,13 @@ export function createRackEffectService(runtime: RackEffectServiceRuntime) {
 		throw new RangeError('Effect stack scope must be track, master, group, or send.');
 	}
 
+	function reusableNoiseProfile(profile: unknown): Record<string, unknown> | null {
+		const sampleRate = requireProject().sampleRate ?? engine.sampleRate ?? 48_000;
+		if (!profile || typeof profile !== 'object'
+			|| (profile as Readonly<{ sampleRate?: unknown }>).sampleRate !== sampleRate) return null;
+		return serializeAudacityNoiseProfile(profile);
+	}
+
 	function addEffect(request: AddRackEffectRequest = {}): string | null | undefined {
 		if (editingBlocked()) return undefined;
 		if (!request.type) throw createLocalizedError(TypeError, copy, 'effectTypeRequired');
@@ -109,8 +116,7 @@ export function createRackEffectService(runtime: RackEffectServiceRuntime) {
 		if (type === 'audacity-noise-reduction') {
 			effectOptions.context = {
 				...effectOptions.context,
-				noiseProfile: effectOptions.context?.noiseProfile
-					|| serializeAudacityNoiseProfile(state.audacityNoiseProfile),
+				noiseProfile: reusableNoiseProfile(effectOptions.context?.noiseProfile || state.audacityNoiseProfile),
 			};
 			if (!effectOptions.context.noiseProfile) effectOptions.enabled = false;
 		}

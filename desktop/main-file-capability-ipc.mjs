@@ -109,6 +109,7 @@ export function registerFileCapabilityIpc({
 		handle(channels.sesxReleaseSession, (event, id) => sesxMediaSessions.release(opaqueId(id, 64), { owner: ownerFor(event) }));
 	}
 	handle(channels.chooseSaveTarget, (event, value) => chooseSaveTarget(event, value));
+	handle(channels.releaseSaveTarget, (event, id) => saveTargets.release(opaqueId(id, 48), { owner: ownerFor(event) }));
 	if (originalFiles) {
 		handle(channels.prepareOriginalOverwrite, (event, id) => originalFiles.prepare(opaqueId(id, 48), { owner: ownerFor(event) }));
 		handle(channels.releaseOriginalFile, (event, id) => originalFiles.release(opaqueId(id, 48), { owner: ownerFor(event) }));

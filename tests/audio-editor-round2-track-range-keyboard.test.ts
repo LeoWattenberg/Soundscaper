@@ -23,8 +23,8 @@ test('row range extension preserves time bounds and contracts back to its origin
 	type Controller = Parameters<typeof extendTrackRowSelection>[0];
 	let selection = { startFrame: 120, endFrame: 480, trackIds: ['second'] as readonly string[] };
 	const controller: Controller = {
-		getSnapshot: () => ({ project: { tracks: ['first', 'second', 'third'].map(id => ({ id })), selection } }),
-		actions: { timeline: { setSelection: (startFrame, endFrame, details) => {
+		getSnapshot: () => ({ project: { tracks: ['first', 'second', 'third'].map(id => ({ id })), clips: [], selection } }),
+		actions: { timeline: { adjustSelection: (startFrame, endFrame, details) => {
 			selection = { startFrame, endFrame, trackIds: details.trackIds };
 			return selection;
 		} } },
@@ -42,9 +42,9 @@ test('an unselected row provides the first range anchor without extending to unr
 	type Controller = Parameters<typeof extendTrackRowSelection>[0];
 	let selected: unknown;
 	const controller: Controller = {
-		getSnapshot: () => ({ project: { tracks: ['first', 'second', 'third'].map(id => ({ id })), selection: null } }),
-		actions: { timeline: { setSelection: (...values) => { selected = values; } } },
+		getSnapshot: () => ({ project: { tracks: ['first', 'second', 'third'].map(id => ({ id })), clips: [], selection: null } }),
+		actions: { timeline: { adjustSelection: (...values) => { selected = values; } } },
 	};
 	extendTrackRowSelection(controller, 'second', 2);
-	assert.deepEqual(selected, [0, 0, { trackIds: ['second', 'third'] }]);
+	assert.deepEqual(selected, [0, 0, { trackIds: ['second', 'third'] }, { snap: false }]);
 });

@@ -61,9 +61,10 @@ for (const child of ['Effects', 'Track menu', 'Volume', 'Pan'] as const) {
 			await act(async () => { reactProps(dom.one('.audio-editor-track-controls')).onFocusCapture({ target: control }); });
 			assert.deepEqual(focused, ['last'], 'the owning focus capture still focuses the track');
 			if (child === 'Volume') {
-				await act(async () => { reactProps(control).onPointerDown({}); });
+				const pointer = { pointerId: 7, pointerType: 'mouse', button: 0, buttons: 1, isPrimary: true, preventDefault() {} };
+				await act(async () => { reactProps(control).onPointerDown(pointer); });
 				await act(async () => { reactProps(control).onChange({ target: { value: '60' } }); });
-				await act(async () => { reactProps(control).onPointerUp({}); });
+				await act(async () => { reactProps(control).onPointerUp({ ...pointer, buttons: 0 }); });
 			} else if (child === 'Pan') {
 				await act(async () => { reactProps(control).onKeyDown({ key: 'ArrowRight', preventDefault() {}, stopPropagation() {} }); });
 				await act(async () => { reactProps(control).onKeyUp({ key: 'ArrowRight' }); });

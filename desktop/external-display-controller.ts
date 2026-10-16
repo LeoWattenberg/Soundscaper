@@ -210,6 +210,11 @@ export class FramescaperExternalDisplayController {
 		}
 	}
 
+	/** Main-only identity; restarting the same display owns a different window. */
+	sessionIdentity(): object | null {
+		return this.#window && !this.#window.isDestroyed() ? this.#window : null;
+	}
+
 	snapshot(): FramescaperExternalDisplaySnapshot {
 		return Object.freeze({
 			active: this.#window !== null && !this.#window.isDestroyed(),

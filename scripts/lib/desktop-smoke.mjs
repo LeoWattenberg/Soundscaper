@@ -7,12 +7,13 @@ const SUPPORTED_ARCHITECTURES = new Set(['arm64', 'x64']);
 
 export const DESKTOP_SMOKE_EXPECTED_BRIDGE = Object.freeze([
 	'abortWrite',
-	'applyNativeTierControl',
+	'applyNativeTierControl', 'ara',
 	'awaitVideoSourceProbe',
 	'beginDesktopVideoCodecOperation',
 	'beginVideoSourceProbe',
 	'beginWrite',
 	'bindNativeAudioSession',
+	'blender',
 	'calibrateNativeAudioSession',
 	'cancelAssistanceModelInstall',
 	'cancelDesktopAudioCodecOperation',
@@ -59,6 +60,7 @@ export const DESKTOP_SMOKE_EXPECTED_BRIDGE = Object.freeze([
 	'nativeAudioHelperAvailability',
 	'nativeAudioSessionStatus',
 	'nativePluginAvailability',
+	'nativePluginScanProgress',
 	'nativeServices',
 	'onAssistanceInstallProgress',
 	'onCloseRequested',
@@ -66,6 +68,7 @@ export const DESKTOP_SMOKE_EXPECTED_BRIDGE = Object.freeze([
 	'onMenuCommand',
 	'onOpenProject',
 	'onWindowStateChanged',
+	'openAudiocomAuthorization', 'openAudiocomLink',
 	'openExternal',
 	'openFreesoundAuthorization',
 	'openNativeAudioSession',
@@ -86,6 +89,7 @@ export const DESKTOP_SMOKE_EXPECTED_BRIDGE = Object.freeze([
 	'releaseLinkedVideoOriginal',
 	'releaseOriginalFile',
 	'releaseRead',
+	'releaseSaveTarget',
 	'releaseSesxSession',
 	'relocateAssistanceModels',
 	'removeAssistanceModel',
@@ -143,8 +147,9 @@ export const SOUNDSCAPER_DESKTOP_SMOKE_EXPECTED_BRIDGE = Object.freeze(
 
 export const FRAMESCAPER_DESKTOP_SMOKE_EXPECTED_BRIDGE = Object.freeze([
 	...DESKTOP_SMOKE_EXPECTED_BRIDGE.filter((name) => ![
+		'blender',
 		'persistentDelivery', 'onMcpRequest', 'readMcpStatus', 'respondMcpRequest', 'startMcp', 'stopMcp',
-		'openFreesoundAuthorization',
+		'openFreesoundAuthorization', 'openAudiocomAuthorization', 'openAudiocomLink',
 	].includes(name)),
 	'projectLibrary',
 ].sort());

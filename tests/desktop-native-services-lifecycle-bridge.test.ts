@@ -127,6 +127,7 @@ test('the pathless lifecycle bridge owns roots, watch reconciliation, cleanup, p
 	let reconciliations = 0;
 	let hintRefreshes = 0;
 	let displayId: string | null = null;
+	let displaySession: object | null = null;
 	let storedCheckpoint: unknown = null;
 	const removedRenderInputs: string[] = [];
 	const abandonedRenderInputs: string[] = [];
@@ -194,8 +195,9 @@ test('the pathless lifecycle bridge owns roots, watch reconciliation, cleanup, p
 				bounds: { x: 1920, y: 0, width: 1920, height: 1080 },
 			}],
 			activeDisplayId: () => displayId,
-			open: async (selected) => { displayId = selected.displayId; },
-			stop: () => { displayId = null; },
+			sessionIdentity: () => displaySession,
+			open: async (selected) => { displayId = selected.displayId; displaySession = {}; },
+			stop: () => { displayId = null; displaySession = null; },
 			present: () => undefined,
 		},
 	});

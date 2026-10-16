@@ -19,7 +19,7 @@ for (const input of ['keyboard', 'pointer']) test(`a grouped loop trim shares th
 	await expect(editor.locator('.clip-display[data-selected="true"]')).toHaveCount(2);
 	if (input === 'keyboard') {
 		await first.focus();
-		await first.press('Control+Shift+ArrowLeft');
+		await first.press('[');
 	} else {
 		const handle = await first.getByRole('button', { name: 'Trim right edge', exact: true }).boundingBox();
 		const display = await first.locator('.clip-display').boundingBox();

@@ -2,6 +2,7 @@
 
 import { SCAPE_MIME_TYPE } from '../../../../scape-project-format.ts'; import { setLocalizedStatus } from '../../../../../i18n/presentation-message.ts';
 import type { ProjectFileExtension } from '../../../../../project-file-extensions.ts';
+import type { ScapeArchiveByteSource } from '../../../../scape-archive-byte-source.ts';
 import { recordScapeArchiveManifest } from '../scape/scape-archive-manifest-action.ts';
 import type {
 	NativePreparedSave,
@@ -115,6 +116,8 @@ export interface NativeRetainedScapeArchive {
 	readonly projectId: string;
 	readonly archive: Blob;
 	readonly manifest: NativeScapeManifest;
+	readonly cleanup?: () => Promise<void>;
+	readonly copySource?: ScapeArchiveByteSource;
 }
 
 /** Orchestrate the unchanged-copy save of a retained future-schema archive. */
@@ -139,6 +142,7 @@ export async function saveNativeScapeArchiveCopy(
 	request.assertReady();
 	const { saved } = await publishNativeScapeArchiveCopy(runtime, {
 		archive: request.retained.archive,
+		copySource: request.retained.copySource,
 		assertReadyToCommit: request.assertReady,
 		fileName, prepared, signal: request.signal,
 	});
@@ -152,6 +156,7 @@ export async function publishNativeScapeArchiveCopy(
 	'copyFutureScapeArchive' | 'fileService' | 'publishDocumentSnapshot' | 'scapeMimeType' | 'state'>,
 	request: Readonly<{
 		archive: Blob;
+		copySource?: ScapeArchiveByteSource;
 		assertReadyToCommit(): void;
 		fileName: string;
 		prepared: Exclude<NativePreparedSave, { readonly mode: 'cancelled' }>;
@@ -173,7 +178,7 @@ export async function publishNativeScapeArchiveCopy(
 			let copied;
 			try {
 				copied = await runtime.copyFutureScapeArchive(
-					request.archive,
+					request.copySource ?? request.archive,
 					(bytes) => writer.write(bytes),
 					{ signal: request.signal },
 				);
@@ -207,7 +212,7 @@ export async function publishNativeScapeArchiveCopy(
 	}
 	let validatedBytes = 0;
 	const copied = await runtime.copyFutureScapeArchive(
-		request.archive,
+		request.copySource ?? request.archive,
 		(bytes) => { validatedBytes += bytes.byteLength; },
 		{ signal: request.signal },
 	);

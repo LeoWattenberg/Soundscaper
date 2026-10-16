@@ -16,6 +16,7 @@ export function createMicrophoneMeterService(
 	let targetKey: string | null = null;
 	let routedLoudnessMeter: RoutedInputLoudnessMeter | null = null;
 	let routedLoudnessMeterKey: string | null = null;
+	let inputChannels: readonly Readonly<{ peak: number; rms: number }>[] = [];
 
 	return Object.freeze({
 		getSession: () => session,
@@ -244,15 +245,31 @@ export function createMicrophoneMeterService(
 					|| (!state.microphoneMetering && !state.recorder && !state.recordingStarting)
 					|| state.disposed) return;
 				let peak = 0;
+				let squaredRms = 0;
+				const channels: Array<Readonly<{ peak: number; rms: number }>> = [];
 				for (let index = 0; index < analysers.length; index += 1) {
 					const analyser = analysers[index];
 					const sampleBuffer = samples[index];
 					if (!analyser || !sampleBuffer) continue;
 					analyser.getFloatTimeDomainData(sampleBuffer);
-					for (const sample of sampleBuffer) peak = Math.max(peak, Math.abs(sample));
+					let channelPeak = 0;
+					let squaredSamples = 0;
+					for (const sample of sampleBuffer) {
+						channelPeak = Math.max(channelPeak, Math.abs(sample));
+						squaredSamples += sample * sample;
+					}
+					channelPeak *= state.recordingInputGain;
+					const rms = Math.sqrt(squaredSamples / sampleBuffer.length) * state.recordingInputGain;
+					channels.push({ peak: channelPeak, rms });
+					peak = Math.max(peak, channelPeak);
+					squaredRms += rms * rms;
 				}
-				peak *= state.recordingInputGain;
+				inputChannels = channels;
 				state.inputMeterDb = peak > 0 ? Math.max(-60, 20 * Math.log10(peak)) : -60;
+				const aggregate = nextSession.loudnessMeter && state.inputMeter && typeof state.inputMeter === 'object'
+					? state.inputMeter
+					: { peak, rms: Math.sqrt(squaredRms / channels.length), dbfs: state.inputMeterDb };
+				state.inputMeter = { ...aggregate, channels: inputChannels };
 				dependencies.publishTelemetrySnapshot();
 			};
 			nextSession.interval = dependencies.scheduleInterval(update, 50);
@@ -274,6 +291,7 @@ export function createMicrophoneMeterService(
 	): void {
 		const stoppedSession = session;
 		session = null;
+		inputChannels = [];
 		targetKey = null;
 		if (stoppedSession?.interval != null) dependencies.clearInterval(stoppedSession.interval);
 		for (const remove of stoppedSession?.endedListeners || []) remove();
@@ -410,7 +428,9 @@ export function createMicrophoneMeterService(
 
 	function publishLoudnessReading(reading: unknown): void {
 		if (!session?.loudnessMeter) return;
-		state.inputMeter = reading;
+		state.inputMeter = reading && typeof reading === 'object' && inputChannels.length
+			? { ...reading, channels: inputChannels }
+			: reading;
 		const dbfs = reading && typeof reading === 'object'
 			? Number((reading as Readonly<{ dbfs?: unknown }>).dbfs)
 			: Number.NaN;

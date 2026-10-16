@@ -1,5 +1,9 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import { clipSourceDisplayRange } from '../../clip-source-timing.ts';
+import type { ClipSourceTimingProject } from '../../clip-source-timing.ts';
+import { clipSourceStretchMemory } from '../../clip-source-stretch-memory.ts';
+import { evaluateAudioWarpMapAtSource } from '../../audio-warp-domain.ts';
+import { subtractRationals } from '../../timeline-time.ts';
 import { readClipLoop, withoutClipLoop } from '../../audio-clip-loop.ts';
 import type { ClipLoopCarrier } from '../../audio-clip-loop.ts';
 import type { AudioWarpRuntimeClip } from '../../audio-warp-runtime.ts';
@@ -23,13 +27,19 @@ export function clipSourceSegments<T extends Clip>(clip: T, source: Source, samp
 }
 
 /** Source handles never author the clip's project placement. */
-export function clipSourceTrim(clip: Clip, source: Source, _sampleRate: number, edge: 'start' | 'end', sourceFrame: number) {
+export function clipSourceTrim(clip: Clip, source: Source, _sampleRate: number, edge: 'start' | 'end', sourceFrame: number, project?: ClipSourceTimingProject) {
 	const oldEnd = clip.sourceStartFrame + clip.sourceDurationFrames;
 	const start = edge === 'start' ? Math.max(0, Math.min(oldEnd - 1, Math.round(sourceFrame))) : clip.sourceStartFrame;
 	const end = edge === 'end' ? Math.max(start + 1, Math.min(source.frameCount, Math.round(sourceFrame))) : oldEnd;
 	const sourceDurationFrames = end - start;
 	const extent = readClipLoop(clip)?.periodFrames ?? clip.durationFrames;
-	return { sourceStartFrame: start, sourceDurationFrames, durationFrames: Math.max(1, Math.round(extent * sourceDurationFrames / clip.sourceDurationFrames)) };
+	let duration = extent * sourceDurationFrames / clip.sourceDurationFrames;
+	if (clip.warpMap != null && project) {
+		const map = clipSourceStretchMemory(project, clip, source)!;
+		const retained = subtractRationals(evaluateAudioWarpMapAtSource(map, end), evaluateAudioWarpMapAtSource(map, start));
+		duration = retained.num / retained.den;
+	}
+	return { sourceStartFrame: start, sourceDurationFrames, durationFrames: Math.max(1, Math.round(duration)) };
 }
 
 export function sourceRulerTicks({ startFrame, endFrame, width, sampleRate, originFrame }: {

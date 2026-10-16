@@ -1,8 +1,10 @@
 import React, { useRef, useEffect } from 'react';
 import { useTheme } from '../ThemeProvider';
+import { ContextMenuActionFocus } from '../ContextMenuItem/context-menu-action-focus';
 import './ContextMenu.css';
 
 export interface ContextMenuProps {
+  id?: string;
   /**
    * Whether the menu is open
    */
@@ -49,6 +51,7 @@ export interface ContextMenuProps {
  * Handles click-outside-to-close and positioning
  */
 export const ContextMenu: React.FC<ContextMenuProps> = ({
+  id,
   isOpen,
   onClose,
   x,
@@ -84,7 +87,9 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
 
     // Find first focusable menu item
     const menu = menuRef.current;
-    const firstItem = menu.querySelector('[role="menuitem"], [role="menuitemradio"]') as HTMLElement;
+    const firstItem = Array.from(menu.querySelectorAll<HTMLElement>('[role="menuitem"], [role="menuitemradio"]'))
+      .find(item => item.parentNode === menu && item.getAttribute('aria-disabled') !== 'true'
+        && !item.hasAttribute('disabled'));
     if (firstItem) {
       const focusedElement = document.activeElement;
       // Use setTimeout to ensure menu is rendered and positioned
@@ -125,6 +130,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
     if (!isOpen) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey) return;
       if (!menuRef.current) return;
 
       // Only select direct children menu items, not nested submenu items
@@ -259,8 +265,17 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
 
   if (!isOpen) return null;
 
+  const prepareKeyboardAction = () => {
+    const trigger = triggerElementRef.current;
+    if (trigger?.isConnected && menuRef.current?.contains(document.activeElement)) {
+      triggerElementRef.current = null;
+      trigger.focus();
+    }
+  };
+
   return (
     <div
+      id={id}
       ref={menuRef}
       className={`context-menu ${className}`}
       role="menu"
@@ -272,7 +287,9 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
         ...style,
       }}
     >
-      {children}
+      <ContextMenuActionFocus.Provider value={prepareKeyboardAction}>
+        {children}
+      </ContextMenuActionFocus.Provider>
     </div>
   );
 };

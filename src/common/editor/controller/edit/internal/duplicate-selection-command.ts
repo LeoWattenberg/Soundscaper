@@ -56,6 +56,10 @@ export interface DuplicateSelectionRuntime {
 		request: Readonly<ControllerTrackDuplicateRequest>,
 	) => Readonly<ControllerTrackDuplicateCarrier>;
 	readonly prepareDuplicateCommand?: (descriptor: AudioEditorClipboard, command: AudioEditorCommand) => AudioEditorCommand;
+	readonly preserveTrackRouting?: (
+		command: Extract<AudioEditorCommand, { type: 'batch' }>,
+		copies: readonly Readonly<{ sourceTrackId: string; targetTrackId: string }>[],
+	) => Extract<AudioEditorCommand, { type: 'batch' }>;
 }
 
 export interface DuplicateSelectionPlan {
@@ -91,13 +95,16 @@ export function prepareDuplicateSelectionCommand(
 			targetTrackId: trackId,
 			effectIds: (track.effects ?? []).map((effect, index) => ({ sourceId: effect.id, targetId: effects[index]!.id })),
 		};
-		if (track.laneGroupId && !laneGroups.has(track.laneGroupId)) laneGroups.set(track.laneGroupId, runtime.createStableId('lane-group'));
+		const laneGroupId = track.laneGroupId && project.tracks
+			.filter(candidate => candidate.laneGroupId === track.laneGroupId)
+			.every(candidate => requested.has(candidate.id)) ? track.laneGroupId : null;
+		if (laneGroupId && !laneGroups.has(laneGroupId)) laneGroups.set(laneGroupId, runtime.createStableId('lane-group'));
 		const labels = track.type === 'label' ? duplicateLabels(runtime, track.labels ?? [], range) : undefined;
 		commands.push({
 			...createAddTrackCommand({
-				...structuredClone(track), id: trackId,
+				...structuredClone(track), id: trackId, locked: false,
 				...(track.type === 'label' ? { labels } : { armed: false, effects, clipIds: [] }),
-				laneGroupId: track.laneGroupId ? laneGroups.get(track.laneGroupId) : null,
+				laneGroupId: laneGroupId ? laneGroups.get(laneGroupId) : null,
 			}),
 			...duplicatePlacement(project, track.id),
 			...(track.type === 'audio' ? {
@@ -115,6 +122,9 @@ export function prepareDuplicateSelectionCommand(
 	const trackIds = [...sourceTracks.map((track) => track.id), ...sourceTracks.map((track) => trackMap[track.id]!)];
 	commands.push(paste);
 	const prepared = runtime.prepareDuplicateCommand?.(clipboard, { type: 'batch', commands }) ?? { type: 'batch' as const, commands };
+	const batch = prepared.type === 'batch' ? prepared : { type: 'batch' as const, commands: [prepared] };
+	const routed = runtime.preserveTrackRouting?.(batch, sourceTracks.filter(track => track.type === 'audio')
+		.map(track => ({ sourceTrackId: track.id, targetTrackId: trackMap[track.id]! }))) ?? batch;
 	const selection: AudioEditorCommand = {
 		type: 'selection/set',
 		startFrame: range.exactClips ? 0 : range.startFrame,
@@ -123,7 +133,9 @@ export function prepareDuplicateSelectionCommand(
 		clipIds: range.exactClips ? [...range.clipIds ?? [], ...clipIds] : [],
 		frequencyRange: range.frequencyRange ?? null,
 	};
-	return { command: { type: 'batch', commands: [...(prepared.type === 'batch' ? prepared.commands : [prepared]), selection] },
+	const locks: AudioEditorCommand[] = sourceTracks.filter(track => track.locked === true)
+		.map(track => ({ type: 'track/update', trackId: trackMap[track.id]!, changes: { locked: true } }));
+	return { command: { type: 'batch', commands: [...routed.commands, ...locks, selection] },
 		selectTrackId: trackMap[sourceTracks[0]!.id]!, selectClipId: range.exactClips ? clipIds[0] ?? null : null };
 }
 

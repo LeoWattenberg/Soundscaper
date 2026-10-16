@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { installParallelStackPlayback } from '../src/common/editor/controller/transport/internal/parallel-stack-registration.ts';
 import { prepareParallelStackPlayback, type ParallelStackPlaybackRequest } from '../src/common/editor/engine/parallel-stack-playback.ts';
-import { readParallelStackStatus, writeParallelStackPreferences, type ParallelStackPreferences } from '../src/common/editor/engine/parallel-stack-preferences.ts';
+import { readParallelStackPreferences, readParallelStackStatus, writeParallelStackPreferences, type ParallelStackPreferences } from '../src/common/editor/engine/parallel-stack-preferences.ts';
 import type { ProjectGraph } from '../src/common/editor/engine/project-graph.ts';
 
 const request: ParallelStackPlaybackRequest = {
@@ -25,6 +25,46 @@ test('disabled preferences and unavailable isolation never prepare a DSP worker'
 	enabled = true;
 	assert.equal(await prepareParallelStackPlayback(engine, request), null);
 	assert.equal(readParallelStackStatus(engine).state, 'unsupported');
+});
+
+test('shared audio workers require isolation, shared memory, workers and worklets in either host', async () => {
+	const preferences = readParallelStackPreferences();
+	const capabilities = {
+		crossOriginIsolated: true,
+		SharedArrayBuffer: globalThis.SharedArrayBuffer,
+		Worker: function Worker() {},
+		AudioWorkletNode: function AudioWorkletNode() {},
+	};
+	const prior = new Map(Object.keys(capabilities)
+		.map((key) => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
+	const engine = {};
+	const variableSpeed = { ...request, playbackRate: 2 };
+	try {
+		writeParallelStackPreferences({ ...preferences, enabled: true });
+		installParallelStackPlayback(engine);
+		for (const unavailable of Object.keys(capabilities)) {
+			for (const [key, value] of Object.entries(capabilities)) {
+				Object.defineProperty(globalThis, key, {
+					configurable: true, value: key === unavailable ? undefined : value,
+				});
+			}
+			assert.equal(await prepareParallelStackPlayback(engine, variableSpeed), null);
+			assert.equal(readParallelStackStatus(engine).reason,
+				'Shared-memory audio workers are unavailable in this session.');
+		}
+		for (const [key, value] of Object.entries(capabilities)) {
+			Object.defineProperty(globalThis, key, { configurable: true, value });
+		}
+		assert.equal(await prepareParallelStackPlayback(engine, variableSpeed), null);
+		assert.match(readParallelStackStatus(engine).reason ?? '', /normal-speed playback/u);
+	} finally {
+		for (const key of Object.keys(capabilities)) {
+			const descriptor = prior.get(key);
+			if (descriptor) Object.defineProperty(globalThis, key, descriptor);
+			else Reflect.deleteProperty(globalThis, key);
+		}
+		writeParallelStackPreferences(preferences);
+	}
 });
 
 test('one failed generation falls back on next Play and changing configuration permits a retry', async () => {

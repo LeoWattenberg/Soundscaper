@@ -58,7 +58,8 @@ export function resolveVideoDisplayGeometry(
 			const expectedHeight = codedHeight * aspectDen;
 			const orientedWidth = rotationApplied ? expectedHeight : expectedWidth;
 			const orientedHeight = rotationApplied ? expectedWidth : expectedHeight;
-			if (orientedWidth * height !== orientedHeight * width) continue;
+			if (orientedWidth * height !== orientedHeight * width
+				&& (!aspectApplied || !matchesRoundedAspect(orientedWidth, orientedHeight, width, height))) continue;
 			const residualRotation = rotationApplied || !quarterTurn ? 0 : Number(rotation);
 			const stretch = aspectApplied || !anamorphic ? IDENTITY_SCALE : aspectNum / aspectDen;
 			// The pixel aspect ratio stretches the coded width. A decoder that has
@@ -81,6 +82,14 @@ export function resolveVideoDisplayGeometry(
 		}
 	}
 	return unreconciled('disagreed', width, height);
+}
+
+function matchesRoundedAspect(expectedWidth: number, expectedHeight: number, width: number, height: number): boolean {
+	// Intrinsic browser dimensions are whole pixels even when a declared sample
+	// aspect ratio gives a fractional width or height. Keep the exact source
+	// ratio and reconcile only the nearest integer the decoder can present.
+	return Math.round(expectedWidth * height / expectedHeight) === width
+		|| Math.round(expectedHeight * width / expectedWidth) === height;
 }
 
 /** The size a persisted source presents before any surface has decoded it. */

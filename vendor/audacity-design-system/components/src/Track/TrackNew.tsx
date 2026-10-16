@@ -688,7 +688,7 @@ const TrackNewComponent: React.FC<TrackProps> = ({
             }
 
             // Open context menu with Shift+F10 or ContextMenu key (standard keyboard shortcuts)
-            if ((e.shiftKey && e.key === 'F10') || e.key === 'ContextMenu') {
+            if (!e.defaultPrevented && !e.altKey && !e.ctrlKey && !e.metaKey && ((e.shiftKey && e.key === 'F10') || e.key === 'ContextMenu')) {
               e.preventDefault();
               e.stopPropagation();
               // Calculate position of clip header for menu placement

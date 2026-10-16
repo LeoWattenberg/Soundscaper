@@ -35,6 +35,7 @@ import {
 import { abortError, throwIfAborted } from '../shared/app-helpers.ts';
 import { deferredEffectRuntime } from './deferred-effect-runtime.ts';
 import { createEffectAudioService } from './internal/effect-audio-service.ts';
+import { createDeferredAraClipEditingRuntime } from './internal/deferred-ara-clip-editing.ts';
 import { createEffectControlsService } from './effect-controls-service.ts';
 import { createSelectionEffectExecutionService } from './internal/effect-execution-service.ts';
 import { createSourceControlTrackRenderer } from './internal/source-control-track-renderer.ts';
@@ -122,6 +123,7 @@ export function createEffectsComposition(dependencies: EffectsCompositionDepende
 			return store.loadSourceAudioBuffer(source.storageKey || source.id, context);
 		},
 	});
+	state.readSourceSelectionFrames = () => sourceEditor.target()?.durationFrames ?? null;
 
 	const worker = dependencies.composition.selectionEffectWorkers
 		? createBoundedSelectionEffectWorkerService({
@@ -267,6 +269,8 @@ export function createEffectsComposition(dependencies: EffectsCompositionDepende
 			activeSelection: dependencies.activeSelection,
 			audacityEffectTarget: (...args) => selection.audacityEffectTarget(...args),
 			persistAudacityEffectResult,
+			audacityEffectTargets: () => selection.audacityEffectTargets(),
+			persistAudacityEffectResults: result.persistAudacityEffectResults,
 			matchAudacitySelectionChannels,
 			assertAudioOutput: assertAudacityEffectOutput,
 			projectSampleRate: dependencies.projectSampleRate,
@@ -323,6 +327,7 @@ export function createEffectsComposition(dependencies: EffectsCompositionDepende
 			cloneProject: dependencies.projectRuntime.cloneProject,
 			renderSnapshot: dependencies.renderSnapshot,
 			renderStagedSnapshot: createMacroStagedRenderer(dependencies.renderSnapshot),
+			renderControlTrackRange: createSourceControlTrackRenderer(dependencies.getCommandProject, audio.renderDryTrackRange),
 			renderDryTrackRange: (...args) => audio.renderDryTrackRange(...args),
 			// The worker answers an apply request with channels; a reply without them is a failed effect.
 			runSelectionEffectWorker: async (request) => {
@@ -348,6 +353,7 @@ export function createEffectsComposition(dependencies: EffectsCompositionDepende
 		: createAbsentEffectMacroService(absentSubsystem);
 	const execution = dependencies.composition.effects
 		? createSelectionEffectExecutionService({
+		cancelSelectionWorkers: () => worker.cancelWorkers(),
 			beginResultTransaction: dependencies.beginResultTransaction,
 			pauseSourcePreview: dependencies.pauseSourcePreview, batchPresentation: dependencies.batchPresentation,
 			AUDACITY_EFFECT_PEAK_MEMORY_LIMIT_BYTES,
@@ -414,6 +420,15 @@ export function createEffectsComposition(dependencies: EffectsCompositionDepende
 	/** The long-running effect operations, reported through task progress. */
 	const processing = (label: string | undefined) => label || copy.audacityProcessing;
 	return Object.freeze({
+		araClipEditing: createDeferredAraClipEditingRuntime({
+			lifetime: dependencies.lifetime, projectGeneration: dependencies.projectGeneration,
+			getProject: dependencies.getProject, getCommandProject: dependencies.getCommandProject,
+			getSelectedClipId: () => state.selectedClipId, editingBlocked: dependencies.editingBlocked,
+			renderClip: (trackId, startFrame, endFrame, channelCount, clipIds, signal) => audio.renderDryTrackRange(trackId, startFrame, endFrame, channelCount, clipIds, signal),
+			preflightStorage: dependencies.preflightStorage, createId: createStableId,
+			activateSource: dependencies.activateAraSource, releaseSource: dependencies.releaseAraSource,
+			store, commit: dependencies.commit,
+		}),
 		sourceEditor,
 		selection,
 		controls,

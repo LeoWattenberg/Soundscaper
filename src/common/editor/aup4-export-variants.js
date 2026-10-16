@@ -10,6 +10,7 @@ import { scaleSampleFrame } from './timeline-time.ts';
 import { applyMaterialTransform, normalizeInputChannels } from './aup4-export-material.js';
 import { exportError, positiveRate, scaleBoundary } from './aup4-export-values.js';
 import { materializeAup4Loop } from './aup4-clip-loop-material.ts';
+import { renderAup4WarpMaterial } from './aup4-warp-material.ts';
 
 function assertExportPlan(plan) {
 	if (!plan?.project || !Array.isArray(plan.sources)) throw exportError('An Audacity-project export plan is required.', 'INVALID_SNAPSHOT');
@@ -34,7 +35,11 @@ export function normalizeAup4ExportSource(plan, sourceAudio) {
 		const playbackInputRate = sourceRate * playbackRate;
 		const outputFrameCount = playbackRate === 1 ? undefined
 			: Math.max(1, scaleBoundary(mappedChannels[0].length, variant.targetRate / playbackInputRate));
-		const convertedChannels = playbackInputRate === variant.targetRate
+		const warp = variant.transform?.warp;
+		const warped = warp ? renderAup4WarpMaterial(mappedChannels, warp, sourceRate) : null;
+		const convertedChannels = warped ? warp.project.sampleRate === variant.targetRate ? warped
+			: resampleChannels(warped, warp.project.sampleRate, variant.targetRate, variant.source.frameCount)
+			: playbackInputRate === variant.targetRate
 			? mappedChannels.map((channel) => channel.slice())
 			: resampleChannels(mappedChannels, playbackInputRate, variant.targetRate, outputFrameCount);
 		const periodChannels = applyMaterialTransform(

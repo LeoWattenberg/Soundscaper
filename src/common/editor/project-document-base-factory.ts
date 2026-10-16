@@ -15,6 +15,7 @@ import {
 } from './project-audio-factory.js';
 import { normalizeProjectBextMetadata } from './project-bext-metadata.ts';
 import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from './project-schema-version.ts';
+import { recordingNotesValue } from './recording-notes.ts';
 import { createStableId } from './stable-id.js';
 
 type DataRecord = Record<string, unknown>;
@@ -99,6 +100,7 @@ function createMetadata(value: unknown, projectTitle: string): DataRecord & { ad
 		trackNumber: String(input.trackNumber ?? ''),
 		year: String(input.year ?? ''),
 		comments: String(input.comments ?? ''),
+		...(Object.hasOwn(input, 'recordingNotes') ? { recordingNotes: recordingNotesValue(input.recordingNotes) } : {}),
 		tags: normalizedTags,
 		bext: input.bext == null ? null : normalizeProjectBextMetadata(input.bext),
 		...(input.ixml == null ? {} : { ixml: normalizeIxmlMetadata(input.ixml) }),

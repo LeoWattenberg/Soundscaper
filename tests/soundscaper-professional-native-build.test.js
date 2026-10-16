@@ -103,6 +103,7 @@ async function sourceRoots(context, withdrawn = 'juce', embeddedVst3Version = '3
 		juce: join(root, 'juce'), clap: join(root, 'clap'),
 		'vst3-sdk': join(root, 'vst3-sdk'),
 		'vamp-plugin-sdk': join(root, 'vamp-plugin-sdk'),
+		'ara-api': join(root, 'ara-api'), 'ara-library': join(root, 'ara-library'),
 		'ladspa-sdk': join(root, 'ladspa-sdk'),
 		'asio-sdk': join(root, 'asio-sdk'), lv2: join(root, 'lv2'),
 	};
@@ -114,6 +115,9 @@ async function sourceRoots(context, withdrawn = 'juce', embeddedVst3Version = '3
 		join(roots.juce, JUCE_VST3_VERSION_HEADER),
 		join(roots.clap, 'include/clap/clap.h'),
 		join(roots['vst3-sdk'], 'README.md'),
+		join(roots['ara-api'], 'ARAInterface.h'),
+		join(roots['ara-api'], 'ARA_Version.cmake'),
+		join(roots['ara-library'], 'Dispatch/ARAHostDispatch.h'),
 		join(roots['vamp-plugin-sdk'], 'vamp/vamp.h'),
 		join(roots['vamp-plugin-sdk'], 'vamp-hostsdk/PluginHostAdapter.h'),
 		join(roots['ladspa-sdk'], 'src/ladspa.h'),
@@ -188,6 +192,12 @@ test('professional build plans bind exact SDK pins and never treat the VST3 meta
 	assert.match(linux.configure.argv.join(' '), /SOUNDSCAPER_LV2_ROOT/u);
 	assert.match(linux.configure.argv.join(' '), /SOUNDSCAPER_LADSPA_ROOT/u);
 	assert.match(linux.configure.argv.join(' '), /SOUNDSCAPER_VAMP_ROOT/u);
+	assert(linux.configure.argv.includes(`-DSOUNDSCAPER_ARA_SDK_ROOT=${linux.sourceSnapshotRoot}`));
+	assert.equal(linux.sourceAuthentication.find(({ id }) => id === 'ara-api').extractedTree.root,
+		join(linux.sourceSnapshotRoot, 'ARA_API'));
+	assert.equal(linux.sourceAuthentication.find(({ id }) => id === 'ara-library').extractedTree.root,
+		join(linux.sourceSnapshotRoot, 'ARA_Library'));
+	assert.deepEqual(linux.features.araCompanionFormats, ['vst3']);
 	assert.deepEqual(linux.configure.argv.slice(4, 6), ['-G', 'Ninja']);
 	assert.match(linux.configure.argv.join(' '), /SOUNDSCAPER_NODE_API_INCLUDE=.*electron-node-api-headers/u);
 	assert.equal(linux.configure.argv.some((argument) => Object.values(roots).some((root) => argument.includes(root))), false,
@@ -249,6 +259,27 @@ test('professional build plans bind exact SDK pins and never treat the VST3 meta
 	}, {
 		run: () => ({ status: 0, stderr: '', stdout: '' }),
 	}), /authenticated build plan/u);
+});
+
+test('professional CTest failures retain the failing test name from stdout beside stderr', async (context) => {
+	const { archives, manifestPath, roots } = await sourceRoots(context);
+	const plan = createSoundscaperProfessionalNativeBuildPlan({
+		repositoryRoot: ROOT, target: 'linux-x64', sourceRoots: roots, sourceArchives: archives,
+		sourceManifestPath: manifestPath,
+		sourceSnapshotRoot: await createSnapshotParent(roots.juce, 'snapshots-ctest-diagnostics'),
+		buildRoot: join(roots.juce, '..', 'build-ctest-diagnostics'),
+	});
+	assert.throws(() => executeSoundscaperProfessionalNativeBuild(plan, {
+		run: (command) => command === 'ctest'
+			? { status: 8, signal: null, stderr: 'Errors while running CTest',
+				stdout: 'The following tests FAILED:\n  3 - soundscaper_vamp_analyzer_self_test (Failed)\n' }
+			: { status: 0, stderr: '', stdout: '' },
+	}), (error) => {
+		assert.match(error.message, /soundscaper_vamp_analyzer_self_test/u);
+		assert.match(error.message, /Errors while running CTest/u);
+		assert.match(error.message, /status=8/u);
+		return true;
+	});
 });
 
 test('professional build refuses a JUCE embedded VST3 API other than exact 3.8.0', async (context) => {

@@ -281,6 +281,9 @@ export interface SoundscaperNativeServicesBridge extends
 		format: string; action: NativePluginConsentAction; rootId?: string;
 	}>): Promise<unknown>;
 	scanNativePlugins(request: Readonly<{ format: string; rootId: string }>): Promise<NativePluginScanOutcome>;
+	nativePluginScanProgress?(): Promise<Readonly<{
+		enabled: boolean; scanProgress?: Readonly<{ format: string; progress: number | null }> | null;
+	}>>;
 	listNativePlugins(): Promise<NativePluginRegistryView>;
 	clearNativePluginQuarantine?(request: Readonly<{
 		digest: string; clearance: NativePluginQuarantineClearance;

@@ -157,7 +157,7 @@ export default function AudioEditorSearch({
 
 	useEffect(() => {
 		const openFromShortcut = (event) => {
-			if (isWorkspaceModalShortcutTarget(event.target)) return;
+			if (event.isComposing || event.keyCode === 229 || isWorkspaceModalShortcutTarget(event.target)) return;
 			const commandFind = matchesAudioEditorShortcutBinding(event, 'Ctrl+K');
 			if (!commandFind) return;
 			event.preventDefault();
@@ -197,7 +197,8 @@ export default function AudioEditorSearch({
 
 	const onInputKeyDown = (event) => {
 		if (event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229) return;
-		if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+		if ((event.key === 'ArrowDown' || event.key === 'ArrowUp')
+			&& !event.shiftKey && !event.ctrlKey && !event.metaKey && !event.altKey) {
 			event.preventDefault();
 			event.stopPropagation();
 			moveActive(event.key === 'ArrowDown' ? 1 : -1);

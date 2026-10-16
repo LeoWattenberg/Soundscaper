@@ -70,6 +70,7 @@ const DELIVERY_QUEUE_COPY_ENTRIES = Object.freeze([
 	// separately and keeps the vocabulary above.
 	['exportOutputStems', 'Individual stems (split by tracks)', 'Einzelspuren (nach Spuren getrennt)'],
 	['exportOutputClips', 'Individual clips (split by clips)', 'Einzelne Clips (nach Clips getrennt)'],
+	['exportOutputClipsFrozen', 'Unfreeze audio tracks before exporting individual clips.', 'Hebe das Einfrieren der Audiospuren auf, bevor du einzelne Clips exportierst.'],
 	['exportOutputChapters', 'Chapters (split by labels)', 'Kapitel (nach Beschriftungen getrennt)'],
 	['exportOutputMarkerChapters', 'Chapters (split by markers)', 'Kapitel (nach Markern getrennt)'],
 	['exportOutputLoop', 'In/Out (looping region)', 'In/Out (Loop-Bereich)'],

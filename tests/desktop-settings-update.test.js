@@ -50,6 +50,7 @@ test('failed native probe and effect-discovery persistence leave in-memory autho
 	const filePath = join(root, 'state', 'settings.json');
 	const settings = new DesktopSettingsStore(filePath);
 	await settings.load(['en-US']);
+	await settings.setNativePluginDiscoveryEnabled(false);
 
 	await rm(join(root, 'state'), { recursive: true });
 	await writeFile(join(root, 'state'), 'blocks the settings directory');
@@ -57,6 +58,17 @@ test('failed native probe and effect-discovery persistence leave in-memory autho
 	await assert.rejects(() => settings.setNativePluginDiscoveryEnabled(true));
 	assert.equal(settings.snapshot().nativeProbeHelperEnabled, false);
 	assert.equal(settings.snapshot().nativePluginDiscoveryEnabled, false);
+});
+
+test('plugin discovery defaults on for new installations and preserves a saved opt-out', async (context) => {
+	const root = await mkdtemp(join(tmpdir(), 'soundscaper-settings-plugin-startup-'));
+	context.after(() => rm(root, { recursive: true, force: true }));
+	const filePath = join(root, 'settings.json');
+	const settings = new DesktopSettingsStore(filePath);
+	assert.equal((await settings.load(['en'])).nativePluginDiscoveryEnabled, true);
+	await settings.setNativePluginDiscoveryEnabled(false);
+	const reopened = new DesktopSettingsStore(filePath);
+	assert.equal((await reopened.load(['en'])).nativePluginDiscoveryEnabled, false);
 });
 
 test('Framescaper native media, hardware, and OFX authorities default off and persist independently', async (context) => {

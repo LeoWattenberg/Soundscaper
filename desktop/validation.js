@@ -16,7 +16,7 @@ const PROJECT_EXTENSIONS = Object.freeze(
 );
 const NATIVE_PROJECT_EXTENSION = PROJECT_FILE_EXTENSION.slice(1);
 const MEDIA_IMPORT_EXTENSIONS = Object.freeze([
-	'aac', 'aif', 'aiff', 'bw64', 'cue', 'flac', 'm4a', 'm4v', 'mp2', 'mp3', 'mp4',
+	'aac', 'aif', 'aifc', 'aiff', 'bw64', 'bwf', 'cue', 'flac', 'm4a', 'm4v', 'mp2', 'mp3', 'mp4',
 	'oga', 'ogg', 'opus', 'rf64', 'srt', 'txt', 'vtt', 'wav', 'wave', 'wavpack', 'webm', 'wv',
 ]);
 const PROJECT_OPEN_EXTENSIONS = Object.freeze([
@@ -33,8 +33,8 @@ const FILE_PURPOSES = Object.freeze({
 		}]),
 	}),
 	audio: Object.freeze({
-		extensions: Object.freeze(['aac', 'aif', 'aiff', 'bw64', 'flac', 'm4a', 'mp2', 'mp3', 'oga', 'ogg', 'opus', 'rf64', 'wav', 'wave', 'wavpack', 'webm', 'wv']),
-		filters: Object.freeze([{ name: 'Audio', extensions: ['aac', 'aif', 'aiff', 'bw64', 'flac', 'm4a', 'mp2', 'mp3', 'oga', 'ogg', 'opus', 'rf64', 'wav', 'wave', 'wavpack', 'webm', 'wv'] }]),
+		extensions: Object.freeze(['aac', 'aif', 'aifc', 'aiff', 'bw64', 'bwf', 'flac', 'm4a', 'mp2', 'mp3', 'oga', 'ogg', 'opus', 'rf64', 'wav', 'wave', 'wavpack', 'webm', 'wv']),
+		filters: Object.freeze([{ name: 'Audio', extensions: ['aac', 'aif', 'aifc', 'aiff', 'bw64', 'bwf', 'flac', 'm4a', 'mp2', 'mp3', 'oga', 'ogg', 'opus', 'rf64', 'wav', 'wave', 'wavpack', 'webm', 'wv'] }]),
 	}),
 	video: Object.freeze({
 		extensions: Object.freeze(['m4v', 'mp4', 'webm']),
@@ -44,9 +44,13 @@ const FILE_PURPOSES = Object.freeze({
 		extensions: MEDIA_IMPORT_EXTENSIONS,
 		filters: Object.freeze([{ name: 'Audio, video, CUE sheets, and labels', extensions: [...MEDIA_IMPORT_EXTENSIONS] }]),
 	}),
+	image: Object.freeze({
+		extensions: Object.freeze(['jpg', 'jpeg', 'png', 'apng', 'gif', 'webp', 'bmp']),
+		filters: Object.freeze([{ name: 'Images', extensions: ['jpg', 'jpeg', 'png', 'apng', 'gif', 'webp', 'bmp'] }]),
+	}),
 	labels: Object.freeze({
-		extensions: Object.freeze(['srt', 'txt', 'vtt']),
-		filters: Object.freeze([{ name: 'Labels and captions', extensions: ['srt', 'txt', 'vtt'] }]),
+		extensions: Object.freeze(['srt', 'txt', 'vtt', 'webvtt', 'ttml', 'imsc', 'xml']),
+		filters: Object.freeze([{ name: 'Labels and captions', extensions: ['srt', 'txt', 'vtt', 'webvtt', 'ttml', 'imsc', 'xml'] }]),
 	}),
 	lut: Object.freeze({
 		extensions: Object.freeze(['cube']),
@@ -116,15 +120,22 @@ const MIME_TYPES = Object.freeze({
 	'.7z': 'application/x-7z-compressed',
 	'.aac': 'audio/aac',
 	'.aif': 'audio/aiff',
+	'.aifc': 'audio/aiff',
 	'.aiff': 'audio/aiff',
+	'.apng': 'image/png',
 	'.aup3': 'application/x-audacity-project',
 	'.aup4': 'application/vnd.audacity.aup4',
 	'.bw64': 'audio/bw64',
+	'.bwf': 'audio/wav',
+	'.bmp': 'image/bmp',
 	'.cue': 'application/x-cue',
 	'.csv': 'text/csv',
 	'.edl': 'text/plain',
 	'.fcpxml': 'application/xml',
 	'.flac': 'audio/flac',
+	'.gif': 'image/gif',
+	'.jpeg': 'image/jpeg',
+	'.jpg': 'image/jpeg',
 	'.m4a': 'audio/mp4',
 	'.m4v': 'video/mp4',
 	'.mp2': 'audio/mpeg',
@@ -133,6 +144,7 @@ const MIME_TYPES = Object.freeze({
 	'.oga': 'audio/ogg',
 	'.ogg': 'audio/ogg',
 	'.opus': 'audio/ogg; codecs=opus',
+	'.png': 'image/png',
 	'.otio': 'application/json',
 	'.rf64': 'audio/rf64',
 	'.sesx': 'application/xml',
@@ -143,6 +155,7 @@ const MIME_TYPES = Object.freeze({
 	'.wave': 'audio/wav',
 	'.wavpack': 'audio/wavpack',
 	'.webm': 'video/webm',
+	'.webp': 'image/webp',
 	'.wv': 'audio/x-wavpack',
 });
 
@@ -254,9 +267,19 @@ export function mimeTypeForPath(filePath) {
 }
 
 function sanitizeSuggestedName(value, fallback) {
-	const candidate = String(value || '').trim().replace(/[\u0000-\u001f<>:"/\\|?*]/gu, '-');
-	const trimmed = candidate.replace(/[. ]+$/u, '').slice(0, 180);
-	return trimmed && trimmed !== '.' && trimmed !== '..' ? trimmed : fallback;
+	const candidate = String(value || '').trim().replace(/[\u0000-\u001f<>:"/\\|?*]/gu, '-').replace(/[. ]+$/u, '');
+	if (!candidate || candidate === '.' || candidate === '..') return fallback;
+	const suppliedExtension = extname(candidate);
+	const extension = suppliedExtension || extname(fallback);
+	const stem = suppliedExtension ? candidate.slice(0, -suppliedExtension.length) : candidate;
+	let prefix = '';
+	for (const character of stem) {
+		const next = `${prefix}${character}${extension}`;
+		if (next.length > 180 || Buffer.byteLength(next, 'utf8') > 255) break;
+		prefix += character;
+	}
+	const trimmed = prefix.replace(/[. ]+$/u, '');
+	return trimmed ? `${trimmed}${extension}` : fallback;
 }
 
 function ensureExtension(name, extension) {

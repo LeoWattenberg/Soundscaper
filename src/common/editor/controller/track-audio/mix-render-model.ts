@@ -190,24 +190,25 @@ export function mixRenderTailFrames(
 	targetTracks: readonly ControllerTrack[],
 	snapshot: ControllerProject,
 	sampleRate: number,
-	rackTailFrames: (effects: readonly ControllerEffect[], sampleRate: number, maximumSeconds: number) => number,
+	rackTailFrames: (effects: readonly ControllerEffect[], sampleRate: number, maximumSeconds: number, automationLanes?: readonly unknown[]) => number,
 	options: Readonly<{ readonly includeBuses?: boolean; readonly renderEffects?: boolean }> = {},
 ): number {
 	if (options.renderEffects === false) return 0;
+	const lanes: readonly unknown[] = Array.isArray(snapshot.automationLanes) ? snapshot.automationLanes : [];
 	if ((options.includeBuses ?? targetTracks.length > 1) && isSoundscaperProductionProject(snapshot)) {
 		const tail = projectEffectTailFramesV21({ ...snapshot, tracks: targetTracks }, {
-			trackId: null, includeMaster: false, maximum: sampleRate * 10,
+			trackId: null, includeMaster: false, respectMuteSolo: false, maximum: sampleRate * 10,
 			rackTail: owner => owner?.effectsActive === false ? 0
-				: rackTailFrames((owner?.effects ?? []) as readonly ControllerEffect[], sampleRate, 10),
+				: rackTailFrames((owner?.effects ?? []) as readonly ControllerEffect[], sampleRate, 10, lanes),
 		});
 		if (tail !== null) return tail;
 	}
 	const trackTail = Math.max(0, ...targetTracks.map((track) => (
-		track.effectsActive === false ? 0 : rackTailFrames(track.effects || [], sampleRate, 10)
+		track.effectsActive === false ? 0 : rackTailFrames(track.effects || [], sampleRate, 10, lanes)
 	)));
 	const busTail = (options.includeBuses ?? targetTracks.length > 1)
 		? Math.max(0, ...mixerStrips(snapshot)
-			.map((bus) => bus.effectsActive === false ? 0 : rackTailFrames(bus.effects || [], sampleRate, 10)))
+			.map((bus) => bus.effectsActive === false ? 0 : rackTailFrames(bus.effects || [], sampleRate, 10, lanes)))
 		: 0;
 	return Math.min(sampleRate * 10, trackTail + busTail);
 }

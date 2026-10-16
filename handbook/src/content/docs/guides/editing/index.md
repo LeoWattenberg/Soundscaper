@@ -36,6 +36,10 @@ Cut, split, copy, move and mark up material on the timeline.
 - [Insert a copied passage without overwriting](/guides/editing/insert-a-copied-passage/) — Paste audio at the cursor and move the later audio on that track to make room.
 - [Align track starts together](/guides/editing/align-track-starts-together/) — Move recordings on separate tracks so their content starts at the same time.
 - [Move clips as a group](/guides/editing/move-clips-as-a-group/) — Group clips on separate tracks so dragging one keeps their timing together.
+- [Lift a passage onto its own track](/guides/editing/lift-a-passage-to-a-new-track/) — Move a selected passage to a new track while keeping the surrounding audio in place.
+- [Split a take into clips at silent pauses](/guides/editing/split-clips-at-silent-pauses/) — Separate phrases at silent pauses without shifting them along the timeline.
+- [Ungroup clips without joining them](/guides/editing/ungroup-linked-clips/) — Separate grouped clips again while keeping their clip boundaries.
+- [Align a track start to the playhead](/guides/editing/align-a-track-to-the-playhead/) — Place a recording’s start at the current cursor position with an alignment command.
 
 ## Other categories
 

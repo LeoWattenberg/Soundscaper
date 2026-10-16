@@ -1,0 +1,56 @@
+name: Verified Playwright Firefox
+description: Reuse the pinned engine bytes while installing fresh host dependencies.
+inputs:
+  scope:
+    description: Runner image identity.
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: Install fresh Firefox host dependencies
+      shell: bash
+      run: npx playwright install-deps firefox
+    - name: Resolve pinned Firefox identity and engine path
+      id: identity
+      shell: bash
+      env:
+        CI_INPUT_CACHE_SCOPE: ${{ inputs.scope }}
+      run: node scripts/ci-input-cache.mjs key firefox >> "$GITHUB_OUTPUT"
+    - name: Restore the exact pinned engine tree
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: |
+          .wrangler/ci-input-cache/firefox
+          .wrangler/ci-input-cache/firefox-receipt.json
+        key: verified-firefox-v1-${{ steps.identity.outputs.key }}-${{ github.run_id }}-${{ github.run_attempt }}
+        restore-keys: verified-firefox-v1-${{ steps.identity.outputs.key }}-
+    - name: Verify every restored engine file
+      id: verification
+      shell: bash
+      env:
+        CI_INPUT_CACHE_SCOPE: ${{ inputs.scope }}
+      run: node scripts/ci-input-cache.mjs verify firefox >> "$GITHUB_OUTPUT"
+    - name: Clear a missing or damaged engine tree
+      if: steps.verification.outputs.valid != 'true'
+      shell: bash
+      env:
+        CI_INPUT_CACHE_SCOPE: ${{ inputs.scope }}
+      run: node scripts/ci-input-cache.mjs reset firefox
+    - name: Install fresh pinned engine bytes
+      if: steps.verification.outputs.valid != 'true'
+      shell: bash
+      run: npx playwright install firefox
+    - name: Record fresh engine bytes
+      if: steps.verification.outputs.valid != 'true'
+      shell: bash
+      env:
+        CI_INPUT_CACHE_SCOPE: ${{ inputs.scope }}
+      run: node scripts/ci-input-cache.mjs record firefox
+    - name: Save the fresh verified engine before browser tests
+      if: steps.verification.outputs.valid != 'true'
+      uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: |
+          .wrangler/ci-input-cache/firefox
+          .wrangler/ci-input-cache/firefox-receipt.json
+        key: verified-firefox-v1-${{ steps.identity.outputs.key }}-${{ github.run_id }}-${{ github.run_attempt }}

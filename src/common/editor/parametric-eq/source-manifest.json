@@ -27,9 +27,10 @@
 		{ "path": "vendor/signalsmith/vicanek_reference.h", "sha256": "cb3f88e036b3f3b9c28559129741323dc2d22de4d59784f4bd74e9d213e65601", "origin": "signalsmith-extracted" }
 	],
 	"localExtensions": [
-		{ "path": "authorities.js", "sha256": "041dd133668bb56d47c45cfc0d08dc5817992afaf44503178135ca385b1b14bd" },
+		{ "path": "../first-party-effects/parametric-eq/coefficients.ts", "sha256": "7c212715997d87ad91ac459a1d5de549a7b61d348d3e1e62b719a26a1296169b" },
+		{ "path": "authorities.js", "sha256": "8b30bf0ddc1faca311d96caeb976857aecfeeed80089568a98eeb81a23d002f4" },
 		{ "path": "core.js", "sha256": "0e6f327aea626407ec2604d56c70a442ade28e75b7ad317b4588a7328d68cde4" },
-		{ "path": "design.js", "sha256": "9e2803a0ddd8d718b58289255fee42d82731b746ac95645c7aca63772ca26335" },
+		{ "path": "design.js", "sha256": "73f2193e4743d8ed9e64b7064a6a57c0ba44ae4887a244f89617729e69b49972" },
 		{ "path": "destructive.js", "sha256": "88be5e6f79069b0306b8909f80d2fdefe14acabf8cb4b6c1dc2f8d99fc1f3a9f" },
 		{ "path": "index.js", "sha256": "8d44aa574ede0cfe21e47348de3fb01236714bfe083fc998f202aa4354ea9e5f" },
 		{ "path": "parameters.js", "sha256": "bc67b327acb5f696ff0c37cca8301e83fe26c16ecb507d7dcf78f0d38ddb7327" },

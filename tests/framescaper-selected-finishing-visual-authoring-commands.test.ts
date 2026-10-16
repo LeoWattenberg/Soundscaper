@@ -29,7 +29,8 @@ const VIDEO_SOURCE = createVideoSource({
 	frameRate: { num: 30, den: 1 }, width: 640, height: 360,
 }) as unknown as Data;
 const GENERATOR_SOURCE: Data = {
-	kind: 'generator', id: 'generator-source', name: 'Bars', generator: { kind: 'bars', level: 0.5 },
+	schemaVersion: 1, kind: 'generator', id: 'generator-source', name: 'Bars', width: 640, height: 360,
+	frameRate: { num: 30, den: 1 }, frameCount: 10, generator: { kind: 'solid', color: '#808080ff' },
 };
 const PNG_BLOB = new Blob([new Uint8Array([137, 80, 78, 71])], { type: 'image/png' });
 
@@ -250,7 +251,7 @@ test('every dissolve refusal names the selected state that blocked it', async ()
 		[dissolveRequest(pair, { pairId: 'video-track:clip-1:clip-9' }), pair, /dissolve pair is stale/u],
 		[dissolveRequest(dissolved), dissolved, /dissolve already has that duration/u],
 		[dissolveRequest(ambiguous), ambiguous, /ambiguous linked audio/u],
-		[dissolveRequest(locked), locked, /requires one unlocked track owner/u],
+		[dissolveRequest(locked), locked, /selected dissolve pair is stale/u],
 	]);
 });
 
@@ -351,7 +352,7 @@ test('applying a first adjustment adds a colour effect and the layer that owns i
 });
 
 test('applying onto an existing adjustment updates only its brightness parameter', async () => {
-	const source = project({ videoAdjustmentLayers: [{ id: 'adjust-1', effectIds: ['effect-1'] }] });
+	const source = project({ clips: [videoClip('clip-1', 0, 10, { videoEffects: [{ id: 'effect-1', type: 'color-adjust' }] })], videoAdjustmentLayers: [{ id: 'adjust-1', effectIds: ['effect-1'] }] });
 	const request = adjustRequest(source, { adjustmentLayerId: 'adjust-1', brightness: -0.25 });
 	assert.deepEqual(await command('video-adjustment-layer', request, source), {
 		type: 'video-effect/update', clipId: 'clip-1', effectId: 'effect-1',
@@ -360,7 +361,7 @@ test('applying onto an existing adjustment updates only its brightness parameter
 });
 
 test('removing an adjustment deletes the layer and the one effect it owns', async () => {
-	const source = project({ videoAdjustmentLayers: [{ id: 'adjust-1', effectIds: ['effect-1'] }] });
+	const source = project({ clips: [videoClip('clip-1', 0, 10, { videoEffects: [{ id: 'effect-1', type: 'color-adjust' }] })], videoAdjustmentLayers: [{ id: 'adjust-1', effectIds: ['effect-1'] }] });
 	const request = adjustRequest(source, { operation: 'remove', adjustmentLayerId: 'adjust-1' });
 	const authored = steps(await command('video-adjustment-layer', request, source));
 	assert.equal(authored[0]?.type, 'video-adjustment-layer/set');
@@ -451,8 +452,7 @@ test('saving a visual preset stores a donor source, a bin clip and the digest-bo
 
 test('applying a generator preset copies the donor generator onto the selected source', async () => {
 	const donor: Data = {
-		kind: 'generator', id: 'donor-source', name: 'Bars Model',
-		generator: { kind: 'bars', level: 0.9 },
+		...GENERATOR_SOURCE, id: 'donor-source', name: 'Bars Model', generator: { kind: 'solid', color: '#ffffffff' },
 	};
 	const source = generatorProject({
 		sources: [GENERATOR_SOURCE, donor],
@@ -463,7 +463,7 @@ test('applying a generator preset copies the donor generator onto the selected s
 	assert.equal(authored.type, 'video-visual-source/set');
 	assert.equal(authored.sourceId, 'generator-source');
 	assert.equal((authored.expectedSource as Data).id, 'generator-source');
-	assert.deepEqual((authored.source as Data).generator, { kind: 'bars', level: 0.9 });
+	assert.deepEqual((authored.source as Data).generator, { kind: 'solid', color: '#ffffffff' });
 	assert.equal((authored.source as Data).name, 'Bars', 'only the generator state is donated');
 });
 
@@ -492,7 +492,7 @@ test('every freeze refusal names the selected state that blocked it', async () =
 		[freezeRequest(video, { fence: fence(video, 'clip-1', 16_000), playheadSample: 16_000 }), video,
 			/playhead is outside the selected video/u],
 		[freezeRequest(video), video, /Exact freeze capture is unavailable/u],
-		[freezeRequest(generated), generated, /selected video source is unavailable/u],
+		[freezeRequest(generated), generated, /Exact freeze capture is unavailable/u],
 	]);
 });
 

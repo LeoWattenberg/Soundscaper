@@ -4,6 +4,7 @@ import type { ControllerOptions } from '../common/editor/controller/composition/
 import { EditorDisposedError } from '../common/editor/controller/shared/lifecycle.ts';
 import { createAudioEditorController } from '../common/editor/app.js';
 import { importSoundscaperAudacityProject } from './editor-audacity-project-import.ts';
+import type { DawprojectImportRoutingContext } from '../common/editor/dawproject-import-structure.ts';
 import {
 	embedSoundscaperNativePluginStatesInAup4,
 	recoverSoundscaperNativePluginStatesFromAup4,
@@ -93,8 +94,8 @@ export function createSoundscaperAudioEditorController(
 		projectRuntime: environment.runtime,
 		playbackProjectService: environment.playback,
 		createProjectIfAbsent: (project, publicationOptions) => environment.createProjectIfAbsent(project, { ...publicationOptions, confirmFileSizeWarning: publicationOptions?.confirmFileSizeWarning ?? presentation.confirmFileSizeWarning }),
-		adaptAudacityProject: async (value: unknown) => recoverSoundscaperNativePluginStatesFromAup4(
-			importSoundscaperAudacityProject(value),
+		adaptAudacityProject: async (value: unknown, context?: DawprojectImportRoutingContext) => recoverSoundscaperNativePluginStatesFromAup4(
+			importSoundscaperAudacityProject(value, context),
 			nativePluginStateStore,
 		),
 		prepareProjectSnapshot: (purpose: NativePluginStateQuiescencePurpose) => quiesce(purpose),

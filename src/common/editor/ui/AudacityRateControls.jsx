@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { useState } from 'react';
+import { useContext, useState } from 'react';
+import { TimeCodeMusicalContext } from '../../../../vendor/audacity-design-system/components/src/TimeCode/time-code-musical-context.ts';
 import { canonicalCopyValue } from '../../i18n/canonical-extras.js';
 import ParameterNumber from './inspector/EffectParameterNumber.jsx';
 import { LabeledDropdown } from './inspector/inspector-controls.jsx';
@@ -14,15 +15,21 @@ const VINYL_OPTIONS = [{ value: 'n/a', label: 'n/a' }, ...VINYL_RATES.map(value 
 /** Audacity's alternate rate and duration fields express the same supported
  * percent parameter; their edits keep the ordinary automation commit path. */
 export default function AudacityRateControls({ effectType, parameters, effectContext = {}, renderParameter, copy,
-	disabled = false, parameterRange = [-50, 100], sampleRate = undefined }) {
+	disabled = false, parameterRange = [-50, 100], sampleRate = /** @type {number | undefined} */ (undefined) }) {
 	const tempo = effectType === 'audacity-change-tempo';
 	const name = tempo ? 'tempoPercent' : 'speedPercent';
 	const control = renderParameter(name);
 	const percent = Number(parameters[name]) || 0;
 	const multiplier = 1 + percent / 100;
 	const [fromBpm, setFromBpm] = useState(0);
+	const fromBpmRange = fromBpm ? [
+		Math.max(1, fromBpm * multiplier / (1 + parameterRange[1] / 100)),
+		Math.min(1_000, fromBpm * multiplier / (1 + parameterRange[0] / 100)),
+	] : [1, 1_000];
 	const [fromRpm, setFromRpm] = useState(100 / 3);
 	const sourceDuration = Number(effectContext.selectionDuration);
+	const projectMap = useContext(TimeCodeMusicalContext);
+	const durationMap = effectContext.selectionDurationMap ?? projectMap;
 	const label = key => canonicalCopyValue(key, copy);
 	const commit = next => {
 		const value = Number(Math.min(100, Math.max(-50, next)).toFixed(3));
@@ -50,7 +57,7 @@ export default function AudacityRateControls({ effectType, parameters, effectCon
 		{tempo ? <section className="audio-editor-audacity-port__section audio-editor-audacity-port__section--boxed">
 			<h3 className="audio-editor-audacity-port__heading">{label('effectAudacityBeatsPerMinute')}</h3>
 			<div className="audio-editor-audacity-pitch__pair">
-				{number('effectAudacityFromBpm', fromBpm || '', [1, 1_000], next => {
+				{number('effectAudacityFromBpm', fromBpm || '', fromBpmRange, next => {
 					setFromBpm(next);
 					if (fromBpm) void commit((fromBpm * multiplier / next - 1) * 100);
 				})}
@@ -75,13 +82,15 @@ export default function AudacityRateControls({ effectType, parameters, effectCon
 					}} />
 			</div>
 		</section>}
-		{sourceDuration > 0 && Number.isFinite(sourceDuration) && <section className="audio-editor-audacity-port__section audio-editor-audacity-port__section--boxed">
-			<h3 className="audio-editor-audacity-port__heading">{label('effectAudacitySelectionLength')}</h3>
-			<div className="audio-editor-audacity-pitch__pair">
-				{number('effectAudacityCurrentLength', sourceDuration, [0, sourceDuration], () => undefined, 's', true)}
-				{number('effectAudacityNewLength', Number((sourceDuration / multiplier).toFixed(3)),
-					[sourceDuration / 2, sourceDuration * 2], next => commit((sourceDuration / next - 1) * 100), 's')}
-			</div>
-		</section>}
+		{sourceDuration > 0 && Number.isFinite(sourceDuration) && <TimeCodeMusicalContext.Provider value={durationMap}>
+			<section className="audio-editor-audacity-port__section audio-editor-audacity-port__section--boxed">
+				<h3 className="audio-editor-audacity-port__heading">{label('effectAudacitySelectionLength')}</h3>
+					<div className="audio-editor-audacity-pitch__pair">
+						{number('effectAudacityCurrentLength', sourceDuration, [0, sourceDuration], () => undefined, 's', true)}
+						{number('effectAudacityNewLength', sourceDuration / multiplier,
+							[sourceDuration / 2, sourceDuration * 2], next => commit((sourceDuration / next - 1) * 100), 's')}
+					</div>
+			</section>
+		</TimeCodeMusicalContext.Provider>}
 	</div>;
 }

@@ -1,12 +1,10 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
+import { readDesktopPreloadSource } from './helpers/desktop-preload-source.mjs';
 import test from 'node:test';
 import { createContext, runInContext } from 'node:vm';
 
-const ROOT = resolve(import.meta.dirname, '..');
 const PUBLICATION_ID = 'ab'.repeat(24);
 const HANDSHAKE_CHANNEL = 'framescaper:v1:project-library:handshake';
 const BEGIN_CHANNEL = 'framescaper:v1:project-library:publication:begin';
@@ -27,7 +25,7 @@ async function exposedBridges(publicationInvoke = (_channel, value) => Promise.r
 	bodyCount: value.bodies.length,
 	requiredBodyIndexes: value.bodies.length ? [value.bodies.length - 1] : [],
 })) {
-	const source = await readFile(resolve(ROOT, 'desktop/preload.mjs'), 'utf8');
+	const source = await readDesktopPreloadSource();
 	const exposed = new Map();
 	const invocations = [];
 	const electron = {

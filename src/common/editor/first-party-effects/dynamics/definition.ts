@@ -60,3 +60,27 @@ export function normalizeBandDynamicsParams(type: DynamicsEffectType, params: Re
 	}
 	return result;
 }
+
+/** Bound the actual complementary crossover's silent release for unit-bounded
+ * source PCM. Its impulse after sample zero is c*(1+a)*a^(n-1), a=1-2c.
+ * The absolute remaining impulse sum is at most abs(a)^(n-1), including the
+ * negative pole near Nyquist. Compressor gains cannot amplify a band beyond
+ * its makeup gain. Reserve a quiet render quantum after the -80 dB bound.
+ */
+export function bandDynamicsTailSeconds(type: DynamicsEffectType, params: Readonly<Record<string, unknown>>, sampleRate: number): number {
+	const settings = normalizeBandDynamicsParams(type, params);
+	if (type === 'deesser' && settings.reduction === 0) return 0;
+	if (type === 'multiband-compressor' && ['low', 'mid', 'high'].every(band =>
+		settings[`${band}Ratio`] === 1 && settings[`${band}Gain`] === settings.lowGain)) return 0;
+	const frequencies = type === 'deesser' ? [settings.frequency!] : [settings.lowCrossover!, settings.highCrossover!];
+	const radius = Math.max(...frequencies.map(frequency => {
+		const cutoff = frequency < sampleRate / 2 ? frequency : sampleRate * .45;
+		const k = Math.tan(Math.PI * cutoff / sampleRate);
+		return Math.abs(1 - 2 * k / (1 + k));
+	}));
+	// During silence the Multiband correction is L*(gLow-gMid)+U*(gMid-gHigh).
+	const correction = type === 'deesser' ? 1 - 10 ** (-settings.reduction! / 20)
+		: 2 * 10 ** (Math.max(settings.lowGain!, settings.midGain!, settings.highGain!) / 20);
+	const release = radius === 0 ? 2 : Math.max(2, Math.ceil(Math.log(.0001 / correction) / Math.log(radius)) + 1);
+	return (release + 128) / sampleRate;
+}

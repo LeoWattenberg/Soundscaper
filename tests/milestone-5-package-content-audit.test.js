@@ -20,7 +20,7 @@ import { resolveProductApplicationVersion } from '../scripts/lib/product-release
 
 const VERSION = resolveProductApplicationVersion('soundscaper');
 const APPIMAGE = `Soundscaper-${VERSION}-linux-x64.AppImage`;
-const DEBIAN = `Soundscaper-${VERSION}-linux-amd64.deb`;
+const DEBIAN = `Soundscaper-${VERSION}-linux-x64.deb`;
 const MANIFEST = 'runtime-manifest-soundscaper-linux-x64.json';
 const SOURCE_REVISION = 'a'.repeat(40);
 
@@ -159,7 +159,7 @@ test('package audit rejects missing, unexpected, wrong-version, source-revision,
 			await rename(join(fixture.packageRoot, APPIMAGE),
 				join(fixture.packageRoot, 'Soundscaper-0.1.0-linux-x64.AppImage'));
 			await rename(join(fixture.packageRoot, DEBIAN),
-				join(fixture.packageRoot, 'Soundscaper-0.1.0-linux-amd64.deb'));
+				join(fixture.packageRoot, 'Soundscaper-0.1.0-linux-x64.deb'));
 		}
 		if (failure === 'source-revision') {
 			const manifestPath = join(fixture.packageRoot, MANIFEST);

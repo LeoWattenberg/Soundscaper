@@ -64,6 +64,29 @@ test('main reconstructs fixed H264/AAC argv with private pipes and output', () =
 	]);
 });
 
+test('main native H264 selection keeps endpoints fixed and maps quality to bitrate', () => {
+	for (const encoder of ['h264_videotoolbox', 'h264_mf'] as const) {
+		const { ffmpegArguments } = createDesktopExternalFfmpegVideoWorkload({
+			...PLAN, width: 1920, height: 1080, frameRate: { num: 30, den: 1 },
+			frameCount: 60, videoInputBytes: 1920 * 1080 * 4 * 60,
+			ringCapacityBytes: 1920 * 1080 * 4,
+		}, { outputPath: '/private/session/output.mp4' }, encoder);
+		assert.equal(ffmpegArguments[ffmpegArguments.indexOf('-c:v') + 1], encoder);
+		assert.equal(ffmpegArguments[ffmpegArguments.indexOf('-b:v') + 1], '6220800');
+		assert.equal(ffmpegArguments.includes('-crf'), false);
+		assert.equal(ffmpegArguments.includes('-preset'), false);
+		assert.equal(ffmpegArguments[ffmpegArguments.indexOf('-pix_fmt') + 1], 'yuv420p');
+		assert.ok(ffmpegArguments.includes('pipe:3'));
+		assert.ok(ffmpegArguments.includes('pipe:4'));
+		assert.equal(ffmpegArguments.at(-1), '/private/session/output.mp4');
+	}
+	assert.throws(() => normalizeDesktopVideoCodecOperationPlan({
+		...PLAN, h264Encoder: 'h264_mf',
+	}), /unsupported field/u);
+	assert.throws(() => createDesktopExternalFfmpegVideoWorkload(PLAN,
+		{ outputPath: '/private/output.mp4' }, 'arbitrary' as 'h264_mf'), /encoder/u);
+});
+
 test('desktop external video accepts file sizes beyond the former 2 GiB cap', () => {
 	const plan = normalizeDesktopVideoCodecOperationPlan({ ...PLAN,
 		audioInputBytes: 3 * 1024 ** 3, maximumOutputBytes: Number.MAX_SAFE_INTEGER });

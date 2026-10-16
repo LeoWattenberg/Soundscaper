@@ -33,6 +33,11 @@ export interface Aup4ImportSourcePlan extends Aup4ImportAudioPlan {
 	readonly sourceId: string;
 }
 
+/** Clip names, trims and effects do not change their immutable source samples. */
+export function aup4ImportSourceKey(plan: Aup4ImportAudioPlan): string {
+	return JSON.stringify([plan.sampleRate, plan.frameCount, plan.channelCount, plan.channelPlans]);
+}
+
 /** Uses the validated sequence references; it never allocates sample buffers. */
 export function planAup4ClipAudio(
 	nodes: readonly XmlNode[], rates: readonly number[], sampleRate: number,

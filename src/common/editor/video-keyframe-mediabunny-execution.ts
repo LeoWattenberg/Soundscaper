@@ -138,6 +138,7 @@ export async function executeVideoKeyframeMediabunnyEncoder(
 				codec: webCodecs.codec,
 				bitrate: webCodecs.bitrate,
 				...(webCodecs.rgbaColorSpace === undefined ? {} : { rgbaColorSpace: webCodecs.rgbaColorSpace }),
+				...(webCodecs.hardwareAcceleration ? { hardwareAcceleration: webCodecs.hardwareAcceleration } : {}),
 				encoderClass: webCodecs.encoderClass as never,
 				videoFrameClass: webCodecs.videoFrameClass as never,
 				h264Format: 'avc',

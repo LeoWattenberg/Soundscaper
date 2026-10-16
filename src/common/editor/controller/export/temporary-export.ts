@@ -1,8 +1,5 @@
 import { cloneProject } from '../../project.js';
 import { confirmFileSizeWarning, type FileSizeWarningOptions } from '../shared/file-size-warning.ts';
-import { normalizeAutomationLaneV21 } from '../../automation-lane-v21.ts';
-import { normalizeMixerGraphV21, type MixerGraphV21 } from '../../mixer-graph-v21.ts';
-import type { ProjectFeatureRequirementsManifest } from '../../project-feature-requirements.ts';
 import { isSoundscaperProductionProject } from '../../project-schema-version.ts';
 import {
 	inheritTrackFolderMediaStateProjectionV12,
@@ -12,7 +9,7 @@ import {
 	createSequentialZip32Archive,
 	type Zip32StreamInput,
 } from './internal/archive/sequential-zip32-stream.ts';
-import { projectTransientRenderFeatures } from '../shared/transient-render-feature-projection.ts';
+import { projectProductionStemSnapshot } from './internal/production-stem-projection.ts';
 
 export interface TemporaryExportCopy {
 	readonly temporaryExportClosed: string;
@@ -99,11 +96,13 @@ export function stemProject<Project extends object>(
 	);
 	const mutable = snapshot as unknown as MutableStemProject;
 	const production = isSoundscaperProductionProject(mutable);
-	mutable.tracks = mutable.tracks.map((track) => track.id === trackId
-		? { ...track, mute: false, solo: false }
-		: { ...track, mute: true, solo: false, ...(production ? {} : { effects: [] }) });
-	if (production) projectProductionStemSnapshot(mutable);
-	else mutable.master = { gain: 1, effects: [] };
+	if (production) projectProductionStemSnapshot(mutable, trackId);
+	else {
+		mutable.tracks = mutable.tracks.map(track => track.id === trackId
+			? { ...track, mute: false, solo: false }
+			: { ...track, mute: true, solo: false, effects: [] });
+		mutable.master = { gain: 1, effects: [] };
+	}
 	return snapshot;
 }
 
@@ -111,38 +110,4 @@ interface MutableStemProject {
 	schemaVersion?: unknown;
 	tracks: Record<string, unknown>[];
 	master: Record<string, unknown>;
-}
-
-interface MutableProductionStemProject {
-	featureRequirements: ProjectFeatureRequirementsManifest;
-	master: Record<string, unknown>;
-	mixer: MixerGraphV21;
-	automationLanes: unknown[];
-	tracks: Readonly<Record<string, unknown>>[];
-}
-
-function projectProductionStemSnapshot(value: unknown): void {
-	const project = value as MutableProductionStemProject;
-	const graph = normalizeMixerGraphV21(project.mixer);
-	const edges = graph.edges.filter((edge) => !(
-		edge.destination.kind === 'effect-sidechain'
-		&& edge.destination.strip.kind === 'master'
-	));
-	const automatedEdgeIds = new Set(edges.map(({ id }) => id));
-	project.mixer = normalizeMixerGraphV21({ ...graph, edges });
-	project.automationLanes = project.automationLanes.filter((value) => {
-		const { address } = normalizeAutomationLaneV21(value);
-		if (address.kind === 'edge') return automatedEdgeIds.has(address.edgeId);
-		return address.strip.kind !== 'master';
-	});
-	project.master = {
-		...project.master,
-		gain: 1,
-		pan: 0,
-		mute: false,
-		solo: false,
-		effectsActive: false,
-		effects: [],
-	};
-	projectTransientRenderFeatures(project);
 }

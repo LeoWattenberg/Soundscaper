@@ -2,6 +2,7 @@
 
 interface RenameKeyEvent {
 	readonly key: string;
+	readonly nativeEvent?: Readonly<{ isComposing?: boolean }>;
 	readonly currentTarget: Pick<HTMLElement, 'closest'>;
 	preventDefault(): void;
 	stopPropagation(): void;
@@ -13,6 +14,7 @@ export function finishInlineTrackRename(
 	commit: () => void,
 	cancel: () => void,
 ): boolean {
+	if (event.nativeEvent?.isComposing) return false;
 	if (event.key !== 'Enter' && event.key !== 'Escape') return false;
 	event.preventDefault();
 	event.stopPropagation();

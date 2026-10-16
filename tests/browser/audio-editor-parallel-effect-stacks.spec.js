@@ -19,16 +19,6 @@ async function installParallelStackProbe(page) {
 	await page.addInitScript(() => {
 		const probe = { workers: [], generations: [], errors: [] };
 		Object.defineProperty(globalThis, '__parallelStackProbe', { configurable: true, value: probe });
-		Object.defineProperty(globalThis, 'soundscaperDesktop', {
-			configurable: true,
-			value: Object.freeze({ v1: Object.freeze({
-				getEnvironment: async () => ({ platform: 'linux' }),
-				getExternalFfmpegStatus: async () => ({
-					state: 'unconfigured', location: null, version: null, detail: '',
-					canInstall: false, canBrowse: false, canClear: false,
-				}),
-			}) }),
-		});
 		const NativeWorker = globalThis.Worker;
 		globalThis.Worker = class extends NativeWorker {
 			constructor(url, options) {
@@ -211,13 +201,15 @@ async function enableParallelStacks(page, editor) {
 
 async function requireSharedMemoryAudioWorkers(page) {
 	const supported = await page.evaluate(() => globalThis.crossOriginIsolated === true
-		&& typeof SharedArrayBuffer === 'function' && typeof AudioWorkletNode === 'function');
+		&& typeof SharedArrayBuffer === 'function' && typeof Worker === 'function'
+		&& typeof AudioWorkletNode === 'function');
 	test.skip(!supported, 'This browser cannot share audio buffers with workers.');
 }
 
 test('Audio setup processing settings live in Preferences and persist across reloads', async ({ page }) => {
 	await installParallelStackProbe(page);
 	const editor = await bootEditor(page, '/embed/en/');
+	expect(await page.evaluate(() => globalThis.soundscaperDesktop)).toBeUndefined();
 	const tools = await openNestedCommandMenu(page, editor, 'Tools', []);
 	await expect(tools.getByRole('menuitem', { name: 'Audio setup', exact: true })).toHaveCount(0);
 	await page.keyboard.press('Escape');
@@ -237,7 +229,7 @@ test('Audio setup processing settings live in Preferences and persist across rel
 	await expect(preferences.getByText('Parallel processing is off', { exact: true })).toBeVisible();
 });
 
-test('desktop effect stacks process in parallel through a main-thread stall and release each generation', async ({ page }) => {
+test('browser effect stacks process in parallel through a main-thread stall and release each generation', async ({ page }) => {
 	test.setTimeout(120_000);
 	await installParallelStackProbe(page);
 	const errors = collectClientErrors(page);
@@ -418,11 +410,11 @@ test('parallel effect controls preview and cancel on workers without rebuilding 
 test('browsers without shared audio memory play through the standard engine', async ({ page }) => {
 	test.setTimeout(90_000);
 	await installParallelStackProbe(page);
+	await page.addInitScript(() => {
+		Object.defineProperty(globalThis, 'crossOriginIsolated', { configurable: true, value: false });
+	});
 	const errors = collectClientErrors(page);
 	const editor = await bootEditor(page, '/embed/en/');
-	const supported = await page.evaluate(() => globalThis.crossOriginIsolated === true
-		&& typeof SharedArrayBuffer === 'function' && typeof AudioWorkletNode === 'function');
-	test.skip(supported, 'Shared-memory audio workers are available in this browser.');
 	await importFiles(editor, [tones[0]]);
 	const panel = await openEffectsForTrack(editor, 1);
 	await addRackEffect(page, panel, 'track', 'Bitcrusher');
@@ -444,7 +436,7 @@ test('browsers without shared audio memory play through the standard engine', as
 	expect(errors).toEqual([]);
 });
 
-test('unsupported desktop racks explain the conventional playback fallback', async ({ page }) => {
+test('unsupported browser racks explain the conventional playback fallback', async ({ page }) => {
 	test.setTimeout(90_000);
 	await installParallelStackProbe(page);
 	const errors = collectClientErrors(page);

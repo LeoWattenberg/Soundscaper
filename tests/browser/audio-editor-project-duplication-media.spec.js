@@ -18,6 +18,7 @@ import {
 	waitForEditor,
 } from './audio-editor-test-helpers.js';
 import { SOUNDSCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
+import { playAndWaitForAdvance } from './helpers/playback-progress.js';
 
 const retainedTone = createWavFixture({
 	name: 'duplicate-retained-tone.wav',
@@ -90,9 +91,7 @@ test.describe('project duplication retained-media lifecycle', () => {
 		expect(await storedProjectExists(page, originalId)).toBe(false);
 
 		await editor.getByRole('button', { name: 'Jump to project start', exact: true }).click();
-		await editor.getByRole('button', { name: 'Play', exact: true }).click();
-		await expect(editor.getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
-		await page.waitForTimeout(100);
+		await playAndWaitForAdvance(editor);
 		await editor.getByRole('button', { name: 'Stop', exact: true }).click();
 		await expect(editor.getByRole('button', { name: 'Play', exact: true })).toBeVisible();
 

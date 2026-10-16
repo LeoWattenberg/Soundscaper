@@ -32,8 +32,8 @@ test('clip item commands preserve all eight directional and boundary meanings', 
 	assert.deepEqual(calls.moves, [
 		['clip-a', 'audio-a', 100],
 		['clip-a', 'audio-a', 300],
-		['clip-a', 'audio-up', 200],
-		['clip-a', 'audio-down', 200],
+		['clip-a', 'audio-up', 200, { preserveTime: true }],
+		['clip-a', 'audio-down', 200, { preserveTime: true }],
 	]);
 	assert.deepEqual(calls.trims, [
 		['clip-a', { timelineStartFrame: 100, durationFrames: 300 }, { minimumDurationFrames: 30 }],

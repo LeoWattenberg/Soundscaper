@@ -3,7 +3,7 @@
 import React, { useRef, useState } from 'react';
 import { canonicalCopyValue } from '../../i18n/canonical-extras.js';
 import { audacityPortSections, isAudacityNyquistPort } from './audacity-port-layouts.ts';
-import { commitAudacityLinkedTone } from './audacity-derived-controls.ts';
+import { audacityLinkedToneGain, commitAudacityLinkedTone } from './audacity-derived-controls.ts';
 import AudacityPitchControls from './AudacityPitchControls.jsx';
 import AudacityRateControls from './AudacityRateControls.jsx';
 import AudacitySlidingStretchControls from './AudacitySlidingStretchControls.jsx';
@@ -29,8 +29,10 @@ export default function AudacityPortEffectLayout({ effectType, definition, param
 			const previousTone = Number(parameters[name]) || 0;
 			const outputGain = Number(parameters.volumeDb) || 0;
 			return React.cloneElement(control, {
-				onCommit: next => commitAudacityLinkedTone(previousTone, next, outputGain,
-					control.props.onCommit, output.props.onCommit),
+				onCommit: next => onChangeParameters({ [name]: next,
+					volumeDb: audacityLinkedToneGain(previousTone, next, outputGain) },
+					() => commitAudacityLinkedTone(previousTone, next, outputGain,
+						control.props.onCommit, output.props.onCommit)),
 				gestureFor: (...args) => {
 					const gesture = control.props.gestureFor(...args);
 					if (!gesture.onGestureCommit) return gesture;

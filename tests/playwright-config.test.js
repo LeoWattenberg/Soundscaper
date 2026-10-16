@@ -18,9 +18,10 @@ const SITE_WORKFLOWS = new Map([
 		staticJobs: ['build', 'lint', 'typecheck', 'audits'],
 		buildJob: 'build',
 		gate: 'needs: build',
-		browserShardCount: 4,
+		browserShardCount: 8,
+		firefoxShardCount: 6,
 	}],
-	['desktop-preview.yml', { staticJobs: ['quality'], buildJob: 'quality', gate: 'needs: quality', browserShardCount: 4 }],
+	['desktop-preview.yml', { staticJobs: ['quality'], buildJob: 'quality', gate: 'needs: quality', browserShardCount: 8, firefoxShardCount: 6 }],
 ]);
 
 test('Playwright allows CI to pass when a retry succeeds', async () => {
@@ -208,7 +209,7 @@ test('desktop verification isolates browser engines and tests packages with ever
 		// Packaging waits on the sharded Node suite and the merged coverage gate too:
 		// a package built off unverified source is worse than no package.
 		const needs = jobName === 'package'
-			? /needs: \[quality, tests, coverage, browser, firefox, publish-assistance-runtime-handoff\]/u
+			? /needs: \[quality, tests, coverage, browser, firefox, publish-assistance-runtime-handoff, professional-native-build, milestone-5-native-audit-source\]/u
 			: /needs: \[quality, tests, coverage, browser, firefox\]/u;
 		assert.match(extractJob(workflow, jobName), needs);
 	}
@@ -228,7 +229,7 @@ test('quality verification keeps Chromium and WebKit in the pinned container and
 	);
 	assert.ok(weightedShards, 'only Chromium should use the measured four-way shard weights');
 	const weights = weightedShards.groups.weights.split(':');
-	assert.equal(weights.length, SITE_WORKFLOWS.get('quality.yml').browserShardCount);
+	assert.equal(weights.length, 4);
 	assert.ok(weights.every(weight => /^[1-9]\d*$/u.test(weight) && Number.isSafeInteger(Number(weight))),
 		'Playwright parses weights as integers, so decimals and zero-weight shards must be rejected');
 	assert.doesNotMatch(extractJob(workflow, 'firefox'), /PWTEST_SHARD_WEIGHTS/u);
@@ -251,7 +252,7 @@ test('Firefox CI audio helpers configure a null sink/source and reject a stalled
 	assert.match(clockProbe, /did not advance/u);
 });
 
-function assertBrowserCoverage(workflow, label, { staticJobs, gate, browserShardCount }) {
+function assertBrowserCoverage(workflow, label, { staticJobs, gate, browserShardCount, firefoxShardCount }) {
 	const browserJob = extractJob(workflow, 'browser');
 	const firefoxJob = extractJob(workflow, 'firefox');
 
@@ -265,13 +266,20 @@ function assertBrowserCoverage(workflow, label, { staticJobs, gate, browserShard
 	assert.match(browserJob, /container:\n\s+image: mcr\.microsoft\.com\/playwright:v1\.62\.1-noble@sha256:dcc5531e97840b9b5e794f2814476b21571c5124a3fca2267d73041f56e7580e\n\s+options: --user 1001/u);
 	assert.match(browserJob, /npm install --global --prefix "\$HOME\/\.local" npm@12\.0\.1/u);
 	assert.match(browserJob, /name: verified-site-build/u);
-	assertEngineIsSharded(browserJob, `${label} browser`, 'npm run test:browser:built -- --project=${{ matrix.project }}', browserShardCount);
+	const browserTotal = "${{ matrix.project == 'webkit' && 8 || 4 }}";
+	assertEngineIsSharded(browserJob, `${label} browser`, 'npm run test:browser:built -- --project=${{ matrix.project }}', browserShardCount, browserTotal);
+	assert.match(browserJob, /--workers=\$\{\{ matrix\.project == 'webkit' && 1 \|\| 2 \}\}/u,
+		`${label} must give WebKit real-time audio one worker per shard`);
+	for (const shard of [5, 6, 7, 8]) {
+		assert.ok(browserJob.includes(`- project: chromium\n            shard: ${shard}`),
+			`${label} must exclude Chromium shard ${shard} from its four-way partition`);
+	}
 
 	// The handbook suite has its own Playwright config, so `--shard` cannot
 	// divide it alongside the site suite. It has to be pinned to one leg of the
 	// matrix or the shards would each run the whole of it.
 	const handbookLegs = [...browserJob.matchAll(
-		/^\s+if: (?<condition>matrix\.project == 'chromium'.*)\n\s+run: npm run test:docs:browser$/gmu,
+		/^\s+if: (?<condition>matrix\.project == 'chromium'.*)\n\s+run: \|\n\s+node scripts\/ci-handbook-build\.mjs verify\n\s+npx playwright test --config playwright\.docs\.config\.mjs$/gmu,
 	)];
 	assert.equal(handbookLegs.length, 1, `${label} must run the handbook suite from exactly one job`);
 	assert.match(handbookLegs[0].groups.condition, /matrix\.shard == 1/u, `${label} must not run the handbook suite once per shard`);
@@ -280,14 +288,14 @@ function assertBrowserCoverage(workflow, label, { staticJobs, gate, browserShard
 	assert.ok(firefoxJob.includes(gate), `${label} firefox must wait for the verified build`);
 	assert.match(firefoxJob, /runs-on: ubuntu-24\.04/u);
 	assert.doesNotMatch(firefoxJob, /^\s+container:/mu);
-	assert.match(firefoxJob, /playwright install --with-deps firefox/u);
+	assert.match(firefoxJob, /uses: \.\/\.github\/actions\/verified-firefox/u);
 	assert.match(firefoxJob, /ci-apt-install\.sh pulseaudio pulseaudio-utils/u);
 	assert.match(firefoxJob, /scripts\/ci-firefox-pulseaudio\.sh/u);
 	assert.match(firefoxJob, /node scripts\/ci-firefox-audio-clock\.mjs/u);
 	assert.match(firefoxJob, /name: verified-site-build/u);
-	assertEngineIsSharded(firefoxJob, `${label} firefox`, 'npm run test:browser:built -- --project=firefox', browserShardCount);
+	assertEngineIsSharded(firefoxJob, `${label} firefox`, 'npm run test:browser:built -- --project=firefox', firefoxShardCount);
 	assert.ok(
-		firefoxJob.includes(`--shard=\${{ matrix.shard }}/${browserShardCount} --workers=1`),
+		firefoxJob.includes(`--shard=\${{ matrix.shard }}/${firefoxShardCount} --workers=1`),
 		`${label} must keep Firefox media workflows on one worker per shard`,
 	);
 	assert.ok(
@@ -306,21 +314,21 @@ function assertBrowserCoverage(workflow, label, { staticJobs, gate, browserShard
  * leg it is, or a red check cannot be read; and the diagnostics artifact name
  * has to carry the shard, or the legs collide on upload.
  */
-function assertEngineIsSharded(job, label, runCommand, expectedShardCount) {
+function assertEngineIsSharded(job, label, runCommand, expectedShardCount, denominator = String(expectedShardCount)) {
 	const axis = job.match(/^\s+shard: \[(?<legs>[^\]]+)\]$/mu);
 	assert.ok(axis, `${label} must shard Playwright across runners`);
 	const legs = axis.groups.legs.split(',').map((leg) => leg.trim());
 	assert.deepEqual(legs, Array.from({ length: expectedShardCount }, (_, index) => String(index + 1)),
 		`${label} shard ids must be 1..N`);
 
-	const total = legs.length;
+	const total = denominator;
 	assert.ok(
 		job.includes(`${runCommand} --shard=\${{ matrix.shard }}/${total}`),
 		`${label} must run \`${runCommand}\` under --shard=\${{ matrix.shard }}/${total}`,
 	);
 	assert.match(
 		job,
-		new RegExp(`^\\s+name: Browser /.*\\$\\{\\{ matrix\\.shard \\}\\}/${total}$`, 'mu'),
+		new RegExp(`^\\s+name: Browser /.*\\$\\{\\{ matrix\\.shard \\}\\}/${total.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&')}$`, 'mu'),
 		`${label} job name must name its shard`,
 	);
 

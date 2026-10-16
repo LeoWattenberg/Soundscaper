@@ -8,13 +8,13 @@ import {
 } from '../common/editor/commands/factories.ts';
 import { fingerprintNativeMediaPlan } from '../common/editor/native-media-plan-canonical-form.ts';
 import { createStableId } from '../common/editor/stable-id.js';
+import { createSelectedGeneratorSourceCommands } from '../common/editor/selected-generator-source-command.ts';
 import { digestMediaContent } from '../common/editor/storage/media-content-digest.ts';
 import type { AudioEditorProjectStore } from '../common/editor/storage.js';
 import { videoFrameToSampleFrame } from '../common/editor/timeline-time.ts';
 import { sequenceFrameAtSample } from '../common/editor/sequence-frame-navigation.ts';
 import { createVideoFreezeFallbackV1 } from '../common/editor/video-freeze-v24.ts';
-import { resolveVideoRetimeExactPictureOrdinal } from '../common/editor/video-retime-exact-ordinal-authority.ts';
-import { createRegisteredVideoRetimeWebCorePreviewResolver } from '../common/editor/video-retime-web-core-preview.ts';
+import { resolveFramescaperSelectedFreezePictureFinishing } from './editor-selected-finishing-freeze-ordinal.ts';
 import { normalizeVideoMaskMatteGraphV1 } from '../common/editor/video-mask-matte-v24.ts';
 import { normalizeVideoVisualPresetV1 } from '../common/editor/video-visual-preset-v24.ts';
 import {
@@ -30,6 +30,7 @@ import {
 	type FramescaperSelectedVisualAuthoringSurfaceFinishing,
 } from './editor-selected-finishing-visual-authoring-model.ts';
 import { assertFramescaperProjectIdentity } from './editor-project-identity.ts';
+import { requireSelectedAdjustmentEffectId } from './editor-adjustment-effect-membership.ts';
 
 export type FramescaperSelectedFreezeCaptureRequest = FramescaperSelectedFreezeCaptureRequestFinishing;
 
@@ -83,6 +84,7 @@ export async function prepareFramescaperSelectedVisualAuthoringFinishing(input: 
 	readonly store: AudioEditorProjectStore;
 	readonly request: FramescaperSelectedVisualAuthoringRequestFinishing | unknown;
 	readonly capture?: FramescaperSelectedFreezeCaptureFinishing | null;
+	readonly freezeRuntimeProject?: unknown;
 }>): Promise<Readonly<FramescaperSelectedPreparedVisualAuthoringFinishing>> {
 	assertFramescaperProjectIdentity(input.project);
 	const project = record(input.project, 'selected visual authoring project');
@@ -96,7 +98,7 @@ export async function prepareFramescaperSelectedVisualAuthoringFinishing(input: 
 	if (input.surface === 'video-adjustment-layer') return prepared(adjustmentCommand(project, request));
 	if (input.surface === 'video-visual-preset') return prepared(visualPresetCommand(project, request));
 	if (input.surface === 'video-freeze') {
-		return prepareFreeze(project, input.store, request, input.capture ?? null);
+		return prepareFreeze(project, input.store, request, input.capture ?? null, input.freezeRuntimeProject ?? project);
 	}
 	throw new RangeError(`Selected visual authoring does not support ${input.surface}.`);
 }
@@ -193,15 +195,16 @@ function adjustmentCommand(project: Data, request: Data): unknown {
 		: requireById(records(project.videoAdjustmentLayers, 'adjustment layers'), requestedId, 'adjustment layer');
 	if (operation === 'remove') {
 		if (!current) throw new Error('The selected adjustment layer is stale. Reopen the dialog.');
-		const effectId = onlyEffectId(current);
+		const effectId = stableId(requireSelectedAdjustmentEffectId(current, clip), 'adjustment effect ID');
+		const effectIds = (current.effectIds as readonly string[]).filter((id) => id !== effectId);
 		return batch([{
 			type: 'video-adjustment-layer/set', adjustmentLayerId: requestedId,
-			expectedAdjustmentLayer: current, adjustmentLayer: null,
+			expectedAdjustmentLayer: current, adjustmentLayer: effectIds.length ? { ...current, effectIds } : null,
 		}, createRemoveVideoEffectCommand(stableId(clip.id, 'selected video clip ID'), effectId)]);
 	}
 	const brightness = bounded(request.brightness, -1, 1, 'adjustment brightness');
 	if (current) {
-		const effectId = onlyEffectId(current);
+		const effectId = stableId(requireSelectedAdjustmentEffectId(current, clip), 'adjustment effect ID');
 		return createUpdateVideoEffectCommand(stableId(clip.id, 'selected video clip ID'),
 			effectId, { params: { brightness } });
 	}
@@ -285,8 +288,7 @@ function applyGeneratorPreset(project: Data, clip: Data, request: Data): unknown
 	if (!donor) throw new ReferenceError('The visual preset model is unavailable.');
 	const current = selectedSource(project, clip, 'generator');
 	const source = { ...structuredClone(current), generator: structuredClone(donor.generator) };
-	return { type: 'video-visual-source/set', sourceId: current.id,
-		expectedSource: current, source };
+	return batch(createSelectedGeneratorSourceCommands(project, clip, current, source));
 }
 
 async function prepareFreeze(
@@ -294,12 +296,12 @@ async function prepareFreeze(
 	store: AudioEditorProjectStore,
 	request: Data,
 	capture: FramescaperSelectedFreezeCaptureFinishing | null,
+	runtimeProject: unknown,
 ): Promise<Readonly<FramescaperSelectedPreparedVisualAuthoringFinishing>> {
 	oneOf(request.operation, ['create'] as const, 'freeze operation');
 	const clip = selectedVideoClip(project, request);
 	const playhead = nonNegativeInteger(request.playheadSample, 'freeze playhead sample');
 	if (playhead !== fencePlayhead(request)) throw new Error('The freeze playhead is stale. Reopen the dialog.');
-	const source = selectedSource(project, clip, 'video');
 	const sequence = requireById(records(project.sequences, 'project sequences'),
 		stableId(clip.sequenceId, 'selected sequence ID'), 'selected sequence');
 	const rate = rational(sequence.rate, 'selected sequence rate');
@@ -313,11 +315,9 @@ async function prepareFreeze(
 	const end = start + positiveInteger(clip.sequenceFrameCount, 'selected video duration');
 	if (sequenceFrame < start || sequenceFrame >= end) throw new RangeError('The playhead is outside the selected video.');
 	if (!capture) throw new Error('Exact freeze capture is unavailable for the selected preview.');
-	const resolver = createRegisteredVideoRetimeWebCorePreviewResolver(project);
-	const picture = resolveVideoRetimeExactPictureOrdinal(resolver.authority, {
-		outputOrdinal: playhead, clipId: stableId(clip.id, 'selected video clip ID'),
-		sourceId: stableId(source.id, 'selected video source ID'),
-	});
+	const picture = resolveFramescaperSelectedFreezePictureFinishing(runtimeProject,
+		stableId(clip.id, 'selected video clip ID'), playhead);
+	const source = requireById(records(project.sources, 'project sources'), picture.sourceId, 'selected freeze source');
 	const body = await capture.capture({
 		projectId: stableId(project.id, 'project ID'),
 		projectRevision: nonNegativeInteger(project.revision, 'project revision'),
@@ -451,13 +451,6 @@ function visualPreset(project: Data, id: string) {
 function finishingPreset(project: Data, id: string) {
 	return normalizeVideoFinishingPresetV1(requireById(records(project.videoFinishingPresets,
 		'finishing presets'), id, 'finishing preset'));
-}
-
-function onlyEffectId(layer: Data): string {
-	if (!Array.isArray(layer.effectIds) || layer.effectIds.length !== 1) {
-		throw new Error('The selected adjustment layer requires one owned effect.');
-	}
-	return stableId(layer.effectIds[0], 'adjustment effect ID');
 }
 
 function selectedFenceId(request: Data): string | undefined {

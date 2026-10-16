@@ -3,7 +3,7 @@
 import type { AudioEditorCommand } from './commands/protocol.ts';
 
 interface RemovalProject {
-	readonly tracks: readonly Readonly<{ id: string; laneGroupId?: unknown }>[];
+	readonly tracks: readonly Readonly<{ id: string; laneGroupId?: unknown; locked?: boolean }>[];
 	readonly selection?: Readonly<{ trackIds?: unknown }> | null;
 }
 
@@ -25,4 +25,17 @@ export function prepareSelectedTrackRemoval(project: RemovalProject | null | und
 	}
 	return commands.length === 0 ? null : commands.length === 1 ? commands[0]!
 		: { type: 'batch', commands };
+}
+
+/** Mirror the removal command's complete lane-group lock admission. */
+export function selectedTrackRemovalAvailable(project: RemovalProject | null | undefined,
+	focusedTrackId: string | null | undefined): boolean {
+	const plan = prepareSelectedTrackRemoval(project, focusedTrackId);
+	if (!plan || !project) return false;
+	const commands = plan.type === 'batch' ? plan.commands : [plan];
+	const targets = new Set(commands.map(command => command.type === 'track/remove' ? command.trackId : null));
+	const groups = new Set(project.tracks.filter(track => targets.has(track.id))
+		.map(track => track.laneGroupId).filter(group => typeof group === 'string'));
+	return !project.tracks.some(track => track.locked === true
+		&& (targets.has(track.id) || (typeof track.laneGroupId === 'string' && groups.has(track.laneGroupId))));
 }

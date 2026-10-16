@@ -23,8 +23,10 @@ export class StreamingRecorderProcessor extends ProcessorBase {
 		this.pendingChunks = new Set();
 		this.nextChunkId = 1;
 		this.monitor = Boolean(processorOptions.monitor);
+		this.fixedStopFrame = processorOptions.fixedStopFrame === true;
 		this.inputGain = clampInputGain(processorOptions.inputGain, DEFAULT_INPUT_GAIN);
 		this.recording = false;
+		this.inspectInputChannelCount = false;
 		this.hasCapturedFrames = false;
 		this.paused = false;
 		this.pausedAtFrame = null;
@@ -40,6 +42,10 @@ export class StreamingRecorderProcessor extends ProcessorBase {
 
 	process(inputs, outputs) {
 		const input = inputs[0] || [];
+		if (this.inspectInputChannelCount && input.length) {
+			this.inspectInputChannelCount = false;
+			this.port.postMessage({ type: 'input-channel-count', channelCount: input.length });
+		}
 		const output = outputs[0] || [];
 		const blockLength = input[0]?.length || output[0]?.length || 128;
 		const globalFrame = Number.isFinite(globalThis.currentFrame) ? globalThis.currentFrame : this.nextFrame;
@@ -61,6 +67,7 @@ export class StreamingRecorderProcessor extends ProcessorBase {
 			} else outputChannel.fill(0);
 		}
 
+		if (this.recording && this.paused && this.fixedStopFrame && this.nextFrame >= this.stopFrame) this.#finish();
 		if (!this.recording || this.paused) return true;
 		const firstIndex = Math.max(0, this.startFrame - globalFrame);
 		const lastIndex = Math.min(blockLength, this.stopFrame - globalFrame);
@@ -100,7 +107,9 @@ export class StreamingRecorderProcessor extends ProcessorBase {
 	}
 
 	#handleMessage(message) {
-		if (message.type === 'start') {
+		if (message.type === 'inspect-input-channel-count') {
+			this.inspectInputChannelCount = true;
+		} else if (message.type === 'start') {
 			if (!this.#flush()) return;
 			const firstAvailableFrame = Math.max(this.nextFrame,
 				Number.isFinite(globalThis.currentFrame) ? Math.floor(globalThis.currentFrame) : 0);
@@ -152,7 +161,7 @@ export class StreamingRecorderProcessor extends ProcessorBase {
 			this.port.postMessage({ type: 'paused', frame: this.nextFrame });
 		} else if (message.type === 'resume' && this.recording && this.paused) {
 			const pauseFrames = Math.max(0, this.nextFrame - (this.pausedAtFrame ?? this.nextFrame));
-			if (Number.isFinite(this.stopFrame)) this.stopFrame += pauseFrames;
+			if (!this.fixedStopFrame && Number.isFinite(this.stopFrame)) this.stopFrame += pauseFrames;
 			this.paused = false;
 			this.pausedAtFrame = null;
 			this.port.postMessage({ type: 'resumed', frame: this.nextFrame });

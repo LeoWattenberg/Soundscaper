@@ -4,6 +4,7 @@
 /** Target-native installed peer/isolation and packaged-Electron canary. */
 
 import { spawnSync } from 'node:child_process';
+import { runInstalledAraNativeCanary } from './lib/soundscaper-ara-native-canary.mjs';
 import { createHash } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { lstat, readFile, readdir, realpath } from 'node:fs/promises';
@@ -57,7 +58,9 @@ const roots = Object.freeze({
 	runtime: await canonicalDirectory(args['runtime-root'], 'runtime root'),
 	packagedApp: await canonicalDirectory(args['packaged-app-root'], 'packaged app root'),
 });
-const evidence = scenario === 'packaged-electron-utility-process-smoke'
+const evidence = scenario === 'ara-vst3-document-round-trip'
+	? await runInstalledAraNativeCanary({ professionalInstallRoot: roots.professional, target })
+	: scenario === 'packaged-electron-utility-process-smoke'
 	? await packagedElectronSmoke(roots, target, args)
 	: scenario.startsWith('isolation-')
 		? await hostileContainmentSmoke(roots, target, scenario)

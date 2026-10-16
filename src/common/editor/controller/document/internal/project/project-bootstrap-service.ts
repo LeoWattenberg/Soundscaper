@@ -296,8 +296,13 @@ export function createProjectBootstrapService<
 		runtime.recordingState.preferredOutputDeviceId = savedAudioDevices.outputDeviceId;
 		await guard(Promise.resolve(runtime.engine.setOutputDevice?.(savedAudioDevices.outputDeviceId)).catch(() => undefined));
 		if (runtime.automaticAudioDeviceEnumeration !== false) {
-			await guard(runtime.refreshAudioDevices({ probe: false, publish: false }));
 			registerDeviceChangeListener();
+			// Device discovery describes optional hardware; opening a project must
+			// not wait for the browser's device service to answer.
+			void guard(Promise.resolve()).then(() => runtime.refreshAudioDevices({ probe: false }))
+				.catch((error: unknown) => {
+					if (!runtime.isDisposedError(error) && !runtime.isDisposed()) runtime.handleError(error);
+				});
 		}
 		const lastProjectId = await runtime.loadRecentProjectState(guard);
 		const startupProjectId = runtime.startupProjectId

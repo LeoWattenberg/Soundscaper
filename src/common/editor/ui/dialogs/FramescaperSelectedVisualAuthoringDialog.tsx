@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import {
 	framescaperSelectedVisualAuthoringRuntimeFor,
@@ -20,6 +20,7 @@ import { SELECTED_VISUAL_AUTHORING_COPY } from '../../../i18n/editor-selected-vi
 import { resolveEditorCopyScope } from '../../../i18n/editor-copy-scope.ts';
 import { publishedCopyFor } from '../../controller/shared/presentation-localization.ts';
 import { useAvailableAuthoringPreset } from './useAvailableAuthoringPreset.ts';
+import { useAuthoringPresetRemovalFocus } from './useAuthoringPresetRemovalFocus.ts';
 
 interface Props {
 	readonly copy?: Readonly<Record<string, string>>;
@@ -103,14 +104,19 @@ export default function FramescaperSelectedVisualAuthoringDialog(props: Props) {
 	]);
 	const runtime = framescaperSelectedVisualAuthoringRuntimeFor(props.controller as object);
 	const blocked = pending || props.editingBlocked || props.readOnly || runtime === null;
+	const authoringRef = useRef<HTMLDivElement | null>(null);
+	const operationOwner = useMemo(() => ({ controller: props.controller, projectId: model.fence.projectId,
+		clipId: model.selectedClipId, surface: model.surface }), [props.controller, model.fence.projectId, model.selectedClipId, model.surface]);
+	const captureRemovalFocus = useAuthoringPresetRemovalFocus(authoringRef, operationOwner, pending, blocked);
 	const perform = (operation: string): void => {
-		if (blocked || !runtime) return;
+		if (blocked || !runtime || (props.surface === 'video-adjustment-layer' && !model.selectedClipEditable)) return;
 		const request = requestFor(operation, model, {
 			pairId, durationFrames, brightness, adjustmentLayerId,
 			maskId, shape, maskWidth, maskHeight, startX, startY, endX, endY, centerX, centerY, radiusX, radiusY, innerFraction, lower, upper, falloff,
 			red, green, blue, radius, colorFalloff,
 			visualPresetId, finishingPresetId, presetName, freezeDuration,
 		});
+		captureRemovalFocus(operation);
 		setPending(true);
 		setStatus('');
 		setError('');
@@ -128,7 +134,7 @@ export default function FramescaperSelectedVisualAuthoringDialog(props: Props) {
 		initialFocus={initialFocus(props.surface)}
 		dataAttributes={{ 'data-framescaper-selected-authoring': props.surface }}
 	>
-		<div className="audio-editor-clip-inspector">
+		<div ref={authoringRef} className="audio-editor-clip-inspector">
 			<p>{model.description}</p>
 			<AuthoringFields
 				text={text}
@@ -232,7 +238,7 @@ function DissolveFields({ text, model, frameRate, blocked, values, setters, onPe
 
 function AdjustmentFields({ text, model, blocked, values, setters, onPerform }: Parameters<typeof AuthoringFields>[0]) {
 	if (model.selectedClipKind !== 'video') return <p role="alert">{text.selectVideo}</p>;
-	return <fieldset disabled={blocked}>
+	return <fieldset disabled={blocked || !model.selectedClipEditable}>
 		<legend>{text.selectedVideo}</legend>
 		<label><span>{text.brightness}</span><input data-framescaper-authoring-brightness type="number"
 			min="-1" max="1" step="0.05" value={values.brightness}
@@ -315,24 +321,25 @@ function MaskFields({ text, model, blocked, values, setters, onPerform }: Parame
 
 function PresetFields({ text, model, blocked, values, setters, onPerform }: Parameters<typeof AuthoringFields>[0]) {
 	const generatorSelected = model.selectedClipKind === 'generator';
+	const visualSelected = ['video', 'still', 'generator'].includes(model.selectedClipKind ?? '');
 	return <>
-		<fieldset disabled={blocked || !generatorSelected}>
+		<fieldset disabled={blocked}>
 			<legend>{text.visualPreset}</legend>
-			<label><span>{text.presetName}</span><input data-framescaper-authoring-preset-name value={values.presetName}
+			<label><span>{text.presetName}</span><input data-framescaper-authoring-preset-name disabled={!generatorSelected} value={values.presetName}
 				onChange={(event) => setters.setPresetName(event.currentTarget.value)} /></label>
-			<button data-framescaper-authoring-save-visual type="button" onClick={() => onPerform('save-visual')}>
+			<button data-framescaper-authoring-save-visual type="button" disabled={!generatorSelected} onClick={() => onPerform('save-visual')}>
 				{text.saveGenerator}</button>
 			<label><span>{text.savedVisualPreset}</span><select data-framescaper-authoring-visual-preset
 				value={values.visualPresetId} onChange={(event) => setters.setVisualPresetId(event.currentTarget.value)}>
 				<option value="">{text.none}</option>{model.visualPresets.map(({ id, name }) => (
 					<option key={id} value={id}>{name}</option>
 				))}</select></label>
-			<button data-framescaper-authoring-apply-visual type="button" disabled={!values.visualPresetId}
+			<button data-framescaper-authoring-apply-visual type="button" disabled={!generatorSelected || !values.visualPresetId}
 				onClick={() => onPerform('apply-visual')}>{text.applyGenerator}</button>
 			<button data-framescaper-authoring-remove-visual type="button" disabled={!values.visualPresetId}
 				onClick={() => onPerform('remove-visual')}>{text.removeVisualPreset}</button>
 		</fieldset>
-		<fieldset disabled={blocked || model.selectedClipId === null}>
+		<fieldset disabled={blocked}>
 			<legend>{text.finishingPreset}</legend>
 			<label><span>{text.savedFinishingPreset}</span><select data-framescaper-authoring-finishing-preset
 				value={values.finishingPresetId}
@@ -340,7 +347,7 @@ function PresetFields({ text, model, blocked, values, setters, onPerform }: Para
 				<option value="">{text.none}</option>{model.finishingPresets.map(({ id, name }) => (
 					<option key={id} value={id}>{name}</option>
 				))}</select></label>
-			<button data-framescaper-authoring-apply-finishing type="button" disabled={!values.finishingPresetId}
+			<button data-framescaper-authoring-apply-finishing type="button" disabled={!visualSelected || !values.finishingPresetId}
 				onClick={() => onPerform('apply-finishing')}>{text.applyFresh}</button>
 			<button data-framescaper-authoring-remove-finishing type="button" disabled={!values.finishingPresetId}
 				onClick={() => onPerform('remove-finishing')}>{text.removeFinishingPreset}</button>
@@ -384,7 +391,7 @@ function requestFor(operation: string, model: Model, values: Values) {
 		playheadSample: model.fence.playheadSample, durationFrames: values.freezeDuration };
 	const finishing = operation === 'apply-finishing' || operation === 'remove-finishing';
 	return { ...base, presetId: (finishing ? values.finishingPresetId : values.visualPresetId) || null,
-		name: values.presetName };
+		name: values.presetName.normalize('NFC') };
 }
 
 function selectedPair(model: Model, pairId: string) {

@@ -9,10 +9,12 @@ import '../audio-editor-design-system/28-mix-render.css';
 import type { MixRenderOptions } from '../../controller/track-audio/mix-render-options.ts';
 import {
 	mixRenderOutputChannelChoices,
+	nonemptyAudioTargets,
 	predictMixRenderOutputChannelCount,
 } from '../../controller/track-audio/mix-render-output-layout.ts';
 import { selectAudioTracksForMix } from '../../controller/track-audio/mix-render-model.ts';
 import type { ControllerProject } from '../../controller/track-audio/track-domain-types.ts';
+import { selectAudioEditorEditBlock, type AudioEditorEditBlockingSnapshot } from '../../edit-blocking.ts';
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 import EditorHelpTooltip from '../EditorHelpTooltip.tsx';
 import PreferenceCheckbox from '../EditorPreferenceCheckbox.tsx';
@@ -34,6 +36,7 @@ interface MixRenderDialogCopy {
 	readonly replaceOriginals: string;
 	readonly replaceOriginalsDescription: string;
 	readonly mixRenderNoOperation: string;
+	readonly mixRenderLockedOriginals: string;
 	readonly cancel: string;
 	readonly helpMenu: string;
 }
@@ -46,7 +49,7 @@ interface MixRenderDialogProps {
 			}>;
 		}>;
 	}>;
-	readonly snapshot: Readonly<{
+	readonly snapshot: AudioEditorEditBlockingSnapshot & Readonly<{
 		readonly project?: ControllerProject | null;
 		readonly selectedTrackId?: string | null;
 		readonly selectedClipId?: string | null;
@@ -92,9 +95,11 @@ export default function MixRenderDialog({
 	})), [copy, outputChannelCounts]);
 
 	const emptyOperation = !mixDown && !renderEffects;
+	const lockedReplacement = replaceOriginals && Boolean(project
+		&& nonemptyAudioTargets(project, targetTracks).some(track => track.locked === true));
 	const operation = useOwnedDialogOperation({
 		owner: projectId,
-		blocked: emptyOperation || predictedOutputChannelCount === null,
+		blocked: selectAudioEditorEditBlock(snapshot).blocked || emptyOperation || lockedReplacement || predictedOutputChannelCount === null,
 		run,
 		onOwnerChange: () => {
 			setMixDown(true);
@@ -107,6 +112,7 @@ export default function MixRenderDialog({
 
 	const pending = operation.pending !== null;
 	const submitDisabled = operation.disabled;
+	const feedback = error || (lockedReplacement ? copy.mixRenderLockedOriginals : '');
 	const submit = (): void => {
 		const options = {
 			mixDown,
@@ -189,8 +195,8 @@ export default function MixRenderDialog({
 			{emptyOperation && <p className="audio-editor-mix-render__message" role="status">
 				{copy.mixRenderNoOperation}
 			</p>}
-			{error && <p className="audio-editor-mix-render__message audio-editor-mix-render__error" role="alert">
-				{error}
+			{feedback && <p className="audio-editor-mix-render__message audio-editor-mix-render__error" role="alert">
+				{feedback}
 			</p>}
 		</form>
 	</AudioEditorDialogShell>;

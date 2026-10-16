@@ -9,9 +9,10 @@ import { audioEditorStereoChannelGeometry } from './stereo-channel-height-runtim
 import { samplePointerAmplitude } from './sample-pointer-amplitude.ts';
 import { samplePointerSourceAmplitude } from './sample-pointer-source-amplitude.ts';
 
+/** @param {number | null} [lockedChannel] */
 export function samplePointAtPointer(event, lane, clip, source, frameAtClientX, lockedChannel = null) {
 	const rect = lane.getBoundingClientRect();
-	const channelCount = Math.max(1, Number(source.channelCount) || 1);
+	const channelCount = Math.max(1, Math.min(2, Number(source.channelCount) || 1));
 	const requestedBodyTop = Number(lane.dataset?.channelBodyTop);
 	const bodyTop = Number.isFinite(requestedBodyTop)
 		? Math.max(0, Math.min(rect.height, requestedBodyTop))

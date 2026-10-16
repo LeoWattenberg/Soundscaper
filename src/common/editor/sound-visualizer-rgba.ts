@@ -145,7 +145,15 @@ function drawSpectrum(
 	for (let x = 0; x < width; x += 1) {
 		const normalizedX = x / Math.max(1, width - 1);
 		const binIndex = Math.max(1, Math.min(lastBin, Math.round(lastBin ** normalizedX)));
-		const db = amplitudeToDb(Math.sqrt(powers[binIndex]! / starts.length));
+		// A logarithmic pixel can cover several high-frequency bins. Keep its
+		// strongest bin instead of losing peaks between the rounded centers.
+		const firstBin = width === 1 ? 1 : Math.max(1,
+			Math.ceil(lastBin ** ((x - 0.5) / (width - 1))));
+		const finalBin = width === 1 ? lastBin : Math.min(lastBin,
+			Math.floor(lastBin ** ((x + 0.5) / (width - 1))));
+		let power = powers[binIndex]!;
+		for (let bin = firstBin; bin <= finalBin; bin += 1) power = Math.max(power, powers[bin]!);
+		const db = amplitudeToDb(Math.sqrt(power / starts.length));
 		const intensity = Math.max(0, Math.min(1,
 			(db - SPECTRUM_FLOOR_DB) / (SPECTRUM_CEILING_DB - SPECTRUM_FLOOR_DB),
 		));

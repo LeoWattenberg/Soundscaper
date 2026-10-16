@@ -31,6 +31,25 @@ export class DynamicsLiveProcessor extends LiveProcessor {
 		this.configure();
 		this.reset();
 	}
+	updateParams(params = {}) {
+		const lookaheadFrames = this.lookaheadFrames;
+		const state = {
+			envelopeState: this.envelopeState,
+			envelopeHistory: this.envelopeHistory,
+			audioHistory: this.audioHistory,
+			scratchFrames: this.scratchFrames,
+			combinedEnvelope: this.combinedEnvelope,
+			transformedEnvelope: this.transformedEnvelope,
+			combinedAudio: this.combinedAudio,
+			framesSeen: this.framesSeen,
+			analysisFrames: this.analysisFrames,
+			analysisInputPeak: this.analysisInputPeak,
+			analysisOutputPeak: this.analysisOutputPeak,
+			analysisReductionDb: this.analysisReductionDb,
+		};
+		super.updateParams(params);
+		if (this.lookaheadFrames === lookaheadFrames) Object.assign(this, state);
+	}
 	configure() {
 		const compressor = this.type === 'audacity-compressor';
 		this.thresholdDb = this.params.thresholdDb;

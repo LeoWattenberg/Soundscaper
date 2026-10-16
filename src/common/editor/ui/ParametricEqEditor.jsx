@@ -2,8 +2,10 @@ import { PARAMETRIC_EQ_BAND_COPY } from '../../i18n/editor-parametric-eq-copy.ts
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '@soundscaper/design-system/Button';
 import { ParametricEqNumericInput } from './ParametricEqNumericInput.jsx';
+import { ParametricEqOutputRange } from './ParametricEqOutputRange.tsx';
 import { useParametricEqSpectrum } from './useParametricEqSpectrum.ts';
 import { useParametricEqBandDeletionFocus } from './useParametricEqBandDeletionFocus.ts';
+import { useParametricEqAuthoredState } from './useParametricEqAuthoredState.ts';
 import { useNonPassiveWheel } from './useNonPassiveWheel.js';
 import {
 	ParametricEqWasmRuntime,
@@ -64,13 +66,8 @@ export function ParametricEqEditor({
 	});
 	auditionCallbackRef.current = onAudition;
 	cancelCallbackRef.current = onCancel;
-	useEffect(() => {
-		if (dragRef.current || outputGestureRef.current) return;
-		setDraft(normalized);
-		setSelectedId((current) => normalized.bands.some((band) => band.id === current)
-			? current
-			: normalized.bands[0]?.id || null);
-	}, [normalized]);
+	const authoredEpoch = useParametricEqAuthoredState(normalized, { dragRef, outputGestureRef,
+		previewFrameRef, pendingPreviewRef, graphRef, setDraft, setSelectedId, onCancel, parameterAutomation });
 	useEffect(() => () => {
 		if (previewFrameRef.current) cancelAnimationFrame(previewFrameRef.current);
 		const gesture = dragRef.current || outputGestureRef.current;
@@ -144,7 +141,7 @@ export function ParametricEqEditor({
 		onCommit?.(value);
 	};
 	const beginDrag = (event, band) => {
-		if (disabled || event.button !== 0) return;
+		if (disabled || event.button !== 0 || event.isPrimary === false || dragRef.current) return;
 		event.preventDefault();
 		event.stopPropagation();
 		setSelectedId(band.id);
@@ -158,7 +155,7 @@ export function ParametricEqEditor({
 			automationParameter, band.id, band[automationParameter],
 		);
 		dragRef.current = {
-			bandId: band.id,
+			bandId: band.id, pointerId: event.pointerId,
 			start: draft,
 			latest: draft,
 			startBand: band,
@@ -172,7 +169,8 @@ export function ParametricEqEditor({
 
 	const moveDrag = (event) => {
 		const drag = dragRef.current;
-		if (!drag) return;
+		if (!drag || event.pointerId !== drag.pointerId) return;
+		const completed = event.pointerType === 'mouse' && (event.buttons & 1) === 0;
 		const graph = event.currentTarget.closest('.audio-editor-parametric-eq__graph');
 		const rect = graph?.getBoundingClientRect();
 		if (!rect?.width || !rect?.height) return;
@@ -185,6 +183,7 @@ export function ParametricEqEditor({
 			replaceBand(band.id, {
 				q: clamp(drag.startBand.q * 2 ** ((drag.startY - event.clientY) * sensitivity), MIN_Q, MAX_Q),
 			}, { preview: true });
+			if (completed) finishDrag(event);
 			return;
 		}
 		const changes = event.shiftKey
@@ -199,14 +198,15 @@ export function ParametricEqEditor({
 				: MAX_GAIN - y * (MAX_GAIN - MIN_GAIN);
 		}
 		replaceBand(band.id, changes, { preview: true });
+		if (completed) finishDrag(event);
 	};
 
 	const finishDrag = (event) => {
-		if (!dragRef.current) return;
-		event.currentTarget.releasePointerCapture?.(event.pointerId);
+		if (!dragRef.current || event.pointerId !== dragRef.current.pointerId) return;
 		const drag = dragRef.current;
 		const latest = drag.latest;
 		dragRef.current = null;
+		if (event.currentTarget.hasPointerCapture?.(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
 		if (previewFrameRef.current) {
 			cancelAnimationFrame(previewFrameRef.current);
 			previewFrameRef.current = 0;
@@ -326,7 +326,7 @@ export function ParametricEqEditor({
 	));
 
 	const handleBandKeyDown = (event, band) => {
-		if (disabled) return;
+		if (disabled || event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey) return;
 		if (event.key === 'Delete' || event.key === 'Backspace') {
 			event.preventDefault(); event.stopPropagation();
 			removeSelected(band, event.currentTarget);
@@ -413,7 +413,8 @@ export function ParametricEqEditor({
 							onPointerDown={(event) => beginDrag(event, band)}
 							onPointerMove={moveDrag}
 							onPointerUp={finishDrag}
-							onPointerCancel={cancelGesture}
+							onPointerCancel={(event) => { if (event.pointerId === dragRef.current?.pointerId) cancelGesture(); }}
+							onLostPointerCapture={(event) => { if (event.pointerId === dragRef.current?.pointerId) cancelGesture(); }}
 							onKeyDown={(event) => handleBandKeyDown(event, band)}
 						>{index + 1}</button>
 					);
@@ -459,32 +460,21 @@ export function ParametricEqEditor({
 
 			<label className="audio-editor-parametric-eq__output">
 					<span>{copy.eqOutputGain || 'Output gain'} (dB)</span>
-					<input disabled={disabled} type="range" min={MIN_GAIN} max={MAX_GAIN} step="0.1" value={draft.outputGain} onPointerDown={(event) => {
-						beginOutputGain();
-						event.currentTarget.setPointerCapture?.(event.pointerId);
-					}} onChange={(event) => {
+					<ParametricEqOutputRange key={authoredEpoch} disabled={disabled} minimum={MIN_GAIN} maximum={MAX_GAIN} value={draft.outputGain}
+						onBegin={beginOutputGain} onValueChange={(value) => {
 						const standalone = !outputGestureRef.current;
 						if (standalone && parameterAutomation?.performAtomic(
-							'outputGain', null, Number(event.currentTarget.value),
+							'outputGain', null, value,
 						)) return;
 						if (standalone) beginOutputGain();
-						const next = normalizeParametricEqParams({ ...draft, outputGain: Number(event.currentTarget.value) }, effectId);
+						const next = normalizeParametricEqParams({ ...draft, outputGain: value }, effectId);
 						setDraft(next);
 						if (outputGestureRef.current) outputGestureRef.current.latest = next;
 						if (outputGestureRef.current?.automationParameter) {
 							parameterAutomation?.preview('outputGain', null, next.outputGain);
 						} else queuePreview(next);
 						if (standalone) finishOutputGain();
-					}} onPointerUp={finishOutputGain} onPointerCancel={cancelGesture} onKeyDown={(event) => {
-						if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End', 'PageUp', 'PageDown'].includes(event.key)
-							&& !outputGestureRef.current) beginOutputGain();
-				}} onKeyUp={(event) => {
-					if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End', 'PageUp', 'PageDown'].includes(event.key)) finishOutputGain();
-				}} onBlur={() => finishOutputGain()} onDoubleClick={(event) => {
-						if (disabled) return;
-						event.preventDefault();
-						event.stopPropagation();
-						finishOutputGain();
+					}} onFinish={() => finishOutputGain()} onCancel={cancelGesture} onReset={() => {
 						if (parameterAutomation?.performAtomic('outputGain', null, 0)) return;
 						const next = normalizeParametricEqParams({ ...draft, outputGain: 0 }, effectId);
 						setDraft(next);

@@ -1,12 +1,15 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { createStableId } from '../common/editor/stable-id.js';
+import { fingerprintNativeMediaPlan } from '../common/editor/native-media-plan-canonical-form.ts';
+import { collectVisualPresetGeneratorSourceIds, normalizeVideoVisualPresetV1 } from '../common/editor/video-visual-preset-v24.ts';
 import { sampleFrameToVideoFrame } from '../common/editor/timeline-time.ts';
 import { resolveSequenceTimingView } from '../common/editor/sequence-timing-model.ts';
 import {
 	bindProductProjectBinActions, type ProductProjectBinActions,
 } from '../common/editor/controller/composition/project-bin-action-group.ts';
 import { createFramescaperImageBatchPlacementTimelineImage } from './editor-image-placement-timeline-image.ts';
+import { createSplitVisualPresentationPlanner } from './editor-split-visual-presentations.ts';
 
 type Data = Readonly<Record<string, unknown>>;
 
@@ -59,7 +62,7 @@ export function createFramescaperProjectBinVisualActions(
 		if (!name) throw new RangeError('A visual source name is required.');
 		const source = records(data(owner.project).sources).find(item => item.id === clip.sourceId);
 		if (!source) throw new ReferenceError('The visual source is missing.');
-		owner.actions.edit.commit(sourceCommand(source, { ...source, name }));
+		owner.actions.edit.commit(renameSourceCommand(data(owner.project), source, name));
 		return name;
 	}
 
@@ -90,7 +93,8 @@ export function createFramescaperProjectBinVisualActions(
 		for (const item of bin) commands.push(clipCommand(item, null, { scope: 'project-bin' }, null));
 		const source = records(project.sources).find(item => item.id === clip.sourceId);
 		if (!source) throw new ReferenceError('The visual source is missing.');
-		commands.push(sourceCommand(source, null));
+		const retainedModel = collectVisualPresetGeneratorSourceIds(project).has(String(source.id));
+		if (!retainedModel) commands.push(sourceCommand(source, null));
 		owner.actions.edit.commit({ type: 'batch', commands });
 		return Object.freeze([...ids]);
 	}
@@ -137,6 +141,8 @@ export function createFramescaperProjectBinVisualActions(
 		const candidate = { ...clip, id, sequenceId: target.sequenceId, sequenceStartFrame: start };
 		const commands: Data[] = target.trackCommand ? [target.trackCommand] : [];
 		commands.push(clipCommand(null, candidate, null, { scope: 'timeline', trackId: target.trackId }));
+		const presentations = createSplitVisualPresentationPlanner(records(project.videoVisualPresentations)).copy(String(clip.id), id);
+		commands.push(...presentations.map(command => ({ ...command })));
 		owner.actions.edit.commit({ type: 'batch', commands });
 		return id;
 	}
@@ -156,6 +162,20 @@ function clipCommand(expected: Data | null, clip: Data | null, expectedPlacement
 function sourceCommand(expected: Data, source: Data | null): Data {
 	return { type: expected.kind === 'image' ? 'image-source/set' : 'video-visual-source/set',
 		sourceId: expected.id, expectedSource: expected, source };
+}
+
+function renameSourceCommand(project: Data, source: Data, name: string): Data {
+	const renamed = { ...source, name };
+	const command = sourceCommand(source, renamed);
+	if (source.kind !== 'generator') return command;
+	const previousDigest = fingerprintNativeMediaPlan(source).sha256;
+	const nextDigest = fingerprintNativeMediaPlan(renamed).sha256;
+	const updates = records(project.videoVisualPresets)
+		.filter(preset => preset.modelKind === 'generator' && preset.authoredStateSha256 === previousDigest)
+		.map(normalizeVideoVisualPresetV1)
+		.map(preset => ({ type: 'video-visual-preset/set', presetId: preset.id,
+			expectedPreset: preset, preset: { ...preset, authoredStateSha256: nextDigest } }));
+	return updates.length ? { type: 'batch', commands: [command, ...updates] } : command;
 }
 
 function owned(clip: Data): boolean { return clip.kind === 'image' || clip.kind === 'still' || clip.kind === 'generator'; }

@@ -7,6 +7,7 @@ import { projectForRuntimeConsumers } from './project-current-runtime.ts';
 import type { RuntimeClipProject } from './runtime-clip-projection.ts';
 import { scaleSampleFrame } from './timeline-time.ts';
 import { readClipLoop } from './audio-clip-loop.ts';
+import { mapVideoTimelineFrameToSource } from './video-source-time.ts';
 
 export const CLIP_SPREADSHEET_COLUMNS = [
 	{ id: 'name', copyKey: 'name', editable: true },
@@ -30,6 +31,7 @@ export interface ClipSpreadsheetRow {
 	readonly kind: string;
 	readonly editable: boolean;
 	readonly pitchLinked?: boolean;
+	readonly warpMapped?: boolean;
 	readonly cells: Readonly<Record<ClipSpreadsheetColumnId, string>>;
 }
 export interface ClipSpreadsheetEdit {
@@ -105,11 +107,15 @@ function rowsForProject(project: SpreadsheetProject, sources: ReadonlyMap<string
 			const sourceRate = !audio && source?.frameRate
 				? source.frameRate.num / source.frameRate.den : source?.sampleRate || project.sampleRate;
 			return {
-				id: clip.id, kind: clip.kind ?? 'audio', editable: audio && !track.locked, pitchLinked: Boolean(clip.linkPitchAndTempo),
+				id: clip.id, kind: clip.kind ?? 'audio', editable: audio && !track.locked, pitchLinked: Boolean(clip.linkPitchAndTempo), warpMapped: clip.warpMap != null,
 				cells: {
 					name: clip.title || source?.name || '', track: track.id,
 					position: numberText(clip.timelineStartFrame / project.sampleRate), source: clip.sourceId,
-					offset: numberText(clip.sourceStartFrame / sourceRate),
+					offset: numberText(clip.kind === 'video' && source
+						? mapVideoTimelineFrameToSource(clip, clip.timelineStartFrame, {
+							source, sourceSampleRate: sourceRate,
+						}).sourceTimeSeconds ?? clip.sourceStartFrame / sourceRate
+						: clip.sourceStartFrame / sourceRate),
 					duration: numberText(clip.durationFrames / project.sampleRate),
 					pitch: audio ? numberText(clip.linkPitchAndTempo ? 12 * Math.log2(clip.speedRatio) : clip.pitchCents / 100) : '',
 					speed: numberText(clip.speedRatio), gain: audio ? (clip.gain === 0 ? '-Infinity' : numberText(Number((20 * Math.log10(clip.gain)).toPrecision(12)))) : '',
@@ -123,7 +129,9 @@ function rowsForProject(project: SpreadsheetProject, sources: ReadonlyMap<string
 }
 
 export function isClipSpreadsheetCellEditable(row: ClipSpreadsheetRow, column: ClipSpreadsheetColumnId): boolean {
-	return row.editable && !(column === 'pitch' && row.pitchLinked) && Boolean(CLIP_SPREADSHEET_COLUMNS.find(candidate => candidate.id === column)?.editable);
+	return row.editable && !(column === 'pitch' && row.pitchLinked)
+		&& !(row.warpMapped && ['source', 'offset', 'duration', 'speed', 'reversed'].includes(column))
+		&& Boolean(CLIP_SPREADSHEET_COLUMNS.find(candidate => candidate.id === column)?.editable);
 }
 
 /** Validate the entire paste before producing one undoable command. */

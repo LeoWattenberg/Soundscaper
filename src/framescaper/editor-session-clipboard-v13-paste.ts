@@ -17,6 +17,7 @@ import {
 } from '../common/editor/timeline-image-model.ts';
 import { sampleFrameToVideoFrame, type RationalRate } from '../common/editor/timeline-time.ts';
 import { applyFramescaperProjectCommandNativeMedia } from './editor-project-native-media-commands.ts';
+import { prepareImageClipboardCollisions } from './editor-session-clipboard-visual-collisions.ts';
 import { FRAMESCAPER_NATIVE_MEDIA_PROJECT_RUNTIME_PROFILE } from './editor-domain-runtime-profile.ts';
 import type { FramescaperProjectCommandTimelineImage } from './editor-project-timeline-image-commands.ts';
 import { framescaperProjectNativeMediaFoundationShapeTimelineImage } from './editor-project-timeline-image-foundation.ts';
@@ -84,11 +85,12 @@ export function prepareFramescaperSessionClipboardPasteV13(
 	)));
 	const foundationClipboard = framescaperSessionClipboardV12FoundationV13(clipboard);
 	const foundationProject = framescaperProjectNativeMediaFoundationShapeTimelineImage(project);
+	const collisions = prepareImageClipboardCollisions(project, baseCommand);
 	const foundationCommand = prepareFramescaperSessionClipboardPasteCommandV12(
 		FRAMESCAPER_NATIVE_MEDIA_PROJECT_RUNTIME_PROFILE,
 		foundationProject,
 		foundationClipboard,
-		sanitizeFoundationCommand(baseCommand, new Set(clipboard.images.sourceIds), imageKeys,
+		sanitizeFoundationCommand(collisions.foundationCommand, new Set(clipboard.images.sourceIds), imageKeys,
 			foundationClipboard.descriptor),
 		createId,
 	);
@@ -175,6 +177,7 @@ export function prepareFramescaperSessionClipboardPasteV13(
 	});
 	const commands: FramescaperProjectCommandTimelineImage[] = [
 		foundationCommand as FramescaperProjectCommandTimelineImage,
+		...collisions.commands,
 		...sourceCommands,
 		...clipCommands,
 	];

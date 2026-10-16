@@ -192,8 +192,9 @@ test('corresponding-source ZIPs order their entries by code unit, not by host co
 test('desktop release assembly emits source before computing release checksums', async () => {
 	const script = await readFile(resolve(ROOT, 'scripts/desktop-release-assets.mjs'), 'utf8');
 	const sourceOffset = script.indexOf('await stageDesktopBundledCodecCorrespondingSource');
-	const checksumOffset = script.indexOf("filter((name) => name !== 'SHA256SUMS')");
-	assert.ok(sourceOffset >= 0 && sourceOffset < checksumOffset);
+	const bundleOffset = script.indexOf('await stageDesktopReleaseSources');
+	const checksumOffset = script.indexOf('await finalizeDesktopReleaseAssets');
+	assert.ok(sourceOffset >= 0 && sourceOffset < bundleOffset && bundleOffset < checksumOffset);
 });
 
 function sha256(bytes) {

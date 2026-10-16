@@ -1,3 +1,4 @@
+import { capturePassingScreenshot } from './helpers/passing-screenshots.js';
 import { expect, test } from './audio-editor-test-fixtures.js';
 import { bootEditor, chooseCommandAction } from './audio-editor-test-helpers.js';
 
@@ -17,7 +18,7 @@ for (const locale of ['de', 'ar']) {
 			await page.evaluate(() => document.fonts.ready);
 			expect(await geometry(editor)).toEqual(bounds);
 			await expect(editor.locator('.audio-editor-timeline-scroll')).toHaveCSS('direction', 'ltr');
-			await page.screenshot({ path: testInfo.outputPath(`${skin}-${locale}-compact.png`) });
+			await capturePassingScreenshot(page, { path: testInfo.outputPath(`${skin}-${locale}-compact.png`) });
 		}
 	});
 }

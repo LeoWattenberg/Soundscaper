@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Button } from '@soundscaper/design-system/Button';
 import { Flyout } from '@soundscaper/design-system/Flyout';
@@ -17,6 +17,7 @@ import EditorHelpTooltip from '../EditorHelpTooltip.tsx';
 import PreferenceCheckbox from '../EditorPreferenceCheckbox.tsx';
 import { MeterPanelGrip } from '../workspace/MeterPanelControls.jsx';
 import { formatDb } from '../meter-settings.ts';
+import { playbackMeterWithChannels } from '../playback-meter-channel-presentation.ts';
 import { AudacityAudioMeter, MeterSettingsFlyout } from './AudioEditorMeters.jsx';
 
 // Browser adaptations of Audacity's RecordLevel.qml/RecordLevelPopup.qml and
@@ -28,6 +29,7 @@ export function AudacityToolbarFlyoutButton({
 	overlayPortal = false,
 	children,
 }) {
+	const popupId = useId();
 	const triggerRef = useRef(null);
 	const [position, setPosition] = useState(null);
 	const setTrigger = useCallback((element) => {
@@ -55,6 +57,7 @@ export function AudacityToolbarFlyoutButton({
 
 	const flyout = (
 		<Flyout
+			id={popupId}
 			isOpen={Boolean(position)}
 			onClose={close}
 			x={position?.x || 0}
@@ -83,6 +86,7 @@ export function AudacityToolbarFlyoutButton({
 					className="tool-button tool-button--default tool-button--idle kw-audio-editor__audacity-level-button"
 					aria-label={ariaLabel}
 					aria-expanded={Boolean(position)}
+					aria-controls={popupId}
 					onClick={toggle}
 				>
 					<span className="musescore-icon tool-button__icon" aria-hidden="true">{icon}</span>
@@ -413,7 +417,7 @@ export function PlaybackMeterToolbarGroup({
 	isCompact,
 	run,
 }) {
-	const masterMeter = useAudioEditorTelemetrySelector(controller, (telemetry) => telemetry.meters?.master);
+	const masterMeter = useAudioEditorTelemetrySelector(controller, (telemetry) => playbackMeterWithChannels(telemetry.meters));
 	return <ToolbarButtonGroup className="kw-audio-editor__playback-meter" gap={6}>
 		<AudacityToolbarFlyoutButton
 			icon={iconNameToChar('AUDIO')}
@@ -453,7 +457,7 @@ export function SidePlaybackMeter({
 	run,
 	orientation = 'vertical',
 }) {
-	const masterMeter = useAudioEditorTelemetrySelector(controller, (telemetry) => telemetry.meters?.master);
+	const masterMeter = useAudioEditorTelemetrySelector(controller, (telemetry) => playbackMeterWithChannels(telemetry.meters));
 	return (
 		<aside
 			className="kw-audio-editor__side-playback-meter"

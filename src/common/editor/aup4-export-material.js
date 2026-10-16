@@ -25,6 +25,7 @@ export function normalizeMaterialTransform(transform, inputFrameCount) {
 	const pcmGain = finiteNonNegative(transform?.pcmGain, 1);
 	const playbackRate = Number(transform?.playbackRate ?? 1);
 	const loop = normalizeAup4LoopMaterial(transform?.loop);
+	const warp = transform?.warp ?? null;
 	if (!Number.isFinite(playbackRate) || playbackRate <= 0) throw exportError('Audacity-project material playback rate is invalid.', 'INVALID_SNAPSHOT');
 	const sliceStartFrame = nonNegativeFrame(transform?.sliceStartFrame ?? 0, 'Audacity-project material transform sliceStartFrame');
 	const sliceEndFrame = nonNegativeFrame(
@@ -34,7 +35,7 @@ export function normalizeMaterialTransform(transform, inputFrameCount) {
 	if (sliceEndFrame <= sliceStartFrame || sliceEndFrame > inputFrameCount) {
 		throw exportError('Audacity-project material transform range is invalid.', 'INVALID_SNAPSHOT');
 	}
-	if (!loop && !reversed && !inverted && pcmGain === 1 && playbackRate === 1
+	if (!warp && !loop && !reversed && !inverted && pcmGain === 1 && playbackRate === 1
 		&& sliceStartFrame === 0 && sliceEndFrame === inputFrameCount) return null;
 	return {
 		sliceStartFrame,
@@ -44,6 +45,7 @@ export function normalizeMaterialTransform(transform, inputFrameCount) {
 		pcmGain,
 		playbackRate,
 		loop,
+		warp,
 	};
 }
 
@@ -54,7 +56,7 @@ export function applyMaterialTransform(channels, transform, inputRate, outputRat
 	const start = Math.min(channels[0].length - 1, scaleBoundary(transform.sliceStartFrame, ratio));
 	const end = Math.min(channels[0].length, Math.max(start + 1, scaleBoundary(transform.sliceEndFrame, ratio)));
 	return channels.map((input) => {
-		const channel = input.slice(start, end);
+		const channel = transform.warp ? input.slice() : input.slice(start, end);
 		if (transform.reversed) {
 			for (let left = 0, right = channel.length - 1; left < right; left += 1, right -= 1) {
 				const value = channel[left];

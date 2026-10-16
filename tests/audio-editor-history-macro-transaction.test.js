@@ -16,11 +16,16 @@ import { createCurrentAudioEditorProject } from '../src/common/editor/project-cu
 const addTrack = (name) => ({ type: 'track/add', track: { name } });
 const trackNames = (project) => project.tracks.map(({ name }) => name);
 
-function historyWith(names) {
-	let history = createEditorHistory(createCurrentAudioEditorProject({ id: 'project-a', title: 'Macro' }));
+function historyWith(names, options = {}) {
+	let history = createEditorHistory(createCurrentAudioEditorProject({ id: 'project-a', title: 'Macro' }), options);
 	for (const name of names) history = executeEditorCommand(history, addTrack(name));
 	return history;
 }
+
+test('shared history retains its public default undo limit', () => {
+	assert.equal(AUDIO_EDITOR_HISTORY_LIMIT, 200);
+	assert.equal(historyWith([]).limit, AUDIO_EDITOR_HISTORY_LIMIT);
+});
 
 test('a macro collapses to one entry that undoes the whole run', () => {
 	const before = historyWith(['user-a', 'user-b']);
@@ -74,13 +79,15 @@ test('a macro longer than the history limit still collapses to its own opening',
 	// entry it opened with — and everything under it — off the end. The depth
 	// then names a commit no slot holds any more, and clamps to the oldest entry
 	// left rather than settling the macro into a no-op.
-	let history = historyWith(['user-a']);
+	const limit = 4;
+	let history = historyWith(['user-a'], { limit });
 	const depth = (history.dropped ?? 0) + history.undoStack.length;
 	const started = history.present;
-	for (let index = 0; index < AUDIO_EDITOR_HISTORY_LIMIT + 10; index += 1) {
+	for (let index = 0; index < limit + 2; index += 1) {
 		history = executeEditorCommand(history, addTrack(`macro-${index}`));
 	}
-	assert.equal(history.undoStack.length, AUDIO_EDITOR_HISTORY_LIMIT);
+	assert.equal(history.undoStack.length, limit);
+	assert.ok(history.dropped > depth, 'the macro opening has fallen out of the bounded stack');
 
 	const collapsed = collapseEditorHistory(history, depth, { type: 'macro/run' });
 	assert.equal(collapsed.undoStack.length, 1, 'nothing of the user\'s own history survived under the macro');

@@ -6,6 +6,7 @@ import {
 } from '../../../browser-container-audio-decode.ts';
 import { throwIfAborted } from '../../../video-timing-demux-reader.ts';
 import { readContainerVideoSourceCharacteristics } from '../../../video-container-characteristics.ts';
+import { placeImportedVideoAudio, readVideoContainerAudioOffset } from './video-import-audio-timing.ts';
 
 export type ImportedVideoDecodedAudio = ImportedVideoPlanarAudio | ImportedVideoAudioBuffer;
 
@@ -63,13 +64,16 @@ export async function decodeImportedVideoAudio(
 		decodedAudio: { channels: [], sampleRate: options.projectSampleRate },
 		declaredAudioSampleRate: null,
 	});
+	let audioOffsetSeconds = 0;
+	try { audioOffsetSeconds = await readVideoContainerAudioOffset(options.file, options.signal); }
+	catch { throwIfAborted(options.signal); }
 	let declaredAudioSampleRate: number | null = null;
 	try {
 		if (options.file.size > 32 * 1024 * 1024) throw new RangeError('Use bounded container audio decoding.');
 		const encoded = await options.file.arrayBuffer();
 		declaredAudioSampleRate = options.inspectEncodedSampleRate(encoded);
 		return Object.freeze({
-			decodedAudio: await options.decodeNative(encoded),
+			decodedAudio: placeImportedVideoAudio(await options.decodeNative(encoded), audioOffsetSeconds, options.durationSeconds),
 			declaredAudioSampleRate,
 		});
 	} catch {
@@ -84,10 +88,10 @@ export async function decodeImportedVideoAudio(
 		} catch {
 			throwIfAborted(options.signal);
 			return Object.freeze({
-				decodedAudio: await options.decodeFfmpeg(options.file, {
+				decodedAudio: placeImportedVideoAudio(await options.decodeFfmpeg(options.file, {
 					sampleRate: options.projectSampleRate,
 					signal: options.signal,
-				}),
+				}), audioOffsetSeconds, options.durationSeconds),
 				declaredAudioSampleRate,
 			});
 		}

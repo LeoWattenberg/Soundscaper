@@ -264,7 +264,8 @@ test('effect parameter targets carry the latency standing ahead of them', () => 
 		project,
 		{ metering: false },
 	);
-	assert.equal(graph.latencyFrames, 480);
+	// The track limiter contributes 480 frames and the master compressor 288.
+	assert.equal(graph.latencyFrames, 480 + 288);
 	const latencies = new Map<string, Set<number>>();
 	for (const target of graph.parameterRegistry.entries()) {
 		const address = target.descriptor.address;
@@ -283,6 +284,9 @@ test('effect parameter targets carry the latency standing ahead of them', () => 
 	assert.equal(graph.parameterRegistry.get({
 		kind: 'strip', strip: { kind: 'track', id: 'track-1' }, parameterId: 'gain',
 	})?.latencyFrames, 480);
+	assert.equal(graph.parameterRegistry.get({
+		kind: 'strip', strip: { kind: 'master' }, parameterId: 'gain',
+	})?.latencyFrames, 480 + 288);
 });
 
 test('mute and send targets declare the latency of their own track only', () => {

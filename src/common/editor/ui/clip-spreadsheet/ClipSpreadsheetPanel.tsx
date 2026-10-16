@@ -22,6 +22,7 @@ import {
 	type SpreadsheetCell, type SpreadsheetRange,
 } from './clipboard.ts';
 import { matchClipSpreadsheetSourceFiles, planClipSpreadsheetPaste } from './paste.ts';
+import { spreadsheetOwnsKeyboard } from './keyboard-ownership.ts';
 import './clip-spreadsheet.css';
 
 interface SpreadsheetController {
@@ -258,6 +259,7 @@ function ClipSpreadsheetSurface({ controller, snapshot, copy, fileService }: Cli
 		catch (cause) { setError(feedbackFailure(cause)); }
 	}
 	function handleKey(event: KeyboardEvent<HTMLTableElement>): void {
+		if (event.defaultPrevented || !spreadsheetOwnsKeyboard(event, draft !== null)) return;
 		if (event.key === 'Escape' && !draft) {
 			if (hasSelection) { event.preventDefault(); event.stopPropagation(); clearSelection(); }
 			return;
@@ -269,6 +271,7 @@ function ClipSpreadsheetSurface({ controller, snapshot, copy, fileService }: Cli
 		event.stopPropagation();
 		if (event.target instanceof HTMLButtonElement) return;
 		if (draft) {
+			if (event.nativeEvent?.isComposing) return;
 			if (event.key === 'Escape') {
 				event.preventDefault(); updateDraft(null); setError(''); focusCell(active);
 			} else if (event.key === 'Enter' || event.key === 'Tab') {
@@ -286,11 +289,13 @@ function ClipSpreadsheetSurface({ controller, snapshot, copy, fileService }: Cli
 			event.preventDefault(); historyAction(event.shiftKey || event.key.toLowerCase() === 'y' ? 'redo' : 'undo'); return;
 		}
 		if (!rows.length) return;
+		const table = tableRef.current;
+		const horizontalStep = table && table.ownerDocument.defaultView?.getComputedStyle?.(table).direction === 'rtl' ? -1 : 1;
 		const directions: Record<string, SpreadsheetCell> = {
 			ArrowUp: { row: active.row - 1, column: active.column },
 			ArrowDown: { row: active.row + 1, column: active.column },
-			ArrowLeft: { row: active.row, column: active.column - 1 },
-			ArrowRight: { row: active.row, column: active.column + 1 },
+			ArrowLeft: { row: active.row, column: active.column - horizontalStep },
+			ArrowRight: { row: active.row, column: active.column + horizontalStep },
 			Home: { row: modifier ? 0 : active.row, column: 0 },
 			End: { row: modifier ? rows.length - 1 : active.row, column: columns.length - 1 },
 		};
@@ -323,8 +328,10 @@ function ClipSpreadsheetSurface({ controller, snapshot, copy, fileService }: Cli
 	liveRowActions.current = { finishEdit, selectCell, beginEdit, updateDraft, apply, selectRow: (row, extend) => headerRange('row', row, extend), isDraftActive: () => draft !== null, registerCell: cellIndex.register };
 	const closeFeedback = (): void => { if (!pasting) { setPendingPaste(null); setError(''); } };
 	return <div className="audio-editor-clip-spreadsheet" data-clip-spreadsheet>
-		<div className="audio-editor-clip-spreadsheet__content" onKeyDown={event => { if (!['Escape', 'Tab'].includes(event.key) || draft) event.stopPropagation(); }}>
-			<input ref={filesRef} type="file" multiple hidden accept="audio/*,.aac,.aif,.aiff,.bw64,.flac,.m4a,.mp2,.mp3,.oga,.ogg,.opus,.rf64,.wav,.wave,.wavpack,.wv"
+		<div className="audio-editor-clip-spreadsheet__content" onKeyDown={event => {
+			if (spreadsheetOwnsKeyboard(event, draft !== null) && (!['Escape', 'Tab'].includes(event.key) || draft)) event.stopPropagation();
+		}}>
+			<input ref={filesRef} type="file" multiple hidden accept="audio/*,.aac,.aif,.aiff,.bw64,.flac,.m4a,.mp2,.mp3,.oga,.ogg,.opus,.rf64,.wav,.wave,.wavpack,.webm,.wv"
 				onChange={event => {
 					const files = Array.from(event.currentTarget.files ?? []);
 					event.currentTarget.value = '';

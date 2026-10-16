@@ -56,6 +56,9 @@ test('workers give effect definitions and the complete canonical copy registry a
 	assert.ok(group);
 	assert.ok(group.test instanceof RegExp);
 	for (const path of [
+		'src/common/editor/audacity-effects/manifest.js',
+		'src/common/editor/first-party-effects/parametric-eq/definition.js',
+		'src/common/editor/first-party-effects/bitcrusher/definition.js',
 		'src/common/editor/first-party-effects/standard/definition.ts',
 		'src/common/editor/first-party-effects/standard/filters-definition.ts',
 		'src/common/editor/first-party-effects/standard/filters-coefficients.ts',
@@ -93,7 +96,6 @@ test('small product-ready foundations have non-recursive semantic owners', () =>
 		['src/common/editor/controller/document/deferred-archive-runtime.ts', 'project-interchange-foundations'],
 		['src/common/editor/controller/shared/file-size-warning.ts', 'project-interchange-foundations'],
 		['src/common/editor/controller/shared/file-size-warning-confirmation.ts', 'project-interchange-foundations'],
-		['desktop/desktop-video-codec-operation-contract.ts', 'editor-codec-foundations'],
 		['src/common/editor/wavpack/pcm.js', 'editor-codec-foundations'],
 		['src/common/editor/staffpad/parameters.js', 'editor-codec-foundations'],
 		['src/common/editor/parametric-eq/wasm-loader.js', 'editor-codec-foundations'],
@@ -158,4 +160,20 @@ test('small product-ready foundations have non-recursive semantic owners', () =>
 		assert.ok(group);
 		assert.equal(group.includeDependenciesRecursively, false);
 	}
+});
+
+test('desktop video sessions and their contract share one deferred runtime owner', () => {
+	for (const path of [
+		'src/common/editor/desktop-video-codec-runtime.ts',
+		'desktop/desktop-video-codec-operation-contract.ts',
+		'desktop/desktop-video-h264-encoder.ts',
+	]) {
+		for (const variant of [path, path.replaceAll('/', '\\')]) {
+			assert.equal(chunkGroupForModulePath(variant), 'editor-desktop-video-codec-runtime', variant);
+		}
+	}
+	const group = chunkGroups.find(candidate => candidate.name === 'editor-desktop-video-codec-runtime');
+	assert.ok(group);
+	assert.equal(group.includeDependenciesRecursively, false);
+	assert.equal(group.minSize, 0);
 });

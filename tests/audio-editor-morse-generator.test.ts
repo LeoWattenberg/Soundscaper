@@ -2,6 +2,7 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { createMenuActionFixture } from './helpers/application-menu-fixture.ts';
 
 import { audacityActionDefinition } from '../src/common/editor/audacity-action-parity.js';
 import { generatorName } from '../src/common/editor/controller/shared/app-helpers.ts';
@@ -202,12 +203,8 @@ function menus(copy: Record<string, string>, opened: string[]): MenuItem[] {
 		projectBinEffectivelyOpen: false,
 		uiFlags: {},
 		actionRuntime: null,
-		actions: new Proxy({
+		actions: createMenuActionFixture({
 			openGenerator: (type: string) => { opened.push(type); },
-		} as Record<string, unknown>, {
-			get: (target, property, receiver) => (Reflect.has(target, property)
-				? Reflect.get(target, property, receiver)
-				: () => undefined),
-		}),
+		} as Record<string, unknown>),
 	}) as MenuItem[];
 }

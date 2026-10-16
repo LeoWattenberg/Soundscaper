@@ -29,11 +29,24 @@ test('linked render cancellation disposes its engine before publishing audio', a
 	assert.equal(fixture.disposed(), 1);
 });
 
-function createFixture(fail = false) {
+test('linked render preserves authored warp timing through the production schedule planner', async () => {
+	const fixture = createFixture(false, true);
+	const original = structuredClone(fixture.project);
+	const output = await renderLinkedClipAudio(fixture.resources, fixture.project, fixture.clip, fixture.source, new AbortController().signal);
+	assert.equal(output.length, 240);
+	assert.deepEqual(fixture.loaded()?.tempoMap, fixture.project.tempoMap);
+	assert.deepEqual(fixture.project, original);
+	assert.equal(fixture.disposed(), 1);
+});
+
+function createFixture(fail = false, warped = false) {
 	const source = createAudioSource({ id: 'source', frameCount: 1_000, sampleRate: 24_000, channelCount: 1 });
 	const clip = { ...createAudioClip({ id: 'clip', sourceId: 'source', timelineStartFrame: 400, sourceStartFrame: 100,
 		sourceDurationFrames: 240, durationFrames: 240, speedRatio: 2, linkPitchAndTempo: true, pitchCents: 300,
-		gain: 0.4, fadeInFrames: 20, fadeOutFrames: 15,
+		gain: 0.4, fadeInFrames: 20, fadeOutFrames: 15, warpMap: warped ? { feature: 'audio-warp', points: [
+			{ outer: 0, source: 100, mode: 'forward' }, { outer: 120, source: 280, mode: 'forward' },
+			{ outer: 240, source: 340, mode: 'forward' },
+		] } : null,
 	}), timelineStartFrame: 400, durationFrames: 240 };
 	const project = { id: 'project', schemaVersion: 23, title: 'Project', sampleRate: 48_000,
 		clips: [clip], sources: [source], tracks: [],
@@ -58,9 +71,11 @@ function createFixture(fail = false) {
 				assert.ok(loaded);
 				const plans = buildClipSchedulePlans({ project: loaded, sources: buffers,
 					trackInputs: new Map([['linked-render', {} as AudioNode]]), fromFrame: 0, toFrame: 240, sampleRate: 48_000 });
-				assert.equal(plans.length, 1);
-				assert.equal(plans[0]!.playbackRate, 2);
+				assert.equal(plans.length, warped ? 2 : 1);
+				assert.equal(plans[0]!.playbackRate, warped ? 3 : 2);
 				assert.equal(plans[0]!.offsetFrame, 100);
+				if (warped) assert.deepEqual(plans.map(plan => [plan.segmentStart, plan.segmentEnd, plan.offsetFrame, plan.playbackRate]),
+					[[0, 120, 100, 3], [120, 240, 280, 1]]);
 				if (fail) throw new DOMException('Cancelled', 'AbortError');
 				return { channels: [new Float32Array(240)] };
 			},

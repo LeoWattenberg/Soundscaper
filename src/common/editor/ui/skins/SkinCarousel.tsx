@@ -34,6 +34,7 @@ export default function SkinCarousel({ current, copy, children }: {
 		element.scrollBy({ left: direction * step * element.clientWidth * 0.8, behavior: 'instant' });
 	};
 	const navigate = (event: KeyboardEvent<HTMLDivElement>) => {
+		if (event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey) return;
 		const element = viewport.current;
 		if (!element || !(event.target instanceof HTMLButtonElement)) return;
 		const buttons = Array.from(element.querySelectorAll<HTMLButtonElement>('button'));

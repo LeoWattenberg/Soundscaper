@@ -20,6 +20,7 @@ import type { EffectControlsState } from '../effects/effect-controls-service.ts'
 import type { TrimMediaFfmpegHost } from '../document/trim-media-service.ts';
 import type { ExportActionState } from '../export/export-action-group.ts';
 import type { EditorTaskScope } from '../shared/lifecycle.ts';
+import type { InterchangeProductProjection } from '../../interchange-multicamera-delivery.ts';
 
 type EffectLibraryState =
 	& EffectMacroLibraryServiceRuntime['state']
@@ -27,6 +28,7 @@ type EffectLibraryState =
 	& Pick<EffectControlsState, 'audacityEffectType' | 'effectPresets'>;
 interface EditorActionState extends ExportActionState {
 	selectedTrackId: string | null;
+	readonly timelineView: string;
 	readonly preferences?: Readonly<{
 		readonly waveformVisualization?: Readonly<{
 			readonly lowMidCrossoverHz?: number;
@@ -56,7 +58,7 @@ export interface EditorActionResources {
 		auditionParametricEq(bandId: string | number | null): unknown;
 	}>;
 	readonly engine: EnginePublicApi;
-	readonly playbackPreviews?: Readonly<{ setGain(gain: number): void }>;
+	readonly playbackPreviews?: Readonly<{ setGain(gain: number): void; setOutput(deviceId: string): Promise<void> }>;
 	readonly ffmpeg: ReturnType<typeof createEditorCodecRuntime> & Partial<TrimMediaFfmpegHost>;
 	readonly fileService: ReturnType<typeof createAudioEditorFileService>;
 	readonly product: Readonly<{ id: string; name: string }>;
@@ -78,6 +80,7 @@ export interface EditorActionResources {
 	readonly framescaperCaptureActions?: NonNullable<ReturnType<typeof createFramescaperCaptureAppBinding>>['actions'];
 	readonly framescaperWebVcrActions?: NonNullable<ReturnType<typeof createFramescaperCaptureAppBinding>>['webVcrActions'];
 	readonly productSequenceActions?: unknown;
+	readonly projectForRuntimeConsumers?: InterchangeProductProjection;
 	readonly productId?: string;
 	readonly locale?: string;
 	readonly macroScriptStartedAt?: () => string;

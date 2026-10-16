@@ -28,6 +28,7 @@ export interface FramescaperWebVcrCaptureAdapterOptions {
 	readonly createStream: WebVcrRecorderFactoryOptions['createStream'];
 	readonly getAudioContext: () => PromiseLike<Parameters<typeof createWebVcrAudioMonitor>[0]['context']>
 		| Parameters<typeof createWebVcrAudioMonitor>[0]['context'];
+	readonly getMonitorDestination?: () => Parameters<typeof createWebVcrAudioMonitor>[0]['monitorDestination'];
 	readonly openCrop: WebVcrRecorderFactoryOptions['openCrop'];
 	readonly authority: Readonly<FramescaperWebVcrCaptureAuthority>;
 }
@@ -81,6 +82,7 @@ export function createFramescaperWebVcrCaptureAdapter(
 				ownedMonitor = createWebVcrAudioMonitor({
 					track: pageAudio.track as CloneableAudioTrack,
 					context,
+					monitorDestination: options.getMonitorDestination?.(),
 					createStream: options.createStream,
 					muted,
 				});

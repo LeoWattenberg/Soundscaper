@@ -17,6 +17,8 @@ import RoutingGraphWires from './RoutingGraphWires.tsx';
 import { useOperationFocusRecovery } from '../useOperationFocusRecovery.ts';
 import { indexRoutingNodes, indexRoutingEdges, indexRoutingPorts, indexRoutingConnections, indexRoutingEndpointLabels, routingNavigationTarget } from './routing-graph-presentation.ts';
 import { useRoutingHoverFrame } from './useRoutingHoverFrame.ts';
+import { routingGraphOwnsKeyboardEvent } from './routing-keyboard-event-ownership.ts';
+import { routingEdgeHandleStyle } from './routing-edge-handle-position.ts';
 import { feedbackFailure, usePresentationFeedback } from '../presentation-feedback.ts'; import type { MixerEdgeV21, MixerGraphV21 } from '../../mixer-graph-v21.ts';
 import type { ParameterAddress } from '../../parameter-address.ts';
 import SoundscaperRoutingGraphInspector, {
@@ -206,7 +208,7 @@ export default function SoundscaperRoutingGraphView({
 		data-soundscaper-routing-graph
 		aria-label={copy.routing}
 		onKeyDown={(event) => {
-			if (event.key !== 'Escape' || !connecting) return;
+			if (!routingGraphOwnsKeyboardEvent(event) || event.key !== 'Escape' || !connecting) return;
 			event.preventDefault();
 			hover.cancel();
 			setConnecting(null);
@@ -276,13 +278,13 @@ export default function SoundscaperRoutingGraphView({
 							key={`handle:${edge.key}`}
 							type="button"
 							className={`kw-routing-graph__edge-handle kw-routing-graph__edge-handle--${edge.kind}${edge.enabled ? '' : ' is-disabled'}`}
-							style={edgeHandleStyle(source, destination, edge.parallelOffset)}
+							style={routingEdgeHandleStyle(source, destination, layout.nodes, edge.parallelOffset)}
 							data-routing-edge={edge.id}
 							aria-pressed={selection?.kind === 'edge' && selection.id === edge.id}
 							aria-label={edgeAriaLabel(copy, model, endpointLabels)}
 							onClick={() => setSelection({ kind: 'edge', id: edge.id })}
 							onKeyDown={(event) => {
-								if (event.key !== 'Delete') return;
+								if (!routingGraphOwnsKeyboardEvent(event) || event.key !== 'Delete') return;
 								event.preventDefault();
 								setSelection({ kind: 'edge', id: edge.id });
 								if (!isSoundscaperFolderOwnedRoutingEdge(project, model)) setConfirmingDelete(true);
@@ -412,7 +414,7 @@ function PortButton({ kind, nodeKey, label, disabled, active, sidechainIndex = 0
 }>) {
 	const data = kind === 'source' ? { 'data-routing-source': nodeKey } : { 'data-routing-destination': nodeKey };
 	const activate = (event: KeyboardEvent<HTMLButtonElement>): void => {
-		if (event.key !== 'Enter' && event.key !== ' ') return;
+		if (!routingGraphOwnsKeyboardEvent(event) || (event.key !== 'Enter' && event.key !== ' ')) return;
 		event.preventDefault();
 		onActivate();
 	};
@@ -427,9 +429,11 @@ function PortButton({ kind, nodeKey, label, disabled, active, sidechainIndex = 0
 		disabled={disabled}
 		{...data}
 		onPointerDown={kind === 'source' ? (event: PointerEvent<HTMLButtonElement>) => {
+			if (event.button !== 0) return;
 			event.preventDefault(); onActivate();
 		} : undefined}
 		onPointerUp={kind !== 'source' ? (event: PointerEvent<HTMLButtonElement>) => {
+			if (event.button !== 0) return;
 			event.preventDefault(); if (active) onActivate();
 		} : undefined}
 		onKeyDown={activate}
@@ -443,6 +447,7 @@ function nodeKeyDown(
 	selection: RoutingSelection,
 	props: RoutingNodeCardProps,
 ): void {
+	if (!routingGraphOwnsKeyboardEvent(event)) return;
 	const directions = {
 		ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down', Home: 'home', End: 'end',
 	} as const;

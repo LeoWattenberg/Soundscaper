@@ -1,6 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { resolveEditingSelection } from './commands/editing-selection-authority.ts';
+import { resolveEditingSelection, resolveEditingSelectionAuthority, type EditingAuthorityClip } from './commands/editing-selection-authority.ts';
+import { clipContentRange } from './clip-content-range.ts';
+import type { RuntimePersistedClip } from './runtime-clip-projection.ts';
 
 // The document is the editor's untyped runtime projection; callers narrow it as
 // their owning services migrate.
@@ -37,7 +39,18 @@ export function resolveSelectionRange(
 	if (!project?.tracks || !project?.clips) return null;
 	let editing;
 	try {
-		editing = resolveEditingSelection(project, { selectedClipId: options.selectedClipId ?? null });
+		const selectedClipId = options.selectedClipId ?? null;
+		const authority = resolveEditingSelectionAuthority({ project, focusedClipId: selectedClipId });
+		const selected = new Set(authority.clipIds);
+		const geometryProject = authority.range || !selected.size ? project : {
+			...project,
+			clips: project.clips.map((clip: EditingAuthorityClip & RuntimePersistedClip) => {
+				if (!selected.has(clip.id)) return clip;
+				const range = clipContentRange(project, clip);
+				return range ? { ...clip, timelineStartFrame: range.startFrame, durationFrames: range.endFrame - range.startFrame } : clip;
+			}),
+		};
+		editing = resolveEditingSelection(geometryProject, { selectedClipId });
 	} catch (error) {
 		// Imported clips can be selected before their timeline geometry resolves.
 		if (error instanceof RangeError) return null;

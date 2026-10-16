@@ -222,19 +222,19 @@ test('a paste appends every carried visual and finishing model to the foundation
 		commands.filter(({ type }) => type === 'video-visual-source/set').map(({ sourceId }) => sourceId),
 		['visual-source-1', 'visual-source-2'],
 	);
-	assert.equal(only('video-mask-matte/set')?.maskMatteId, 'mask-matte-5');
-	assert.equal(only('video-motion-analysis/set')?.motionAnalysisId, 'motion-analysis-9');
+	assert.equal(only('video-mask-matte/set')?.maskMatteId, 'mask-matte-3');
+	assert.equal(only('video-motion-analysis/set')?.motionAnalysisId, 'motion-analysis-7');
 	assert.deepEqual(only('video-processor-stack/set')?.processorStack, {
-		schemaVersion: 1, id: 'processor-stack-7', sourceId: 'video-source',
+		schemaVersion: 1, id: 'processor-stack-5', sourceId: 'video-source',
 		processors: [{
-			schemaVersion: 1, id: 'video-processor-8', kind: 'spatial-denoise',
+			schemaVersion: 1, id: 'video-processor-6', kind: 'spatial-denoise',
 			enabled: true, radius: 1, strength: 1,
 		}],
 	});
 	assert.deepEqual(only('video-visual-presentation/set')?.presentation, {
-		schemaVersion: 1, id: 'visual-presentation-6', owner: { kind: 'clip', id: 'visual-clip-3' },
+		schemaVersion: 1, id: 'visual-presentation-4', owner: { kind: 'clip', id: 'clip-2' },
 		enabled: true, opacity: 1, blendMode: 'normal', grade: null,
-		processorStackId: 'processor-stack-7', maskMatteIds: ['mask-matte-5'],
+		processorStackId: 'processor-stack-5', maskMatteIds: ['mask-matte-3'],
 	});
 });
 
@@ -243,15 +243,15 @@ test('a carried visual clip is rescaled onto the paste anchor of its mapped dest
 
 	const commands = commandsOf(prepare(destination(), carrier, pasteCommand(carrier)));
 
-	const stillClip = commands.find(({ clipId }) => clipId === 'visual-clip-3');
-	const generatorClip = commands.find(({ clipId }) => clipId === 'visual-clip-4');
+	const stillClip = commands.find(({ clipId }) => clipId === 'clip-2');
+	const generatorClip = commands.find(({ clipId }) => clipId === 'clip-3');
 	// The anchor is sample frame 480000 at 10/1 over 48000 Hz, so video frame 100.
 	assert.deepEqual(stillClip?.clip, {
-		schemaVersion: 1, kind: 'still', id: 'visual-clip-3', sourceId: 'visual-source-1',
+		schemaVersion: 1, kind: 'still', id: 'clip-2', sourceId: 'visual-source-1',
 		sequenceId: 'main-sequence', sequenceStartFrame: 110, sequenceFrameCount: 10,
 	});
 	assert.deepEqual(generatorClip?.clip, {
-		schemaVersion: 1, kind: 'generator', id: 'visual-clip-4', sourceId: 'visual-source-2',
+		schemaVersion: 1, kind: 'generator', id: 'clip-3', sourceId: 'visual-source-2',
 		sequenceId: 'main-sequence', sequenceStartFrame: 120, sequenceFrameCount: 10,
 		sourceInFrame: 0, sourceFrameCount: 10,
 	});
@@ -270,12 +270,12 @@ test('the prepared paste applies to the destination project as one transaction',
 
 	assert.deepEqual((pasted.clips as Data[]).map(({ id, kind }) => [id, kind]), [
 		['video-clip', 'video'], ['audio-clip', 'audio'], ['clip-1', 'video'],
-		['visual-clip-3', 'still'], ['visual-clip-4', 'generator'],
+		['clip-2', 'still'], ['clip-3', 'generator'],
 	]);
 	assert.deepEqual((pasted.sources as Data[]).map(({ id }) => id), [
 		'video-source', 'audio-source', 'visual-source-1', 'visual-source-2',
 	]);
-	assert.deepEqual((pasted.videoVisualPresentations as Data[]).map(({ id }) => id), ['visual-presentation-6']);
+	assert.deepEqual((pasted.videoVisualPresentations as Data[]).map(({ id }) => id), ['visual-presentation-4']);
 });
 
 test('carried color state that the destination already agrees with emits no set command', () => {
@@ -466,7 +466,7 @@ test('a paste refuses a carried visual clip that no descriptor binding places', 
 
 	assert.throws(
 		() => prepare(destination(), orphaned, pasteCommand(carrier)),
-		{ name: 'ReferenceError', message: /visual clip visual-clip-5 has no placement binding/u },
+		{ name: 'ReferenceError', message: /visual clip orphan-clip has no placement binding/u },
 	);
 });
 
@@ -493,10 +493,10 @@ test('a carried adjustment layer and preset are remapped onto destination tracks
 	const adjustment = commands.find(({ type }) => type === 'video-adjustment-layer/set');
 	const preset = commands.find(({ type }) => type === 'video-visual-preset/set');
 	assert.deepEqual(adjustment?.adjustmentLayer, {
-		schemaVersion: 1, kind: 'adjustment-layer', id: 'adjustment-layer-5', sequenceId: 'main-sequence',
+		schemaVersion: 1, kind: 'adjustment-layer', id: 'adjustment-layer-3', sequenceId: 'main-sequence',
 		sequenceStartFrame: 0, sequenceFrameCount: 30, targetTrackIds: ['video-track'], effectIds: [],
 	});
 	assert.equal(adjustment?.expectedAdjustmentLayer, null);
-	assert.equal(preset?.presetId, 'visual-preset-6');
+	assert.equal(preset?.presetId, 'visual-preset-4');
 	assert.equal(preset?.expectedPreset, null);
 });

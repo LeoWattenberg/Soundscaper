@@ -1,9 +1,12 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import type { AudioEditorCommand } from './commands/protocol.ts';
+import { derivedTrackSidechainRoutes } from './derived-track-sidechains.ts';
+import { copyDerivedTrackRouteAutomation, type DerivedTrackRouteCopy } from './derived-track-route-automation.ts';
 import {
 	defaultMixerChannelMapV21,
 	normalizeMixerGraphV21,
+	mixerEndpointKeyV21,
 	type MixerEdgeV21,
 	type MixerGraphV21,
 } from './mixer-graph-v21.ts';
@@ -26,7 +29,7 @@ export function preserveProductionTrackRouting<Project extends RoutingProject>(
 	const staged = previewCommand(project, command);
 	const originalGraph = normalizeMixerGraphV21(project.mixer as never);
 	const stagedGraph = normalizeMixerGraphV21(staged.mixer as never);
-	const desired = restateRoutes(
+	const { graph: desired, edgeCopies } = restateRoutes(
 		project,
 		staged,
 		stagedGraph,
@@ -40,7 +43,8 @@ export function preserveProductionTrackRouting<Project extends RoutingProject>(
 		expected: stagedGraph as unknown as Readonly<Record<string, unknown>>,
 		mixer: desired as unknown as Readonly<Record<string, unknown>>,
 	};
-	return Object.freeze({ type: 'batch', commands: Object.freeze([...command.commands, graphCommand]) });
+	const automation = copyDerivedTrackRouteAutomation(project, staged, edgeCopies, createId);
+	return Object.freeze({ type: 'batch', commands: Object.freeze([...command.commands, graphCommand, ...automation]) });
 }
 
 function restateRoutes(
@@ -51,7 +55,8 @@ function restateRoutes(
 	copies: readonly Readonly<{ readonly sourceTrackId: string; readonly targetTrackId: string }>[],
 	directTrackIds: readonly string[],
 	createId: (prefix: string) => string,
-): MixerGraphV21 {
+): Readonly<{ graph: MixerGraphV21; edgeCopies: readonly DerivedTrackRouteCopy[] }> {
+	const edgeCopies: DerivedTrackRouteCopy[] = [];
 	const targetIds = new Set([
 		...copies.map(({ targetTrackId }) => targetTrackId),
 		...directTrackIds,
@@ -68,7 +73,7 @@ function restateRoutes(
 	for (const copy of copies) {
 		for (const route of original.edges) {
 			if (route.source.kind !== 'track' || route.source.id !== copy.sourceTrackId
-				|| sidechainTargetsOwnRack(route, copy.sourceTrackId)) continue;
+				|| route.destination.kind === 'effect-sidechain') continue;
 			const sourceWidth = widths.tracks.get(copy.targetTrackId) ?? Number(project.masterChannels);
 			const originalSourceWidth = originalWidths.tracks.get(copy.sourceTrackId)
 				?? Number(originalProject.masterChannels);
@@ -86,16 +91,39 @@ function restateRoutes(
 			const channelMap = remainsValid && !wasDefault
 				? route.channelMap
 				: defaultMixerChannelMapV21(sourceWidth, destinationWidth);
-			let id = copiedRouteId(route, copy.sourceTrackId, copy.targetTrackId)
-				?? createId('mix-route');
+			let id = copy.sourceTrackId === copy.targetTrackId ? route.id
+				: copiedRouteId(route, copy.sourceTrackId, copy.targetTrackId) ?? createId('mix-route');
 			while (occupiedIds.has(id)) id = createId('mix-route');
 			occupiedIds.add(id);
+			edgeCopies.push({ sourceEdgeId: route.id, targetEdgeId: id });
 			edges.push({
 				...structuredClone(route), id,
 				source: { kind: 'track', id: copy.targetTrackId },
 				channelMap,
 			});
 		}
+	}
+	for (const { original: route, route: copied } of derivedTrackSidechainRoutes(originalProject, project, original.edges, copies)) {
+		if (edges.some(edge => edge.kind === 'sidechain' && sameSidechainTerminals(edge, copied))) continue;
+		const sourceWidth = copied.source.kind === 'track'
+			? widths.tracks.get(copied.source.id) ?? Number(project.masterChannels)
+			: edgeDestinationWidth(staged, { ...copied, destination: copied.source }, widths.tracks);
+		const destinationWidth = edgeDestinationWidth(staged, copied, widths.tracks);
+		const originalSourceWidth = route.source.kind === 'track'
+			? originalWidths.tracks.get(route.source.id) ?? Number(originalProject.masterChannels)
+			: edgeDestinationWidth(original, { ...route, destination: route.source }, originalWidths.tracks);
+		const wasDefault = sameChannelMap(route.channelMap, defaultMixerChannelMapV21(
+			originalSourceWidth, edgeDestinationWidth(original, route, originalWidths.tracks),
+		));
+		const remainsValid = route.channelMap.length === destinationWidth
+			&& route.channelMap.every(channel => channel === -1 || (channel >= 0 && channel < sourceWidth));
+		let id = sameSidechainTerminals(route, copied) && !occupiedIds.has(route.id)
+			? route.id : createId('mix-route');
+		while (occupiedIds.has(id)) id = createId('mix-route');
+		occupiedIds.add(id);
+		edgeCopies.push({ sourceEdgeId: route.id, targetEdgeId: id });
+		edges.push({ ...structuredClone(copied), id, channelMap: remainsValid && !wasDefault
+			? route.channelMap : defaultMixerChannelMapV21(sourceWidth, destinationWidth) });
 	}
 	for (const trackId of directTrackIds) {
 		const sourceWidth = widths.tracks.get(trackId) ?? Number(project.masterChannels);
@@ -123,7 +151,7 @@ function restateRoutes(
 		}
 		return { ...vca, members };
 	});
-	return normalizeMixerGraphV21({ ...staged, edges, vcas });
+	return { graph: normalizeMixerGraphV21({ ...staged, edges, vcas }), edgeCopies };
 }
 
 function sameChannelMap(left: readonly number[], right: readonly number[]): boolean {
@@ -170,8 +198,11 @@ function edgeDestinationWidth(
 	return 2;
 }
 
-function sidechainTargetsOwnRack(edge: MixerEdgeV21, sourceTrackId: string): boolean {
-	return edge.destination.kind === 'effect-sidechain'
-		&& edge.destination.strip.kind === 'track'
-		&& edge.destination.strip.id === sourceTrackId;
+function sameSidechainTerminals(left: MixerEdgeV21, right: MixerEdgeV21): boolean {
+	return left.destination.kind === 'effect-sidechain' && right.destination.kind === 'effect-sidechain'
+		&& mixerEndpointKeyV21(left.source) === mixerEndpointKeyV21(right.source)
+		&& left.destination.effectId === right.destination.effectId
+		&& left.destination.strip.kind === right.destination.strip.kind
+		&& (left.destination.strip.kind === 'master' || (right.destination.strip.kind !== 'master'
+			&& left.destination.strip.id === right.destination.strip.id));
 }

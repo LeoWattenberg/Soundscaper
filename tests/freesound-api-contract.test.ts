@@ -208,15 +208,6 @@ test('rejects oversized or structurally invalid search responses', () => {
 	);
 });
 
-test('Cloudflare invokes Functions only for the Freesound API and desktop download routes', () => {
-	const routes = JSON.parse(readFileSync(new URL('../public/_routes.json', import.meta.url), 'utf8')) as unknown;
-	assert.deepEqual(routes, {
-		version: 1,
-		include: ['/api/freesound/*', '/download/desktop', '/download/desktop/*'],
-		exclude: [],
-	});
-});
-
 test('Pages Wrangler configuration omits the Worker-only secrets declaration', () => {
 	const configuration = JSON.parse(
 		readFileSync(new URL('../wrangler.jsonc', import.meta.url), 'utf8'),

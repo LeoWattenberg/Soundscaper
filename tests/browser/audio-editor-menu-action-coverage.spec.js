@@ -82,11 +82,6 @@ test.describe('application menu action journeys', () => {
 		await chooseCommandAction(page, editor, 'View', 'Status bar');
 		await expect(editor.locator('[data-status]')).toHaveText('Done');
 
-		await chooseCommandAction(page, editor, 'View', 'Fullscreen');
-		await expect(editor).toHaveClass(/kw-audio-editor--viewport-fullscreen/u);
-		await chooseCommandAction(page, editor, 'View', 'Fullscreen');
-		await expect(editor).not.toHaveClass(/kw-audio-editor--viewport-fullscreen/u);
-
 		await selectClipHeader(editor);
 		await chooseCommandAction(page, editor, 'Tracks', 'Duplicate track');
 		await expect(editor).toHaveAttribute('data-track-count', '3');
@@ -119,6 +114,28 @@ test.describe('application menu action journeys', () => {
 		expect(errors).toEqual([]);
 	});
 });
+
+for (const product of ['soundscaper', 'framescaper']) {
+	test(`${product} reaches fullscreen only through Window and keeps F11 working`, async ({ page }) => {
+		const editor = await bootEditor(page, product === 'soundscaper' ? '/embed/en/' : '/framescaper/embed/en/');
+		const viewMenu = await openNestedCommandMenu(page, editor, 'View', []);
+		await expect(getMenuItem(viewMenu, 'Fullscreen')).toHaveCount(0);
+		const windowMenu = await openNestedCommandMenu(page, editor, 'Window', []);
+		const fullscreen = getMenuItem(windowMenu, 'Fullscreen');
+		await expect(fullscreen).toBeVisible();
+		await expect(fullscreen).toContainText('F11');
+		await fullscreen.click();
+		await expect(editor).toHaveClass(/kw-audio-editor--viewport-fullscreen/u);
+		await chooseCommandAction(page, editor, 'Window', 'Fullscreen');
+		await expect(editor).not.toHaveClass(/kw-audio-editor--viewport-fullscreen/u);
+		// Menus own unmodified keys; use the shortcut with focus back in the editor.
+		const fullscreenButton = editor.getByRole('button', { name: 'Fullscreen', exact: true });
+		await fullscreenButton.press('F11');
+		await expect(editor).toHaveClass(/kw-audio-editor--viewport-fullscreen/u);
+		await fullscreenButton.press('F11');
+		await expect(editor).not.toHaveClass(/kw-audio-editor--viewport-fullscreen/u);
+	});
+}
 
 async function selectClipHeader(editor) {
 	const clip = clipByName(editor, toneA.name);

@@ -20,6 +20,7 @@ test('the renderer transfers one digest-bound evaluated RGBA frame with backpres
 	const handlers = new Map<string, (event: unknown, value?: unknown) => void>();
 	const presented: unknown[] = [];
 	const controller = {
+		externalDisplaySessionIdentity: () => presented,
 		externalDisplays: () => ({ displays: [], activeDisplayId: 'display-2' }),
 		presentExternalDisplay: (frame: unknown) => {
 			presented.push(frame);
@@ -79,6 +80,7 @@ test('foreign owners and malformed bindings are refused before frame bytes are c
 	};
 	let ownerEvent: unknown = null;
 	const controller = {
+		externalDisplaySessionIdentity: () => ownerEvent as object,
 		externalDisplays: () => ({ displays: [], activeDisplayId: 'display-2' }),
 		presentExternalDisplay: () => { throw new Error('must not present'); },
 	} as unknown as FramescaperNativeServicesControllerV3;
@@ -114,7 +116,9 @@ test('a second frame port is rejected until the single 64 MiB transfer slot sett
 		throw new Error('frame-port listener was not registered');
 	};
 	let presentations = 0;
+	const session = {};
 	const controller = {
+		externalDisplaySessionIdentity: () => session,
 		externalDisplays: () => ({ displays: [], activeDisplayId: 'display-2' }),
 		presentExternalDisplay: () => { presentations += 1; return { displays: [], activeDisplayId: 'display-2' }; },
 	} as unknown as FramescaperNativeServicesControllerV3;

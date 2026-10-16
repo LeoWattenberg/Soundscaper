@@ -154,9 +154,15 @@ export function createSelectionEffectWorkerService(runtime: SelectionEffectWorke
 					signal: owner.signal,
 					onProgress: options.onProgress ?? runtime.onProgress,
 				});
+				throwIfAborted(owner.signal);
+				const output = request.context?.spectralSelection
+					? await (await import('../../../selection-effect-spectral-context.ts')).applySelectionEffectSpectralContext(
+						request.channels, channels, request.sampleRate, request.context)
+					: [...channels];
+				throwIfAborted(owner.signal);
 				runtime.assertProject(projectToken);
 				throwIfAborted(options.signal);
-				return { channels: [...channels] };
+				return { channels: output };
 			} catch (error) {
 				if (owner.signal.aborted) throw abortReason(owner.signal);
 				throw error;

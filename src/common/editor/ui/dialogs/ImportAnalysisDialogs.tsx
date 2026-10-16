@@ -1,14 +1,16 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '@soundscaper/design-system/Button';
 import { DialogFooter } from '@soundscaper/design-system/Footer';
 
 import { prepareRawPcmWaveFile, type RawPcmByteOrder, type RawPcmSampleFormat } from '../../controller/import/raw-pcm-import.ts';
 import type { FileSizeWarningConfirmation } from '../../controller/shared/file-size-warning.ts';
 import type { RegularIntervalAnnotationOptions } from '../../controller/document/regular-interval-annotation-service.ts';
+import { selectAudioEditorEditBlock, type AudioEditorEditBlockingSnapshot } from '../../edit-blocking.ts';
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 import AudioEditorTimeCodeInput from '../AudioEditorTimeCodeInput.tsx';
+import EditorMusicalTimeCodeProvider from '../EditorMusicalTimeCodeProvider.tsx';
 import { runAwaitedAudioEditorOperation } from '../workspace/audio-editor-workspace-runner.ts';
 import { withWebFileLoadLimitContext } from '../../web-file-limit-failure.ts';
 import { regularIntervalDialogDefaults, type RegularIntervalDialogProject } from '../regular-interval-dialog-defaults.ts';
@@ -23,6 +25,7 @@ interface DialogController {
 
 interface CommonProps {
 	readonly controller: DialogController;
+	readonly snapshot?: AudioEditorEditBlockingSnapshot;
 	readonly copy: Readonly<Record<string, string>>;
 	readonly run: (operation: () => unknown) => unknown;
 	readonly onClose: () => void;
@@ -30,13 +33,16 @@ interface CommonProps {
 	readonly fileService?: Readonly<{ isDesktop: boolean }>;
 }
 
-export function RawPcmImportDialog({ controller, copy, run, onClose, fileService, confirmFileSizeWarning }: CommonProps) {
+export function RawPcmImportDialog({ controller, snapshot, copy, run, onClose, fileService, confirmFileSizeWarning }: CommonProps) {
+	const blocked = selectAudioEditorEditBlock(snapshot).blocked;
+	const blockedRef = useRef(blocked);
+	blockedRef.current = blocked;
 	const [file, setFile] = useState<File | null>(null);
 	const [sampleFormat, setSampleFormat] = useState<RawPcmSampleFormat>('int16');
 	const [byteOrder, setByteOrder] = useState<RawPcmByteOrder>('little');
-	const [sampleRate, setSampleRate] = useState(44_100);
-	const [channelCount, setChannelCount] = useState(1);
-	const [offsetBytes, setOffsetBytes] = useState(0);
+	const [sampleRate, setSampleRate] = useState('44100');
+	const [channelCount, setChannelCount] = useState('1');
+	const [offsetBytes, setOffsetBytes] = useState('0');
 	const [importing, setImporting] = useState(false);
 	const importingRef = useRef(false);
 	const pendingImport = useRef<AbortController | null>(null);
@@ -50,7 +56,7 @@ export function RawPcmImportDialog({ controller, copy, run, onClose, fileService
 	// import path is a named handler the footer click and the form's Enter
 	// submit both enter through.
 	const importRawPcm = (): void => {
-		if (!file || importingRef.current) return;
+		if (!file || importingRef.current || blockedRef.current) return;
 		const cancellation = new AbortController();
 		pendingImport.current = cancellation;
 		const projectId = controller.project?.id ?? null;
@@ -59,7 +65,7 @@ export function RawPcmImportDialog({ controller, copy, run, onClose, fileService
 		setImporting(true);
 		run(async () => {
 			try {
-				const wav = await withWebFileLoadLimitContext(() => prepareRawPcmWaveFile(file, { sampleFormat, byteOrder, sampleRate, channelCount, offsetBytes },
+				const wav = await withWebFileLoadLimitContext(() => prepareRawPcmWaveFile(file, { sampleFormat, byteOrder, sampleRate: Number(sampleRate), channelCount: Number(channelCount), offsetBytes: Number(offsetBytes) },
 					{ desktop: fileService?.isDesktop === true, confirmFileSizeWarning, signal: cancellation.signal, assertCurrent: () => { if (!projectIsCurrent()) throw new DOMException('The project changed.', 'AbortError'); } }));
 				if (!projectIsCurrent()) return;
 				await controller.actions.project.importFiles([wav], { signal: cancellation.signal });
@@ -87,7 +93,7 @@ export function RawPcmImportDialog({ controller, copy, run, onClose, fileService
 					className="audio-editor-raw-pcm-import-confirm"
 					variant="primary"
 					type="submit" form={formId}
-					disabled={!file || importing}
+					disabled={!file || importing || blocked}
 				>{copy.importFile}</Button>
 			</>}
 		/>}
@@ -110,9 +116,16 @@ export function RawPcmImportDialog({ controller, copy, run, onClose, fileService
 	</AudioEditorDialogShell>;
 }
 
-export function RegularIntervalAnnotationDialog({ controller, copy, run, onClose }: CommonProps) {
+export function RegularIntervalAnnotationDialog({ controller, snapshot, copy, run, onClose }: CommonProps) {
+	const blocked = selectAudioEditorEditBlock(snapshot).blocked;
+	const blockedRef = useRef(blocked);
+	blockedRef.current = blocked;
 	const project = controller.project;
 	const projectIdentity = project?.id ?? null;
+	const intervalClock = useMemo(() => {
+		const intervalSnapshot = { project };
+		return { getSnapshot: () => intervalSnapshot, subscribe: () => () => undefined };
+	}, [project]);
 	const defaults = regularIntervalDialogDefaults(project);
 	const stateProjectIdentity = useRef(projectIdentity);
 	const [kind, setKind] = useState<'marker' | 'region'>(defaults.kind);
@@ -133,7 +146,7 @@ export function RegularIntervalAnnotationDialog({ controller, copy, run, onClose
 	// The create button lives in the shared footer, outside the form, so both
 	// it and the form's Enter submit enter through one named handler.
 	const create = (): void => {
-		if (!project
+		if (blockedRef.current || !project
 			|| stateProjectIdentity.current !== projectIdentity
 			|| controller.project?.id !== project.id) return;
 		const projectId = project.id;
@@ -142,7 +155,7 @@ export function RegularIntervalAnnotationDialog({ controller, copy, run, onClose
 			intervalFrames, namePrefix, color: 'auto',
 		};
 		void runAwaitedAudioEditorOperation(run, () => {
-			if (controller.project?.id !== projectId) return undefined;
+			if (blockedRef.current || controller.project?.id !== projectId) return undefined;
 			return controller.actions.timelineAnnotations.regularInterval(request);
 		}).then(() => {
 			if (controller.project?.id === projectId) onClose();
@@ -154,7 +167,7 @@ export function RegularIntervalAnnotationDialog({ controller, copy, run, onClose
 			className="audio-editor-dialog-footer"
 			rightContent={<>
 				<Button variant="secondary" onClick={onClose}>{copy.cancel}</Button>
-				<Button variant="primary" type="submit" form={formId} disabled={!project}>{copy.regularIntervalCreate}</Button>
+				<Button variant="primary" type="submit" form={formId} disabled={!project || blocked}>{copy.regularIntervalCreate}</Button>
 			</>}
 		/>}
 	>
@@ -167,17 +180,19 @@ export function RegularIntervalAnnotationDialog({ controller, copy, run, onClose
 				minimum={0} maximum={Math.max(0, endFrame - 1)} onChange={setStartFrame} />
 			<TimeField name="endFrame" label={copy.regularIntervalEndFrame} value={endFrame} sampleRate={project?.sampleRate}
 				minimum={startFrame + 1} maximum={Number.MAX_SAFE_INTEGER} onChange={setEndFrame} />
-			<TimeField name="intervalFrames" label={copy.regularIntervalFrames} value={intervalFrames} sampleRate={project?.sampleRate}
-				minimum={1} maximum={Number.MAX_SAFE_INTEGER} onChange={setIntervalFrames} />
+			<EditorMusicalTimeCodeProvider controller={intervalClock} originFrame={startFrame}>
+				<TimeField name="intervalFrames" label={copy.regularIntervalFrames} value={intervalFrames} sampleRate={project?.sampleRate}
+					minimum={1} maximum={Number.MAX_SAFE_INTEGER} onChange={setIntervalFrames} />
+			</EditorMusicalTimeCodeProvider>
 			<label className="kw-audio-editor-dialog__field"><span>{copy.regularIntervalNamePrefix}</span><input value={namePrefix} onChange={(event) => setNamePrefix(event.currentTarget.value)} /></label>
 		</form>
 	</AudioEditorDialogShell>;
 }
 
 function NumberField({ label, value, minimum, maximum, onChange }: Readonly<{
-	label: string; value: number; minimum: number; maximum: number; onChange(value: number): void;
+	label: string; value: string; minimum: number; maximum: number; onChange(value: string): void;
 }>) {
-	return <label className="kw-audio-editor-dialog__field"><span>{label}</span><input required type="number" min={minimum} max={maximum} step={1} value={value} onChange={(event) => onChange(Number(event.currentTarget.value))} /></label>;
+	return <label className="kw-audio-editor-dialog__field"><span>{label}</span><input required type="number" min={minimum} max={maximum} step={1} value={value} onChange={(event) => onChange(event.currentTarget.value)} /></label>;
 }
 
 function TimeField({ name, label, value, sampleRate = 48_000, minimum, maximum, onChange }: Readonly<{

@@ -9,10 +9,10 @@ import { COPY, createAudioEditorController, createMemoryEngine, createProjectSto
 
 test('global mute plans include folder authority and skip labels and unchanged controls', () => {
 	const project = { tracks: [{ id: 'audio', type: 'audio', mute: false },
-		{ id: 'label', type: 'label', mute: false }, { id: 'video', type: 'video', mute: true }],
+		{ id: 'label', type: 'label', mute: false }, { id: 'video', type: 'video', mute: true, hidden: true }],
 		trackFolders: [{ id: 'parent', mute: true }, { id: 'child', mute: false }] };
 	assert.deepEqual(planMuteAllTracks(project, false), [
-		{ type: 'track/update', trackId: 'video', changes: { mute: false } },
+		{ type: 'track/update', trackId: 'video', changes: { hidden: false } },
 		{ type: 'track-folder/update', folderId: 'parent', changes: { mute: false } },
 	]);
 	assert.deepEqual(planMuteAllTracks(project, true), [

@@ -44,3 +44,25 @@ test('resize teardown cancels its active preview and releases move listeners', (
 	assert.equal(moved, 0);
 	assert.equal(canceled, 1);
 });
+
+for (const button of [1, 2]) test(`a modal resize survives native button ${button} release while primary remains held`, () => {
+	const document = new EventTarget() as unknown as Document;
+	let active = true;
+	let width = 900;
+	let completed = 0;
+	const release = retainResizableSurfaceMouseLifecycle(document, {
+		move: () => { if (active) width -= 24; },
+		finish: () => { if (active) { active = false; completed += 1; } },
+		cancel: () => { active = false; },
+	});
+	document.dispatchEvent(new Event('mousemove'));
+	document.dispatchEvent(Object.assign(new Event('mouseup'), { button, buttons: 1 }));
+	assert.equal(completed, 0, 'an auxiliary release must not publish the primary resize');
+	document.dispatchEvent(new Event('mousemove'));
+	assert.equal(width, 852);
+	document.dispatchEvent(Object.assign(new Event('mouseup'), { button: 0, buttons: 0 }));
+	assert.equal(completed, 1);
+	document.dispatchEvent(new Event('mousemove'));
+	assert.equal(width, 852);
+	release();
+});

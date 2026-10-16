@@ -21,7 +21,7 @@ const TRANSLATIONS = Object.freeze({
 	locales: Object.freeze(['de', 'fr']),
 });
 
-export async function packageTree(context) {
+export async function packageTree(context, { professionalBuilt = false } = {}) {
 	const root = await mkdtemp(join(tmpdir(), 'desktop-package-content-'));
 	context.after(() => rm(root, { recursive: true, force: true }));
 	const extractedRoot = join(root, 'extracted');
@@ -130,6 +130,19 @@ export async function packageTree(context) {
 		framescaperNativeHosts: null,
 		translations: TRANSLATIONS,
 	};
+	if (!professionalBuilt) {
+		const professional = runtimeManifest.soundscaperProfessionalNative;
+		runtimeManifest.soundscaperProfessionalNative = {
+			target: 'linux-x64', status: 'ci-generated', blockedBy: null, payload: null,
+			payloadManifest: professional.payloadManifest,
+		};
+		const prefix = 'runtime/native/soundscaper-professional-host/linux-x64/';
+		for (const path of Object.keys(payloads)) {
+			if (path.startsWith(prefix) && !path.endsWith('payload-manifest.json')) {
+				await rm(join(resourcesRoot, path));
+			}
+		}
+	}
 	const runtimeManifestPath = join(root, 'runtime-manifest.json');
 	await writeFile(runtimeManifestPath, `${JSON.stringify(runtimeManifest, null, 2)}\n`);
 	return { extractedRoot, resourcesRoot, runtimeManifest, runtimeManifestPath };

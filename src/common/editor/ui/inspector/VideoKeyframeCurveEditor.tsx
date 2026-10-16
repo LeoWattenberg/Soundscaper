@@ -191,7 +191,7 @@ export default function VideoKeyframeCurveEditor({
 					}}>{label(copy, 'videoKeyframesInsertAnchor', 'Insert anchor')}</button>
 					<button type="button" disabled={(curve?.curve.anchors.length ?? 0) <= 2} onClick={() => {
 						if (!curve) return;
-						try { commit(removeVideoKeyframeAnchor(model, { target: curve.target, anchorIndex, bridgeSegment: { kind: 'linear' } })); } catch { reportInvalid(); }
+						try { commit(removeVideoKeyframeAnchor(model, { target: curve.target, anchorIndex, bridgeSegment: { kind: choice?.integer ? 'hold' : 'linear' } })); } catch { reportInvalid(); }
 					}}>{label(copy, 'videoKeyframesRemoveAnchor', 'Remove anchor')}</button>
 				</form>
 				<div>

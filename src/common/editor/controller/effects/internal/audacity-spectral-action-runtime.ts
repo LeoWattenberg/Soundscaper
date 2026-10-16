@@ -4,6 +4,7 @@ interface SpectralSelectionState {
 	readonly startFrame: number;
 	readonly endFrame: number;
 	readonly trackIds?: readonly string[];
+	readonly clipIds?: readonly string[];
 	readonly frequencyRange?: SpectralFrequencyRange | null;
 }
 
@@ -46,6 +47,7 @@ export function createAudacitySpectralActionRuntime(
 				if (!selection) return dependencies.spectralActions.boxSelect(rememberedFrequencyRange);
 				return dependencies.setSelection(selection.startFrame, selection.endFrame, {
 					trackIds: selection.trackIds || [],
+					...(selection.clipIds ? { clipIds: selection.clipIds } : {}),
 					frequencyRange: rememberedFrequencyRange,
 				});
 			}
@@ -55,6 +57,7 @@ export function createAudacitySpectralActionRuntime(
 			});
 			return dependencies.setSelection(selection.startFrame, selection.endFrame, {
 				trackIds: selection.trackIds || [],
+				...(selection.clipIds ? { clipIds: selection.clipIds } : {}),
 				frequencyRange: null,
 			});
 		},

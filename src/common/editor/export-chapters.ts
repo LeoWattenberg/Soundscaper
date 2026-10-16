@@ -62,11 +62,21 @@ export function resolveExportChapters(
 	}
 	const chapters: ExportChapter[] = [];
 	const used = new Set<string>();
+	// Coincident labels are independent named outputs. They share the next
+	// distinct start instead of ending each other's chapters at their own head.
+	const nextStarts = new Map<number, number>();
+	let nextStart = range.endFrame;
+	for (let index = boundaries.length - 1; index >= 0; index -= 1) {
+		const boundary = boundaries[index]!;
+		const following = boundaries[index + 1];
+		if (following && following.startFrame > boundary.startFrame) nextStart = following.startFrame;
+		nextStarts.set(boundary.startFrame, nextStart);
+	}
 	for (const [index, boundary] of boundaries.entries()) {
 		const openEnd = boundary.endFrame > boundary.startFrame
 			? boundary.endFrame
 			: Math.min(
-				boundaries[index + 1]?.startFrame ?? range.endFrame,
+				nextStarts.get(boundary.startFrame) ?? range.endFrame,
 				enclosingRegionEnd(boundaries, index) ?? range.endFrame,
 			);
 		const startFrame = Math.max(boundary.startFrame, range.startFrame);
@@ -249,7 +259,9 @@ export function createExportChapterPlan<Plan extends DataRecord>(
 		: null;
 	return Object.freeze({
 		...plan,
+		...(Object.hasOwn(output, 'markers') ? { markers: output.markers, markerInterchangeReport: output.markerInterchangeReport } : {}),
 		...(Object.hasOwn(output, 'cart') ? { cart: output.cart } : {}),
+		...(Object.hasOwn(output, 'ixml') ? { ixml: output.ixml } : {}),
 		...(bext ? { bext, encoding: Object.freeze({ ...dataRecord(plan.encoding), bext }) } : {}),
 		// One chapter is an ordinary whole-mix delivery of its own span, so
 		// everything downstream of here reads the plan it always read.

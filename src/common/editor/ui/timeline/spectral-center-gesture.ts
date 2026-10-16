@@ -3,6 +3,7 @@
 import { calculateAudioSpectrum } from '../../audio-spectrum.ts';
 import { projectUnwarpedClipSourceRange } from '../../audio-clip-source-projection.ts';
 import { readClipLoop } from '../../audio-clip-loop.ts';
+import { buildAudioWarpRuntimeSegments, type AudioWarpRuntimeClip, type AudioWarpRuntimeProject } from '../../audio-warp-runtime.ts';
 import {
 	spectrogramFrequencyAtFraction,
 	spectrogramFrequencyFraction,
@@ -67,7 +68,7 @@ export function snapSpectralCenterToPeak(frequency: number, peaks: readonly numb
 export function spectralSelectionPeaks(channels: readonly Float32Array[], sampleRate: number, size = 2_048): number[] {
 	if (!channels.length || !channels[0]?.length || sampleRate <= 0) return [];
 	const power = new Float64Array(size / 2 + 1);
-	for (const channel of channels.slice(0, 2)) {
+	for (const channel of channels) {
 		const last = Math.max(0, channel.length - size);
 		for (const offsetFrame of new Set([0, Math.floor(last / 2), last])) {
 			const spectrum = calculateAudioSpectrum([channel], sampleRate, { size, offsetFrame });
@@ -95,7 +96,7 @@ export function spectralSelectionPeaks(channels: readonly Float32Array[], sample
 
 /** Inspect only selected PCM, with bounded FFT windows, once at the beginning of a drag. */
 export function selectedTrackSpectralPeaks(
-	controller: TimelineClipVisualController,
+	controller: TimelineClipVisualController & Readonly<{ project?: AudioWarpRuntimeProject | null }>,
 	clips: readonly TimelineWaveformClip[],
 	selection: Readonly<{ startFrame: number; endFrame: number }>,
 	sampleRate: number,
@@ -123,13 +124,29 @@ export function selectedTrackSpectralPeaks(
 		const buffer = visual.buffer;
 		const offset = buffer ? 0 : window?.startFrame ?? 0;
 		const channels = buffer
-			? Array.from({ length: Math.min(2, buffer.numberOfChannels) }, (_, index) => buffer.getChannelData(index))
+			? Array.from({ length: buffer.numberOfChannels }, (_, index) => buffer.getChannelData(index))
 			: window?.channels ?? [];
 		const selectedChannels = channels.map(channel => channel.subarray(
 			Math.max(0, Math.floor(sourceRange.startFrame - offset)),
 			Math.max(0, Math.ceil(sourceRange.endFrame - offset)),
 		));
-		const effectiveRate = sampleRate * ratio * 2 ** ((clip.linkPitchAndTempo ? 0 : clip.pitchCents || 0) / 1_200);
+		const nativeRate = visual.source?.sampleRate ?? sampleRate * ratio;
+		if (clip.warpMap != null) {
+			if (!controller.project) throw new TypeError('Warped spectral peaks require their project.');
+			const segments = buildAudioWarpRuntimeSegments(controller.project,
+				{ ...clip, sourceDurationFrames: sourceDuration } as AudioWarpRuntimeClip,
+				{ startFrame: start, endFrame: end, sourceSampleRate: nativeRate });
+			for (const segment of new Set([segments[0]!, segments[Math.floor(segments.length / 2)]!, segments.at(-1)!])) {
+				const sourceStart = segment.sourceStartFrame.num / segment.sourceStartFrame.den;
+				const sourceEnd = segment.sourceEndFrame.num / segment.sourceEndFrame.den;
+				const warpedChannels = channels.map(channel => channel.subarray(
+					Math.max(0, Math.floor(sourceStart - offset)), Math.max(0, Math.ceil(sourceEnd - offset))));
+				peaks.push(...spectralSelectionPeaks(warpedChannels, nativeRate * segment.playbackRate, size));
+			}
+			continue;
+		}
+		const effectiveRate = clip.linkPitchAndTempo ? sampleRate * ratio
+			: nativeRate * 2 ** ((clip.pitchCents || 0) / 1_200);
 		peaks.push(...spectralSelectionPeaks(selectedChannels, effectiveRate, size));
 	}
 	return [...new Set(peaks)].sort((left, right) => left - right);

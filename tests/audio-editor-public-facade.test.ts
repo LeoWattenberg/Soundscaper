@@ -82,11 +82,11 @@ test('public action types expose every stable action group', () => {
 	const groupNames: readonly (keyof EditorActions)[] = [
 		'project', 'projectBin', 'video', 'edit', 'transport', 'recording',
 		'metering', 'audioDevices', 'timeline', 'timelineAnnotations', 'trackFolders', 'sampleEdit', 'spectral', 'track',
-		'mixer', 'generators', 'nyquist', 'labels', 'metadata', 'preferences',
+		'mixer', 'generators', 'nyquist', 'labels', 'metadata', 'recordingNotes', 'preferences',
 		'clip', 'effects', 'macros', 'analysis', 'export',
 	];
 
-	assert.equal(groupNames.length, 25);
+	assert.equal(groupNames.length, 26);
 });
 
 test('public label-track type matches the serialized label model', () => {

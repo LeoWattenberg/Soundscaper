@@ -31,6 +31,7 @@ import { normalizeAudacityEffectParams } from '../../../audacity-effects/manifes
 import { renderSimpleDryTrackPcm } from './direct-dry-track-pcm.ts';
 import { createBusNoiseProfileRenderProject } from './bus-noise-profile-render-project.ts';
 import type { MixerGraphV21 } from '../../../mixer-graph-v21.ts';
+import { createTrackNoiseProfileRenderProject } from './track-noise-profile-render-project.ts';
 
 export type * from './effect-audio-service-types.ts';
 
@@ -82,8 +83,14 @@ export function createEffectAudioService<Buffer = EffectAudioBuffer>(runtime: Ef
 			mediaProject,
 			{ ...mediaProject },
 		) as unknown as MutableEffectAudioProject;
+		// A destructive capture belongs to the source layout, before the authored
+		// programme downmix. Widen only this detached render, retaining its routing.
+		if (channelCount > snapshot.masterChannels) snapshot.masterChannels = channelCount;
 		const clipIdSet = requestedClipIds?.length ? new Set(requestedClipIds) : null;
 		if (hasProductionMixerProjectAuthority(snapshot)) {
+			const mixer = snapshot.mixer as unknown as MixerGraphV21;
+			snapshot.mixer = { ...mixer, outputs: mixer.outputs.map(output => output.role === 'main'
+				? { ...output, channelCount: snapshot.masterChannels } : output) };
 			snapshot = createIsolatedTrackRenderProjectV21(snapshot as never, {
 				trackId, effects: [], clipIds: requestedClipIds,
 				preserveTrackProcessing: processing === 'authored',
@@ -101,12 +108,14 @@ export function createEffectAudioService<Buffer = EffectAudioBuffer>(runtime: Ef
 			snapshot.master = { gain: 1, effects: [] };
 			snapshot.mixer = { groups: [], sends: [], routes: {} };
 		}
+		const authoredControlContext = processing === 'authored' && hasProductionMixerProjectAuthority(snapshot)
+			&& (snapshot.mixer as unknown as MixerGraphV21).edges.some(edge => edge.kind === 'sidechain');
 		const rendered = await runtime.renderSnapshot(snapshot, {
 			startFrame,
 			endFrame,
-			trackId,
-			includeMaster: false,
-			includeTrackPan: false,
+			trackId: authoredControlContext ? null : trackId,
+			includeMaster: authoredControlContext,
+			includeTrackPan: authoredControlContext,
 			respectMuteSolo: false,
 			outputFrames: endFrame - startFrame,
 		}, runtime.sourceBuffers, signal);
@@ -134,9 +143,9 @@ export function createEffectAudioService<Buffer = EffectAudioBuffer>(runtime: Ef
 			if (effectIndex < 0) throw createLocalizedError(Error, runtime.copy, 'rackEffectNotFound');
 			const prefix = track.effects.slice(0, effectIndex);
 			if (hasProductionMixerProjectAuthority(snapshot)) {
-				snapshot = createIsolatedTrackRenderProjectV21(snapshot as never, {
-					trackId: requireTrackId(trackId), effects: prefix,
-				}) as unknown as MutableEffectAudioProject;
+				snapshot = createTrackNoiseProfileRenderProject(
+					{ ...project, masterChannels: Math.max(project.masterChannels, channelCount) }, requireTrackId(trackId), prefix,
+				) as unknown as MutableEffectAudioProject;
 			} else {
 				track.effects = prefix;
 				track.gain = 1;
@@ -234,13 +243,17 @@ export function createEffectAudioService<Buffer = EffectAudioBuffer>(runtime: Ef
 		const durationFrames = endFrame - startFrame;
 		const sampleRate = runtime.projectSampleRate();
 		if (durationFrames < 2_048) throw createLocalizedError(Error, runtime.copy, 'noiseProfileMinimumSamples');
-		if (scope === 'track' && (!selectionTarget || selectionTarget.track.id !== requestedTrackId)) {
+		if (scope === 'track' && (!selectionTarget || (selectionTarget.track.id !== requestedTrackId
+			&& selectionTarget.sourceTrackId !== requestedTrackId))) {
 			throw createLocalizedError(Error, runtime.copy, 'audacitySelectionHint');
 		}
+		const trackChannelCount = scope === 'track'
+			? runtime.audacitySelectionChannelCount(persistedProject, requireTrackId(requestedTrackId), startFrame, endFrame) : null;
+		if (scope === 'track' && !trackChannelCount) throw createLocalizedError(Error, runtime.copy, 'audacitySelectionHint');
 		const bus = scope === 'group' || scope === 'send'
 			? (project.mixer as unknown as MixerGraphV21)[scope === 'group' ? 'groups' : 'sends']?.find(candidate => candidate.id === requestedTrackId) : null;
 		const channelCount = bus ? masterNoiseProfileChannelCount(bus.channelCount) : scope === 'track'
-			? selectionTarget!.channelCount
+			? trackChannelCount!
 			: masterNoiseProfileChannelCount(project.masterChannels);
 		const estimatedPeakBytes = runtime.estimateAudacityEffectPeakBytes(
 			'audacity-noise-reduction', durationFrames, effect.params, { channelCount, sampleRate },
@@ -328,7 +341,7 @@ export function createEffectAudioService<Buffer = EffectAudioBuffer>(runtime: Ef
 					expectedFrameCount: phase.frameCount,
 				});
 				const processed = await runtime.runSpectralEditWorker(channels, {
-					sampleRate: runtime.projectSampleRate(),
+					sampleRate: target.sourceSampleRate ?? runtime.projectSampleRate(),
 					startFrame: 0,
 					endFrame: target.durationFrames,
 					minimumFrequency: frequencyRange.minimumFrequency,

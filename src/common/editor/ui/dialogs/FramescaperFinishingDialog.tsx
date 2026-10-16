@@ -4,6 +4,7 @@ import { usePresentationFeedback, feedbackFailure, type PresentationFeedback } f
 import { FRAMESCAPER_FINISHING_ADDITIONAL_COPY } from '../../../i18n/editor-framescaper-finishing-additional-copy.ts';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { createStableId } from '../../stable-id.js';
 
 import { Button } from '@soundscaper/design-system/Button';
 import { DialogFooter } from '@soundscaper/design-system/Footer';
@@ -18,7 +19,6 @@ import {
 	targetToken,
 	text,
 } from './FramescaperFinishingPanels.tsx';
-import { audioEditorProjectFrameRate } from '../AudioEditorTimeCodeInput.tsx';
 import { runAwaitedAudioEditorOperation } from '../workspace/audio-editor-workspace-runner.ts';
 import {
 	createFramescaperFinishingCommand,
@@ -43,6 +43,7 @@ import {
 } from '../../../../framescaper/editor-motion-analysis-actions-finishing.ts';
 import { framescaperCubeLutActionsFor } from '../../../../framescaper/editor-cube-lut-actions-finishing.ts';
 import { useCaptionTrackFields } from './useCaptionTrackFields.ts';
+import { withFramescaperSidecarFile } from '../framescaper-sidecar-file.ts';
 
 interface FramescaperFinishingControllerPort {
 	readonly actions: Readonly<{
@@ -81,7 +82,12 @@ export default function FramescaperFinishingDialog({
 	const [profiledNoiseReduction, setProfiledNoiseReduction] = useState(false);
 	const [noiseProfileText, setNoiseProfileText] = useState('');
 	const captionFileRef = useRef<HTMLInputElement | null>(null);
+	const captionLifetimeRef = useRef(true);
+	const captionOwnerRef = useRef({ projectId: record(project).id, surface });
+	const finishingProjectId = record(project).id;
+	captionOwnerRef.current = { projectId: finishingProjectId, surface };
 	const cubeLutFileRef = useRef<HTMLInputElement | null>(null);
+	const cubeLutAbortRef = useRef<AbortController | null>(null);
 	const motionRuntime = framescaperMotionAnalysisActionsFor(controller);
 	const motionTargets = motionRuntime?.targets() ?? [];
 	const [motionStackId, setMotionStackId] = useState(() => motionTargets[0]?.stackId ?? '');
@@ -107,7 +113,17 @@ export default function FramescaperFinishingDialog({
 		setStatus('');
 		setError('');
 	}, [model.surface, setError, setStatus]);
+	useEffect(() => {
+		setMotionStackId(motionTarget?.stackId ?? '');
+		setMotionStartFrame(motionTarget?.startFrame ?? 0);
+		setMotionEndFrame(motionTarget?.endFrame ?? 0);
+	}, [motionTarget?.stackId, motionTarget?.sourceId, motionTarget?.startFrame, motionTarget?.endFrame]);
 	useEffect(() => () => { motionAbortRef.current?.abort(); }, []);
+	useEffect(() => () => { cubeLutAbortRef.current?.abort(); }, [finishingProjectId, surface]);
+	useEffect(() => {
+		captionLifetimeRef.current = true;
+		return () => { captionLifetimeRef.current = false; };
+	}, []);
 
 	const blocked = pending || editingBlocked || readOnly;
 	const exportBlocked = pending || (editingBlocked && !readOnly);
@@ -146,10 +162,13 @@ export default function FramescaperFinishingDialog({
 			captionFileRef.current?.click();
 			return;
 		}
+		const owner = captionOwnerRef.current;
 		perform(async () => {
 			const opened = await openFramescaperCaptionSidecarFile({
 				...(file ? { file } : {}), fileService,
 			});
+			if (!captionLifetimeRef.current || captionOwnerRef.current.projectId !== owner.projectId
+				|| captionOwnerRef.current.surface !== owner.surface) return;
 			if (opened === null) {
 				captionImportSummary = { key: 'captionFileSelectionCancelled' };
 				return;
@@ -174,10 +193,11 @@ export default function FramescaperFinishingDialog({
 				project, trackId: captionTrackId, format: captionFormat,
 			});
 			setCaptionSidecar(exported.text);
-			await saveFramescaperCaptionSidecarFile({
+			const saved = await saveFramescaperCaptionSidecarFile({
 				fileService, format: captionFormat, trackId: captionTrackId, text: exported.text,
 			});
-			captionImportSummary = lossSummary(exported.losses.length);
+			captionImportSummary = record(saved).cancelled === true
+				? { key: 'captionFileSaveCancelled' } : lossSummary(exported.losses.length);
 		}, () => captionImportSummary, true);
 	let cubeLutSummary: PresentationFeedback = '';
 	const importCubeLutFile = (file?: Blob): void => {
@@ -187,24 +207,28 @@ export default function FramescaperFinishingDialog({
 		}
 		perform(async () => {
 			if (!cubeLutRuntime || !cubeLutTarget) throw new Error('Select one cube LUT target first.');
-			let body: unknown = file;
-			if (!body) {
-				if (typeof fileService.chooseFiles !== 'function') {
-					throw new Error('Desktop cube LUT file selection is unavailable.');
+			const runtime = cubeLutRuntime;
+			const target = cubeLutTarget;
+			const abort = new AbortController();
+			cubeLutAbortRef.current = abort;
+			const importBody = (body: Blob) => runtime.importCubeLut({ target, file: body, signal: abort.signal });
+			try {
+				let reference;
+				if (!file) {
+					if (typeof fileService.chooseFiles !== 'function') {
+						throw new Error('Desktop cube LUT file selection is unavailable.');
+					}
+					const descriptors = await fileService.chooseFiles({ purpose: 'lut', multiple: false });
+					if (descriptors[0] === undefined) {
+						cubeLutSummary = { key: 'cubeLutSelectionCancelled' };
+						return;
+					}
+					reference = await withFramescaperSidecarFile(fileService, descriptors[0], abort.signal, importBody);
+				} else reference = await importBody(file);
+				cubeLutSummary = `${cubeLutTarget.label}: ${reference.sha256.slice(0, 12)}`;
+			} finally {
+				if (cubeLutAbortRef.current === abort) cubeLutAbortRef.current = null;
 				}
-				const descriptors = await fileService.chooseFiles({ purpose: 'lut', multiple: false });
-				if (descriptors[0] === undefined) {
-					cubeLutSummary = { key: 'cubeLutSelectionCancelled' };
-					return;
-				}
-				if (typeof fileService.openReadDescriptor !== 'function') {
-					throw new Error('Desktop cube LUT file reading is unavailable.');
-				}
-				body = await fileService.openReadDescriptor(descriptors[0]);
-			}
-			if (!(body instanceof Blob)) throw new TypeError('The selected cube LUT is not a pathless file body.');
-			const reference = await cubeLutRuntime.importCubeLut({ target: cubeLutTarget, file: body });
-			cubeLutSummary = `${cubeLutTarget.label}: ${reference.sha256.slice(0, 12)}`;
 		}, () => cubeLutSummary);
 	};
 	const analyzeMotion = (): void => {
@@ -253,12 +277,13 @@ export default function FramescaperFinishingDialog({
 			setMotionProgress(null);
 		});
 	};
+	const selectedAudioTrack = records(record(project).tracks).some(track => track.id === selectedTrackId && track.type === 'audio');
 	const applyDialogueChain = (): void => {
-		if (!selectedTrackId) return;
+		if (!selectedTrackId || !selectedAudioTrack) return;
 		perform(() => {
 			const profile = profiledNoiseReduction ? parseNoiseProfile(noiseProfileText) : null;
 			const chain = createFramescaperDialogueChain({
-				id: `dialogue:${selectedTrackId}`,
+				id: createStableId('dialogue'),
 				sampleRate: projectSampleRate(project),
 				...(profile === null ? {} : { noiseReduction: { profile } }),
 			});
@@ -271,7 +296,7 @@ export default function FramescaperFinishingDialog({
 
 	return <AudioEditorDialogShell
 		title={model.title}
-		onClose={onClose}
+		onClose={() => { captionLifetimeRef.current = false; cubeLutAbortRef.current?.abort(); onClose(); }}
 		width={820}
 		initialFocus={surface === 'dialogue-chain' ? '[data-dialogue-chain-apply] button' : '[data-framescaper-finishing-document]'}
 		dataAttributes={{ 'data-framescaper-finishing-dialog': surface }}
@@ -280,7 +305,7 @@ export default function FramescaperFinishingDialog({
 			rightContent={<span data-dialogue-chain-apply>
 				<Button
 					variant="primary"
-					disabled={blocked || !selectedTrackId || (profiledNoiseReduction && !noiseProfileText.trim())}
+					disabled={blocked || !selectedAudioTrack || (profiledNoiseReduction && !noiseProfileText.trim())}
 					onClick={applyDialogueChain}
 				>{text(copy, 'applyDialogueChain', FRAMESCAPER_FINISHING_ADDITIONAL_COPY.applyDialogueChain)}</Button>
 			</span>}
@@ -340,16 +365,11 @@ export default function FramescaperFinishingDialog({
 				stackId={motionStackId}
 				startFrame={motionStartFrame}
 				endFrame={motionEndFrame}
-				frameRate={audioEditorProjectFrameRate(project)}
+				source={records(record(project).sources).find(({ id }) => id === motionTarget?.sourceId)}
 				progress={motionProgress}
 				pending={pending && motionAbortRef.current !== null}
 				copy={copy}
-				onStack={(stackId) => {
-					setMotionStackId(stackId);
-					const target = motionTargets.find((candidate) => candidate.stackId === stackId);
-					setMotionStartFrame(target?.startFrame ?? 0);
-					setMotionEndFrame(target?.endFrame ?? 0);
-				}}
+				onStack={setMotionStackId}
 				onStartFrame={setMotionStartFrame}
 				onEndFrame={setMotionEndFrame}
 				onAnalyze={analyzeMotion}
@@ -366,7 +386,7 @@ export default function FramescaperFinishingDialog({
 					FRAMESCAPER_FINISHING_ADDITIONAL_COPY.noiseProfileDocument)}</span><textarea rows={8}
 						spellCheck={false} value={noiseProfileText}
 						onChange={(event) => setNoiseProfileText(event.currentTarget.value)} /></label>}
-				{!selectedTrackId && <p role="status">{text(copy, 'selectAudioTrack', FRAMESCAPER_FINISHING_ADDITIONAL_COPY.selectAudioTrack)}</p>}
+				{!selectedAudioTrack && <p role="status">{text(copy, 'selectAudioTrack', FRAMESCAPER_FINISHING_ADDITIONAL_COPY.selectAudioTrack)}</p>}
 			</fieldset>}
 			<div role="status" aria-live="polite" aria-atomic="true">{error || status}</div>
 		</div>

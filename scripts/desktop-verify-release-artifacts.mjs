@@ -2,6 +2,7 @@
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { join } from 'node:path';
+import { normalizeDesktopReleaseArtifacts } from './lib/desktop-release-artifact-names.mjs';
 
 const execute = promisify(execFile);
 export default async function verifyReleaseArtifacts(context, dependencies = {}) {
@@ -41,5 +42,7 @@ export default async function verifyReleaseArtifacts(context, dependencies = {})
 				join(import.meta.dirname, 'verify-windows-release-signature.ps1'), '-Artifact', artifact]);
 		}
 	}
+	const artifacts = await normalizeDesktopReleaseArtifacts(context.artifactPaths);
+	context.artifactPaths.splice(0, context.artifactPaths.length, ...artifacts);
 	return [];
 }

@@ -12,25 +12,16 @@ import FramescaperAudioEditorBootstrap from
 	'../src/framescaper/ui/FramescaperAudioEditorBootstrap.tsx';
 import SoundscaperAudioEditorBootstrap from
 	'../src/soundscaper/ui/SoundscaperAudioEditorBootstrap.tsx';
-import { bundledCatalogForLocale } from '../src/common/i18n/runtime.js';
+import { EDITOR_ENGLISH_COPY } from '../src/common/i18n/editor-copy-inventory.ts';
 
-test('bootstrap snapshots admit the current combined product catalogs without losing copy', () => {
-	for (const locale of ['en', 'de']) {
-		const input = bundledCatalogForLocale(locale);
-		const snapshot = snapshotBootstrapCopyFields(input, 'bundled copy', 'own data property');
-		assert.deepEqual(Reflect.ownKeys(snapshot), Reflect.ownKeys(input));
-		for (const key of Object.keys(input)) assert.equal(snapshot[key], input[key]);
-	}
-});
-
-test('bootstrap copy snapshot accepts exactly 8192 own fields without invoking getters', () => {
-	const input = Object.fromEntries(Array.from({ length: 8_192 }, (_, index) => [
+test('bootstrap copy snapshot accepts exactly 4096 own fields without invoking getters', () => {
+	const input = Object.fromEntries(Array.from({ length: 4_096 }, (_, index) => [
 		`field${String(index)}`, index,
 	]));
 	const snapshot = snapshotBootstrapCopyFields(input, 'copy', 'own data property');
 	assert.equal(Object.getPrototypeOf(snapshot), null);
 	assert.equal(Object.isFrozen(snapshot), true);
-	assert.equal(Reflect.ownKeys(snapshot).length, 8_192);
+	assert.equal(Reflect.ownKeys(snapshot).length, 4_096);
 	assert.notEqual(snapshot, input);
 	input.field0 = -1;
 	assert.equal(snapshot.field0, 0);
@@ -61,6 +52,15 @@ test('bootstrap copy snapshot rejects symbols and accessor/non-enumerable fields
 		'copy', 'own data property'), {
 		name: 'RangeError', message: 'copy has an invalid field inventory.',
 	});
+});
+
+test('bootstrap copy accepts the registered catalog beyond the supplied-data limit', () => {
+	const fields = new Set(Object.keys(EDITOR_ENGLISH_COPY));
+	assert.ok(fields.size > 4_096);
+	const copy = snapshotBootstrapCopyFields(EDITOR_ENGLISH_COPY, 'bundled copy', 'own data property', fields);
+	assert.deepEqual(Object.keys(copy), [...fields]);
+	assert.throws(() => snapshotBootstrapCopyFields({ ...EDITOR_ENGLISH_COPY, unregistered: 'Unexpected' },
+		'copy', 'own data property', fields), /invalid field inventory/u);
 });
 
 test('product fallback copy adapters retain their distinct property error wording', () => {

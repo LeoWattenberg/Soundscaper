@@ -66,6 +66,7 @@ export default function TransportToolbarGroup({
 	onOpenTakeCycleRecovery,
 	onOpenTimedRecording,
 	recordLabel,
+	recordingTargetLocked = false,
 	run,
 	snapshot,
 	toggleRecording,
@@ -105,7 +106,7 @@ export default function TransportToolbarGroup({
 					recording={snapshot.recording}
 					pressed={Boolean(snapshot.recording)}
 					flyoutRole="dialog"
-					disabled={Boolean(snapshot.takeCycleRecovery) || snapshot.readOnly || snapshot.importing || snapshot.exporting || snapshot.transportState === 'playing' || snapshot.recordingScheduling || snapshot.scheduledRecording}
+					disabled={Boolean(snapshot.takeCycleRecovery) || snapshot.readOnly || snapshot.importing || snapshot.exporting || snapshot.transportState === 'playing' || snapshot.recordingScheduling || snapshot.scheduledRecording || (!snapshot.recording && recordingTargetLocked)}
 					onClick={toggleRecording}
 				>
 					{({ close }) => <RecordFlyout

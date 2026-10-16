@@ -116,6 +116,7 @@ const AudioEditorResizableSurface = React.forwardRef(function AudioEditorResizab
 					setIsResizing(true);
 				}}
 				onKeyDown={(event) => {
+					if (event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey) return;
 					const rect = surfaceRef.current?.getBoundingClientRect();
 					if (!rect || !['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)) return;
 					event.preventDefault();

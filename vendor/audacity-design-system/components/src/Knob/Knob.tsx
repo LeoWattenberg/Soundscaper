@@ -153,7 +153,7 @@ export const Knob: React.FC<KnobProps> = ({
   // not when the surrounding slot has it. Arrow up/right increases,
   // down/left decreases; Shift accelerates 10×; Home/End set the endpoints.
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (disabled || !onChange) return;
+    if (disabled || !onChange || e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey) return;
     if (['ArrowUp', 'ArrowRight', 'ArrowDown', 'ArrowLeft', 'Home', 'End'].includes(e.key)) {
       e.preventDefault();
       e.stopPropagation();
@@ -237,6 +237,11 @@ export const Knob: React.FC<KnobProps> = ({
     if (!dragGestureRef.current || dragPointerIdRef.current !== e.pointerId || !onChange) return;
     e.preventDefault();
     e.stopPropagation();
+
+    if (e.pointerType === 'mouse' && e.button === 0 && (e.buttons & 1) === 0) {
+      settleDrag('commit', e.pointerId);
+      return;
+    }
 
     // Horizontal movement right and vertical movement up both increase the value.
     const deltaX = e.clientX - dragStartXRef.current;

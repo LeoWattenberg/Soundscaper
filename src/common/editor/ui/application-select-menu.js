@@ -36,6 +36,13 @@ export function createApplicationSelectMenu(context, selectionMenu, actions) {
 					{ id: AUDIO_EDITOR_APPLICATION_MENU_ACTION_IDS.selectTrackStartToCursor, label: copy.trackStartToCursor, onClick: selectionMenu.selectTrackStartToCursor },
 					{ id: AUDIO_EDITOR_APPLICATION_MENU_ACTION_IDS.selectCursorToTrackEnd, label: copy.cursorToTrackEnd, onClick: selectionMenu.selectCursorToTrackEnd },
 					{ id: AUDIO_EDITOR_APPLICATION_MENU_ACTION_IDS.selectTrackStartToEnd, label: copy.trackStartToEnd || copy.selectAll, onClick: selectionMenu.selectTrackStartToEnd },
+					divider(),
+					{ id: AUDIO_EDITOR_APPLICATION_MENU_ACTION_IDS.extendSelectionLeft, label: copy.extendSelectionLeft, shortcut: 'Shift+Left', disabled: editBlocked || !project, onClick: selectionMenu.extendSelectionLeft },
+					{ id: AUDIO_EDITOR_APPLICATION_MENU_ACTION_IDS.extendSelectionRight, label: copy.extendSelectionRight, shortcut: 'Shift+Right', disabled: editBlocked || !project, onClick: selectionMenu.extendSelectionRight },
+					{ id: AUDIO_EDITOR_APPLICATION_MENU_ACTION_IDS.contractSelectionLeft, label: copy.contractSelectionLeft, shortcut: 'Ctrl+Shift+Right', disabled: editBlocked || !project, onClick: selectionMenu.contractSelectionLeft },
+					{ id: AUDIO_EDITOR_APPLICATION_MENU_ACTION_IDS.contractSelectionRight, label: copy.contractSelectionRight, shortcut: 'Ctrl+Shift+Left', disabled: editBlocked || !project, onClick: selectionMenu.contractSelectionRight },
+					{ id: AUDIO_EDITOR_APPLICATION_MENU_ACTION_IDS.extendSelectionToProjectStart, label: copy.extendSelectionToProjectStart, shortcut: 'Shift+Home', disabled: editBlocked || !project, onClick: selectionMenu.extendSelectionToProjectStart },
+					{ id: AUDIO_EDITOR_APPLICATION_MENU_ACTION_IDS.extendSelectionToProjectEnd, label: copy.extendSelectionToProjectEnd, shortcut: 'Shift+End', disabled: editBlocked || !project, onClick: selectionMenu.extendSelectionToProjectEnd },
 				],
 			},
 			{

@@ -39,7 +39,7 @@ test('desktop packaging audits ten nightly product targets while tags select one
 	assert.match(qualityJob, /package-audit-arguments:[\s\S]*?package-audit-arguments=' \+ \(release \? '--product ' \+ release\.productId : ''\)/u);
 	assert.match(packageJob, /strategy:\s+fail-fast: false\s+matrix:\s+product: \$\{\{ fromJSON\(needs\.quality\.outputs\.release-products\) \}\}[\s\S]*?platform: win\s+arch: x64[\s\S]*?platform: win\s+arch: arm64[\s\S]*?platform: mac\s+arch: arm64[\s\S]*?platform: linux\s+arch: x64[\s\S]*?platform: linux\s+arch: arm64/u);
 	assert.match(packageJob, /milestone-5-package-audit-\$\{\{ matrix\.product \}\}-\$\{\{ matrix\.target\.platform \}\}-\$\{\{ matrix\.target\.arch \}\}\.json/u);
-	assert.match(aggregateJob, /needs: \[quality, package\]/u);
+	assert.match(aggregateJob, /needs: \[quality, package, milestone-5-native-audit-source\]/u);
 	assert.match(aggregateJob, /needs\.package\.result == 'success'/u);
 	assert.match(aggregateJob, /ref: \$\{\{ github\.sha \}\}/u);
 	assert.match(

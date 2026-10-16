@@ -35,7 +35,7 @@ elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
 	endif()
 endif()
 
-foreach(required SOUNDSCAPER_JUCE_ROOT SOUNDSCAPER_CLAP_ROOT SOUNDSCAPER_VAMP_ROOT SOUNDSCAPER_VST3_PROVENANCE_COMMIT)
+foreach(required SOUNDSCAPER_JUCE_ROOT SOUNDSCAPER_CLAP_ROOT SOUNDSCAPER_VAMP_ROOT SOUNDSCAPER_VST3_PROVENANCE_COMMIT SOUNDSCAPER_ARA_SDK_ROOT)
 	if(NOT DEFINED ${required} OR "${${required}}" STREQUAL "")
 		message(FATAL_ERROR "${required} is required by the authenticated build recipe")
 	endif()
@@ -66,6 +66,7 @@ if(NOT EXISTS "${SOUNDSCAPER_VAMP_ROOT}/vamp/vamp.h"
 endif()
 
 add_subdirectory("${SOUNDSCAPER_JUCE_ROOT}" "${CMAKE_CURRENT_BINARY_DIR}/juce" EXCLUDE_FROM_ALL)
+juce_set_ara_sdk_path("${SOUNDSCAPER_ARA_SDK_ROOT}")
 
 add_library(soundscaper_professional_audio STATIC
 	src/juce_audio_adapter.cpp src/os_aac_m4a_profile.cpp src/os_audio_codec_contract.h
@@ -74,11 +75,18 @@ add_library(soundscaper_professional_audio STATIC
 )
 add_library(soundscaper_professional_plugin STATIC
 	src/direct_clap_adapter.cpp src/juce_message_dispatcher.cpp
-	src/juce_plugin_adapter.cpp src/ladspa_host_state.cpp src/professional_host.cpp
+	src/juce_plugin_adapter.cpp src/juce_ara_adapter.cpp src/ara_clip_data.cpp
+	src/ara_factory_library_lease.cpp
+	src/ladspa_host_state.cpp src/professional_host.cpp
 )
+include(cmake/exact-vamp-host-adapter.cmake)
+set(SOUNDSCAPER_VAMP_HOST_ADAPTER_SOURCE "${CMAKE_CURRENT_BINARY_DIR}/vamp-exact-PluginHostAdapter.cpp")
+soundscaper_write_exact_vamp_host_adapter(
+	"${SOUNDSCAPER_VAMP_ROOT}/src/vamp-hostsdk/PluginHostAdapter.cpp"
+	"${SOUNDSCAPER_VAMP_HOST_ADAPTER_SOURCE}")
 add_library(soundscaper_professional_vamp STATIC
 	src/vamp_exact_library.cpp src/vamp_analyzer_adapter.cpp src/vamp_analyzer_peer.cpp
-	"${SOUNDSCAPER_VAMP_ROOT}/src/vamp-hostsdk/PluginHostAdapter.cpp"
+	"${SOUNDSCAPER_VAMP_HOST_ADAPTER_SOURCE}"
 	"${SOUNDSCAPER_VAMP_ROOT}/src/vamp-hostsdk/PluginInputDomainAdapter.cpp"
 	"${SOUNDSCAPER_VAMP_ROOT}/src/vamp-hostsdk/PluginWrapper.cpp"
 	"${SOUNDSCAPER_VAMP_ROOT}/src/vamp-hostsdk/RealTime.cpp"
@@ -90,11 +98,11 @@ target_include_directories(soundscaper_professional_vamp PUBLIC
 )
 target_link_libraries(soundscaper_professional_vamp PRIVATE ${CMAKE_DL_LIBS})
 if(MSVC)
-	target_compile_options(soundscaper_professional_vamp PRIVATE /Gy /Gw)
+	# Window.h needs M_PI before the SDK's own fallback is defined. Import the
+	# CRT constants explicitly, including when /Zc:cmath is enabled.
+	target_compile_options(soundscaper_professional_vamp PRIVATE
+		/Gy /Gw /FIcorecrt_math_defines.h)
 else()
-	# PluginHostAdapter.cpp also defines the SDK's legacy getPluginPath helper.
-	# We never link its ambient-search section: exact-path loading lives solely
-	# in vamp_exact_library.cpp.
 	target_compile_options(soundscaper_professional_vamp PRIVATE
 		-ffunction-sections -fdata-sections)
 endif()
@@ -137,10 +145,11 @@ target_include_directories(soundscaper_professional_plugin PRIVATE "${SOUNDSCAPE
 target_compile_definitions(soundscaper_professional_plugin PRIVATE
 	SOUNDSCAPER_PRO_PLUGIN_ONLY=1
 	JUCE_PLUGINHOST_VST3=1
+	JUCE_PLUGINHOST_ARA=1
 	SOUNDSCAPER_VST3_PROVENANCE_COMMIT="${SOUNDSCAPER_VST3_PROVENANCE_COMMIT}"
 )
 target_link_libraries(soundscaper_professional_plugin PRIVATE
-	juce::juce_audio_processors juce::juce_gui_extra
+	juce::juce_audio_processors juce::juce_gui_extra juce_ara_sdk
 )
 
 if(APPLE)
@@ -233,6 +242,31 @@ if(BUILD_TESTING AND (APPLE OR WIN32))
 	add_test(NAME soundscaper_os_audio_codec_contract_self_test
 		COMMAND soundscaper_os_audio_codec_contract_self_test)
 endif()
+if(BUILD_TESTING)
+	add_executable(soundscaper_ara_clip_data_self_test src/ara_clip_data.cpp tests/ara_clip_data_self_test.cpp)
+	target_compile_features(soundscaper_ara_clip_data_self_test PRIVATE cxx_std_20)
+	target_include_directories(soundscaper_ara_clip_data_self_test PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
+	add_test(NAME soundscaper_ara_clip_data_self_test COMMAND soundscaper_ara_clip_data_self_test)
+	juce_add_plugin(SoundscaperARAFixture
+		COMPANY_NAME Soundscaper COMPANY_CODE Scpr PLUGIN_CODE AraF
+		FORMATS VST3 PRODUCT_NAME SoundscaperARAFixture VERSION 1.0.0
+		IS_ARA_EFFECT TRUE COPY_PLUGIN_AFTER_BUILD FALSE)
+	target_sources(SoundscaperARAFixture PRIVATE tests/professional_ara_fixture.cpp)
+	target_compile_features(SoundscaperARAFixture PRIVATE cxx_std_20)
+	target_compile_definitions(SoundscaperARAFixture PRIVATE
+		JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0 JUCE_VST3_CAN_REPLACE_VST2=0)
+	target_link_libraries(SoundscaperARAFixture PRIVATE
+		juce::juce_audio_processors juce::juce_audio_formats juce_ara_sdk)
+	get_target_property(ara_fixture_bundle SoundscaperARAFixture_VST3 JUCE_PLUGIN_ARTEFACT_FILE)
+	add_executable(soundscaper_ara_host_self_test tests/ara_host_self_test.cpp)
+	target_compile_features(soundscaper_ara_host_self_test PRIVATE cxx_std_20)
+	target_link_libraries(soundscaper_ara_host_self_test PRIVATE soundscaper_professional_plugin)
+	add_dependencies(soundscaper_ara_host_self_test SoundscaperARAFixture_VST3)
+	add_test(NAME soundscaper_ara_host_self_test COMMAND soundscaper_ara_host_self_test "${ara_fixture_bundle}")
+	set_tests_properties(soundscaper_ara_host_self_test PROPERTIES TIMEOUT 30)
+	install(TARGETS soundscaper_ara_host_self_test RUNTIME DESTINATION self-test)
+	install(DIRECTORY "${ara_fixture_bundle}" DESTINATION self-test)
+endif()
 if(BUILD_TESTING AND APPLE)
 	add_executable(soundscaper_juce_message_dispatcher_mac_self_test
 		tests/juce_message_dispatcher_mac_self_test.cpp)
@@ -294,6 +328,11 @@ if(BUILD_TESTING)
 	target_compile_features(soundscaper_professional_vamp_fixture PRIVATE cxx_std_20)
 	target_include_directories(soundscaper_professional_vamp_fixture PRIVATE
 		"${SOUNDSCAPER_VAMP_ROOT}")
+	if(MSVC)
+		# The SDK declares this entry point without a DLL export attribute.
+		target_link_options(soundscaper_professional_vamp_fixture PRIVATE
+			/EXPORT:vampGetPluginDescriptor)
+	endif()
 	set_target_properties(soundscaper_professional_vamp_fixture PROPERTIES
 		PREFIX ""
 		OUTPUT_NAME "soundscaper_professional_vamp_fixture"
@@ -348,7 +387,7 @@ install(TARGETS soundscaper_professional_node
 # The reviewed launcher executes this persistent framed peer as the exact
 # third-party-native child and the utility only proxies bounded RPC frames.
 add_executable(soundscaper_professional_peer
-	src/professional_host_containment_probe.cpp src/professional_host_peer.cpp)
+	src/professional_host_containment_probe.cpp src/professional_host_peer.cpp src/professional_ara_peer.cpp)
 target_compile_features(soundscaper_professional_peer PRIVATE cxx_std_20)
 target_link_libraries(soundscaper_professional_peer PRIVATE
 	soundscaper_professional_plugin soundscaper_professional_vamp)

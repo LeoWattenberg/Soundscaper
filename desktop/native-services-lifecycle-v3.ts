@@ -76,6 +76,7 @@ export interface FramescaperNativeWatchCoordinatorPort {
 export interface FramescaperNativeExternalDisplayPort {
 	readonly list: () => readonly FramescaperExternalDisplay[];
 	readonly activeDisplayId: () => string | null;
+	readonly sessionIdentity: () => object | null;
 	readonly open: (display: FramescaperExternalDisplay) => Promise<void>;
 	readonly stop: () => void;
 	readonly present: (frame: FramescaperExternalDisplayFrame) => void;
@@ -410,6 +411,10 @@ export class FramescaperNativeServicesLifecycleV3 {
 			throw new Error('The active external display is absent from the current inventory.');
 		}
 		return Object.freeze({ displays: Object.freeze(displays), activeDisplayId });
+	}
+
+	externalDisplaySessionIdentity(): object | null {
+		return this.#externalDisplay?.sessionIdentity() ?? null;
 	}
 
 	async setExternalDisplay(value: unknown): Promise<FramescaperNativeExternalDisplayProjection> {

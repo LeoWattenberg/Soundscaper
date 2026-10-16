@@ -130,7 +130,7 @@ export function useContainerTabGroup({
   const onKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
       if (!useArrows) return;
-      if (e.defaultPrevented) return;
+      if (e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey) return;
       if (controlOwnsNavigationKeys(e.target)) return;
 
       const arrowKeys = ['ArrowRight', 'ArrowDown', 'ArrowLeft', 'ArrowUp'];

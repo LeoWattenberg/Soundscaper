@@ -19,7 +19,8 @@ export async function applyGuideEffectSetting(page, dialog, setting) {
 		}
 
 		const group = settingGroup(dialog, setting.label);
-		const groupedInput = group.getByRole('textbox').or(group.getByRole('spinbutton')).or(group.locator('textarea'));
+		const groupedInput = group.getByRole('textbox').or(group.getByRole('spinbutton'))
+			.or(group.locator('textarea, [data-timecode-direct-entry]'));
 		if (await groupedInput.count()) {
 			await commitAndVerify(groupedInput.first(), setting.value);
 			return;

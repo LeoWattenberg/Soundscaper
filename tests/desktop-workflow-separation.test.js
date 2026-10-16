@@ -5,6 +5,16 @@ import test from 'node:test';
 
 import { extractJob, readWorkflow } from './helpers/workflow-jobs.js';
 
+test('desktop distribution job environments do not reference an unassigned runner', async () => {
+	const workflow = await readWorkflow('desktop-preview.yml');
+	const jobEnvironments = workflow.matchAll(/^ {4}env:\n(?: {6}[^\n]*\n)*/gmu);
+	for (const [environment] of jobEnvironments) {
+		// GitHub validates job env before it assigns a runner. Runner-bound paths
+		// must be resolved by a step, where the runner context is available.
+		assert.doesNotMatch(environment, /\$\{\{[^}]*\brunner\./u);
+	}
+});
+
 test('desktop preview restores Electron before the native protocol test shard', async () => {
 	const tests = extractJob(await readWorkflow('desktop-preview.yml'), 'tests');
 	assert.match(tests, /if: matrix\.shard == 'common-2'\s+run: \|\s+if \[ ! -x node_modules\/electron\/dist\/electron \]; then\s+node node_modules\/electron\/install\.js\s+fi\s+test -x node_modules\/electron\/dist\/electron/u);
@@ -12,7 +22,7 @@ test('desktop preview restores Electron before the native protocol test shard', 
 		< tests.indexOf('run: xvfb-run --auto-servernum npm run test:shard'));
 });
 
-test('desktop preview keeps browser partitions aligned with the Quality gate', async () => {
+test('desktop preview keeps browser partitions and job budgets aligned with the Quality gate', async () => {
 	const [preview, quality] = await Promise.all([
 		readWorkflow('desktop-preview.yml'), readWorkflow('quality.yml'),
 	]);
@@ -21,15 +31,22 @@ test('desktop preview keeps browser partitions aligned with the Quality gate', a
 		const desktop = extractJob(preview, jobName);
 		const shards = /shard: \[([\d, ]+)\]/u.exec(canonical)?.[1];
 		assert.ok(shards, `${jobName} defines its Quality partitions`);
-		const shardCount = shards.split(',').length;
+		const shardTotal = jobName === 'browser'
+			? "${{ matrix.project == 'webkit' && 8 || 4 }}"
+			: String(shards.split(',').length);
 		assert.equal(/shard: \[([\d, ]+)\]/u.exec(desktop)?.[1], shards,
 			`${jobName} must use the same partitions to stay within the job timeout`);
 		const label = /^\s+name:\s+([^\n]+)/mu.exec(desktop)?.[1];
-		assert.ok(label?.endsWith(`\${{ matrix.shard }}/${shardCount}`),
+		assert.equal(label, /^\s+name:\s+([^\n]+)/mu.exec(canonical)?.[1],
+			`${jobName} labels the same engine partitions as Quality`);
+		assert.ok(label?.endsWith(`\${{ matrix.shard }}/${shardTotal}`),
 			`${jobName} labels the complete partition count`);
-		assert.ok(desktop.includes(`--shard=\${{ matrix.shard }}/${shardCount}`),
+		assert.ok(desktop.includes(`--shard=\${{ matrix.shard }}/${shardTotal}`),
 			`${jobName} runs every partition using the declared total`);
-		assert.match(desktop, /timeout-minutes: 45/u);
+		const canonicalTimeout = /^ {4}timeout-minutes: (\d+)$/mu.exec(canonical)?.[1];
+		assert.ok(canonicalTimeout, `${jobName} defines its Quality job budget`);
+		assert.equal(/^ {4}timeout-minutes: (\d+)$/mu.exec(desktop)?.[1], canonicalTimeout,
+			`${jobName} must allow the same measured workloads as Quality`);
 	}
 });
 

@@ -7,6 +7,8 @@ import {
 } from './project-schema-version.ts';
 import { createEditorCommandMutationTransaction } from './commands/mutation-transaction.ts';
 import { applyDefaultClipMicrofades } from './commands/default-microfades.ts';
+import { removeDeletedAdmStripReferences } from './commands/adm-removed-track-references.ts';
+import { updateProjectMetadata } from './commands/project-metadata-runtime.ts';
 
 export {
 	collectClipTransformIds,
@@ -98,6 +100,9 @@ export function applyEditorCommand(project, command, options = {}) {
 	const transaction = createEditorCommandMutationTransaction(project, commandProject);
 	const result = /** @type {Project} */ (commitProject(commandProject, (draft) => {
 		transaction.mutate(draft, command);
+		const adm = draft.metadata?.adm;
+		const survivingAdm = removeDeletedAdmStripReferences(adm, commandProject, draft);
+		if (survivingAdm !== adm) updateProjectMetadata(draft, { adm: survivingAdm });
 		if (options.microfadeNewClips === true) applyDefaultClipMicrofades(commandProject, draft);
 	}, { ...options, persistedBase: project }));
 	transaction.assertPersistedResult(result);

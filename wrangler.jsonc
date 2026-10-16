@@ -11,5 +11,18 @@
 			"preview_database_id": "FREESOUND_OAUTH_DB",
 			"migrations_dir": "migrations/freesound-oauth"
 		}
-	]
+	],
+	"env": {
+		"preview": {
+			"d1_databases": [
+				{
+					"binding": "FREESOUND_OAUTH_DB",
+					"database_name": "soundscaper-audiocom-preview",
+					"database_id": "ae64638c-39d8-4611-9fc1-2df762191d61",
+					"preview_database_id": "FREESOUND_OAUTH_DB",
+					"migrations_dir": "migrations/freesound-oauth"
+				}
+			]
+		}
+	}
 }

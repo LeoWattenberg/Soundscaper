@@ -4,6 +4,7 @@ export const FRAMESCAPER_FINISHING_ADDITIONAL_GERMAN_COPY = Object.freeze({
 	captionNoLosses: 'Keine Austauschverluste.',
 	captionOneLoss: '1 Austauschverlust aufgezeichnet.',
 	captionManyLosses: '{count} Austauschverluste aufgezeichnet.',
+	captionFileSaveCancelled: 'Untertitelexport abgebrochen.',
 });
 
 export const FRAMESCAPER_FINISHING_ADDITIONAL_COPY = Object.freeze({
@@ -16,6 +17,7 @@ export const FRAMESCAPER_FINISHING_ADDITIONAL_COPY = Object.freeze({
 	captionDeliveryUnavailable: "Caption burn-in and mux are intentionally unavailable in Milestones 1–4.",
 	captionExportSelectedTrack: "Export selected track",
 	captionFileSelectionCancelled: "No sidecar file selected.",
+	captionFileSaveCancelled: "Caption export cancelled.",
 	captionImportSidecar: "Import sidecar text",
 	captionSidecarInterchange: "Caption sidecar interchange",
 	captionSidecarText: "Sidecar text",

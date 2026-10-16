@@ -340,7 +340,7 @@ export function TimelineRuler({
   };
 
   const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (loopRegionStart === null || loopRegionEnd === null) return;
+    if (e.button !== 0 || loopRegionStart === null || loopRegionEnd === null) return;
 
     const rect = canvasRef.current?.getBoundingClientRect();
     if (!rect) return;
@@ -382,7 +382,7 @@ export function TimelineRuler({
   };
 
   const handleMouseUp = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    const hadDragState = dragStateRef.current !== null;
+    if (e.button !== 0) return;
 
     if (dragStateRef.current) {
       if (dragStateRef.current.type === 'move') {

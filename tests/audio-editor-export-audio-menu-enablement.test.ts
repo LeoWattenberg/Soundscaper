@@ -2,6 +2,7 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { createMenuActionFixture } from './helpers/application-menu-fixture.ts';
 
 import createApplicationMenus from '../src/common/editor/ui/application-menus.js';
 import { EXPORT_MENU_COPY_BY_LOCALE } from '../src/common/i18n/export-menu-copy.js';
@@ -135,7 +136,7 @@ function menuInput(project: object | null, productId = 'soundscaper') {
 }
 
 function actionPorts(): object {
-	return new Proxy({}, { get: () => () => undefined });
+	return createMenuActionFixture();
 }
 
 // Real catalog copy, so a label assertion measures the shipped wording rather

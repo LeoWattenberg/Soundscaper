@@ -1,7 +1,7 @@
 import { usePresentationFeedback, feedbackFailure, type PresentationFeedback } from '../presentation-feedback.ts';
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type MouseEvent } from 'react';
 import { Button } from '@soundscaper/design-system/Button';
 import { DialogFooter } from '@soundscaper/design-system/Footer';
 
@@ -20,6 +20,8 @@ import {
 } from '../take-comp-dialog-model.ts';
 import { compSharedBoundaries, useCompBoundaries } from './take-comp-boundaries.ts';
 import { useOwnedDialogOperation } from '../useOwnedDialogOperation.ts';
+import { useTakeCompRemovalFocus } from './useTakeCompRemovalFocus.ts';
+import { takePromotionBounds, reconcileTakePromotionRange, type TakePromotionRange } from './take-comp-promotion-range.ts';
 
 interface TakeCompDialogActions {
 	auditionTake(groupId: string, takeId: string): unknown;
@@ -79,8 +81,8 @@ export default function TakeCompDialog({
 	}), [groupId, productId, snapshot]);
 	const group = model.selectedGroup;
 	const [takeId, setTakeId] = useState<string | null>(group?.takes[0]?.id ?? null);
-	const [promotionStart, setPromotionStart] = useState(group?.startSample ?? 0);
-	const [promotionEnd, setPromotionEnd] = useState(group?.endSample ?? 1);
+	const [promotionStart, setPromotionStart] = useState(group?.takes[0]?.startSample ?? 0);
+	const [promotionEnd, setPromotionEnd] = useState(group?.takes[0]?.endSample ?? 1);
 	const [boundaries, setBoundaries] = useState<BoundaryDrafts>(() => boundaryDrafts(group));
 	const [sharedBoundaries, setSharedBoundaries] = useState<Readonly<Record<string, number>>>(() => (
 		sharedBoundaryDrafts(group)
@@ -116,25 +118,32 @@ export default function TakeCompDialog({
 		draftedIdentity.current = draftIdentity;
 		const sameOwner = draftedOwner.current === draftOwner;
 		draftedOwner.current = draftOwner;
-		setTakeId((current) => sameOwner && group?.takes.some(({ id }) => id === current)
-			? current : group?.takes[0]?.id ?? null);
-		setPromotionStart((current) => sameOwner && group
-			? Math.max(group.startSample, Math.min(group.endSample - 1, current)) : group?.startSample ?? 0);
-		setPromotionEnd((current) => sameOwner && group
-			? Math.max(group.startSample + 1, Math.min(group.endSample, current)) : group?.endSample ?? 1);
+		const nextTakeId = sameOwner && group?.takes.some(({ id }) => id === takeId)
+			? takeId : group?.takes[0]?.id ?? null;
+		const bounds = takePromotionBounds(group, nextTakeId);
+		const range = reconcileTakePromotionRange(bounds,
+			sameOwner ? promotionStart : bounds?.startSample ?? 0,
+			sameOwner ? promotionEnd : bounds?.endSample ?? 1);
+		setTakeId(nextTakeId);
+		setPromotionStart(range.startSample);
+		setPromotionEnd(range.endSample);
 		setBoundaries(boundaryDrafts(group));
 		setSharedBoundaries(sharedBoundaryDrafts(group));
-	}, [draftIdentity, draftOwner, group]);
+	}, [draftIdentity, draftOwner, group, takeId, promotionStart, promotionEnd]);
 
 	const disabled = operationState.disabled;
+	const editorRef = useRef<HTMLDivElement>(null);
+	const closeRef = useRef<HTMLSpanElement>(null);
+	const focusAfterRemoval = useTakeCompRemovalFocus(editorRef, closeRef, projectId, model.groups, disabled);
 	const auditionDisabled = operationState.pending !== null || !group || group.locked
 		|| selectAudioEditorBusyBlock(snapshot).blocked;
 	const selectedTake = group?.takes.find(({ id }) => id === takeId) ?? null;
-	const rangeValid = Boolean(group && selectedTake
+	const promotionBounds = takePromotionBounds(group, takeId);
+	const rangeValid = Boolean(promotionBounds
 		&& Number.isSafeInteger(promotionStart)
 		&& Number.isSafeInteger(promotionEnd)
-		&& promotionStart >= group.startSample
-		&& promotionEnd <= group.endSample
+		&& promotionStart >= promotionBounds.startSample
+		&& promotionEnd <= promotionBounds.endSample
 		&& promotionEnd > promotionStart);
 	const blockMessage = model.blockReason === 'read-only'
 		? copy.takeCompReadOnly
@@ -146,6 +155,12 @@ export default function TakeCompDialog({
 		setStatus('');
 		setError('');
 		setGroupId(nextGroupId);
+	};
+	const selectTake = (nextTakeId: string): void => {
+		const range = reconcileTakePromotionRange(takePromotionBounds(group, nextTakeId), promotionStart, promotionEnd);
+		setTakeId(nextTakeId);
+		setPromotionStart(range.startSample);
+		setPromotionEnd(range.endSample);
 	};
 
 	const perform = (name: string, operation: () => unknown, success: PresentationFeedback = { key: 'takeCompOperationComplete' }, readOperation = false): void => {
@@ -172,10 +187,10 @@ export default function TakeCompDialog({
 		dataAttributes={{ 'data-take-comp-dialog': 'true' }}
 		footer={<DialogFooter
 			className="audio-editor-dialog-footer"
-			rightContent={<Button variant="primary" onClick={close}>{copy.close}</Button>}
+			rightContent={<span ref={closeRef}><Button variant="primary" onClick={close}>{copy.close}</Button></span>}
 		/>}
 	>
-		<div className="audio-editor-take-comp">
+		<div ref={editorRef} className="audio-editor-take-comp">
 			{model.groups.length === 0 ? (
 				<p data-take-comp-empty>{copy.takeCompEmpty}</p>
 			) : <>
@@ -199,7 +214,7 @@ export default function TakeCompDialog({
 					disabled={disabled}
 					auditionDisabled={auditionDisabled}
 					takeId={takeId}
-					onTakeChange={setTakeId}
+					onTakeChange={selectTake}
 					onAuditionLane={(laneId) => perform('audition-lane', () => (
 						controller.actions.takeComp.auditionLane(group.id, laneId)
 					), undefined, true)}
@@ -208,6 +223,7 @@ export default function TakeCompDialog({
 					), undefined, true)}
 					promotionStart={promotionStart}
 					promotionEnd={promotionEnd}
+					promotionBounds={promotionBounds}
 					onPromotionStart={setPromotionStart}
 					onPromotionEnd={setPromotionEnd}
 					rangeValid={rangeValid}
@@ -242,9 +258,10 @@ export default function TakeCompDialog({
 					onFlatten={() => perform('flatten', () => (
 						controller.actions.takeComp.flatten(group.id)
 					), { key: 'takeCompFlattenComplete' })}
-					onRemove={() => perform('remove', () => (
-						controller.actions.takeComp.removeGroup(group.id)
-					), { key: 'takeCompRemoveComplete' })}
+					onRemove={(event) => {
+						focusAfterRemoval(event.currentTarget, group.id);
+						perform('remove', () => controller.actions.takeComp.removeGroup(group.id), { key: 'takeCompRemoveComplete' });
+					}}
 				/>}
 			</>}
 			<div className="audio-editor-take-comp__status" role="status" aria-live="polite" aria-atomic="true">
@@ -263,6 +280,7 @@ interface TakeGroupEditorProps {
 	readonly takeId: string | null;
 	readonly promotionStart: number;
 	readonly promotionEnd: number;
+	readonly promotionBounds: TakePromotionRange | null;
 	readonly rangeValid: boolean;
 	readonly boundaries: BoundaryDrafts;
 	readonly sharedBoundaries: Readonly<Record<string, number>>;
@@ -278,7 +296,7 @@ interface TakeGroupEditorProps {
 	onSharedBoundaryChange(key: string, value: number): void;
 	onApplySharedBoundary(leftRegionId: string, rightRegionId: string): void;
 	onFlatten(): void;
-	onRemove(): void;
+	onRemove(event: MouseEvent<HTMLButtonElement>): void;
 }
 
 function TakeGroupEditor(props: TakeGroupEditorProps) {
@@ -309,9 +327,9 @@ function TakeGroupEditor(props: TakeGroupEditorProps) {
 		<fieldset disabled={disabled || props.takeId === null}>
 			<legend>{copy.takeCompPromotion}</legend>
 			<div className="audio-editor-take-comp__promotion">
-				<button type="button" onClick={props.onPromoteAll}>{copy.takeCompPromoteAll}</button>
-				<NumberField label={copy.takeCompRangeStart} value={props.promotionStart} sampleRate={props.sampleRate} minimum={group.startSample} maximum={group.endSample - 1} onChange={props.onPromotionStart} />
-				<NumberField label={copy.takeCompRangeEnd} value={props.promotionEnd} sampleRate={props.sampleRate} minimum={group.startSample + 1} maximum={group.endSample} onChange={props.onPromotionEnd} />
+				<button type="button" disabled={!props.promotionBounds || props.promotionBounds.startSample > group.startSample || props.promotionBounds.endSample < group.endSample} onClick={props.onPromoteAll}>{copy.takeCompPromoteAll}</button>
+				<NumberField label={copy.takeCompRangeStart} value={props.promotionStart} sampleRate={props.sampleRate} minimum={props.promotionBounds?.startSample ?? group.startSample} maximum={(props.promotionBounds?.endSample ?? group.endSample) - 1} onChange={props.onPromotionStart} />
+				<NumberField label={copy.takeCompRangeEnd} value={props.promotionEnd} sampleRate={props.sampleRate} minimum={(props.promotionBounds?.startSample ?? group.startSample) + 1} maximum={props.promotionBounds?.endSample ?? group.endSample} onChange={props.onPromotionEnd} />
 				<button type="button" disabled={!props.rangeValid} onClick={props.onPromoteRange}>{copy.takeCompPromoteRange}</button>
 			</div>
 		</fieldset>

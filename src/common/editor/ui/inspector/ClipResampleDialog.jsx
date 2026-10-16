@@ -41,7 +41,17 @@ export default function ClipResampleDialog({ sampleRate, copy, disabled, onCance
 				</>}
 			/>}
 		>
-			<form onSubmit={(event) => {
+			<form onKeyDownCapture={(event) => {
+				if (event.nativeEvent?.isComposing) {
+					event.stopPropagation();
+					return;
+				}
+				if (event.key !== 'Enter' || event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey
+					|| !(event.target instanceof HTMLElement) || event.target.tagName !== 'INPUT') return;
+				event.preventDefault();
+				event.stopPropagation();
+				apply();
+			}} onSubmit={(event) => {
 				event.preventDefault();
 				apply();
 			}}>

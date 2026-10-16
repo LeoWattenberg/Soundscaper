@@ -310,7 +310,7 @@ test('the video-still surface refuses when no file picker is reachable', async (
 	);
 });
 
-test('a presentation file service drives the video-still picker on desktop', async () => {
+test('a presentation file service drives the desktop video-still picker with the image purpose', async () => {
 	const requests: unknown[] = [];
 	const controller = await controllerWith({
 		fileService: {
@@ -322,7 +322,7 @@ test('a presentation file service drives the video-still picker on desktop', asy
 
 	await framescaperCandidateAuthoringActionRuntimeFor(controller)!.run('video-still');
 
-	assert.deepEqual(requests, [{ purpose: 'media', multiple: true }]);
+	assert.deepEqual(requests, [{ purpose: 'image', multiple: true }]);
 });
 
 test('a desktop file service without bounded read capabilities is refused', async () => {

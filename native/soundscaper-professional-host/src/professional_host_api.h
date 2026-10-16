@@ -99,6 +99,18 @@ typedef struct soundscaper_pro_plugin_parameter {
 	uint32_t flags;
 } soundscaper_pro_plugin_parameter;
 
+/** ARA 2 region backed by bounded, uploaded source PCM. Times are seconds. */
+typedef struct soundscaper_pro_ara_clip {
+	const char *source_id;
+	const char *name;
+	double sample_rate;
+	uint32_t channel_count;
+	uint32_t frame_count;
+	double source_start_seconds;
+	double playback_start_seconds;
+	double duration_seconds;
+} soundscaper_pro_ara_clip;
+
 typedef struct soundscaper_pro_audio_session soundscaper_pro_audio_session;
 typedef struct soundscaper_pro_plugin_instance soundscaper_pro_plugin_instance;
 
@@ -139,6 +151,20 @@ SOUNDSCAPER_PRO_API soundscaper_pro_status soundscaper_pro_plugin_write_paramete
 SOUNDSCAPER_PRO_API soundscaper_pro_status soundscaper_pro_plugin_open_vendor_window(
 	soundscaper_pro_plugin_instance *instance, const char *opaque_window_id);
 SOUNDSCAPER_PRO_API void soundscaper_pro_plugin_close_vendor_window(soundscaper_pro_plugin_instance *instance);
+SOUNDSCAPER_PRO_API uint32_t soundscaper_pro_plugin_ara_supported(soundscaper_pro_plugin_instance *instance);
+SOUNDSCAPER_PRO_API soundscaper_pro_status soundscaper_pro_plugin_ara_configure(
+	soundscaper_pro_plugin_instance *instance, const soundscaper_pro_ara_clip *clip);
+SOUNDSCAPER_PRO_API soundscaper_pro_status soundscaper_pro_plugin_ara_write(
+	soundscaper_pro_plugin_instance *instance, uint32_t start_frame, const float *const *planes,
+	uint32_t channels, uint32_t frames);
+SOUNDSCAPER_PRO_API soundscaper_pro_status soundscaper_pro_plugin_ara_bind(soundscaper_pro_plugin_instance *instance);
+SOUNDSCAPER_PRO_API soundscaper_pro_status soundscaper_pro_plugin_ara_render(
+	soundscaper_pro_plugin_instance *instance, uint32_t start_frame, float **planes,
+	uint32_t channels, uint32_t frames);
+SOUNDSCAPER_PRO_API soundscaper_pro_status soundscaper_pro_plugin_ara_save(
+	soundscaper_pro_plugin_instance *instance, uint8_t *bytes, size_t capacity, size_t *written);
+SOUNDSCAPER_PRO_API soundscaper_pro_status soundscaper_pro_plugin_ara_load(
+	soundscaper_pro_plugin_instance *instance, const uint8_t *bytes, size_t length);
 SOUNDSCAPER_PRO_API void soundscaper_pro_plugin_close(soundscaper_pro_plugin_instance *instance);
 
 #ifdef __cplusplus

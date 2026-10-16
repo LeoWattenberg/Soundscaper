@@ -17,6 +17,7 @@ import { createEditorProjectBinActionGroup } from '../../src/common/editor/contr
 export function createActionFacadeRuntime(capability = true): EditorActionRuntime {
 	const callable = () => undefined;
 	const state = {
+		timelineView: 'waveform',
 		recentProjectIds: [],
 		projects: [],
 		preferences: { recording: {} },

@@ -2,6 +2,8 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { readFileSync } from 'node:fs';
+import { isAudioEditorVideoFile } from '../src/common/editor/video-media.js';
 
 import { createClipSpreadsheetSourcePreparer } from '../src/common/editor/controller/import/internal/prepare-clip-spreadsheet-source.ts';
 import type { ProjectImportRuntime } from '../src/common/editor/controller/import/internal/project-import-runtime.ts';
@@ -10,6 +12,25 @@ import { bextMetadata, createFixture, deferred } from './audio-editor-project-im
 const source = Object.freeze({
 	id: 'prepared-source', name: 'voice.wav', sampleRate: 48_000, frameCount: 24_000,
 	channelCount: 1, storageKey: 'prepared-source', opaqueExtensions: { bext: { description: 'Original' } },
+});
+
+test('ordinary audio-only WebM prepares audio while retaining the document-free import transaction', async () => {
+	const bytes = Uint8Array.from(Buffer.from(readFileSync(new URL('./fixtures/chromium-audio-only.webm.base64', import.meta.url), 'utf8'), 'base64'));
+	for (const type of ['audio/webm', 'video/webm']) {
+		const fixture = createFixture();
+		const runtime = { ...fixtureRuntime(fixture), isAudioEditorVideoFile };
+		const project = runtime.getProject();
+		const registered: string[] = [];
+		const prepared = await createClipSpreadsheetSourcePreparer(runtime)(new File([bytes], 'Voice memo.webm', { type }), {
+			signal: new AbortController().signal, onSourcePrepared: id => registered.push(id),
+		});
+		assert.equal(prepared.name, 'Voice memo.webm');
+		assert.deepEqual(registered, [prepared.id]);
+		assert.equal(fixture.sourceBuffers.has(prepared.id), true);
+		assert.equal(runtime.getProject(), project);
+		assert.deepEqual(fixture.commands, []);
+		assert.deepEqual(fixture.placements, []);
+	}
 });
 
 function fixtureRuntime(fixture: ReturnType<typeof createFixture>): ProjectImportRuntime {

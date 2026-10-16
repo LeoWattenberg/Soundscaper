@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { capturePassingScreenshot } from './helpers/passing-screenshots.js';
+import { installDesktopSpeedWarmupManifest } from './helpers/desktop-speed-warmup-fixture.js';
 import { readdir } from 'node:fs/promises';
 
 import { darkTheme } from '../../vendor/audacity-design-system/tokens/src/themes/dark.v2.ts';
@@ -9,6 +11,7 @@ import {
 	bootEditor,
 	chooseCommandAction,
 	chooseDropdown,
+	waitForEditor,
 } from './audio-editor-test-helpers.js';
 import { resolveSoundscaperBrowserAssetsDirectory } from './helpers/production-build-paths.js';
 import { chooseTrackMenuAction } from './helpers/track-menu.js';
@@ -71,10 +74,10 @@ test('desktop defaults to Speed, preserves Memory, and leaves AI code on demand'
 		},
 	};
 	// The web build removes the manifest; the desktop protocol serves it directly.
+	await installDesktopFfmpegFixture(page);
 	await page.route('**/.offline-build-manifest.json', async (route) => {
 		await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(manifest) });
 	});
-	await installDesktopFfmpegFixture(page);
 	const requested = [];
 	page.on('request', (request) => { requested.push(new URL(request.url()).pathname); });
 	const editor = await bootEditor(page, '/embed/en/');
@@ -127,8 +130,18 @@ test('browser Preferences opens General without the desktop-only FFmpeg location
 	await expect(preferences.getByRole('tab').first()).toHaveText(/General$/u);
 	await expect(preferences.getByRole('tab', { name: /General$/u })).toHaveAttribute('aria-selected', 'true');
 	await expect(preferences.getByRole('group', { name: 'Language', exact: true })).toBeVisible();
-	await expect(preferences.getByRole('group', { name: 'Optimize for', exact: true })).toHaveCount(0);
+	const optimization = preferences.getByRole('group', { name: 'Optimize for', exact: true });
+	await expect(optimization.getByRole('button')).toContainText('Memory');
 	await expect(preferences.locator('[data-external-ffmpeg-preference="true"]')).toHaveCount(0);
+	await chooseDropdown(page, optimization, 'Speed');
+	await expect.poll(() => savedOptimizationMode(page)).toBe('speed');
+	await preferences.getByRole('button', { name: 'Close', exact: true }).last().click();
+	await page.reload();
+	const reopenedEditor = await waitForEditor(page);
+	await expect(page.locator('[data-desktop-speed-warmup]')).toHaveCount(0);
+	await chooseCommandAction(page, reopenedEditor, 'Edit', 'Preferences');
+	await expect(preferences.getByRole('group', { name: 'Optimize for', exact: true })
+		.getByRole('button')).toContainText('Speed');
 });
 
 test('Track visualization opens the combined waveform and spectrogram settings', async ({ page }) => {
@@ -180,7 +193,7 @@ for (const mode of ['Light', 'Dark']) {
 		await expect(checkbox).not.toBeChecked();
 		await expect(checkbox).toHaveCSS('border-width', '0px');
 		await expect(checkbox).toHaveCSS('outline-style', 'none');
-		await preferences.screenshot({ path: testInfo.outputPath(`appearance-${mode}.png`) });
+		await capturePassingScreenshot(preferences, { path: testInfo.outputPath(`appearance-${mode}.png`) });
 		const idleFill = cssColor(palette.background.control.checkbox.idle);
 		await expect(checkbox).toHaveCSS('background-color', idleFill);
 		await checkbox.hover();
@@ -264,6 +277,7 @@ async function savedOptimizationMode(page) {
 }
 
 async function installDesktopFfmpegFixture(page) {
+	await installDesktopSpeedWarmupManifest(page);
 	await page.addInitScript(() => {
 		const calls = [];
 		const status = (state, overrides = {}) => Object.freeze({

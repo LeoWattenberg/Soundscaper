@@ -72,11 +72,19 @@ export default function AudioEditorSplitButton({
 	onClick,
 	children,
 }: AudioEditorSplitButtonProps) {
+	const splitRef = useRef<HTMLSpanElement>(null);
 	const arrowRef = useRef<HTMLButtonElement>(null);
 	const mainRef = useRef<HTMLSpanElement>(null);
 	const [flyout, setFlyout] = useState<SplitButtonFlyoutPlacement | null>(null);
 	const consumeTriggerDismissal = useMenuTriggerDismissal(arrowRef, Boolean(flyout));
-	const closeFlyout = useCallback(() => setFlyout(null), []);
+	const closeFlyout = useCallback(() => {
+		const trigger = arrowRef.current;
+		const popup = splitRef.current?.querySelector('.kw-audio-editor__split-button-flyout');
+		if (flyout?.autoFocus && trigger?.isConnected && popup?.contains(trigger.ownerDocument.activeElement)) {
+			trigger.focus();
+		}
+		setFlyout(null);
+	}, [flyout]);
 	const openFlyout = useCallback((event: MouseEvent<HTMLButtonElement>) => {
 		if (consumeTriggerDismissal()) return;
 		if (flyout) {
@@ -98,7 +106,7 @@ export default function AudioEditorSplitButton({
 	}, [pressed]);
 
 	return (
-		<span className={`kw-audio-editor__split-button ${className}`}>
+		<span ref={splitRef} className={`kw-audio-editor__split-button ${className}`}>
 			<span ref={mainRef} className="kw-audio-editor__split-button-main">
 				{toggle
 					? <ToggleToolButton

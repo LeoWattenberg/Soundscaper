@@ -23,10 +23,12 @@ test('V21 stem rendering excludes a non-target pre-fader route without rewriting
 	const authoredLane = project.automationLanes.find(({ id }) => id === 'music-master-level');
 	assert.ok(authoredEdge);
 	assert.ok(authoredLane);
+	const authoredProject = structuredClone(project);
 
 	const snapshot = stemProject(project as never, 'voice') as unknown as typeof project;
-	assert.deepEqual(snapshot.mixer.edges.find(({ id }) => id === authoredEdge.id), authoredEdge);
-	assert.deepEqual(snapshot.automationLanes.find(({ id }) => id === authoredLane.id), authoredLane);
+	assert.deepEqual(project, authoredProject);
+	assert.deepEqual(snapshot.mixer.edges.find(({ id }) => id === authoredEdge.id), { ...authoredEdge, level: 0 });
+	assert.equal(snapshot.automationLanes.some(({ id }) => id === authoredLane.id), false);
 
 	const voice = new TestAudioBuffer(1, FRAME_COUNT, SAMPLE_RATE);
 	const music = new TestAudioBuffer(1, FRAME_COUNT, SAMPLE_RATE);
@@ -37,10 +39,11 @@ test('V21 stem rendering excludes a non-target pre-fader route without rewriting
 		),
 	});
 	try {
-		engine.loadProject(snapshot as never, new Map([
+		const sources = new Map([
 			['voice-source', voice as unknown as AudioBuffer],
 			['music-source', music as unknown as AudioBuffer],
-		]));
+		]);
+		engine.loadProject(project as never, sources);
 		const unisolated = await engine.renderMix({
 			startFrame: 0,
 			endFrame: FRAME_COUNT,
@@ -66,6 +69,17 @@ test('V21 stem rendering excludes a non-target pre-fader route without rewriting
 			Array.from(isolated.getChannelData(0)),
 			new Array<number>(FRAME_COUNT).fill(0),
 		);
+
+		engine.loadProject(snapshot as never, sources);
+		const projected = await engine.renderMix({
+			startFrame: 0,
+			endFrame: FRAME_COUNT,
+			includeMaster: false,
+			respectMuteSolo: true,
+		});
+		if (!('getChannelData' in projected)) assert.fail('Expected an offline AudioBuffer render.');
+		assert.deepEqual(Array.from(projected.getChannelData(0)), new Array<number>(FRAME_COUNT).fill(0));
+		assert.deepEqual(project, authoredProject);
 	} finally {
 		await engine.dispose();
 	}

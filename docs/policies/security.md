@@ -9,7 +9,7 @@ qualify, attest to, or sign off a release. Historical “qualified” and
 “admitted” wording in retained version narratives means only that a bounded
 technical input or operation passed its named checks.
 
-The model is grounded on 2026-10-02. It must be updated when a trust boundary, supported input, renderer bridge, worker ABI, native executable, plug-in surface, release channel, or long-job lifecycle changes.
+The model is grounded on 2026-10-16. It must be updated when a trust boundary, supported input, renderer bridge, worker ABI, native executable, plug-in surface, release channel, or long-job lifecycle changes.
 
 ## 1.0 project-identity boundary
 
@@ -79,6 +79,7 @@ The browser, Electron/Chromium runtime, operating system, and hardware are trust
 | `public-browser-to-desktop-release-redirect` | Browser visitor following a desktop download link | Product Pages download Function and GitHub's public release listing | Accept only product hosts and safe methods, bound the upstream lookup, and redirect only to a published release with that product's installer. |
 | `public-client-to-freesound-proxy` | Public browsers, packaged Soundscaper clients, and other network callers | Pages Functions and their server-only Freesound credential | Admit only fixed read routes and bounded inputs, and never expose or forward the credential outside the fixed API origin. |
 | `authenticated-client-to-freesound-proxy` | Soundscaper web client or packaged main-process proxy holding an opaque session | OAuth/media Functions, D1 token store, and server-held OAuth credentials | Bind exact session transport and origin to closed OAuth, original-download, upload, and publication routes without exposing tokens to the renderer. |
+| `authenticated-client-to-audiocom-proxy` | Soundscaper web client or packaged main holding an opaque session, and provider OAuth/API/CDN responses | Pages audio.com Functions, encrypted D1 grants, and approved provider upload storage | Bind state, encrypted PKCE, session transport and publication metadata to closed routes and pinned provider destinations without exposing credentials. |
 | `freesound-upstream-to-proxy` | Freesound OAuth/API, original-file, upload, and CDN preview responses | Owned OAuth/media contracts and bounded streams | Reject untrusted fetch targets, redirects, open response shapes, disallowed media types, and bodies beyond per-response ceilings. |
 | `renderer-to-electron-main` | Sandboxed renderer | Electron main process | Only the product-qualified v1 bridge, including bounded pathless linked-video, maintained linked PCM container, and owning-family project-library calls, reaches privileged handlers. |
 | `electron-main-to-filesystem` | Protocol and IPC requests | User-selected files and packaged resources | Renderer code receives capabilities, not ambient paths or arbitrary filesystem access; persisted linked-video and maintained linked PCM container paths remain main-private. |
@@ -652,11 +653,11 @@ CPU, and time remain unqualified.
 <!-- /policy-narrative:direct-compressed-mix-save-rollback -->
 
 <!-- policy-narrative:exact-direct-mp4-webm-video-save -->
-The exact MP4 route binds `mp4`, `.mp4`, and `video/mp4`; WebM binds `webm`, `.webm`, and `video/webm`. Both require target purpose `video`, a safe name, unchanged exact plan fingerprint, currentness, structural validation, digest and byte-count agreement, close before one commit, and Blob-versus-direct publication boundaries. The production browser admits only the exact keyed-frame path: WebCodecs encodes H.264 for MP4 or VP9 for WebM and dynamically loaded Mediabunny muxes optional PCM as AAC or Opus into one complete container. An ineligible composed-graph path, missing WebCodecs capability, unsupported tuple, malformed audio, muxer refusal, or output-bound failure refuses with no browser FFmpeg fallback. Browser output above 512 MiB requires explicit user confirmation and is range-delivered in at-most-1-MiB chunks; no production browser imports, fetches, caches, or executes FFmpeg WebAssembly. Desktop Soundscaper family v1 remains unchanged: it forces the desktop provider, requires exact capability tokens and a live canary for the current external ffmpeg/ffprobe pair, uses `libx264`/`aac` for MP4 and `libvpx-vp9`/`libopus` for WebM, and verifies the two-stream probe. Renderer writes remain pathless into main-private pipes and finalized output remains in main-private scratch. Bundled video, operating-system video, and AV1 remain disabled; external WebM is VP9. Codec conformance, broad platforms, packaged UI, scale, aggregate memory, RSS, CPU, durability, crash, and power loss remain unqualified.
+The exact MP4 route binds `mp4`, `.mp4`, and `video/mp4`; WebM binds `webm`, `.webm`, and `video/webm`. Both require target purpose `video`, a safe name, unchanged exact plan fingerprint, currentness, structural validation, digest and byte-count agreement, close before one commit, and Blob-versus-direct publication boundaries. The production browser admits only the exact keyed-frame path: WebCodecs encodes H.264 for MP4 or VP9 for WebM and dynamically loaded Mediabunny muxes optional PCM as AAC or Opus into one complete container. An ineligible composed-graph path, missing WebCodecs capability, unsupported tuple, malformed audio, muxer refusal, or output-bound failure refuses with no browser FFmpeg fallback. Browser output above 512 MiB requires explicit user confirmation and is range-delivered in at-most-1-MiB chunks; no production browser imports, fetches, caches, or executes FFmpeg WebAssembly. Desktop Soundscaper family v1 first probes the exact WebCodecs video geometry and quality plus the optional AAC/Opus audio tuple, requesting `prefer-hardware` before ordinary WebCodecs. Provisional 640x360 video-only format discovery does not admit the actual export. Only unavailable or unsupported preflights may fall through to the current execution-verified external ffmpeg/ffprobe pair. Main prefers `h264_videotoolbox` on macOS or `h264_mf` on Windows after token eligibility and an exact execution canary; an unavailable or failed native canary may fall back to independently verified `libx264` for MP4, with `aac`. WebM uses `libvpx-vp9`/`libopus`; both host formats require the exact two-stream probe. The H.264 encoder choice remains main-owned, bound to exact-pair identity, and absent from the closed renderer wire. Renderer fallback writes remain pathless into main-private pipes and finalized output remains in main-private scratch. No bundled or separately shipped operating-system video payload is supplied, and AV1 remains disabled; external WebM is VP9. Codec conformance, broad platforms, packaged UI, scale, aggregate memory, RSS, CPU, durability, crash, and power loss remain unqualified.
 <!-- /policy-narrative:exact-direct-mp4-webm-video-save -->
 
 <!-- policy-narrative:bounded-keyed-rgba-av-encoding -->
-The Framescaper family-v1 keyed browser encoder admits exact generated RGBA at no more than 1,280 by 720, 1 through 30 frames per second, 2,000,000 frames, 8 MiB per reusable frame allocation, and 1 TiB logical RGBA work. It requires an admitted WebCodecs configuration, encodes H.264 for MP4 or VP9 for WebM frame by frame, and dynamically loads Mediabunny to mux chunks and optional canonical float32 WAV PCM as AAC or Opus into one complete container. Missing WebCodecs, a non-keyed route, unsupported configuration, malformed PCM, or mux failure refuses without browser FFmpeg. Output above 512 MiB requires explicit user confirmation before publication. AbortSignal and currentness fence audio reads, frame production, WebCodecs submission, mux writes, finalization, and publication; failure cancels the muxer, closes resources, disposes the producer, and clears temporary output bytes. Desktop Soundscaper family-v1 plans use pathless owner-scoped main-private external-FFmpeg pipes, main-private scratch, and process-tree cancellation. Complete-container residency, heap, native/WASM/WebCodecs memory, RSS, GC, CPU, conformance, scale, platform breadth, quota, durability, crash, and power loss remain unqualified.
+The Framescaper family-v1 keyed browser encoder admits exact generated RGBA at no more than 1,280 by 720, 1 through 30 frames per second, 2,000,000 frames, 8 MiB per reusable frame allocation, and 1 TiB logical RGBA work. It requires an admitted WebCodecs configuration, encodes H.264 for MP4 or VP9 for WebM frame by frame, and dynamically loads Mediabunny to mux chunks and optional canonical float32 WAV PCM as AAC or Opus into one complete container. Missing WebCodecs, a non-keyed route, unsupported configuration, malformed PCM, or mux failure refuses without browser FFmpeg. Output above 512 MiB requires explicit user confirmation before publication. AbortSignal and currentness fence audio reads, frame production, WebCodecs submission, mux writes, finalization, and publication; failure cancels the muxer, closes resources, disposes the producer, and clears temporary output bytes. Desktop Soundscaper family-v1 plans first admit the exact WebCodecs video and optional AAC/Opus audio tuple, requesting hardware preference then ordinary WebCodecs. Only unavailable or unsupported preflights may fall through to current execution-verified external FFmpeg, with main-owned native H.264 or independently verified libx264 selection. This fallback retains pathless owner-scoped main-private external-FFmpeg pipes, main-private scratch, and process-tree cancellation. The complete renderer request wire remains unchanged. Complete-container residency, heap, native/WASM/WebCodecs memory, RSS, GC, CPU, conformance, scale, platform breadth, quota, durability, crash, and power loss remain unqualified.
 <!-- /policy-narrative:bounded-keyed-rgba-av-encoding -->
 
 <!-- policy-narrative:overridable-materialized-file-publication -->
@@ -847,6 +848,90 @@ interrupted upload is non-idempotent: retrying after an ambiguous upstream
 outcome can create another pending Freesound upload.
 <!-- /policy-narrative:freesound-authenticated-media-lifecycle -->
 
+### audio.com API proxy
+
+`audiocom-proxy-boundary` is **partial** at the
+`authenticated-client-to-audiocom-proxy` boundary.
+
+<!-- policy-narrative:bounded-audiocom-oauth-media-proxy -->
+The audio.com Pages namespace admits only canonical production, the owned
+soundscaper-5ki.pages.dev project, or explicitly enabled loopback hosts; trusted
+Soundscaper web, desktop, or current same-origin browser Origins; closed
+methods, bounded JSON, search parameters, upload metadata, and session
+transports. Mutations reject cross-site fetch metadata; CORS is not client
+authentication. OAuth uses ten-minute random state and handoff capabilities,
+single-use state exchange, and PKCE S256 with an encrypted verifier. Preview
+sign-in requires an explicit registered callback on that same Pages project,
+isolated preview D1 and secrets, and a callback-origin check; the original
+editor polls on its own host and receives a host-only cookie. Production cannot
+use a preview callback; the default https://api.audio.com token/API targets
+disable redirects and apply ten-second control-request deadlines. audio.com is
+the default. An opt-in Advanced preference chooses a custom Audiocity server
+through a validated origin header; custom origins require public HTTPS, with
+HTTP loopback restricted to an explicitly enabled local Soundscaper server. Each
+custom OAuth attempt registers its own public client with a fixed Soundscaper
+callback; the default client secret is never sent to a custom server. D1
+persists the issuer, public client ID, scope and callback on each attempt and
+grant, so headerless callbacks and refresh use the authorized binding, while a
+changed selection requires reconnecting. Headerless audio previews derive their
+issuer from the authenticated grant. OAuth requests public projects only for
+Audiocity, and origin-bound attempt identifiers and persisted bindings prevent
+grants being forwarded after a provider change. The browser and Electron main
+validate authorization and content links against configuration returned by their
+fixed Soundscaper backend and matched to the explicit server selection. Electron
+main captures only successfully validated server-issued provider metadata, and
+changing preferences disposes stale searches, previews, uploads and archive
+transfers even while the panel is closed. D1 stores provider tokens and polling
+session secrets only as AES-256-GCM ciphertext with provider- and field-specific
+authenticated data; browser sessions use Secure HttpOnly SameSite=Strict cookies
+and desktop sessions use opaque hashed Soundscaper capabilities. Rolling
+sessions expire after 30 days, refresh rotation uses generation-fenced leases,
+and disconnect removes orphan grants. No public userinfo endpoint is invented or
+account identity inferred. Uploads require supported raw audio of exactly 1
+through 100,000,000 bytes with bounded metadata; only provider-returned policies
+on exact HTTPS s3.audio.com/audio/, s3.ustatik.com/audio.com.audio/, or
+s3.eu-central-1.wasabisys.com/audio.com.audio/source/ paths receive bytes. The
+Wasabi source destination is upload-only and does not broaden playback or
+source-download authority, and provider OAuth credentials are never sent to
+storage. Configured Audiocity transfers admit only exact same-origin UUID
+upload/hook and signed media paths; discovery must match that origin and
+advertise archive formats and byte ceilings. The server awaits verified stream
+completion before the POST success hook; failure and cancellation attempt the
+provider DELETE cleanup hook with an independent ten-second timeout. Preview
+requests require a valid application session, pin the same exact CDN hosts and
+paths, block redirects, accept only audio MIME responses, enforce simple byte
+ranges, and cap declared and observed bytes at 128 MiB. JSON responses are
+bounded and normalized, omit signed upload policies and OAuth credentials, and
+use no-store and nosniff. Electron main holds the opaque capability outside
+renderer authority, captures it from polling responses, strips renderer
+credentials, exposes closed routes and an exact authorization-URL opener, and
+persists only with an admitted safeStorage backend. The regular public audio.com
+API has no Audacity project storage or retrieval and no original source download
+route. Configured Audiocity archive routes require project-scoped sessions, list
+only whole-file transport, and stream selected standalone AUP3/AUP4 files of 16
+through 100,000,000 bytes. Completion requires verified exact bytes, a SQLite
+header, the storage success hook and snapshot synchronization; downloads select
+a completed revision with its own format and bounded exact length. Native block
+snapshots and automatic serialization of the open project are excluded. Backend
+and desktop tests prove state replay and handoff rejection, encrypted PKCE and
+token confinement, refresh fencing, session transport admission, fixed
+destinations, exact upload byte checks, cancellation cleanup, range handling,
+and bounded response failure; fixtures alone do not establish live audio.com
+upload success. A registered preview smoke test on 2026-10-15 separately
+confirmed browser consent and polling, panel search, ranged playback, an
+unlisted two-second WAV upload through processing completion and playback,
+provider deletion, and application disconnect; it does not qualify account quota
+failures or production abuse controls. A separate disposable local integration
+harness exercises real Pages Functions and D1, an Audiocity server, cross-origin
+PKCE consent, audio search/upload/range playback, and whole-file archive
+upload/download followed by the existing editor importer.
+<!-- /policy-narrative:bounded-audiocom-oauth-media-proxy -->
+
+The [control register](../../config/production-security-matrix.json) records
+the remaining deployment and media lifecycle controls and acceptance criteria in
+`audiocom-deployment-and-live-provider-proof` and
+`audiocom-media-transfer-lifecycle`.
+
 ### Electron renderer, IPC, and filesystem capabilities
 
 `electron-renderer-ipc-boundary` is **enforced for the current v1 bridges only**. The window uses sandboxing, context isolation, no Node integration, sender/root-document checks, denied navigation and new-window paths, and a frozen input-validating preload API. Shared-project methods are bounded pathless list, read, bundle, commit, delete, and managed-media transfer operations for the closed canonical-PCM and retained-original-video encodings; main independently sanitizes their values, caps transfer bodies at 64 GiB and chunks at 4 MiB, and permits at most four active uploads and four active reads across the bridge service. Linked-original load requests are closed pathless DTOs with mandatory kind-specific Boolean modes: whole-Blob materialization requires `range: false` for audio or `playback: false` for video, while ranged access requires the corresponding true mode and a non-null exact locator revision. Main and preload independently validate the mode, returned revision, profile-bound descriptor, safe size, canonical URL, and kind-specific MIME/name contract, and they retire a descriptor that cannot be returned safely. Upload capacity remains charged through publication or abort settlement, and service disposal waits for finishing publications. Upload sessions and linked-original reads remain bound to their renderer owner for authorization and revocation. Navigation, renderer loss, and window close revoke the owner, fence new work, abort its uploads, and drain admitted operations and range reads. The external-video addition exposes nine separately validated owner-scoped methods for capabilities, begin, input write, input close, execute, stat, bounded range read, delete, and cancel. It admits opaque operation ids, exact closed plans, and at-most-1-MiB chunks, never renderer-selected paths, executables, or argv; at most two sessions exist globally and one per owner. Navigation, renderer loss, window close, disposal, and shutdown fence new work, cancel and drain the child/session lifecycle, and remove main-private scratch. The desktop local-assistance and additive workflow bridges likewise expose only opaque jobs, aggregate selected-media fences, authenticated slotted claims/reservations, closed operations and workflow graphs, progress, typed unavailable outcomes, and MessagePort byte transfers. Main-private staging, model/runtime/video/executable paths, and project-isolated derivative storage stay outside renderer authority; cancellation and release drain transfers and helper or external-process work before cleanup. No renderer receives a filesystem path. Implemented workflow code creates no authority for a runtime payload or digest-pinned model that has not passed admission.
@@ -882,14 +967,14 @@ fixed shell-free, bounded, process-tree-supervised grammar. Qualification or
 executable-authority loss returns typed unavailable; malformed actual metadata
 or process failure stays hard, and no shot boundary is fabricated.
 
-Conditional CPU runtime families and owned deterministic stages implement
+Conditional GPU-capable runtime families and owned deterministic stages implement
 Whisper/wav2vec2 alignment, DeepFilterNet enhancement, TIGER separation, PANNs
 reactions, Beat This, TransNetV2 accurate shots, nomic/SigLIP embeddings, OCR,
 subject/saliency reframe, deterministic highlights, and bounded Qwen editorial
 JSON. Their isolated process/thread protocols enforce exact file grants, memory
 admission, supervision, crash quarantine, and termination cancellation. Desktop
-preparation provisions the exact selected-target CPU engine and authenticates
-its generated file manifest, including the Windows ARM64 Sherpa addon. The
+preparation provisions the exact selected-target GPU/CPU engine and authenticates
+its generated file manifest, including the five-target Sherpa GPU addons. The
 [retained conversion evidence](../../evidence/milestone-7-model-conversion/README.md)
 binds TIGER, PANNs, both Beat This checkpoints, TransNetV2, and Dereverb Room to
 actual source-framework comparisons and exact converted artifacts. Unmet model,
@@ -1401,13 +1486,45 @@ and quiescent staging cleanup. Catalog-bound Parakeet, Silero, and exact
 Pyannote/ERes2Net remain the active Sherpa routes. The additional ONNX Runtime,
 whisper.cpp, and llama.cpp families implement equivalent isolated grants,
 process/thread protocols, memory admission, quarantine, and termination.
-Release preparation builds these CPU engines, the Sherpa addon, and the Kokoro
+Release preparation builds these engines, the Sherpa addon, and the Kokoro
 G2P closure for each supported target. The macOS native bytes are signed.
 The protected archive pins each immutable R2 download and its extracted file
 inventory, while the Electron package carries none of the assistance payloads.
 Model Manager downloads the required runtime when a model is installed; a
 preseeded or previously installed model can fetch it on first use. The complete
 closure is verified again before native execution.
+
+<!-- policy-narrative:local-assistance-gpu-execution -->
+Authenticated target manifests bind a GPU option and portable CPU fallback for
+all 22 catalog models across all five desktop targets. Sherpa and ONNX Runtime
+use CoreML or native WebGPU on macOS ARM64 and native WebGPU on Windows/Linux
+x64 and ARM64. Sherpa is source-built on every target against the pinned ONNX
+Runtime 1.29.0 core and reviewed WebGPU plugin; generic ONNX rebuilds its
+Node-API binding on all five targets to register that plugin. An authenticated
+isolated device probe contains WebGPU initialization failures before resident
+registration. Exact generated native files, source pins, MIT licenses,
+third-party notices, and provenance enter each authenticated closure. Kokoro G2P
+also gives its learned English Tok2Vec/tagger models a GPU option: a sealed ORT
+WebGPU GEMM shim preserves the exact weights, tokenizer, lexical features, and
+remaining CPU operators. Its isolated probe, same-process-architecture
+core/plugin libraries, source pins, and notices join the authenticated G2P
+closure. Windows ARM64 retains the existing x64 frozen-helper emulation.
+Imported CPU PyTorch does not execute a learned network with model=False; speech
+synthesis remains in the separate accelerated ONNX worker. Whisper and Qwen use
+embedded Metal on macOS ARM64 or separate Vulkan GPU executables on
+Windows/Linux. Each Vulkan companion and its portable CPU executable share an
+authenticated archive; the CPU executable does not link Vulkan. System Vulkan
+loaders and compatible graphics drivers remain host dependencies outside archive
+authentication. Digest-pinned Vulkan Headers/Loader, shaderc, glslang, SPIRV
+Headers and Tools build embedded shaders with provenance and notices. Existing
+menu-invoked operations prefer authenticated GPU providers before CPU fallback
+for native initialization or execution failure. Cancellation, authentication
+failures, invalid inputs, invalid outputs, and cleanup failures remain terminal.
+Legacy CPU archives remain compatible; new builds cannot omit GPU support. CUDA
+and DirectML are not packaged. Publication, usable devices, driver
+compatibility, and performance need separate evidence; source, fixture, and
+build checks do not establish them.
+<!-- /policy-narrative:local-assistance-gpu-execution -->
 
 The conditional external-FFmpeg shot adapter is a separate ordinary child
 process, not a Sherpa job. A current main-only executable-pair admission,
@@ -1419,22 +1536,22 @@ selected executable's ambient account authority. Authentication or executable
 loss returns typed unavailable; malformed actual detection remains hard.
 
 <!-- policy-narrative:local-assistance-runtime-diagnostics -->
-The Sherpa helper, CPU runtime-family hosts, and external-FFmpeg shot detector
-execute ordinary native code with ambient account authority. Exact payload,
-selected-file, model-artifact, and executable authentication plus supervision
-contain accidental faults but do not create an operating-system sandbox, close
-the FFmpeg hash-to-path/dynamic-library gaps, or establish aggregate CPU/RSS and
-long-session bounds. Retained Linux x64 conversions now authenticate TIGER-DnR,
-PANNs Cnn10, both Beat This checkpoints, TransNetV2, and Dereverb Room, with
-exact artifact identities and passing source-framework/ONNX comparisons. The
-conversion evidence directory also retains direct production-worker smoke
-results, separately from packaged Electron tests. Release preparation builds
-pinned ONNX Runtime, whisper.cpp, llama.cpp, Sherpa, and Kokoro G2P target
-closures and signs macOS native bytes. A protected ASAR distribution manifest
-binds immutable R2 archive length and SHA-256 plus every extracted file;
-Electron packages omit the native assistance payloads. Historical
-external-supply candidate statuses are not substitutes for those release
-identities. Model and runtime distribution require versioned notices and
+The Sherpa helper, CPU/GPU runtime-family hosts, and external-FFmpeg shot
+detector execute ordinary native code with ambient account authority. Exact
+payload, selected-file, model-artifact, and executable authentication plus
+supervision contain accidental faults but do not create an operating-system
+sandbox, close the FFmpeg hash-to-path/dynamic-library gaps, or establish
+aggregate CPU/RSS and long-session bounds. Retained Linux x64 conversions now
+authenticate TIGER-DnR, PANNs Cnn10, both Beat This checkpoints, TransNetV2, and
+Dereverb Room, with exact artifact identities and passing source-framework/ONNX
+comparisons. The conversion evidence directory also retains direct
+production-worker smoke results, separately from packaged Electron tests.
+Release preparation builds pinned ONNX Runtime, whisper.cpp, llama.cpp, Sherpa,
+and Kokoro G2P target closures and signs macOS native bytes. A protected ASAR
+distribution manifest binds immutable R2 archive length and SHA-256 plus every
+extracted file; Electron packages omit the native assistance payloads.
+Historical external-supply candidate statuses are not substitutes for those
+release identities. Model and runtime distribution require versioned notices and
 full-digest public read-back; explicit Model Manager installation fetches the
 model and required runtime, and first use of preseeded or previously installed
 weights may fetch a missing runtime. Execution rechecks the selected model and
@@ -1458,7 +1575,7 @@ shots, disposable indexes, reframe, and highlight sequences. That wider
 stale-safe project mutation surface does not qualify any helper, model,
 publication, privacy metric, performance bound, or target.
 
-`native-helper-processes` is **partial across the supervised helper and codec-process surfaces**. The helper contract v1 is enacted with one read-only surface: a video probe helper running as an Electron utility process that main alone spawns and owns. The renderer addresses media only by its opaque read-capability id over four validated bridge channels; no spawn, filesystem-path, or binary authority ever crosses the renderer boundary, and the surface ships disabled until the user turns it on from the application menu. Both wire directions are validated against the versioned contract with typed rejections — a deterministic 10,000-case malformed-message suite runs as ordinary CI evidence — and a helper that violates the contract, misses the one-second heartbeat beyond the two-second crash-detection budget, overruns the one-second cancellation-acknowledgement budget, or exceeds its lower-only per-job input, duration, or peak-RSS policy is terminated, with repeated crashes quarantining the surface until the user explicitly clears it. Each job carries a grant naming one absolute main-verified media path whose captured device/inode identity the helper re-verifies after reopening; grants carry no output paths and no network authority. The Soundscaper application supplies no FFmpeg probe-helper engine: its renderer, runtime-resource, package, and release audits reject application-supplied FFmpeg, libav, the FFmpeg WebAssembly runtime, and the historical static FFmpeg host, so that application codec path cannot execute in a shipped desktop artifact. The Electron shell is a separately scoped framework exception. Instead of stock Electron 43.7.7's Chromium libffmpeg with proprietary codec support, Electron Builder selects the matching alternate framework library that Electron intends to omit proprietary codec support, and afterPack verifies its exact target, regular-file type, byte length, and SHA-256 against `config/electron-alternate-ffmpeg-manifest.json`. The five admitted targets are linux-x64, linux-arm64, mac-arm64, win-x64, and win-arm64; no mac-x64 package is admitted. This Chromium framework library is not passed to the helper or audio broker and is not a Soundscaper codec-provider tier. The separate desktop audio broker registers seven exact reviewed compressed-audio WASM payloads on linux-x64, linux-arm64, mac-arm64, win-x64, and win-arm64 and never mac-x64: libFLAC 1.5.0, libopus 1.6.1 with libogg 1.3.6, libvorbis 1.3.7 with libogg 1.3.6, WavPack 5.9.0, mpg123 1.33.7, LAME 4.0, and TwoLAME 0.4.0. One canonical manifest authenticates each control module, its complete transitive JavaScript import closure, and every WASM payload. Main reauthenticates that closure before every canary, preflight, or execution fork, and the helper reauthenticates it before import. Each job runs in a fresh one-shot Electron utility process with private 0700 scratch and 0600 files, exact input/output digest and geometry checks, a bounded deadline, kill-on-cancel/failure behavior, and a global four-job ceiling. The package also audits the exact notice/source closure and deterministic corresponding-source ZIP. The specialized first-party WAV/BWF/BW64 and AIFF paths remain application code and libsndfile is not bundled. WavPack retains its narrow stock 5.9.0 `wvunpack` multi-block witness. Each bundled or operating-system small-buffer audio request is capped at 32 MiB input and 128 MiB returned output and retains whole buffers; a codec call remains synchronous inside its disposable helper, so these limits establish no aggregate JavaScript-copy, WASM-memory, CPU, elapsed-time, or RSS bound and the ordinary utility process is not a hostile-code sandbox. Windows Media Foundation and macOS ARM64 AudioToolbox source adapters, bounded inspectors, output validators, and exact live MP3/AAC canaries exist, including AAC encode and Windows-only MP3 encode. An isolated target-native CI build produces a codec-only Node-API addon for mac-arm64, win-x64, and win-arm64, authenticates the Electron headers and repository source/build plan, runs the native canaries, records the target toolchain and payload digest, and applies and strictly verifies an identity-free ad-hoc macOS execution seal before hashing. Preparation, beforePack, afterPack, the package-content manifest, and startup bind the same exact target, manifest, payload, byte length, and SHA-256. Linux has no uniform OS tier and mac-x64 is rejected. The final tier admits only a matching user-installed FFmpeg/ffprobe released from 4.4 through 9.x, configured in Edit > Preferences > General or installed after explicit confirmation through the exact WinGet/Homebrew plans, and never copies those bytes into an artifact. External audio uses fixed no-shell commands and private scratch with no fixed input or output file-size cap; its whole-buffer transport still requires enough memory and disk space. Desktop keyed-RGBA video uses nine owner-scoped, pathless IPC methods, fixed H.264/AAC MP4 or VP9/Opus WebM plans, main-private pipes and scratch, at-most-1-MiB chunks and range reads, no fixed output file-size cap, live per-pair qualification, deadlines, process-tree cancellation, structural/digest publication checks, and at most two sessions globally and one per owner. These controls do not close the hash-before-path-spawn TOCTOU window, authenticate dynamically loaded libraries, provide an operating-system filesystem/network/RSS/CPU sandbox, or constrain a malicious selected executable's ordinary account authority. The stable Soundscaper package keeps bundled and operating-system video disabled and supplies no bundled-video payload. Separately, the Framescaper media workflow builds FFmpeg with libvpx and FFmpeg's internal AV1 decoder on all five targets and records target-native component/canary evidence; that test producer is not a stable Soundscaper codec tier. External WebM is VP9, not AV1. The exact external video plans are qualified only against a current executable pair; other probe, trim, conform, remux, timing, proxy, and general video operations remain outside this bridge. Exact copyright licenses, artifacts, canaries, and interoperability witnesses do not establish patent clearance, non-infringement, broad producer/platform interoperability, or performance for any provider, codec, use, or territory. A second supervised surface is now enacted alongside it: a native audio helper that loads one Node-API addon inside its own utility process. That addon is the only native code the product loads, and it loads nowhere else — not in main, not in the preload, not in the renderer, not in an AudioWorklet. Its bytes are pinned per target in a manifest that ships inside the fuse-protected archive while the payload itself ships outside it as a verified resource, so the archive integrity fuse protects the pins and a re-hash protects the payload; main re-hashes before every spawn and the helper re-hashes again before its module loader sees the file. Linux x64 retains a checked-in development payload and the other four source-template rows are `ci-generated`; the dedicated helper workflow builds and verifies all five targets, while an unstaged row reports `payload-not-generated` rather than a capability. The helper is exercised across Electron's real utility-process boundary rather than through an injected channel, and its audio is compared against the same pinned addon loaded independently. Today it discovers operating-system audio backends, and the addon behind it opens PipeWire and ALSA streams through an ordered candidate chain: each backend reports an explicit status and the exact platform diagnostic, discovery never starts a sound server the user did not ask for, each attempt in the chain is reported with the refusal that ended it, and the synthetic loopback backend used for the transport proof is refused however it is requested so it can never be offered as a device. No helper job kind reaches that open path yet — the `audio-device` job answers backend inventory or runs the synthetic loopback and nothing else — so device opening is exercised by addon tests rather than by any product surface, and JACK remains discovery-only. Plug-in discovery is now enacted as a third surface, and it is deliberately built so that it cannot host: the scan service does not import the hosting surface at all, so "scanning cannot execute a plug-in" is a property of the module graph rather than a rule someone has to remember. Nothing scans at startup or without per-format consent; custom roots come only from a main-owned picker; no absolute path reaches renderer-facing state, and the preload strips path-bearing fields from every reply as a second line. Discovery is incremental because inspecting a candidate must call into it: the helper names the candidate in flight before touching it, so a process that dies leaves main holding exactly the digest to quarantine. Quarantine is digest-keyed, written atomically, survives restart, and is cleared only by an explicit rescan or re-enable; user cancellation, device loss and editor shutdown are not faults. Registry identity is format plus format-native stable id, a stable-id collision is ineligible until the user chooses, a changed digest is a new user-unapproved installation, and instruments are recorded but never materializable. Platform-appropriate VST3, CLAP, Audio Units, Linux-only LADSPA and LV2 effect surfaces, and cross-platform Vamp analyzer surfaces are enabled for testing. The scanner may receive explicit per-user consent, but any scan or host or analyzer attempt must still authenticate the target payload, outer OS launcher and containment closure, plug-in digest, platform, and quarantine state. Their unresolved licensing rows control distribution and never disable that machine-admitted test path. The machinery is also proven against a benign fixture format that is this project's own code. The media decode/encode/render source candidates, bounded data plane, pool, and enlarged contract exist, and all five 5B rows are `ci-generated`; an ordinary checkout remains machine-unavailable until its matching target result is staged; plug-in hosting is a fourth implemented helper job kind and is described in its own row below rather than treated as absent; device opening and the real-time data plane are implemented but not a stable-release claim; and process separation alone is not a hostile-code sandbox.
+`native-helper-processes` is **partial across the supervised helper and codec-process surfaces**. The helper contract v1 is enacted with one read-only surface: a video probe helper running as an Electron utility process that main alone spawns and owns. The renderer addresses media only by its opaque read-capability id over four validated bridge channels; no spawn, filesystem-path, or binary authority ever crosses the renderer boundary, and the surface ships disabled until the user turns it on from the application menu. Both wire directions are validated against the versioned contract with typed rejections — a deterministic 10,000-case malformed-message suite runs as ordinary CI evidence — and a helper that violates the contract, misses the one-second heartbeat beyond the two-second crash-detection budget, overruns the one-second cancellation-acknowledgement budget, or exceeds its lower-only per-job input, duration, or peak-RSS policy is terminated, with repeated crashes quarantining the surface until the user explicitly clears it. Each job carries a grant naming one absolute main-verified media path whose captured device/inode identity the helper re-verifies after reopening; grants carry no output paths and no network authority. The Soundscaper application supplies no FFmpeg probe-helper engine: its renderer, runtime-resource, package, and release audits reject application-supplied FFmpeg, libav, the FFmpeg WebAssembly runtime, and the historical static FFmpeg host, so that application codec path cannot execute in a shipped desktop artifact. The Electron shell is a separately scoped framework exception. Instead of stock Electron 43.7.7's Chromium libffmpeg with proprietary codec support, Electron Builder selects the matching alternate framework library that Electron intends to omit proprietary codec support, and afterPack verifies its exact target, regular-file type, byte length, and SHA-256 against `config/electron-alternate-ffmpeg-manifest.json`. The five admitted targets are linux-x64, linux-arm64, mac-arm64, win-x64, and win-arm64; no mac-x64 package is admitted. This Chromium framework library is not passed to the helper or audio broker and is not a Soundscaper codec-provider tier. The separate desktop audio broker registers seven exact reviewed compressed-audio WASM payloads on linux-x64, linux-arm64, mac-arm64, win-x64, and win-arm64 and never mac-x64: libFLAC 1.5.0, libopus 1.6.1 with libogg 1.3.6, libvorbis 1.3.7 with libogg 1.3.6, WavPack 5.9.0, mpg123 1.33.7, LAME 4.0, and TwoLAME 0.4.0. One canonical manifest authenticates each control module, its complete transitive JavaScript import closure, and every WASM payload. Main reauthenticates that closure before every canary, preflight, or execution fork, and the helper reauthenticates it before import. Each job runs in a fresh one-shot Electron utility process with private 0700 scratch and 0600 files, exact input/output digest and geometry checks, a bounded deadline, kill-on-cancel/failure behavior, and a global four-job ceiling. The package also audits the exact notice/source closure and deterministic corresponding-source ZIP. The specialized first-party WAV/BWF/BW64 and AIFF paths remain application code and libsndfile is not bundled. WavPack retains its narrow stock 5.9.0 `wvunpack` multi-block witness. Each bundled or operating-system small-buffer audio request is capped at 32 MiB input and 128 MiB returned output and retains whole buffers; a codec call remains synchronous inside its disposable helper, so these limits establish no aggregate JavaScript-copy, WASM-memory, CPU, elapsed-time, or RSS bound and the ordinary utility process is not a hostile-code sandbox. Windows Media Foundation and macOS ARM64 AudioToolbox source adapters, bounded inspectors, output validators, and exact live MP3/AAC canaries exist, including AAC encode and Windows-only MP3 encode. An isolated target-native CI build produces a codec-only Node-API addon for mac-arm64, win-x64, and win-arm64, authenticates the Electron headers and repository source/build plan, runs the native canaries, records the target toolchain and payload digest, and applies and strictly verifies an identity-free ad-hoc macOS execution seal before hashing. Preparation, beforePack, afterPack, the package-content manifest, and startup bind the same exact target, manifest, payload, byte length, and SHA-256. Linux has no uniform OS tier and mac-x64 is rejected. The final tier admits only a matching user-installed FFmpeg/ffprobe released from 4.4 through 9.x, configured in Edit > Preferences > General or installed after explicit confirmation through the exact WinGet/Homebrew plans, and never copies those bytes into an artifact. External audio uses fixed no-shell commands and private scratch with no fixed input or output file-size cap; its whole-buffer transport still requires enough memory and disk space. Desktop keyed-RGBA video uses nine owner-scoped, pathless IPC methods, fixed H.264/AAC MP4 or VP9/Opus WebM plans, main-private pipes and scratch, at-most-1-MiB chunks and range reads, no fixed output file-size cap, live per-pair qualification, deadlines, process-tree cancellation, structural/digest publication checks, and at most two sessions globally and one per owner. These controls do not close the hash-before-path-spawn TOCTOU window, authenticate dynamically loaded libraries, provide an operating-system filesystem/network/RSS/CPU sandbox, or constrain a malicious selected executable's ordinary account authority. The stable Soundscaper package supplies no bundled or separately shipped operating-system video payload. Desktop first probes the exact WebCodecs video and optional audio tuple before the execution-verified external-FFmpeg fallback. That installed tier may use canary-verified VideoToolbox or Media Foundation H.264, with the encoder choice main-owned and bound to the current executable pair. Separately, the Framescaper media workflow builds FFmpeg with libvpx and FFmpeg's internal AV1 decoder on all five targets and records target-native component/canary evidence; that test producer is not a stable Soundscaper codec tier. External WebM is VP9, not AV1. The exact external video plans are qualified only against a current executable pair; other probe, trim, conform, remux, timing, proxy, and general video operations remain outside this bridge. Exact copyright licenses, artifacts, canaries, and interoperability witnesses do not establish patent clearance, non-infringement, broad producer/platform interoperability, or performance for any provider, codec, use, or territory. A second supervised surface is now enacted alongside it: a native audio helper that loads one Node-API addon inside its own utility process. That addon is the only native code the product loads, and it loads nowhere else — not in main, not in the preload, not in the renderer, not in an AudioWorklet. Its bytes are pinned per target in a manifest that ships inside the fuse-protected archive while the payload itself ships outside it as a verified resource, so the archive integrity fuse protects the pins and a re-hash protects the payload; main re-hashes before every spawn and the helper re-hashes again before its module loader sees the file. Linux x64 retains a checked-in development payload and the other four source-template rows are `ci-generated`; the dedicated helper workflow builds and verifies all five targets, while an unstaged row reports `payload-not-generated` rather than a capability. The helper is exercised across Electron's real utility-process boundary rather than through an injected channel, and its audio is compared against the same pinned addon loaded independently. Today it discovers operating-system audio backends, and the addon behind it opens PipeWire and ALSA streams through an ordered candidate chain: each backend reports an explicit status and the exact platform diagnostic, discovery never starts a sound server the user did not ask for, each attempt in the chain is reported with the refusal that ended it, and the synthetic loopback backend used for the transport proof is refused however it is requested so it can never be offered as a device. No helper job kind reaches that open path yet — the `audio-device` job answers backend inventory or runs the synthetic loopback and nothing else — so device opening is exercised by addon tests rather than by any product surface, and JACK remains discovery-only. Plug-in discovery is now enacted as a third surface, and it is deliberately built so that it cannot host: the scan service does not import the hosting surface at all, so "scanning cannot execute a plug-in" is a property of the module graph rather than a rule someone has to remember. New desktop installations admit supported standard roots per format and scan them automatically in the background when the editor opens. Saved disabled settings and folder choices are preserved; a progress toast links to Preferences, where disabling scanning cancels the active scan and stops the remaining folders. Custom roots come only from a main-owned picker; no absolute path reaches renderer-facing state, and the preload strips path-bearing fields from every reply as a second line. Discovery is incremental because inspecting a candidate must call into it: the helper names the candidate in flight before touching it, so a process that dies leaves main holding exactly the digest to quarantine. Quarantine is digest-keyed, written atomically, survives restart, and is cleared only by an explicit rescan or re-enable; user cancellation, device loss and editor shutdown are not faults. Registry identity is format plus format-native stable id, a stable-id collision is ineligible until the user chooses, a changed digest is a new user-unapproved installation, and instruments are recorded but never materializable. Platform-appropriate VST3, CLAP, Audio Units, Linux-only LADSPA and LV2 effect surfaces, and cross-platform Vamp analyzer surfaces are enabled for testing. The scanner may receive explicit per-user consent, but any scan or host or analyzer attempt must still authenticate the target payload, outer OS launcher and containment closure, plug-in digest, platform, and quarantine state. Their unresolved licensing rows control distribution and never disable that machine-admitted test path. The machinery is also proven against a benign fixture format that is this project's own code. The media decode/encode/render source candidates, bounded data plane, pool, and enlarged contract exist, and all five 5B rows are `ci-generated`; an ordinary checkout remains machine-unavailable until its matching target result is staged; plug-in hosting is a fourth implemented helper job kind and is described in its own row below rather than treated as absent; device opening and the real-time data plane are implemented but not a stable-release claim; and process separation alone is not a hostile-code sandbox.
 
 `native-plugin-hosting` is **partial and conditional**. Its menu-owned, platform-appropriate format surfaces are enabled for testing, while a source-template checkout requires its matching CI-generated payload result to be staged before execution. Contract v1 carries a `plugin-host` job kind whose grant is exactly one absolute traversal-free binary path, its byte length, its lowercase SHA-256, its format, and its captured device/inode identity. The native audio helper implements that kind: it re-hashes the granted file, refuses a changed digest as a different installation, and `dlopen`s the bytes with `RTLD_NOW | RTLD_LOCAL` only after the outer exact target launcher establishes OS containment. `desktop/plugin-host-isolation.ts`, `desktop/native-helper-host-job.js`, `desktop/native-child-isolation-launcher.ts`, and `native/soundscaper-helper-addon/src/plugin_host.c` define this surface and are the focused inspection scope when it changes. Optional owner QA is never the execution oracle.
 
@@ -1862,15 +1979,23 @@ payload-authentication controls, recorded publication/rollback drills, and a
 deliberate change to the bundle audit. The manifest's payload digest preserves
 internal consistency but is not a human or release approval.
 
-Desktop composition remains separate and unchanged. Package assembly rejects
+Desktop composition retains its separate package boundary. Package assembly rejects
 application-supplied FFmpeg or libav sidecars while staging the exact reviewed
 audio WASMs and their source/notice closure for isolated utility helpers.
 Electron's separately pinned alternate Chromium `libffmpeg` remains framework
 infrastructure, not a Soundscaper codec-provider tier. A user-selected external
-FFmpeg/ffprobe pair remains outside the artifact, runs only after the existing
-verification and consent controls, and owns admitted desktop audio plus exact
-H.264/AAC MP4 or VP9/Opus WebM keyed video. Bundled and operating-system video
-and AV1 remain disabled. These controls do not qualify every external version,
+FFmpeg/ffprobe pair remains outside the artifact and runs only after the existing
+verification and consent controls. Desktop keyed video first admits the exact
+WebCodecs video and optional AAC/Opus audio tuple, requesting hardware preference
+then ordinary WebCodecs. Its 640x360 video-only format discovery is provisional.
+Only unavailable or unsupported preflights may fall through to the verified
+external pair for H.264/AAC MP4 or VP9/Opus WebM. Main prefers the installed
+FFmpeg's VideoToolbox H.264 adapter on macOS or Media Foundation adapter on
+Windows after exact native execution canaries, with independently verified
+libx264 as the preflight fallback. The main-owned selection stays outside the
+closed renderer wire and remains bound to exact executable-pair identity.
+No bundled or separately shipped native video payload is supplied, and AV1
+remains disabled. These controls do not qualify every external version,
 dynamic-library closure, malicious selected executable, broad interoperability,
 performance, aggregate codec memory, or patent clearance.
 

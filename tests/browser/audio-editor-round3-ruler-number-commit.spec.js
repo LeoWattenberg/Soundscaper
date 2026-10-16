@@ -3,7 +3,7 @@ import { bootEditor, importFiles, registerAudioEditorHooks } from './audio-edito
 
 test.describe('Frequency ruler completed numbers', () => {
 	registerAudioEditorHooks();
-	test('Enter preserves the numeric value of a complete scientific frequency draft', async ({ page }) => {
+	test('Enter preserves scientific frequency drafts and accepts values below project Nyquist', async ({ page }) => {
 		const editor = await bootEditor(page, '/embed/en/');
 		await importFiles(editor, [toneA]);
 		await editor.getByRole('button', { name: 'Spectrogram', exact: true }).click();
@@ -13,5 +13,9 @@ test.describe('Frequency ruler completed numbers', () => {
 		await maximum.fill('1e3');
 		await maximum.press('Enter');
 		await expect(ruler).toHaveAttribute('data-ruler-frequency-maximum', '1000');
+		await ruler.click({ button: 'right' });
+		await maximum.fill('23000');
+		await maximum.press('Enter');
+		await expect(ruler).toHaveAttribute('data-ruler-frequency-maximum', '23000');
 	});
 });

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef } from 'react';
 import RoutingInspectorForm from './RoutingInspectorForm.tsx';
+import RoutingEdgeLevelInput, { routingLevelDraftValue } from './RoutingEdgeLevelInput.tsx';
 
 import type { MixerEdgeV21, MixerGraphV21 } from '../../mixer-graph-v21.ts';
 import type { SoundscaperRoutingGraphCopy } from './soundscaper-routing-graph-copy.ts';
@@ -301,6 +302,8 @@ function EdgeInspector(props: SoundscaperRoutingGraphInspectorProps & Readonly<{
 			if (controlDisabled || levelGesture.current.pending) return;
 			try {
 				const data = new FormData(event.currentTarget);
+				const level = routingLevelDraftValue(String(data.get('levelDb') ?? ''));
+				if (level === null) return;
 				const source = optionEndpoint(sources, String(data.get('source')));
 				const destination = optionEndpoint(destinations, String(data.get('destination')));
 				const endpointsChanged = routingEndpointValue(source) !== routingEndpointValue(edge.source)
@@ -319,7 +322,7 @@ function EdgeInspector(props: SoundscaperRoutingGraphInspectorProps & Readonly<{
 					position: String(data.get('position')) as MixerEdgeV21['position'],
 					level: routingStaticEdgeLevel(
 						rewiredEdge.level,
-						dbToLinear(Number(data.get('levelDb'))),
+						level,
 						levelGesture.current.captured,
 					),
 					enabled: data.has('enabled'), channelMap,
@@ -341,30 +344,12 @@ function EdgeInspector(props: SoundscaperRoutingGraphInspectorProps & Readonly<{
 			<label>{copy.position} <select name="position" defaultValue={edge.position} disabled={controlDisabled}>
 				<option value="pre-fader">{copy.preFader}</option><option value="post-fader">{copy.postFader}</option>
 			</select></label>
-			<label>{copy.levelDb} <input
-				name="levelDb" type="number" min={-60} max={12.04} step="0.01"
-				defaultValue={linearToDb(edge.level)} disabled={controlDisabled}
-				onFocus={(event) => {
-					const value = dbToLinear(Number(event.currentTarget.value));
-					beginLevelGesture(value);
-				}}
-				onChange={(event) => {
-					const value = dbToLinear(Number(event.currentTarget.value));
-					previewLevelGesture(value);
-				}}
-				onBlur={(event) => {
-					const value = dbToLinear(Number(event.currentTarget.value));
-					finishLevelGesture('release', value);
-				}}
-				onKeyDown={(event) => {
-					if (event.key !== 'Escape'
-						|| (!levelGesture.current.active && !levelGesture.current.pending)) return;
-					event.preventDefault();
-					event.currentTarget.value = String(linearToDb(edge.level));
-					finishLevelGesture('cancel', levelGesture.current.value);
-					event.currentTarget.blur();
-				}}
-			/></label>
+			<RoutingEdgeLevelInput label={copy.levelDb} savedDb={linearToDb(edge.level)} disabled={controlDisabled}
+				onBegin={beginLevelGesture} onPreview={previewLevelGesture}
+				onRelease={value => finishLevelGesture('release', value)}
+				onCancel={() => finishLevelGesture('cancel', levelGesture.current.value)}
+				hasActiveGesture={() => levelGesture.current.active || levelGesture.current.pending}
+			/>
 			<label><input name="enabled" type="checkbox" defaultChecked={edge.enabled} disabled={controlDisabled} /> {copy.enabled}</label>
 			<fieldset><legend>{copy.channelMap}</legend>{edge.channelMap.map((channel, index) => <label key={index}>
 				{fill(copy.destinationChannel, { index: String(index + 1) })} <select name={`map-${index}`} defaultValue={channel} disabled={controlDisabled}>
@@ -463,10 +448,6 @@ function roleLabel(copy: SoundscaperRoutingGraphCopy, role: string): string {
 
 function linearToDb(value: number): number {
 	return value > 0 ? Math.max(-60, Math.min(12.04, Number((20 * Math.log10(value)).toFixed(2)))) : -60;
-}
-
-function dbToLinear(value: number): number {
-	return value <= -60 ? 0 : Math.min(4, 10 ** (value / 20));
 }
 
 function dbLabel(value: number): string {

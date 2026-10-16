@@ -18,6 +18,9 @@ import { EFFECT_GUIDES } from './soundscaper/effects.mjs';
 import { PROJECT_GUIDES } from './soundscaper/projects.mjs';
 import { TRACK_AND_EXPORT_GUIDES } from './soundscaper/tracks-and-export.mjs';
 import { VOLUME_GUIDES } from './soundscaper/volume.mjs';
+import { EDITING_WORKFLOW_GUIDES, TRACK_WORKFLOW_GUIDES } from './soundscaper/editing-and-track-workflows.mjs';
+import { ANALYSIS_WORKFLOW_GUIDES, DELIVERY_WORKFLOW_GUIDES, GENERATOR_WORKFLOW_GUIDES } from './soundscaper/nyquist-and-delivery-workflows.mjs';
+import { CLEAN_UP_WORKFLOW_GUIDES, EFFECT_WORKFLOW_GUIDES, VOLUME_WORKFLOW_GUIDES } from './soundscaper/restoration-and-level-workflows.mjs';
 import { validateGuide } from './steps.mjs';
 
 /**
@@ -31,31 +34,31 @@ const GROUPS = Object.freeze([
 		slug: 'cleaning-up',
 		title: 'Cleaning up a recording',
 		description: 'Take noise, clicks, rumble and dead air out of a take before you work on it.',
-		guides: CLEAN_UP_GUIDES,
+		guides: Object.freeze([...CLEAN_UP_GUIDES, ...CLEAN_UP_WORKFLOW_GUIDES]),
 	}),
 	Object.freeze({
 		slug: 'volume',
 		title: 'Volume and dynamics',
 		description: 'Set levels, even out the loud and quiet parts, and hit a delivery target.',
-		guides: VOLUME_GUIDES,
+		guides: Object.freeze([...VOLUME_GUIDES, ...VOLUME_WORKFLOW_GUIDES]),
 	}),
 	Object.freeze({
 		slug: 'editing',
 		title: 'Editing',
 		description: 'Cut, split, copy, move and mark up material on the timeline.',
-		guides: EDITING_GUIDES,
+		guides: Object.freeze([...EDITING_GUIDES, ...EDITING_WORKFLOW_GUIDES]),
 	}),
 	Object.freeze({
 		slug: 'effects',
 		title: 'Effects',
 		description: 'Change the character of a sound: pitch, tempo, space, filtering and distortion.',
-		guides: EFFECT_GUIDES,
+		guides: Object.freeze([...EFFECT_GUIDES, ...EFFECT_WORKFLOW_GUIDES]),
 	}),
 	Object.freeze({
 		slug: 'tracks-and-export',
 		title: 'Tracks and export',
 		description: 'Work with several tracks and render the result to a file.',
-		guides: TRACK_AND_EXPORT_GUIDES,
+		guides: Object.freeze([...TRACK_AND_EXPORT_GUIDES, ...TRACK_WORKFLOW_GUIDES, ...GENERATOR_WORKFLOW_GUIDES, ...DELIVERY_WORKFLOW_GUIDES]),
 	}),
 	Object.freeze({
 		slug: 'projects',
@@ -67,7 +70,7 @@ const GROUPS = Object.freeze([
 		slug: 'analysis',
 		title: 'Analysis',
 		description: 'Measure loudness, inspect frequencies, and find problems in a recording.',
-		guides: ANALYSIS_GUIDES,
+		guides: Object.freeze([...ANALYSIS_GUIDES, ...ANALYSIS_WORKFLOW_GUIDES]),
 	}),
 ]);
 

@@ -1,5 +1,5 @@
-/* Audio and video strips share a compact Effects, M, S row. */
-.audio-editor-track-controls .track-control-panel__main {
+/* Framescaper audio and video strips share a compact Effects, M, S row. */
+:where([data-product='framescaper']) .audio-editor-track-controls .track-control-panel__main {
 	display: grid;
 	grid-template-columns: 26px minmax(0, 1fr) 20px 20px;
 	grid-template-rows: min-content min-content min-content;
@@ -7,38 +7,38 @@
 	column-gap: 4px;
 }
 
-.audio-editor-track-controls .track-control-panel__header {
+:where([data-product='framescaper']) .audio-editor-track-controls .track-control-panel__header {
 	grid-column: 1 / -1;
 }
 
-.audio-editor-track-controls .track-control-panel__controls-row,
-.audio-editor-track-controls .track-control-panel__controls-row > .track-control-panel__button-group {
+:where([data-product='framescaper']) .audio-editor-track-controls .track-control-panel__controls-row,
+:where([data-product='framescaper']) .audio-editor-track-controls .track-control-panel__controls-row > .track-control-panel__button-group {
 	display: contents;
 }
 
-.audio-editor-track-controls .track-control-panel__slot--pan {
+:where([data-product='framescaper']) .audio-editor-track-controls .track-control-panel__slot--pan {
 	grid-row: 2;
 	grid-column: 1;
 }
 
-.audio-editor-track-controls .track-control-panel__slot--volume {
+:where([data-product='framescaper']) .audio-editor-track-controls .track-control-panel__slot--volume {
 	grid-row: 2;
 	grid-column: 2 / -1;
 }
 
-.audio-editor-track-controls .track-control-panel__controls-row .toggle-button:first-child {
+:where([data-product='framescaper']) .audio-editor-track-controls .track-control-panel__controls-row .toggle-button:first-child {
 	grid-row: 3;
 	grid-column: 3;
 	align-self: center;
 }
 
-.audio-editor-track-controls .track-control-panel__controls-row .toggle-button:last-child {
+:where([data-product='framescaper']) .audio-editor-track-controls .track-control-panel__controls-row .toggle-button:last-child {
 	grid-row: 3;
 	grid-column: 4;
 	align-self: center;
 }
 
-.audio-editor-track-controls .track-control-panel__main > .button {
+:where([data-product='framescaper']) .audio-editor-track-controls .track-control-panel__main > .button {
 	grid-row: 3;
 	grid-column: 1 / 3;
 }

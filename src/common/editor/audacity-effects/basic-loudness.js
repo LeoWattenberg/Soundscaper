@@ -21,6 +21,7 @@ import {
 	multiplyChannels,
 } from './basic-channel-math.js';
 import { createLoudnessPowerHistogram } from './loudness-power-histogram.ts';
+import { ebuChannelWeights } from '../ebu-r128.js';
 
 const EBU_POWER_SCALE = 0.8529037031;
 
@@ -46,6 +47,8 @@ export function integratedLoudnessPower(channels, sampleRate) {
 	const histogram = createLoudnessPowerHistogram();
 	const template = weightingFilters(sampleRate);
 	const filters = channels.map(() => template.map(filter => ({ ...filter })));
+	// Native 5.0/5.1 source processing follows the analyzer's programme roles.
+	const channelWeights = ebuChannelWeights(channels.length);
 	let ringPosition = 0;
 	let ringSize = 0;
 	let framesUntilBlock = blockSize;
@@ -59,7 +62,7 @@ export function integratedLoudnessPower(channels, sampleRate) {
 				processBiquad(channels[channelIndex][index], shelf),
 				highPass,
 			);
-			power += weighted * weighted;
+			power += weighted * weighted * channelWeights[channelIndex];
 		}
 		ring[ringPosition] = power;
 		ringPosition += 1;

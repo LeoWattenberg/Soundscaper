@@ -40,7 +40,30 @@ test('a clip-header press carries the focus through the clip selection itself', 
 	}
 });
 
-async function mountPointerStart() {
+for (const overHeader of [false, true]) test(`a locked clip preserves ${overHeader ? 'header selection without moving' : 'body time selection'}`, async () => {
+	const fixture = await mountPointerStart(true);
+	try {
+		await act(async () => { fixture.onPointerDown()(fixture.pointerEvent({ overHeader })); });
+		if (overHeader) {
+			assert.equal(fixture.pointerSession.current, null);
+			assert.deepEqual(fixture.selectClipCalls, [['clip-b', undefined]]);
+		} else {
+			assert.equal(fixture.pointerSession.current?.kind, 'selection');
+			assert.deepEqual(fixture.selectTrackCalls, ['track-b']);
+		}
+	} finally { await fixture.cleanup(); }
+});
+
+test('a grouped header cannot preview a transform of its locked companion', async () => {
+	const fixture = await mountPointerStart(false, true);
+	try {
+		await act(async () => { fixture.onPointerDown()(fixture.pointerEvent({ overHeader: true })); });
+		assert.equal(fixture.pointerSession.current, null);
+		assert.deepEqual(fixture.selectClipCalls, [['clip-b', undefined]]);
+	} finally { await fixture.cleanup(); }
+});
+
+async function mountPointerStart(locked = false, companionLocked = false) {
 	const dom = installReactTestDom();
 	const actGlobal = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean };
 	const priorAct = actGlobal.IS_REACT_ACT_ENVIRONMENT;
@@ -64,13 +87,15 @@ async function mountPointerStart() {
 			timelineStartFrame: 0,
 			durationFrames: 48_000,
 			sourceDurationFrames: 48_000,
+			groupId: companionLocked ? 'group' : null,
 		}],
 		sources: [{ id: 'source-a', channelCount: 1 }],
 		tracks: [
-			{ id: 'track-a', type: 'audio', clipIds: [] },
-			{ id: 'track-b', type: 'audio', clipIds: ['clip-b'] },
+			{ id: 'track-a', type: 'audio', clipIds: companionLocked ? ['clip-a'] : [], locked: companionLocked },
+			{ id: 'track-b', type: 'audio', clipIds: ['clip-b'], locked },
 		],
 	};
+	if (companionLocked) project.clips.push({ ...project.clips[0]!, id: 'clip-a' });
 
 	function Harness() {
 		onPointerDown = useTimelinePointerStart({

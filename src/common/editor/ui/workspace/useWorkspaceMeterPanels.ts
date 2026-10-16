@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import type { MeterSettings } from '../meter-settings.ts';
 
@@ -28,8 +28,21 @@ export function useWorkspaceMeterPanels(input: Readonly<{
 		setPlaybackMeterSettings, setRecordingMeterSettings,
 	} = input;
 	const initializedRef = useRef(false);
+	const mountedRef = useRef(true);
+	const currentControllerRef = useRef(controller);
+	currentControllerRef.current = controller;
+	const pendingRef = useRef(new Map<string, symbol>());
+	const [settlementRevision, setSettlementRevision] = useState(0);
+	const standaloneRef = useRef<Record<string, MeterSettings['position']>>({
+		'playback-meter': playbackMeterSettings.position === 'panel' ? 'flyout' : playbackMeterSettings.position,
+		'recording-meter': recordingMeterSettings.position === 'panel' ? 'flyout' : recordingMeterSettings.position,
+	});
 	const playbackVisible = meterPanels['playback-meter']?.visible === true;
 	const recordingVisible = meterPanels['recording-meter']?.visible === true;
+	useEffect(() => {
+		mountedRef.current = true;
+		return () => { mountedRef.current = false; };
+	}, []);
 	useEffect(() => {
 		if (!ready) return;
 		const firstReady = !initializedRef.current;
@@ -38,6 +51,7 @@ export function useWorkspaceMeterPanels(input: Readonly<{
 		synchronize('recording-meter', recordingMeterSettings.position, recordingVisible, setRecordingMeterSettings);
 
 		function synchronize(panelId: string, position: MeterSettings['position'], visible: boolean, setSettings: MeterSettingsSetter): void {
+			if (position !== 'panel') standaloneRef.current[panelId] = position;
 			// Old versions could open a panel while retaining the standalone meter
 			// position. Preserve that choice once the saved workspace has loaded.
 			if (firstReady && visible && position !== 'panel') {
@@ -45,9 +59,29 @@ export function useWorkspaceMeterPanels(input: Readonly<{
 				return;
 			}
 			if (visible !== (position === 'panel')) {
-				run(() => controller.actions.preferences.setPanelVisibility(panelId, position === 'panel'), { clearError: false });
+				if (pendingRef.current.has(panelId)) return;
+				const request = Symbol(panelId);
+				pendingRef.current.set(panelId, request);
+				const result = run(() => controller.actions.preferences.setPanelVisibility(panelId, position === 'panel'), { clearError: false });
+				void Promise.resolve(result).then(() => {
+					if (!finishRequest()) return;
+					setSettlementRevision(revision => revision + 1);
+				}, () => {
+					if (!finishRequest()) return;
+					// A rejected workspace write must also reconcile the independent
+					// local meter setting, rather than turning rollback into a retry.
+					setSettings((settings) => settings.position === position ? {
+						...settings, position: visible ? 'panel' : standaloneRef.current[panelId],
+					} : settings);
+					setSettlementRevision(revision => revision + 1);
+				});
+				function finishRequest(): boolean {
+					if (pendingRef.current.get(panelId) !== request) return false;
+					pendingRef.current.delete(panelId);
+					return mountedRef.current && currentControllerRef.current === controller;
+				}
 			}
 		}
 	}, [controller, playbackMeterSettings.position, playbackVisible, ready, recordingMeterSettings.position,
-		recordingVisible, run, setPlaybackMeterSettings, setRecordingMeterSettings]);
+		recordingVisible, run, settlementRevision, setPlaybackMeterSettings, setRecordingMeterSettings]);
 }

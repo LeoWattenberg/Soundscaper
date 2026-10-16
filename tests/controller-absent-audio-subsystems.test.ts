@@ -21,7 +21,7 @@ const CONTEXT = Object.freeze({ productName: 'Framescaper' });
 
 /** Members a caller may invoke without having asked for the domain's work. */
 const SILENT_MEMBERS = new Set([
-	'cancel', 'cancelWorkers', 'cancelNyquistEvaluation', 'cancelEffectMacro',
+	'cancel', 'cancelWorkers', 'cancelNyquistEvaluation', 'cancelEffectMacro', 'cancelSelectedAudacityEffect',
 ]);
 
 /** Members that refuse synchronously because the service they replace is synchronous. */
@@ -73,6 +73,7 @@ test('cancelling work an absent subsystem never started is not an error', () => 
 	assert.equal(SHAPES.selectionEffectWorker.cancelWorkers(), undefined);
 	assert.equal(SHAPES.nyquistHost.cancelNyquistEvaluation(), false);
 	assert.equal(SHAPES.effectMacro.cancelEffectMacro(), false);
+	assert.equal(SHAPES.selectionEffectExecution.cancelSelectedAudacityEffect(), false);
 });
 
 test('the absent analysis shape carries every member the deferred facade publishes', async () => {

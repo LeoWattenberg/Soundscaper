@@ -1,3 +1,4 @@
+import { capturePassingScreenshot } from './helpers/passing-screenshots.js';
 import { expect, test, toneA, toneB, monoTone } from './audio-editor-test-fixtures.js';
 import { bootEditor, chooseCommandAction, clipByName, closeClipProperties, collectClientErrors, importFiles, openClipProperties, registerAudioEditorHooks, setDocumentTheme, waitForEditor } from './audio-editor-test-helpers.js';
 import { chooseTrackMenuAction } from './helpers/track-menu.js';
@@ -73,9 +74,9 @@ test.describe('non-destructive clip fade handles', () => {
 			await beginFadeDrag(page, fadeOut, -30);
 			await expect.poll(async () => Number(await fadeOut.getAttribute('aria-valuenow'))).toBeGreaterThan(0.002);
 			await page.mouse.up();
-			await clip.screenshot({ path: testInfo.outputPath('clip-fades.png') });
+			await capturePassingScreenshot(clip, { path: testInfo.outputPath('clip-fades.png') });
 			await setDocumentTheme(page, 'dark');
-			await clip.screenshot({ path: testInfo.outputPath('clip-fades-dark.png') });
+			await capturePassingScreenshot(clip, { path: testInfo.outputPath('clip-fades-dark.png') });
 			await setDocumentTheme(page, 'light');
 			await editor.getByRole('button', { name: 'Undo', exact: true }).click();
 			await expect(fadeOut).toHaveAttribute('aria-valuenow', '0.002');

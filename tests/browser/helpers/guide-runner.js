@@ -38,6 +38,8 @@ import { mockFreesoundApi, runFreesoundInsert, runFreesoundSearch } from './guid
 import { runContrast, runMacro, runPlayAtSpeed } from './guide-workflows.js';
 import { chooseTrackMenuAction } from './track-menu.js';
 import { applyGuideEffectSetting } from './guide-effect-settings.js';
+import { runSpectralRange } from './guide-spectral-range.js';
+import { verifyNyquistDeliveryDownload, verifyNyquistWorkflowDialog } from './guide-nyquist-delivery-workflows.js';
 
 const EFFECT_TIMEOUT = 30_000;
 const EXPORT_TIMEOUT = 60_000;
@@ -164,6 +166,7 @@ async function runExport(page, state, entry) {
 	await expect(download.or(failure)).toBeVisible({ timeout: EXPORT_TIMEOUT });
 	expect(await failure.allTextContents()).toEqual([]);
 	await expect(download).toHaveAttribute('download', new RegExp(`\\.${entry.extension}$`, 'u'));
+	await verifyNyquistDeliveryDownload(page, download, entry);
 	await closeDialog(dialog);
 }
 
@@ -207,6 +210,8 @@ async function runMarker(page, state, entry) {
 	if (!await panel.isVisible()) await chooseNestedCommandAction(page, editor, 'Window', ['Markers']);
 	await expect(panel).toBeVisible();
 	await panel.getByRole('button', { name: 'Add marker at playhead', exact: true }).click();
+	// Complete the panel's scheduled creation focus before moving to the ruler.
+	await expect(panel.getByRole('button', { name: /^Unnamed annotation, Marker, / }).first()).toBeFocused();
 	// A new marker is the one still called "Unnamed annotation"; earlier markers
 	// keep the names the guide gave them, wherever on the timeline they sit.
 	const layer = editor.getByRole('listbox', { name: 'Markers and named regions', exact: true });
@@ -227,12 +232,14 @@ async function runNyquist(page, state, entry) {
 	const dialog = page.getByRole('dialog', { name: entry.name, exact: true });
 	await expect(dialog).toBeVisible();
 	for (const field of entry.fields) {
-		await commitInput(dialog.getByRole('spinbutton', { name: field.label, exact: true }), field.value);
+		const label = field.label.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
+		await commitInput(dialog.getByRole('spinbutton', { name: new RegExp(`^${label}(?: — .+)?$`, 'u') }), field.value);
 	}
 	await dialog.getByRole('button', { name: 'Apply', exact: true }).click();
 	if (entry.menu === 'Analyze') {
 		// An analyzer keeps its dialog open to report what it found.
 		await expect(dialog).toContainText('Nyquist output', { timeout: EFFECT_TIMEOUT });
+		await verifyNyquistWorkflowDialog(dialog, entry);
 		await closeDialog(dialog);
 		return;
 	}
@@ -350,6 +357,9 @@ async function executeStep(page, state, entry) {
 			return;
 		case 'effect':
 			await runEffect(page, state, entry);
+			return;
+		case 'spectral-range':
+			await runSpectralRange(page, state.editor, entry);
 			return;
 		case 'noise-profile':
 			await runNoiseProfile(page, state);

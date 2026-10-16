@@ -54,3 +54,55 @@
 	outline: var(--focus-ring-size) solid var(--accent);
 	outline-offset: -2px;
 }
+
+.kw-audio-editor__toolbar-settings-custom-label {
+	grid-column: span 2;
+}
+
+.kw-audio-editor__toolbar-settings-custom-menu > button {
+	width: 100%;
+}
+
+.kw-audio-editor__toolbar-settings-custom-row {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) 28px;
+	align-items: center;
+}
+
+.kw-audio-editor__toolbar-settings-custom-edit {
+	padding: 4px;
+	border: 0;
+	background: transparent;
+	color: var(--text);
+	cursor: pointer;
+}
+
+.kw-audio-editor__toolbar-settings-custom-edit .musescore-icon {
+	font-size: 16px;
+}
+
+.kw-audio-editor__custom-toolbar-button {
+	color: var(--text);
+	background: transparent;
+	flex-shrink: 0;
+}
+
+.kw-audio-editor__custom-toolbar-button .musescore-icon {
+	font-size: 16px;
+}
+
+.kw-audio-editor__custom-toolbar-button:hover,
+.kw-audio-editor__toolbar-settings-custom-edit:hover {
+	background: color-mix(in srgb, var(--accent) 16%, transparent);
+}
+
+.kw-audio-editor__custom-toolbar-button:disabled {
+	opacity: 0.4;
+	cursor: default;
+}
+
+.kw-audio-editor__custom-toolbar-button:focus-visible,
+.kw-audio-editor__toolbar-settings-custom-edit:focus-visible {
+	outline: var(--focus-ring-size) solid var(--accent);
+	outline-offset: -2px;
+}

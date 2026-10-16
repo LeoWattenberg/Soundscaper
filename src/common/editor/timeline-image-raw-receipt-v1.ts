@@ -2,7 +2,7 @@
 
 import { sha256 } from '@noble/hashes/sha2.js';
 import { bytesToHex } from '@noble/hashes/utils.js';
-import manifest from '../../../config/lightscaper-libraw-runtime-manifest.json';
+import manifest from '../../../config/lightscaper-libraw-runtime-manifest.json' with { type: 'json' };
 import { readClosedDomainField as field, readClosedDomainRecord as record } from './closed-domain-value.ts';
 import { planPixelFrameV1, readPixelFrameV1, type PixelFrameDescriptorV1 } from './imaging/pixel-frame-contract-v1.ts';
 import { captureRepairSignalV1, checkRepairSignalV1 } from './imaging/pixel-frame-repair-lifetime-v1.ts';

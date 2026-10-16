@@ -139,6 +139,12 @@ export const FOUNDATION_TIME_CONVERSION_COMMAND_SITES: readonly FoundationTimeCo
 		],
 	},
 	{
+		id: 'recording-source-alignment',
+		file: 'src/common/editor/controller/recording/internal/recording-source-alignment.ts',
+		behavior: 'Device latency plus the signed manual correction point-rounds its magnitude once on the project sample grid, then preserves its sign for source placement and selected-range bounds.',
+		conversions: [{ helper: 'secondsToSampleFrame', policies: ['point'] }],
+	},
+	{
 		id: 'recording-start-timing',
 		file: 'src/common/editor/controller/recording/internal/recording-start-timing.ts',
 		behavior: 'Both recording paths share the authoritative count-in calculation and enclose the recorder start after projecting its audio-context time.',
@@ -197,6 +203,12 @@ export const FOUNDATION_TIME_CONVERSION_COMMAND_SITES: readonly FoundationTimeCo
 		file: 'src/common/editor/controller/import/internal/source-import.ts',
 		behavior: 'Metadata-only imported video duration encloses the probed source; exact timing-sidecar placement is delegated to its separately registered authority helper.',
 		conversions: [{ helper: 'sampleFrameToVideoFrame', policies: ['enclosingEnd'] }],
+	},
+	{
+		id: 'video-import-companion-audio-offset',
+		file: 'src/common/editor/controller/import/internal/video-import-audio-timing.ts',
+		behavior: 'Whole-file decoded video audio point-rounds its container-relative offset onto its decoded sample grid and encloses the picture duration before padding a delayed track or clipping an earlier track. Timestamp-aware container output already owns this placement.',
+		conversions: [{ helper: 'secondsToSampleFrame', policies: ['enclosingEnd', 'point'] }],
 	},
 	{
 		id: 'video-import-exact-timing-authority',

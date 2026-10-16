@@ -14,9 +14,8 @@ import { createVideoPreviewResolutionMenu } from './video-preview-resolution-men
  * assembles every menu.
  */
 /** @param {object} context
- * @param {import('./workspace/selection-view-menu-ports.ts').ApplicationViewMenuPort} viewMenu
- * @param {object} actions Shared Effects/fullscreen entries. */
-export function createApplicationViewMenu(context, viewMenu, actions = {}) {
+ * @param {import('./workspace/selection-view-menu-ports.ts').ApplicationViewMenuPort} viewMenu */
+export function createApplicationViewMenu(context, viewMenu) {
 	const {
 		capabilities, clipSelectionNavigationMenus, compactLayout, copy, desktopHost, divider, editBlocked,
 		preferences, productItems, project,
@@ -80,8 +79,6 @@ export function createApplicationViewMenu(context, viewMenu, actions = {}) {
 			clipSelectionNavigationMenus.skip,
 			...productItems.view,
 			...(desktopHost.view.length ? [divider(), ...desktopHost.view] : []),
-			divider(),
-			{ id: 'fullscreen', label: copy.fullscreen, shortcut: 'F11', onClick: actions.fullscreen },
 		],
 	};
 }

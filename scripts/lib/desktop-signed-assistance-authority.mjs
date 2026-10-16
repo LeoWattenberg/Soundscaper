@@ -1,5 +1,4 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
-import { rebindSigningPins } from './desktop-signing-pins.mjs';
 
 // The release inventory retains both source pins and distribution pins. Only
 // explicitly identified files of the selected Mac package may be rebound.
@@ -11,7 +10,8 @@ export function signedAssistanceAuthority(manifest, signing, target) {
 	}
 	const descriptor = manifest.targets[target].package;
 	const prefix = `${manifest.runtimePrefix}/node_modules/${descriptor.name}/`;
-	const replacements = new Map();
+	const output = structuredClone(manifest);
+	const outputFiles = output.targets[target].package.files;
 	const seen = new Set();
 	for (const file of signing.files) {
 		if (typeof file.path !== 'string' || file.path.includes('..') || file.path.startsWith('/') || seen.has(file.path)) {
@@ -25,7 +25,10 @@ export function signedAssistanceAuthority(manifest, signing, target) {
 			|| !Number.isSafeInteger(file.signed?.byteLength) || file.signed.byteLength < 1) {
 			throw new Error('Signed assistance payload does not bind its original source pins.');
 		}
-		replacements.set(original.sha256, file.signed);
+		// Two aliases may start with identical bytes and receive different CMS
+		// signatures. Bind the exact signed path and retain every source pin.
+		outputFiles[file.path.slice(prefix.length)] = { ...original,
+			byteLength: file.signed.byteLength, sha256: file.signed.sha256 };
 	}
-	return rebindSigningPins(manifest, replacements);
+	return output;
 }

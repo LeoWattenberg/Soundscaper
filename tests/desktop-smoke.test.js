@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import { readFile } from 'node:fs/promises'; import { readDesktopPreloadSource } from './helpers/desktop-preload-source.mjs';
 import { dirname, resolve } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
@@ -24,12 +24,13 @@ test('desktop smoke pins the complete sorted preload v1 bridge contract', () => 
 	assert.equal(Object.isFrozen(DESKTOP_SMOKE_EXPECTED_BRIDGE), true);
 	assert.deepEqual(DESKTOP_SMOKE_EXPECTED_BRIDGE, [
 		'abortWrite',
-		'applyNativeTierControl',
+		'applyNativeTierControl', 'ara',
 		'awaitVideoSourceProbe',
 		'beginDesktopVideoCodecOperation',
 		'beginVideoSourceProbe',
 		'beginWrite',
 		'bindNativeAudioSession',
+		'blender',
 		'calibrateNativeAudioSession',
 		'cancelAssistanceModelInstall',
 		'cancelDesktopAudioCodecOperation',
@@ -75,7 +76,7 @@ test('desktop smoke pins the complete sorted preload v1 bridge contract', () => 
 		'localAssistance',
 		'nativeAudioHelperAvailability',
 		'nativeAudioSessionStatus',
-		'nativePluginAvailability',
+		'nativePluginAvailability', 'nativePluginScanProgress',
 		'nativeServices',
 		'onAssistanceInstallProgress',
 		'onCloseRequested',
@@ -83,7 +84,7 @@ test('desktop smoke pins the complete sorted preload v1 bridge contract', () => 
 		'onMenuCommand',
 		'onOpenProject',
 		'onWindowStateChanged',
-		'openExternal',
+		'openAudiocomAuthorization', 'openAudiocomLink', 'openExternal',
 		'openFreesoundAuthorization',
 		'openNativeAudioSession',
 		'openNativePluginVendorUi',
@@ -103,6 +104,7 @@ test('desktop smoke pins the complete sorted preload v1 bridge contract', () => 
 		'releaseLinkedVideoOriginal',
 		'releaseOriginalFile',
 		'releaseRead',
+		'releaseSaveTarget',
 		'releaseSesxSession',
 		'relocateAssistanceModels',
 		'removeAssistanceModel',
@@ -135,7 +137,7 @@ test('desktop smoke pins the complete sorted preload v1 bridge contract', () => 
 });
 
 test('desktop smoke bridge inventory equals the sandbox preload surface', async () => {
-	const source = await readFile(resolve(ROOT, 'desktop', 'preload.mjs'), 'utf8');
+	const source = await readDesktopPreloadSource();
 	const { bridge, framescaperBridge } = evaluatePreload(source);
 	assert.deepEqual(Object.keys(bridge).sort(), DESKTOP_SMOKE_EXPECTED_BRIDGE);
 	assert.deepEqual(Object.keys(bridge.persistentDelivery).sort(), [
@@ -147,8 +149,9 @@ test('desktop smoke bridge inventory equals the sandbox preload surface', async 
 	assert.equal(Object.hasOwn(framescaperBridge, 'persistentDelivery'), false);
 	assert.deepEqual(FRAMESCAPER_DESKTOP_SMOKE_EXPECTED_BRIDGE, [
 		...DESKTOP_SMOKE_EXPECTED_BRIDGE.filter((name) => ![
+			'blender',
 			'persistentDelivery', 'onMcpRequest', 'readMcpStatus', 'respondMcpRequest', 'startMcp', 'stopMcp',
-			'openFreesoundAuthorization',
+			'openFreesoundAuthorization', 'openAudiocomAuthorization', 'openAudiocomLink',
 		].includes(name)),
 		'projectLibrary',
 	].sort());
@@ -158,9 +161,10 @@ test('desktop smoke accepts the exact product-isolated Soundscaper preload surfa
 	assert.equal(Object.isFrozen(SOUNDSCAPER_DESKTOP_SMOKE_EXPECTED_BRIDGE), true);
 	assert.deepEqual(SOUNDSCAPER_DESKTOP_SMOKE_EXPECTED_BRIDGE, [
 		'abortWrite',
-		'applyNativeTierControl',
+		'applyNativeTierControl', 'ara',
 		'beginWrite',
 		'bindNativeAudioSession',
+		'blender',
 		'calibrateNativeAudioSession',
 		'cancelAssistanceModelInstall',
 		'cancelDesktopAudioCodecOperation',
@@ -198,14 +202,14 @@ test('desktop smoke accepts the exact product-isolated Soundscaper preload surfa
 		'localAssistance',
 		'nativeAudioHelperAvailability',
 		'nativeAudioSessionStatus',
-		'nativePluginAvailability',
+		'nativePluginAvailability', 'nativePluginScanProgress',
 		'onAssistanceInstallProgress',
 		'onCloseRequested',
 		'onMcpRequest',
 		'onMenuCommand',
 		'onOpenProject',
 		'onWindowStateChanged',
-		'openExternal',
+		'openAudiocomAuthorization', 'openAudiocomLink', 'openExternal',
 		'openFreesoundAuthorization',
 		'openNativeAudioSession',
 		'openNativePluginVendorUi',
@@ -221,6 +225,7 @@ test('desktop smoke accepts the exact product-isolated Soundscaper preload surfa
 		'releaseLinkedOriginal',
 		'releaseOriginalFile',
 		'releaseRead',
+		'releaseSaveTarget',
 		'releaseSesxSession',
 		'relocateAssistanceModels',
 		'removeAssistanceModel',
@@ -249,7 +254,7 @@ test('desktop smoke accepts the exact product-isolated Soundscaper preload surfa
 		'writeChunk',
 	]);
 	const source = await readFile(resolve(ROOT, 'desktop', 'preload.mjs'), 'utf8');
-	const { bridge, framescaperBridge } = evaluatePreload(soundscaperPreloadSource(source));
+	const { bridge, framescaperBridge } = evaluatePreload(await readDesktopPreloadSource(soundscaperPreloadSource(source)));
 	assert.deepEqual(Object.keys(bridge).sort(), SOUNDSCAPER_DESKTOP_SMOKE_EXPECTED_BRIDGE);
 	assert.equal(framescaperBridge, undefined);
 });

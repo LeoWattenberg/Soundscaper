@@ -2,7 +2,7 @@
 
 ## Outcome
 
-Desktop media operations resolve an exact operation through these providers, in
+Desktop audio operations resolve an exact operation through these providers, in
 order:
 
 1. reviewed codecs distributed with Soundscaper;
@@ -158,8 +158,25 @@ exact WinGet package id `BtbN.FFmpeg.GPL.8.1` or an already installed Homebrew
 binary with `brew install ffmpeg`; Soundscaper never bootstraps a package
 manager, invokes `sudo`, or fetches/copies FFmpeg into its packages.
 
-The external tier also implements the closed desktop keyed-RGBA delivery path:
-H.264/AAC in MP4 through `libx264`/`aac`, and VP9/Opus in WebM through
+The desktop keyed-video renderer probes the exact video geometry and quality
+plus the optional AAC/Opus audio tuple before encoding. It requests
+`prefer-hardware` before ordinary WebCodecs admission. The 640x360 video-only
+format probe is provisional; actual export probes the complete requested
+tuple. Only unavailable or unsupported preflights may fall through to the
+current execution-verified external FFmpeg pair. Browser delivery retains its
+WebCodecs admission and has no FFmpeg fallback.
+
+The external tier implements the closed desktop keyed-RGBA delivery path:
+H.264/AAC in MP4 and VP9/Opus in WebM. For MP4, main prefers
+`h264_videotoolbox` on macOS or `h264_mf` on Windows after token eligibility and
+an exact execution canary. An unavailable or failed native canary may fall back
+to independently verified `libx264`; AAC uses `aac`. The chosen H.264 encoder
+stays main-owned, bound to the exact executable-pair admission, and absent from
+the closed renderer request wire. VideoToolbox permits its operating-system
+software fallback; Media Foundation uses default transform selection. Native
+H.264 maps the shared quality/geometry tier to a bitrate with a 64,000-bit/s
+floor; x264 retains CRF/preset controls. Both executable hashes are rechecked
+before and after candidate canaries and real execution. WebM uses
 `libvpx-vp9`/`libopus`. Capability tokens are only a prerequisite. Each exact
 format must also pass a live, one-frame 16x16 RGBA plus 48 kHz stereo-audio
 canary. The resulting finite MP4 or WebM structure must validate, then the exact
@@ -174,11 +191,12 @@ arguments, exact input byte counts, duration/log ceilings, executable
 identity checks, cancellation, cleanup, bounded output reads, container
 validation, and digest-bound output evidence guard publication.
 
-Bundled and operating-system video execution are not implemented. There is no
-libwebm/libvpx/dav1d/SVT-AV1/libaom payload or AV1 execution path. The external
-WebM delivery above is VP9, not AV1. AV1, bundled WebM, Media Foundation video,
-and VideoToolbox video therefore advertise no execution capability and fail
-closed rather than silently using the browser FFmpeg runtime.
+No bundled or separately shipped operating-system video payload is supplied.
+There is no libwebm/libvpx/dav1d/SVT-AV1/libaom payload or AV1 execution path.
+The external WebM delivery above is VP9, not AV1. A direct Media Foundation or
+VideoToolbox video IPC provider is not implemented: those H.264 adapters run
+only through the user-selected external FFmpeg tier. Missing WebCodecs and
+verified host capabilities fail closed.
 
 Copyright-license and technical evidence for these components is not patent
 clearance or a non-infringement representation for any codec, use, provider,
@@ -187,10 +205,12 @@ territory, or distribution method.
 ## Provider boundary
 
 - The strict-TypeScript coordinator and main broker own audio decode and encode.
-  A separate closed session bridge owns exact keyed-RGBA H.264/AAC MP4 and
-  VP9/Opus WebM delivery through external FFmpeg. Probe, trim, conform, remux,
-  timing, proxy, general composed-video operations, bundled video, and
-  operating-system video have not been migrated to that bridge.
+  Renderer WebCodecs is preferred for exact keyed video. A separate closed
+  session bridge owns fallback keyed-RGBA H.264/AAC MP4 and VP9/Opus WebM
+  delivery through external FFmpeg, including its verified operating-system
+  H.264 adapters. Probe, trim, conform, remux, timing, proxy, general
+  composed-video operations, bundled video, and direct operating-system video
+  API providers have not been migrated to that bridge.
 - Select a provider for the exact codec/container/direction/profile/sample or
   pixel-format tuple. Only `unavailable` and `unsupported` preflight results may
   fall through. Cancellation, invalid input, security failure, execution

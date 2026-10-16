@@ -114,7 +114,7 @@ interface QueueRecord {
 
 const MAXIMUM_QUEUE_ITEMS = 100;
 const MAXIMUM_UPLOAD_BYTES = 100_000_000;
-const AUDIO_FILE_EXTENSION = /\.(?:aac|aif|aiff|bw64|flac|m4a|m4v|mp2|mp3|mp4|oga|ogg|opus|rf64|wav|wave|wavpack|webm|wv)$/iu;
+const AUDIO_FILE_EXTENSION = /\.(?:aac|aif|aifc|aiff|bw64|bwf|flac|m4a|m4v|mp2|mp3|mp4|oga|ogg|opus|rf64|wav|wave|wavpack|webm|wv)$/iu;
 const FREESOUND_DIRECT_EXTENSION = /\.(?:aif|aiff|flac|mp3|ogg|wav)$/iu;
 const FREESOUND_DIRECT_MIME_BY_EXTENSION = Object.freeze({
 	aif: 'audio/aiff',

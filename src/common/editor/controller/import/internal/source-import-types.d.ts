@@ -178,7 +178,10 @@ export interface ImportVideoRuntime {
 	readonly SOURCE_CHUNK_FRAMES: number;
 	readonly copy: ImportVideoCopy;
 	readonly engine: Readonly<{
-		decodeAudioData(encoded: ArrayBuffer): Promise<ImportedVideoDecodedAudio>;
+		decodeAudioData(
+			encoded: ArrayBuffer,
+			options?: Readonly<{ sampleRate?: number | null }>,
+		): Promise<ImportedVideoDecodedAudio>;
 		getAudioContext(options: Readonly<{ resume: false }>): Promise<ImportVideoAudioContext>;
 	}>;
 	readonly ffmpeg: Readonly<{

@@ -1,6 +1,9 @@
 import { projectEffectTailFrames } from './effects.js';
+import { fitExportFileName } from './export-name-byte-budget.ts';
 import { createBwfExportMetadata, projectBextMetadata } from './broadcast-wave-project.ts';
+import { createMasteringSequenceBext } from './mastering-sequence-bext.ts';
 import { cartForDeliveryRange } from './cart-delivery-range.ts';
+import { ixmlForDeliveryRange } from './ixml-delivery-timing.ts';
 import { inspectPreservedAdmRiffChunks, sameBextMetadata } from './adm-riff-passthrough.ts';
 import { createBw64AdmExport, resolveBw64Adm } from './export-bw64-adm.js';
 import {
@@ -21,7 +24,7 @@ import { inspectWavLayout } from './wav.js';
 import { createStemArchivePlan } from './controller/export/stem-archive.ts';
 import { EBU_R128_MAXIMUM_CHANNELS } from './ebu-r128.js';
 import { resolveAdmEbuChannelWeights } from './loudness-channel-layout.ts';
-import { createRiffAnnotationExport } from './timeline-annotation-riff-interchange.ts';
+import { createExportSpanMarkers } from './export-span-markers.ts';
 import { resolveBinauralDelivery } from './binaural-delivery.ts';
 import { resolveExportChapters } from './export-chapters.ts';
 import { assertEmbeddedChapterRequest, createEmbeddedChapterEncoding } from './export-embedded-chapter-encoding.ts';
@@ -58,11 +61,15 @@ export const FAST_RENDER_THRESHOLDS = Object.freeze({
  * @property {number | null} [outputFileBytes]
  * @property {import('./broadcast-wave.ts').BextMetadata} [bext]
  * @property {import('./cart-metadata.ts').CartMetadata | null} [cart]
+ * @property {import('./ixml.ts').IxmlMetadata | null} [ixml]
+ * @property {readonly import('./riff-markers.ts').RiffMarkerInput[]} [markers]
+ * @property {import('./timeline-annotation-interchange-report.ts').TimelineAnnotationInterchangeReport} [markerInterchangeReport]
  */
 
 /**
  * @typedef {Object} AudioExportPlan
  * @property {import('./cart-metadata.ts').CartMetadata | null} cart
+ * @property {import('./ixml.ts').IxmlMetadata | null} ixml
  * @property {'mix' | 'stems' | 'chapters' | 'clips'} mode
  * @property {import('./media-export.js').MediaExportFormatId} format
  * @property {number} sampleRate
@@ -71,7 +78,7 @@ export const FAST_RENDER_THRESHOLDS = Object.freeze({
  * @property {number} outputBytesPerRender
  * @property {number|null} outputFileBytesPerRender
  * @property {number} requiredTemporaryBytes
- * @property {ReturnType<typeof normalizeMediaExportSettings>} encoding
+ * @property {ReturnType<typeof normalizeMediaExportSettings> & Readonly<{bext?: import('./broadcast-wave.ts').BextMetadata}>} encoding
  * @property {Readonly<Record<string, string>>} metadata
  * @property {{ strategy: 'offline' | 'realtime-stream', fast: boolean, reason: 'output-memory'|'total-memory'|'offline-render-output-memory'|null, offlineRenderAdmission?: import('./export-render-admission.ts').ExportOfflineRenderStrategyAdmission }} render
  * @property {AudioExportPlanOutput[]} outputs
@@ -168,10 +175,10 @@ export function createExportFileName(project, options = {}) {
 	if (options.mode === 'stem' || options.mode === 'chapter' || options.mode === 'clip') {
 		const index = Number(options.trackIndex ?? 0) + 1;
 		const fallback = options.mode === 'stem' ? 'track' : options.mode;
-		return `${String(index).padStart(2, '0')}-${sanitizeExportName(options.trackName, fallback)}.${extension}`;
+		return fitExportFileName(sanitizeExportName(options.trackName, fallback), `${String(index).padStart(2, '0')}-`, `.${extension}`);
 	}
 	const date = isoDate(options.date);
-	return `${sanitizeExportName(project.title)}-mix-${date}.${extension}`;
+	return fitExportFileName(sanitizeExportName(project.title), '', `-mix-${date}.${extension}`);
 }
 
 /** @returns {AudioExportPlan} */
@@ -219,19 +226,20 @@ export function createExportPlan(project, options = {}) {
 		outputSampleRate: sampleRate,
 		admMetadata: bw64Adm?.metadata ?? null,
 	});
-	const markerExport = createRiffAnnotationExport(runtimeProject, {
+	const markerExport = createExportSpanMarkers(runtimeProject, {
 		range,
 		outputSampleRate: sampleRate,
-		// Each span has its own timeline, so shared cues would describe other files.
-		...(spans
-			? { markerSource: 'none' }
-			: options.markerSource == null ? {} : { markerSource: options.markerSource }),
+		...(options.markerSource == null ? {} : { markerSource: options.markerSource }),
 		...(options.markerTrackId == null ? {} : { markerTrackId: options.markerTrackId }),
 		preservedRiffMarkers: preservedRiffChunks?.markers === true,
 		masteringSequenceCues: masteringSequence !== null,
-	});
+	}, spans);
 	let markers = masteringSequence ? masteringSequence.cues : markerExport.markers;
-	let ixml = runtimeProject.metadata?.ixml ?? null;
+	const ixmlMetadata = (deliveryRange) => preservedRiffChunks?.ixml ? null : ixmlForDeliveryRange(
+		runtimeProject.metadata?.ixml, deliveryRange, runtimeProject.sampleRate, sampleRate, encoding.bitDepth, masteringSequence?.plan,
+	);
+	const ixml = ixmlMetadata(range);
+	const spanIxml = spans?.map((span) => ixmlMetadata(span));
 	const cartMetadata = (deliveryRange) => cartForDeliveryRange(
 		runtimeProject.metadata?.cart, deliveryRange, runtimeProject.sampleRate, sampleRate,
 	);
@@ -241,10 +249,12 @@ export function createExportPlan(project, options = {}) {
 			: cartMetadata(range) : null;
 	// The TimeReference states where the delivered audio sits on the project's
 	// timeline, so it is derived per delivered span, not once for the whole plan.
-	const bwfMetadata = (rangeStartFrame) => createBwfExportMetadata(runtimeProject, {
-		bext: options.bext, rangeStartFrame, outputSampleRate: sampleRate,
-		bitDepth: encoding.bitDepth, channelCount: encoding.channelCount, productName: options.productName,
-	});
+	const bwfMetadata = (rangeStartFrame) => {
+		const fields = { bext: options.bext, rangeStartFrame, outputSampleRate: sampleRate,
+			bitDepth: encoding.bitDepth, channelCount: encoding.channelCount, productName: options.productName };
+		return masteringSequence ? createMasteringSequenceBext(runtimeProject, fields, masteringSequence.plan)
+			: createBwfExportMetadata(runtimeProject, fields);
+	};
 	let bext = format === 'bwf' || format === 'bw64' ? bwfMetadata(range.startFrame) : null;
 	if (preservedRiffChunks?.bext) {
 		if (options.measureLoudness === true) {
@@ -258,7 +268,6 @@ export function createExportPlan(project, options = {}) {
 		delete encodingWithoutBext.bext;
 		encoding = Object.freeze(encodingWithoutBext);
 	}
-	if (preservedRiffChunks?.ixml) ixml = null;
 	if (preservedRiffChunks?.cart) cart = null;
 	if (bext) encoding = Object.freeze({ ...encoding, bext });
 	// Sequences, chapters and clips deliver their authored extents without tails.
@@ -287,10 +296,10 @@ export function createExportPlan(project, options = {}) {
 	}) : null;
 	const outputBytes = estimatePcmBytes(outputFrames, encoding.channelCount);
 	// Spans share encoding settings but each file has its own container size.
-	const layoutForFrames = (totalFrames) => (format === 'aiff'
+	const layoutForFrames = (totalFrames, outputMarkers = markers, outputIxml = ixml) => (format === 'aiff'
 		? inspectAiffLayout({
 			sampleRate, channelCount: encoding.channelCount, totalFrames,
-			sampleFormat: encoding.sampleFormat, metadata: encoding.metadata, markers,
+			sampleFormat: encoding.sampleFormat, metadata: encoding.metadata, markers: outputMarkers,
 		})
 		: format === 'wav' || format === 'bwf' || format === 'bw64'
 			? inspectWavLayout({
@@ -301,8 +310,8 @@ export function createExportPlan(project, options = {}) {
 				bitDepth: encoding.bitDepth,
 				float: encoding.floatingPoint,
 				metadata: encoding.metadata,
-				markers,
-				ixml,
+				markers: outputMarkers,
+				ixml: outputIxml,
 				cart,
 				bext,
 				preDataChunks: adm?.preDataChunks,
@@ -327,10 +336,12 @@ export function createExportPlan(project, options = {}) {
 				durationFrames: span.durationFrames,
 			}),
 			outputFrames: spanOutputFrames[spanIndex],
-			outputFileBytes: layoutForFrames(spanOutputFrames[spanIndex])?.byteLength ?? null,
+			outputFileBytes: layoutForFrames(spanOutputFrames[spanIndex], markerExport.outputs[spanIndex].markers, spanIxml[spanIndex])?.byteLength ?? null,
+			...markerExport.outputs[spanIndex],
 			// Where this file, rather than the whole delivery, sits on the timeline.
 			...(bext ? { bext: bwfMetadata(span.startFrame) } : {}),
 			...(cart ? { cart: cartMetadata(span) } : {}),
+			...(ixml ? { ixml: spanIxml[spanIndex] } : {}),
 		}))
 		: mode === 'mix'
 			? [{
@@ -421,7 +432,7 @@ export function createExportPlan(project, options = {}) {
 		: multiplySafeIntegers(outputBytes, outputs.length, 'Temporary export size');
 	const archive = mode !== 'mix'
 		? createStemArchivePlan(
-			`${sanitizeExportName(runtimeProject.title)}-${mode}-${isoDate(options.date)}`,
+			fitExportFileName(sanitizeExportName(runtimeProject.title), '', `-${mode}-${isoDate(options.date)}`, '.zip'.length),
 			outputs.map((output) => ({
 				fileName: output.fileName,
 				expectedByteLength: spans
@@ -503,6 +514,7 @@ function determineTailFrames(project, mode, includeTail) {
 	if (!includeTail) return 0;
 	return projectEffectTailFrames(project, {
 		includeMaster: deliversMasterMix(mode),
+		respectMuteSolo: deliversMasterMix(mode),
 		maximumSeconds: 10,
 	});
 }

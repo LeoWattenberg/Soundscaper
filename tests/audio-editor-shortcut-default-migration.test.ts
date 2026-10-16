@@ -137,3 +137,30 @@ test('preferences saved before the profile gain new audition keys even though th
 	assert.deepEqual(loaded.shortcuts['play-cut-preview'], ['C']);
 	assert.deepEqual(loaded.shortcuts['play-stop-select'], ['X']);
 });
+
+test('version three preferences transfer untouched project-boundary chords from track commands', () => {
+	const saved = createAudioEditorPreferencesV1();
+	saved.shortcuts['select-track-start-to-cursor'] = ['Shift+J', 'Shift+Home'];
+	saved.shortcuts['select-cursor-to-track-end'] = ['Shift+K', 'Shift+End'];
+	delete saved.shortcuts['sel-start'];
+	delete saved.shortcuts['sel-end'];
+	const loaded = loadAudioEditorPreferencesV1({ ...saved, shortcutDefaultsVersion: 3 }).preferences;
+	assert.deepEqual(loaded.shortcuts['select-track-start-to-cursor'], ['Shift+J']);
+	assert.deepEqual(loaded.shortcuts['select-cursor-to-track-end'], ['Shift+K']);
+	assert.deepEqual(loaded.shortcuts['sel-start'], ['Shift+Home']);
+	assert.deepEqual(loaded.shortcuts['sel-end'], ['Shift+End']);
+	assert.deepEqual(loadAudioEditorPreferencesV1(loaded).preferences, loaded);
+});
+
+test('project-boundary migration respects custom bindings and explicit removals', () => {
+	const saved = createAudioEditorPreferencesV1();
+	saved.shortcuts['select-track-start-to-cursor'] = ['Shift+Home'];
+	saved.shortcuts['sel-start'] = [];
+	saved.shortcuts['sel-end'] = ['Alt+End'];
+	delete saved.shortcuts['select-cursor-to-track-end'];
+	const loaded = loadAudioEditorPreferencesV1({ ...saved, shortcutDefaultsVersion: 3 }).preferences;
+	assert.deepEqual(loaded.shortcuts['select-track-start-to-cursor'], ['Shift+Home']);
+	assert.deepEqual(loaded.shortcuts['sel-start'], []);
+	assert.deepEqual(loaded.shortcuts['sel-end'], ['Alt+End']);
+	assert.equal(Object.hasOwn(loaded.shortcuts, 'select-cursor-to-track-end'), false);
+});

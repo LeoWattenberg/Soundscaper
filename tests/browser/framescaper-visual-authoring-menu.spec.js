@@ -12,6 +12,7 @@ import {
 	clickClipInterior,
 	collectClientErrors,
 	importFiles,
+	waitForProjectActivation,
 } from './audio-editor-test-helpers.js';
 import { videoTimingProbeMedia } from './fixtures/video-timing-probe-media.js';
 import { seekFramescaperTimecode } from './helpers/framescaper-standard-timecode.js';
@@ -174,7 +175,11 @@ test.describe('Framescaper visual authoring menus', () => {
 		await page.reload();
 		const restored = page.locator('[data-audio-editor]');
 		await expect(restored).toHaveAttribute('data-audio-editor-bound', 'true', UI_OPTIONS);
+		await expect(restored).toHaveAttribute('data-editor-ready', 'true', { timeout: 20_000 });
+		await waitForProjectActivation(restored);
 		await restored.getByRole('group', { name: 'Video clip: Test Image', exact: true }).press('Enter');
+		await expect(restored.getByRole('group', { name: 'Video clip: Test Image', exact: true }).locator('.clip-display'))
+			.toHaveClass(/clip-display--selected/u);
 		await chooseNestedCommandAction(page, restored, 'Effect', [
 			'Video Finishing', EDITOR_ENGLISH_COPY['ui.framescaperMenus.videoVisualInspector'],
 		], UI_OPTIONS);
@@ -184,6 +189,8 @@ test.describe('Framescaper visual authoring menus', () => {
 		await closeVisualDialog(page, dialog);
 
 		await restored.getByRole('group', { name: 'Video clip: Noise', exact: true }).press('Enter');
+		await expect(restored.getByRole('group', { name: 'Video clip: Noise', exact: true }).locator('.clip-display'))
+			.toHaveClass(/clip-display--selected/u);
 		await chooseNestedCommandAction(page, restored, 'Effect', [
 			'Video Finishing', EDITOR_ENGLISH_COPY['ui.framescaperMenus.videoVisualInspector'],
 		], UI_OPTIONS);

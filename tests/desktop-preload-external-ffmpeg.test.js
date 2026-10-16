@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import { readDesktopPreloadSource } from './helpers/desktop-preload-source.mjs';
 import test from 'node:test';
 import vm from 'node:vm';
 
@@ -44,7 +44,7 @@ test('sandbox preload rejects malformed or path-smuggling FFmpeg statuses', asyn
 
 async function preloadBridge(invoke) {
 	const exposed = new Map();
-	const source = await readFile(new URL('../desktop/preload.mjs', import.meta.url), 'utf8');
+	const source = await readDesktopPreloadSource();
 	vm.runInNewContext(source, {
 		ArrayBuffer, Object, Promise, RangeError, String, TypeError, Uint8Array, URL,
 		require: (specifier) => {

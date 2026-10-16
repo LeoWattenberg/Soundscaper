@@ -17,7 +17,9 @@ function deferred<Value>() {
 	return { promise, resolve };
 }
 
-function createHarness(options: Readonly<{ selection?: boolean; deferAnalysis?: boolean }> = {}) {
+function createHarness(options: Readonly<{
+	selection?: boolean; deferAnalysis?: boolean; multiTrack?: boolean; clipSelection?: boolean; sourceFocus?: boolean;
+}> = {}) {
 	let project: NyquistGeneratedAudioProject = {
 		id: 'project-a', schemaVersion: 5, title: 'Project', sampleRate: 1_000,
 		tracks: [{ id: 'track-a', name: 'Track', type: 'audio', clipIds: [] }],
@@ -28,6 +30,24 @@ function createHarness(options: Readonly<{ selection?: boolean; deferAnalysis?: 
 	const target: EffectTarget = {
 		track: project.tracks[0]!, startFrame: 100, endFrame: 200, durationFrames: 100,
 		channelCount: 1, hasAudio: true,
+		...(options.sourceFocus ? { sourceId: 'source-a', sourceTrackId: 'track-a', sourceSampleRate: 44_100 } : {}),
+	};
+	const targets = [target, { ...target,
+		track: { id: 'track-b', name: 'Stereo microphone', type: 'audio' as const, clipIds: ['clip-b'] },
+		channelCount: 2,
+	}].map((item, index) => ({ ...item,
+		...(options.clipSelection ? { clipId: `clip-${String(index)}`, clipIds: [`clip-${String(index)}`] } : {}),
+	}));
+	if (options.multiTrack) project = { ...project,
+		tracks: targets.map((item) => ({ ...item.track, type: 'audio' as const,
+			clipIds: item.clipIds ? [...item.clipIds] : [] })),
+		clips: targets.map((item, index) => ({
+			id: `clip-${String(index)}`, kind: 'audio', sourceId: `source-${String(index)}`,
+			timelineStartFrame: 100, sourceStartFrame: 0, sourceDurationFrames: 100, durationFrames: 100,
+		})),
+		selection: { startFrame: options.clipSelection ? 0 : 100, endFrame: options.clipSelection ? 0 : 200,
+			trackIds: targets.map((item) => item.track.id),
+			clipIds: options.clipSelection ? targets.map((item) => item.clipId!) : [] },
 	};
 	const projectGeneration = new EditorProjectGeneration();
 	projectGeneration.activate(project.id);
@@ -37,6 +57,7 @@ function createHarness(options: Readonly<{ selection?: boolean; deferAnalysis?: 
 	const sourcePeaks = new Map<string, unknown>();
 	const commands: unknown[] = [];
 	const replacementCalls: unknown[] = [];
+	const batchReplacementCalls: unknown[][] = [];
 	const deletedSources: string[] = [];
 	const deletedAnalysis: string[] = [];
 	let writerAborts = 0;
@@ -53,10 +74,17 @@ function createHarness(options: Readonly<{ selection?: boolean; deferAnalysis?: 
 		getProject: () => project,
 		captureProject: () => projectGeneration.capture(project.id),
 		assertProject: (token) => projectGeneration.assertCurrent(token),
-		activeSelection: () => project.selection ?? null,
+		activeSelection: () => options.clipSelection ? null : project.selection ?? null,
 		audacityEffectTarget: () => target,
 		persistAudacityEffectResult: async (...args) => { replacementCalls.push(args); return 'replacement'; },
-		matchAudacitySelectionChannels: (channels, count) => channels.slice(0, count),
+		...(options.multiTrack ? {
+			audacityEffectTargets: () => targets,
+			persistAudacityEffectResults: async (...args: unknown[]) => {
+				batchReplacementCalls.push(args); return 'replacement-batch';
+			},
+		} : {}),
+		matchAudacitySelectionChannels: (channels, count) => Array.from({ length: count },
+			(_, index) => channels[Math.min(index, channels.length - 1)]!.slice()),
 		assertAudioOutput: () => undefined,
 		projectSampleRate: () => project.sampleRate,
 		preflightStorage: async () => undefined,
@@ -99,10 +127,12 @@ function createHarness(options: Readonly<{ selection?: boolean; deferAnalysis?: 
 		analysisStarted,
 		get beginWrites() { return beginWrites; },
 		commands,
+		batchReplacementCalls,
 		deletedAnalysis,
 		deletedSources,
 		replacementCalls,
 		service,
+		targets,
 		sourceBuffers,
 		sourcePeaks,
 		updateProject(changes: Partial<NyquistGeneratedAudioProject>) { project = { ...project, ...changes }; },
@@ -123,6 +153,45 @@ test('Nyquist audio replaces an active selection through the existing effect-res
 	), 'replacement');
 	assert.equal(harness.replacementCalls.length, 1);
 	assert.equal(harness.beginWrites, 0);
+});
+
+for (const clipSelection of [false, true]) {
+	test(`Nyquist generation replaces all selected ${clipSelection ? 'clip headers' : 'track ranges'} atomically`, async () => {
+		const harness = createHarness({ selection: true, multiTrack: true, clipSelection });
+		const input = new Float32Array(100).fill(.25);
+		assert.equal(await harness.service.persistNyquistGeneratedAudio([input], { name: 'Generated' }),
+			'replacement-batch');
+		assert.equal(harness.batchReplacementCalls.length, 1);
+		const results = harness.batchReplacementCalls[0]![0] as readonly {
+			target: EffectTarget; channels: readonly Float32Array[];
+		}[];
+		assert.deepEqual(results.map(({ target }) => target.track.id), ['track-a', 'track-b']);
+		assert.deepEqual(results.map(({ channels }) => channels.length), [1, 2]);
+		for (const { channels } of results) for (const channel of channels) assert.deepEqual(channel, input);
+		assert.equal(harness.replacementCalls.length, 0);
+		assert.equal(harness.beginWrites, 0);
+		assert.equal(harness.commands.length, 0);
+		assert.deepEqual(input, new Float32Array(100).fill(.25));
+	});
+}
+
+test('without a selection, plural replacement ports still insert new generated audio', async () => {
+	const harness = createHarness({ multiTrack: true });
+	harness.updateProject({ selection: null });
+	await harness.service.persistNyquistGeneratedAudio([new Float32Array(100)]);
+	assert.equal(harness.batchReplacementCalls.length, 0);
+	assert.equal(harness.replacementCalls.length, 0);
+	assert.equal(harness.writerCommits, 1);
+	assert.equal(harness.commands.length, 1);
+});
+
+test('timeline clip headers do not admit a native Source focus as a replacement', async () => {
+	const harness = createHarness({ multiTrack: true, clipSelection: true, sourceFocus: true });
+	await harness.service.persistNyquistGeneratedAudio([new Float32Array(100)]);
+	assert.equal(harness.batchReplacementCalls.length, 0);
+	assert.equal(harness.replacementCalls.length, 0);
+	assert.equal(harness.writerCommits, 1);
+	assert.equal(harness.commands.length, 1);
 });
 
 test('generator output writes one source and commits one prepared batch', async () => {

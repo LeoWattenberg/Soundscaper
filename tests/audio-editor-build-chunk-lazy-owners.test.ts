@@ -23,7 +23,6 @@ import {
 } from '../scripts/lib/build-chunk-groups.mjs';
 import { sourceModules } from './helpers/eager-chunk-group-crossings.ts';
 import { flatEditorModules } from './helpers/editor-chunk-module-inventory.ts';
-
 /**
  * The chunks that must stay behind a dynamic import.
  *
@@ -35,7 +34,6 @@ import { flatEditorModules } from './helpers/editor-chunk-module-inventory.ts';
  *
  * `tests/audio-editor-build-chunk-ownership.test.ts` holds the ownership half.
  */
-
 test('recording checkpoints and finalization load after a recording gesture', () => {
 	for (const path of [
 		'src/common/editor/controller/recording/internal/recording-checkpoint-writer.ts',
@@ -65,6 +63,7 @@ test('optional archive code and its ZIP vendor are placed by dynamic reachabilit
 		'src/common/editor/dawproject-archive.ts',
 		'src/common/editor/archive-media-reader.ts',
 		'src/common/editor/dawproject-export.ts',
+		'src/common/editor/dawproject-export-routing-omissions.ts',
 		'src/common/editor/dawproject-import.ts',
 		'src/common/editor/dawproject-xml.ts',
 	]) {
@@ -101,6 +100,7 @@ test('Framescaper capture and Web VCR stay behind their deferred product runtime
 		'src/common/editor/controller/capture/framescaper-capture-document-ports.ts',
 		'src/common/editor/controller/capture/internal/framescaper-capture-project-admission.ts',
 		'src/common/editor/controller/capture/framescaper-web-vcr-ui-snapshot.ts',
+		'src/common/editor/controller/capture/internal/browser/framescaper-capture-listening-output.ts',
 	]);
 	for (const path of implementation) {
 		if (eager.has(path)) {

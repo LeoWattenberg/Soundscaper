@@ -12,6 +12,7 @@ import { createClipSpreadsheetAction } from './internal/clip-spreadsheet-action.
 import { createMixerParameterActions } from './internal/mixer-parameter-actions.ts';
 import { createProjectOwnedFeatureActionFacades } from './internal/project-owned-feature-action-facades.ts';
 import { createTimelineAnnotationActionFacade } from '../document/timeline-annotation-action-facade.ts';
+import { createRecordingNotesActionFacade } from '../document/recording-notes-action-facade.ts';
 import { createVideoActionGroup } from '../clip-video/video-action-group.ts';
 import { snapshotProductActionExtensions } from './internal/product-action-extensions.ts';
 import { createExportActionGroup } from '../export/export-action-group.ts';
@@ -33,7 +34,7 @@ export function createGroupedEditorActions(scope: EditorActionRuntime) {
 	const {
 	addEffect, addLabelTrack, addTrack, addVideoTrackPair, adjustAllTrackHeights, adjustTrackHeight,
 	analysisService, applyAudacityEffectFromController, applySamplePencil,
-	applySpectralSelection, beginParametricEqGesture, beginRackEffectGesture, cancelAudacityEffectPreview,
+	applySpectralSelection, beginParametricEqGesture, beginRackEffectGesture, cancelAudacityEffectPreview, cancelSelectedAudacityEffect,
 	cancelNyquistEvaluation, cancelParametricEqGesture, cancelPlaybackCachePreparation,
 	cancelRackEffectGesture, cancelSampleEdit, capabilities,
 	captureRackNoiseProfileFromController, captureSelectedNoiseProfile, claimProjectLock, clearLocalData,
@@ -45,7 +46,7 @@ export function createGroupedEditorActions(scope: EditorActionRuntime) {
 	generateSignal, repeatLastGenerator, getClipVisualData, getVisibleClips,
 	handleClipAction, handleEdit, handleExportAction, handlePlayAtSpeed, handleTransport,
 	hasMissingTimelineSources, importFiles, pasteClipSpreadsheet, inspectScape, labels, listProjects, makeStereoTrack,
-	materializeFreesoundUploadClip, mixAndRenderTracks, moveClips, moveClipsToNewTrack, moveTrack, newProject,
+	materializeFreesoundUploadClip, publishBlenderTracks, mixAndRenderTracks, moveClips, moveClipsToNewTrack, moveTrack, newProject,
 	normalizePlaybackFrame, openAudacityProject, openAup4, openProject, openScape, openScapeFile, overwriteClips,
 	openDawproject, openSesx, saveDawproject, pasteEffectStack, pauseLoudnessMeasurement,
 	prepareProjectHandoff,
@@ -197,7 +198,12 @@ export function createGroupedEditorActions(scope: EditorActionRuntime) {
 			playAtSpeed: yieldProgramPlayhead((rate: number = state.playAtSpeedRate) => handlePlayAtSpeed(rate)),
 			setPlayAtSpeedRate,
 			stop: yieldProgramPlayhead(() => handleTransport('stop')),
-			seek: yieldProgramPlayhead((frame: number) => engine.seek(normalizePlaybackFrame(frame))),
+			seek: yieldProgramPlayhead((frame: number) => {
+				if (state.recordingStarting || state.timedRecordingPreparing || state.timedRecording || state.recorder) {
+					return engine.getPositionFrames();
+				}
+				return engine.seek(normalizePlaybackFrame(frame));
+			}),
 			scrub: yieldProgramPlayhead((frame: number) => {
 				if (state.recordingStarting || state.timedRecordingPreparing || state.timedRecording || state.recorder) {
 					return engine.getPositionFrames();
@@ -234,7 +240,11 @@ export function createGroupedEditorActions(scope: EditorActionRuntime) {
 			setPreferredInput: setPreferredInputDevice,
 			setPreferredInputChannelCount,
 			configureDisplayInput,
-			setOutput: setAudioOutputDevice,
+			setOutput: async (...args: Parameters<typeof setAudioOutputDevice>) => {
+				const deviceId = await setAudioOutputDevice(...args);
+				await scope.playbackPreviews?.setOutput(deviceId);
+				return deviceId;
+			},
 			setPlaybackGain: (gain: number) => {
 				const value = engine.setPlaybackGain(Number(gain));
 				scope.playbackPreviews?.setGain(value);
@@ -378,6 +388,7 @@ export function createGroupedEditorActions(scope: EditorActionRuntime) {
 		metadata: Object.freeze({
 			update: (changes: Readonly<Record<string, unknown>>) => commit({ type: 'metadata/update', changes }),
 		}),
+		recordingNotes: createRecordingNotesActionFacade({ getProject, commit }),
 		preferences: createPreferenceActionGroup(scope, recordingPreferences),
 		clipSourcePreview: Object.freeze({ ...scope.clipSourcePreviewService }),
 		clip: Object.freeze({
@@ -437,6 +448,7 @@ export function createGroupedEditorActions(scope: EditorActionRuntime) {
 			applySelection: restricted('audioEffects', applyAudacityEffectFromController),
 			previewSelection: restricted('audioEffects', previewAudacityEffectFromController),
 			cancelPreview: () => cancelAudacityEffectPreview(),
+			cancelSelection: () => cancelSelectedAudacityEffect(),
 			repeatLast: restricted('audioEffects', repeatLastAudacityEffect),
 			presets: createEffectPresetActions(effectLibraryScope, restricted),
 		}),
@@ -448,7 +460,7 @@ export function createGroupedEditorActions(scope: EditorActionRuntime) {
 			contrast: restricted('audioAnalysis', analysisService.captureContrast), repeatLast: restricted('audioAnalysis', analysisService.repeatLast),
 			measureLoudness: restricted('audioAnalysis', analysisService.measureLoudness),
 		}),
-		export: createExportActionGroup({ handleExportAction, state, productName: product.name, getProjectTitle: () => getProject()?.title ?? null, getProject, fileService, persistSetting, publishDocumentSnapshot, createId: createStableId }),
+		export: createExportActionGroup({ handleExportAction, publishBlenderTracks, state, productName: product.name, getProjectTitle: () => getProject()?.title ?? null, getProject, projectForRuntimeConsumers: scope.projectForRuntimeConsumers, fileService, persistSetting, publishDocumentSnapshot, createId: createStableId }),
 		media: createProjectMediaActionGroup({
 			state, getProject, store, publishDocumentSnapshot, setStatus, copy, fileService, ffmpeg, commit, saveScape: () => Promise.resolve(saveScape()),
 		}),

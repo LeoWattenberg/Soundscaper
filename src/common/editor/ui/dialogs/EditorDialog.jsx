@@ -6,7 +6,7 @@ import { TextInput } from '@soundscaper/design-system/TextInput';
 
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 import TimedRecordingDialogFields from './TimedRecordingDialogFields.tsx';
-import { runAwaitedAudioEditorOperation } from '../workspace/audio-editor-workspace-runner.ts';
+import { useOwnedDialogOperation } from '../useOwnedDialogOperation.ts';
 import { formatDate } from '../workspace-runtime.js';
 import {
 	applyTrackRateDialog,
@@ -28,19 +28,31 @@ import {
 	TRACK_RATE_DIALOG_MISSING_TRACK,
 } from './editor-dialog-model.js';
 import { timedRecordingDialogRange } from './timed-recording-dialog-model.ts';
+import { selectAudioEditorEditBlock } from '../../edit-blocking.ts';
 
 export default function EditorDialog({ type, value, onValueChange, trackId, controller, snapshot, copy, locale, run, showArmControls = false, onClose }) {
+	const editBlocked = ['rename', 'track-rename', 'resample', 'track-rate'].includes(type)
+		&& selectAudioEditorEditBlock(snapshot).blocked;
+	const editBlockedRef = useRef(editBlocked);
+	editBlockedRef.current = editBlocked;
 	const cancelTimedRecordingOnClose = useRef(false);
 	const projectIdAtOpen = useRef(snapshot.project?.id ?? null);
+	// These actions intentionally replace the project before their promise settles.
+	const replacesProject = ['projects', 'delete', 'clear'].includes(type);
+	const operationState = useOwnedDialogOperation({
+		owner: JSON.stringify([type, replacesProject ? null : snapshot.project?.id ?? null]), blocked: editBlocked, run,
+	});
 	cancelTimedRecordingOnClose.current = type === 'timed-recording' && snapshot.recordingScheduling;
 	const closeDialog = () => {
+		operationState.reset();
 		if (cancelTimedRecordingOnClose.current) run(() => controller.actions.recording.cancelScheduled());
 		onClose();
 	};
 	const runThenClose = (operation, shouldClose = () => true) => {
-		void runAwaitedAudioEditorOperation(run, operation)
-			.then((result) => { if (shouldClose(result)) onClose(); })
-			.catch(() => undefined);
+		if (editBlockedRef.current) return;
+		operationState.perform(type, operation, {
+			onSuccess: (result) => { if (shouldClose(result)) onClose(); },
+		});
 	};
 	const title = {
 		projects: copy.projectsTitle,
@@ -124,7 +136,7 @@ export default function EditorDialog({ type, value, onValueChange, trackId, cont
 		<Button variant="secondary" onClick={onDismiss}>{copy.cancel}</Button>
 	);
 	const confirm = (label, onConfirm, disabled = false) => (
-		<Button variant="primary" disabled={disabled} onClick={onConfirm}>{label}</Button>
+		<Button variant="primary" disabled={disabled || editBlocked} onClick={onConfirm}>{label}</Button>
 	);
 	const footerActions = () => {
 		if (type === 'rename' || type === 'track-rename') return <>
@@ -212,7 +224,9 @@ export default function EditorDialog({ type, value, onValueChange, trackId, cont
 						</form>
 					)}
 					{type === 'timed-recording' && (
-						<TimedRecordingDialogFields value={value} onValueChange={onValueChange}
+						<TimedRecordingDialogFields controller={controller}
+							originFrame={controller.getTelemetrySnapshot?.().positionFrame}
+							value={value} onValueChange={onValueChange}
 							onSubmit={submitTimedRecording} scheduledRecording={snapshot.scheduledRecording}
 							copy={copy} locale={locale} />
 					)}

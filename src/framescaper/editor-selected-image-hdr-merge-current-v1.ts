@@ -3,7 +3,7 @@ import { readClosedDomainField as field, readClosedDomainRecord as record } from
 import { captureRepairSignalV1, checkRepairSignalV1 } from '../common/editor/imaging/pixel-frame-repair-lifetime-v1.ts';
 import type { ImageHdrMergeAuthoringPortCurrentV1, ImageHdrMergeAuthoringSelectionCurrentV1 } from '../common/editor/image-hdr-merge-authoring-port-current-v1.ts';
 import type { ImageHdrRadianceDiagnosticsV1 } from '../common/editor/imaging/image-hdr-radiance-v1.ts';
-import type { FramescaperTimelineImageCurrentProjectPublicationDependenciesTimelineImage } from './editor-timeline-image-current-project-publication-timeline-image.ts';
+import type { FramescaperTimelineImageHdrCurrentProjectPublicationDependenciesV1 } from './editor-timeline-image-current-project-publication-timeline-image.ts';
 import type { FramescaperStoredImageAssetStoreTimelineImage } from './editor-selected-timeline-image-image-frame-source.ts';
 import type { ImageHdrMergePortsCurrentV1 } from '../common/editor/controller/shared/image-hdr-merge-current-v1.ts';
 import type { ImageHdrMergePreviewCurrentV1 } from '../common/editor/controller/shared/image-hdr-merge-preview-current-v1.ts';
@@ -13,7 +13,7 @@ export interface FramescaperImageHdrMergeAcknowledgementCurrentV1 {
 	readonly diagnostics: Readonly<ImageHdrRadianceDiagnosticsV1>; readonly notices: readonly string[];
 	readonly retirementFailure?: unknown;
 }
-type PublicationDependencies = FramescaperTimelineImageCurrentProjectPublicationDependenciesTimelineImage;
+type PublicationDependencies = FramescaperTimelineImageHdrCurrentProjectPublicationDependenciesV1;
 type PublicationController = PublicationDependencies['controller'];
 export interface FramescaperImageHdrMergeControllerCurrentV1 extends PublicationController {
 	getSnapshot(): Readonly<{ readOnly?: unknown; importing?: unknown }>;

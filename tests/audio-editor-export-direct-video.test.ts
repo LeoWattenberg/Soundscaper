@@ -61,11 +61,11 @@ test('desktop video export selects its target only from sink open after FFmpeg s
 	assert.equal(fixture.events.includes('download'), false);
 });
 
-test('desktop video export refuses unavailable formats before project preparation or publication work', async () => {
+test('desktop composed video export refuses unavailable formats before media loading or publication', async () => {
 	const fixture = createDesktopFixture({ desktopVideoCapabilities: null });
-
-	await assert.rejects(fixture.exportVideo(), /Edit > Preferences > General/u);
-	assert.deepEqual(fixture.events, []);
+	assert.equal(await fixture.exportVideo(), null);
+	assert.match((fixture.errors[0] as Error).message, /Edit > Preferences > General/u);
+	assert.deepEqual(fixture.events, ['plan']);
 });
 
 test('desktop late chooser cancellation returns silently without publication', async () => {

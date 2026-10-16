@@ -14,6 +14,7 @@ import { normalizeMaterialTransform } from './aup4-export-material.js';
 import { aup4ClipLoopMaterial, aup4LoopMaterialFrameCount } from './aup4-clip-loop-material.ts';
 import { withoutClipLoop } from './audio-clip-loop.ts';
 import { aup4LinkedSamplePlaybackRate, neutralizeAup4RenderedTimePitch } from './aup4-linked-speed-export.ts';
+import { aup4WarpMaterial, aup4WarpMaterialFrameCount } from './aup4-warp-material.ts';
 import {
 	scaleBoundary, scaledRangeLength,
 	positiveRate,
@@ -133,8 +134,9 @@ export function createAup4ExportPlan(project) {
 			const source = sourceById.get(clip.sourceId);
 			const sourceRate = positiveRate(source.sampleRate, `source ${source.id} sampleRate`);
 			const sourceChannels = positiveChannelCount(source.channelCount);
-			const loop = aup4ClipLoopMaterial(clip);
-			const playbackRate = aup4LinkedSamplePlaybackRate(clip, sourceRate, projectRate);
+			const warp = aup4WarpMaterial(project, clip);
+			const loop = warp ? null : aup4ClipLoopMaterial(clip);
+			const playbackRate = warp ? 1 : aup4LinkedSamplePlaybackRate(clip, sourceRate, projectRate);
 			const ratio = targetRate / (sourceRate * playbackRate);
 			const sourceFrameCount = positiveFrame(source.frameCount, `source ${source.id} frameCount`);
 			const sourceStartFrame = nonNegativeFrame(clip.sourceStartFrame, `clip ${clip.id} sourceStartFrame`);
@@ -161,6 +163,7 @@ export function createAup4ExportPlan(project) {
 			const sliceStartFrame = loop ? sourceStartFrame : sourceStartFrame - trimStartFrames;
 			const sliceEndFrame = loop ? sourceEndFrame : sourceEndFrame + trimEndFrames;
 			const transform = {
+				warp,
 				loop,
 				playbackRate,
 				sliceStartFrame,
@@ -204,6 +207,15 @@ export function createAup4ExportPlan(project) {
 					code: 'CLIP_LOOP_RENDERED', severity: 'info', disposition: 'converted',
 					scope: { kind: 'clip', trackId: track.id, clipId: clip.id }, data: loop,
 				});
+			}
+			if (warp) {
+				Object.assign(normalizedClip, { sourceStartFrame: 0, sourceDurationFrames: variant.source.frameCount,
+					trimStartFrames: 0, trimEndFrames: 0, warpMap: null,
+					opaqueExtensions: withoutClipLoop(normalizedClip.opaqueExtensions) });
+				neutralizeAup4RenderedTimePitch(normalizedClip);
+				addAup4CompatibilityItem(compatibilityReport, { code: 'AUDIO_WARP_RENDERED', severity: 'info',
+					disposition: 'converted', scope: { kind: 'clip', trackId: track.id, clipId: clip.id },
+					data: { pointCount: warp.clip.warpMap.points.length } });
 			}
 			if (Object.hasOwn(clip, 'gain') || envelopeConversion.converted) normalizedClip.gain = 1;
 			if (Object.hasOwn(clip, 'fadeInFrames') || envelopeConversion.converted) normalizedClip.fadeInFrames = 0;
@@ -303,7 +315,7 @@ export function createAup4ExportPlan(project) {
 			const sliceStartFrame = materialTransform?.sliceStartFrame ?? 0;
 			const sliceEndFrame = materialTransform?.sliceEndFrame ?? inputFrameCount;
 			const periodFrameCount = Math.max(1, scaledRangeLength(sliceStartFrame, sliceEndFrame, ratio));
-			const outputFrameCount = materialTransform?.loop
+			const outputFrameCount = materialTransform?.warp ? aup4WarpMaterialFrameCount(materialTransform.warp, targetRate) : materialTransform?.loop
 				? aup4LoopMaterialFrameCount(materialTransform.loop, periodFrameCount) : periodFrameCount;
 			const variantId = uniqueVariantId(source.id, targetRate, targetChannels, variantIds);
 			const normalizedSource = {

@@ -4,6 +4,11 @@ import { EDITOR_ENGLISH_COPY } from '../../src/common/i18n/editor-copy-inventory
 import { expect, test } from './audio-editor-test-fixtures.js';
 import { bootEditor, chooseNestedCommandAction } from './audio-editor-test-helpers.js';
 
+// Generator previews and Undo/Redo also run under precise Chromium coverage.
+test.describe.configure({ timeout: 120_000 });
+// A geometry read can exceed the default five-second poll while coverage is active.
+const POSITION_OPTIONS = { timeout: 20_000 };
+
 test('an ordinary generated Title can move along its picture track', async ({ page }) => {
 	const editor = await bootEditor(page, '/framescaper/embed/en/');
 	await chooseNestedCommandAction(page, editor, 'Generate', ['Video Generators', EDITOR_ENGLISH_COPY['ui.framescaperMenus.addVideoTitle']]);
@@ -16,13 +21,13 @@ test('an ordinary generated Title can move along its picture track', async ({ pa
 	await page.mouse.move(before.x + 32, before.y + 10);
 	await page.mouse.down();
 	await page.mouse.move(before.x + 92, before.y + 10, { steps: 6 });
-	await expect.poll(async () => (await clip.boundingBox())?.x).toBeGreaterThan(before.x + 45);
+	await expect.poll(async () => (await clip.boundingBox())?.x, POSITION_OPTIONS).toBeGreaterThan(before.x + 45);
 	await page.mouse.up();
-	await expect.poll(async () => (await clip.boundingBox())?.x).toBeGreaterThan(before.x + 45);
+	await expect.poll(async () => (await clip.boundingBox())?.x, POSITION_OPTIONS).toBeGreaterThan(before.x + 45);
 	await chooseNestedCommandAction(page, editor, 'Edit', ['Undo']);
-	await expect.poll(async () => (await clip.boundingBox())?.x).toBe(before.x);
+	await expect.poll(async () => (await clip.boundingBox())?.x, POSITION_OPTIONS).toBe(before.x);
 	await chooseNestedCommandAction(page, editor, 'Edit', ['Redo']);
-	await expect.poll(async () => (await clip.boundingBox())?.x).toBeGreaterThan(before.x + 45);
+	await expect.poll(async () => (await clip.boundingBox())?.x, POSITION_OPTIONS).toBeGreaterThan(before.x + 45);
 });
 
 test('an ordinary generated Title can move into a new picture track', async ({ page }) => {

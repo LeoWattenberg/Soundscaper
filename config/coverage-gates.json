@@ -5,9 +5,9 @@
 			"id": "editor",
 			"label": "Editor",
 			"thresholds": {
-				"lines": 97,
+				"lines": 98,
 				"branches": 82,
-				"functions": 85
+				"functions": 86
 			},
 			"reason": "Everything under src/common/editor/ that is not controller, command or engine code: models, workers, storage, effects and import/export, where an unexercised branch corrupts a user's project."
 		},
@@ -46,7 +46,7 @@
 			"label": "Soundscaper",
 			"thresholds": {
 				"lines": 98,
-				"branches": 74,
+				"branches": 75,
 				"functions": 93
 			},
 			"reason": "Soundscaper's own tree: thin product wiring over the shared editor, so its floor is set by what that wiring actually exercises."
@@ -66,7 +66,7 @@
 			"label": "Common site",
 			"thresholds": {
 				"lines": 99,
-				"branches": 88,
+				"branches": 89,
 				"functions": 94
 			},
 			"reason": "The marketing and documentation site is mostly presentational markup, so its line floor is low while its branches stay covered."

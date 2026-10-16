@@ -21,6 +21,7 @@ import { createPitchAndTempoApplicationMenuItems } from './pitch-tempo-applicati
 import { createLabeledAudioApplicationMenuItems } from './labeled-audio-application-menu.ts';
 import { createPrivacyPolicyMenuItem } from './privacy-policy-menu.ts';
 import { createInstallApplicationMenuItem } from './install-application-menu.ts';
+import { createBlenderApplicationMenuItems } from './blender-application-menu.ts';
 import { projectTrackFolderMediaStateV12 } from '../track-folder-media-runtime.ts';
 import { selectLabeledAudioRegions } from '../labeled-audio-regions.ts';
 import { createVisibleVideoTrackPredicate } from '../video-track-visibility.js';
@@ -38,6 +39,8 @@ import { createEffectMacroApplicationMenu } from './macro-application-menu.ts';
 import { resolveEditingActionAvailability } from '../commands/editing-selection-authority.ts';
 import { resolveSelectionRange } from '../selection-range.ts';
 import { createOriginalFileOverwriteMenuItems } from './original-file-overwrite-menu.ts';
+import { repairSelectionAvailable } from './repair-menu-admission.ts';
+import { selectedTrackRemovalAvailable } from '../selected-track-removal.ts';
 
 /**
  * The video tracks an edit list would describe.
@@ -72,6 +75,7 @@ export default function createApplicationMenus({
 	copy,
 	desktopHost = { view: [], tools: [], help: [] },
 	desktopOriginalOverwrite = /** @type {import('./original-file-overwrite-menu.ts').OriginalFileOverwriteMenuPort | null} */ (null),
+	blender = /** @type {import('./blender-application-menu.ts').BlenderMenuPort | null} */ (null),
 	project,
 	snapshot,
 	blocked,
@@ -131,6 +135,8 @@ export default function createApplicationMenus({
 	// nothing to render — greying it on missing audio alone would strip a
 	// picture-only project of its one route into the export.
 	const exportableTimelineMedia = projectHasTimelineAudio(project) || projectHasTimelineVideo(project);
+	const blenderItems = createBlenderApplicationMenuItems(blender, { copy,
+		blocked: blocked || Boolean(snapshot.importing || snapshot.recording || snapshot.recordingStarting), materialAvailable: projectHasTimelineAudio(project) });
 	const preferences = snapshot.preferences;
 	const effectTargeting = resolveEffectMenuTargeting({
 		project, preferences, selectedTrack, selectedAudioTrack, selectionActive, clipSelectionActive,
@@ -158,6 +164,8 @@ export default function createApplicationMenus({
 	const structuralMenus = createTrackStructuralOperationMenuModel({ copy, editingBlocked: editBlocked,
 		hasTracks: Boolean(project?.tracks.length),
 		hasAlignmentTarget: Boolean(selectedTrack || project?.selection?.trackIds?.length),
+		project, selectedTrackIds: project?.selection?.trackIds?.length
+			? project.selection.trackIds : selectedTrack ? [selectedTrack.id] : [],
 	});
 	const analyzerBlocked = (blocked && !snapshot.analysisProcessing) || !project?.clips.length;
 	const selectionAnalyzerBlocked = analyzerBlocked || Boolean(snapshot.analysisProcessing) || !resolveSelectionRange(project, {
@@ -172,6 +180,7 @@ export default function createApplicationMenus({
 		disabled: editBlocked || !effectTargeting.effectAudioTrack,
 		selectionActive: effectTargeting.explicitEffectSelectionActive,
 		allAudioTarget: effectTargeting.effectPreferenceTargetsAll,
+		repairAvailable: repairSelectionAvailable(project, snapshot.selectedClipId ?? selectedClip?.id ?? null, snapshot.effects?.sourceSelectionFrames),
 	}, actions.openSelectionEffect);
 	const nyquistItems = createNyquistPluginMenuItems({
 		editBlocked, blocked, selectedAudioTrack: effectTargeting.effectAudioTrack, frequencySelectionActive,
@@ -234,6 +243,7 @@ export default function createApplicationMenus({
 					label: copy.exportOther,
 					parityLabel: copy.audacityParityMatchExportOther,
 					items: [
+						...blenderItems.file,
 						...(productId === 'soundscaper' ? [{ id: 'save-aup3', label: copy.saveAsAup3, preserveLabel: true, disabled: blocked, onClick: actions.saveAup3 }] : []),
 						...(productId === 'soundscaper' ? [{ id: 'save-aup4', label: copy.saveAsAup4, preserveLabel: true, disabled: blocked, onClick: actions.saveAup4 }] : []),
 						{
@@ -317,9 +327,9 @@ export default function createApplicationMenus({
 					id: 'paste',
 					label: copy.paste,
 					items: [
-						{ id: 'action://paste', label: copy.paste, shortcut: 'Ctrl+V', disabled: editBlocked || !snapshot.history?.hasClipboard, onClick: () => actions.executeEdit('paste') },
-						{ id: 'insert', label: copy.pasteInsert, disabled: editBlocked || !snapshot.history?.hasClipboard, onClick: () => actions.executeEdit('pasteInsert') },
-						{ id: 'action://trackedit/paste-insert-all-tracks-ripple', label: copy.pasteSync, disabled: editBlocked || !snapshot.history?.hasClipboard, onClick: () => actions.executeEdit('pasteAllTracksRipple') },
+						{ id: 'action://paste', label: copy.paste, shortcut: 'Ctrl+V', disabled: editBlocked || !snapshot.history?.hasClipboard || Boolean(snapshot.history?.pasteTargetLocked), onClick: () => actions.executeEdit('paste') },
+						{ id: 'insert', label: copy.pasteInsert, disabled: editBlocked || !snapshot.history?.hasClipboard || Boolean(snapshot.history?.pasteTargetLocked), onClick: () => actions.executeEdit('pasteInsert') },
+						{ id: 'action://trackedit/paste-insert-all-tracks-ripple', label: copy.pasteSync, disabled: editBlocked || !snapshot.history?.hasClipboard || Boolean(snapshot.history?.pasteTargetLocked), onClick: () => actions.executeEdit('pasteAllTracksRipple') },
 					],
 				},
 				{ id: 'duplicate-audio', label: copy.duplicateAudio, disabled: editBlocked || !editSelectionActive, onClick: () => actions.executeEdit('duplicate') },
@@ -328,7 +338,7 @@ export default function createApplicationMenus({
 					label: copy.removeSpecial,
 					items: [
 						{ id: 'trim-audio-outside-selection', label: copy.trimOutsideSelection, disabled: editBlocked || !editSelectionActive, onClick: () => actions.executeEdit('trimOutsideSelection') },
-						{ id: 'silence-audio', label: copy.silenceAudio, disabled: editBlocked || !editSelectionActive, onClick: () => actions.executeEdit('silenceSelection') },
+						{ id: 'silence-audio', label: copy.silenceAudio, disabled: editBlocked || !editSelectionActive || !capabilities.audioGenerators, onClick: () => actions.executeEdit('silenceSelection') },
 					],
 				},
 				{
@@ -363,7 +373,7 @@ export default function createApplicationMenus({
 			capabilities, clipSelectionNavigationMenus, compactLayout, copy, desktopHost, divider, editBlocked,
 			preferences, productItems, project,
 			editSelectionActive, showArmControls, snapshot, uiFlags,
-		}, viewMenu, actions),
+		}, viewMenu),
 		{
 			id: 'tracks',
 			label: copy.tracksMenu,
@@ -381,7 +391,7 @@ export default function createApplicationMenus({
 				// them from here left them unreachable from any menu at all.
 				...productItems.tracks,
 				{ id: 'duplicate-track', label: copy.duplicateTrack, disabled: editBlocked || !selectedAudioTrack, onClick: actions.duplicateTrack },
-				{ id: 'remove-track', label: copy.removeTracks, disabled: editBlocked || !selectedTrack, onClick: actions.removeTrack },
+				{ id: 'remove-track', label: copy.removeTracks, disabled: editBlocked || !selectedTrackRemovalAvailable(project, snapshot.selectedTrackId), onClick: actions.removeTrack },
 				...structuralMenus.muteItems,
 				divider(),
 				{ id: 'mix-render', label: copy.mixRenderTitle, preserveLabel: true,
@@ -463,6 +473,7 @@ export default function createApplicationMenus({
 			id: 'tools',
 			label: copy.toolsMenu,
 			items: [
+				...blenderItems.tools,
 				...createImportAnalysisToolMenuItems(importAnalysisMenuContext),
 				...createLocalAssistanceMenuItems({ desktopAvailable: typeof actions.openLocalAssistance === 'function', capabilityActive: capabilities.assistanceAssets === true, copy }, { open: actions.openLocalAssistance, openIndexedSearch: actions.openLocalAssistanceIndexedSearch }),
 				...createLocalModelManagerMenuItems({ desktopAvailable: typeof actions.openLocalModels === 'function', copy }, { open: actions.openLocalModels }),

@@ -132,7 +132,8 @@ test('checked-in policy exposes third-party formats and defers execution to mach
 	const availability = await registration.invoke(IPC.nativePluginAvailability);
 	const vst3 = availability.consent.formats.find(({ format }) => format === 'vst3');
 	assert.equal(vst3.supported, true);
-	assert.equal(vst3.granted, false);
+	assert.equal(vst3.granted, true);
+	assert.equal(vst3.roots.every((root) => root.admitted), true);
 	assert.equal(await registration.invoke(
 		IPC.nativePluginConsent, { format: 'vst3', action: 'grant' },
 	).then((value) => value.formats.find(({ format }) => format === 'vst3').granted), true);

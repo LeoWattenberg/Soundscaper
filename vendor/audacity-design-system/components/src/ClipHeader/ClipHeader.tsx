@@ -246,6 +246,7 @@ export const ClipHeader: React.FC<ClipHeaderProps> = ({
             onChange={(e) => setRenameDraft(e.target.value)}
             onKeyDown={(e) => {
               e.stopPropagation();
+              if (e.nativeEvent?.isComposing) return;
               if (e.key === 'Enter') {
                 e.preventDefault();
                 const clip = e.currentTarget.closest<HTMLElement>('[data-clip-id]');

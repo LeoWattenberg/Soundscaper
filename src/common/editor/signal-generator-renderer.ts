@@ -114,7 +114,7 @@ function prepareFixed(type: string, options: Options, sampleRate: number, channe
 	}
 	const amplitude = finiteInRange(options.amplitude ?? 0.8, 0, 1, 'amplitude');
 	const color = enumValue(options.color ?? 'white', ['white', 'pink', 'brown'] as const, 'color');
-	const seed = (Number(options.seed ?? 0x6d2b_79f5) >>> 0) || 1;
+	const seed = (Number(options.seed ?? crypto.getRandomValues(new Uint32Array(1))[0]) >>> 0) || 1;
 	return { frameCount, render: createNoiseBlockRenderer(frameCount, channelCount, amplitude, color, seed, sampleRate) };
 }
 

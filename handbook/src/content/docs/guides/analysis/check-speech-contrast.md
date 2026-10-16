@@ -47,6 +47,8 @@ More [analysis](/guides/analysis/) guides:
 - [See which frequencies a sound contains](/guides/analysis/plot-a-spectrum/) — Plot the spectrum of a selection to find hum, hiss or resonances.
 - [Find where a recording clipped](/guides/analysis/find-clipping/) — Locate the places where a recording hit full scale and distorted.
 - [Find the beats in a loop](/guides/analysis/find-the-beats/) — Let the Beat Finder analyzer mark every beat it hears.
+- [Measure a selection’s RMS level](/guides/analysis/measure-rms-level/) — Read the average signal level of a selected passage with the bundled RMS analyzer.
+- [Label sounds separated by silence](/guides/analysis/label-sounds-separated-by-silence/) — Create labels around sounds that rise above a threshold after a pause.
 
 ## Reference
 

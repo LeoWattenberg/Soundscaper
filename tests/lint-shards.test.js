@@ -19,6 +19,7 @@ function repositoryFiles() {
 	return execFileSync('git', ['ls-files', '--cached', '--others', '--exclude-standard', '-z'], {
 		cwd: ROOT,
 		encoding: 'utf8',
+		maxBuffer: 10 * 1024 * 1024,
 	}).split('\0').filter(Boolean);
 }
 

@@ -129,13 +129,11 @@ async function main() {
 			targetSource: nativeTarget.source,
 		})
 		: null;
-	const soundscaperProfessionalNativeRelease = PRODUCT_ID === 'soundscaper'
-		? await verifySoundscaperProfessionalNativePayload({
+	const soundscaperProfessionalNativeRelease = await verifySoundscaperProfessionalNativePayload({
 			repositoryRoot: ROOT,
 			target: nativeTarget.id,
 			targetSource: nativeTarget.source,
-		})
-		: null;
+		});
 	assertDesktopProfessionalNativeReleasePolicy({
 		productId: PRODUCT_ID,
 		productMetadata,
@@ -215,6 +213,7 @@ async function main() {
 		? null
 		: await stageVerifiedSoundscaperProfessionalNativePayload({
 			release: soundscaperProfessionalNativeRelease,
+			pluginOnly: PRODUCT_ID === 'framescaper',
 			outputRoot: professionalNativePayloadOutputRoot(
 				RUNTIME_ROOT, soundscaperProfessionalNativeRelease,
 			),
@@ -321,13 +320,13 @@ async function stageDesktopNotices({ nativeTarget, productMetadata, soundscaperP
 	const stableSoundscaper = PRODUCT_ID === 'soundscaper'
 		&& productMetadata.applicationVersionChannel === 'stable'
 		&& productMetadata.releaseChannel === 'stable';
-	const professionalNative = PRODUCT_ID !== 'soundscaper' ? null
-		: stableSoundscaper
+	const stageProfessional = stableSoundscaper || soundscaperProfessionalNativeRelease?.target.status === 'built';
+	const professionalNative = stageProfessional
 			? await stageSoundscaperProfessionalNativePackageNotices({
 				repositoryRoot: ROOT,
 				sourceRoot: requiredEnvironmentPath(
 					'SOUNDSCAPER_M5_NATIVE_SOURCE_ROOT',
-					'Stable Soundscaper professional-native notice staging',
+					'Desktop professional-native notice staging',
 				),
 				outputRoot: resolve(DESKTOP_LICENSE_ROOT, 'professional-native'),
 				target: nativeTarget.id,

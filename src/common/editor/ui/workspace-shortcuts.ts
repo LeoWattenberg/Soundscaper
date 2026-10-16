@@ -8,6 +8,7 @@ import {
 import { audacityShortcutCommandUnassignable } from '../audacity-shortcut-command-inventory.ts';
 import { audioEditorShortcutParts, normalizeAudioEditorShortcut } from '../preferences.js';
 import { keyboardShortcutEventKey } from './keyboard-shortcut-key.ts';
+import { portalDialogOwnsShortcuts } from './portal-dialog-shortcut-owner.ts';
 import { controlOwnsNavigationKeys } from '@soundscaper/design-system/hooks/control-navigation-ownership';
 import type { FocusEvent as ReactFocusEvent, KeyboardEvent as ReactKeyboardEvent } from 'react';
 
@@ -20,7 +21,10 @@ interface KeyboardEventLike {
 	ctrlKey: boolean;
 	defaultPrevented: boolean;
 	key: string;
+	isComposing?: boolean;
+	keyCode?: number;
 	metaKey: boolean;
+	nativeEvent?: Readonly<{ isComposing?: boolean; keyCode?: number }>;
 	repeat?: boolean;
 	shiftKey: boolean;
 	target: EventTarget | null;
@@ -75,6 +79,8 @@ export function handleWorkspaceKeyboard(
 	registry: ShortcutRegistry = {},
 ): void {
 	if (event.defaultPrevented) return;
+	if (event.isComposing || event.nativeEvent?.isComposing
+		|| event.keyCode === 229 || event.nativeEvent?.keyCode === 229) return;
 	if (isWorkspaceModalShortcutTarget(event.target)) return;
 	const targetDisposition = workspaceShortcutTargetDisposition(event);
 	if (targetDisposition === 'blocked') return;
@@ -108,12 +114,17 @@ function workspaceShortcutTargetDisposition(
 	event: Pick<KeyboardEventLike, 'altKey' | 'code' | 'ctrlKey' | 'key' | 'metaKey' | 'shiftKey' | 'target'>,
 ): 'allowed' | 'blocked' | 'modified-control' {
 	if (typeof Element === 'undefined' || !(event.target instanceof Element)) return 'allowed';
+	if (event.target.closest('input')?.getAttribute('type')?.toLowerCase() === 'range') {
+		if (event.ctrlKey || event.metaKey || event.altKey) return 'modified-control';
+		return NATIVE_CONTROL_KEYS.has(event.key.toLowerCase())
+			|| ['PageDown', 'PageUp'].includes(event.key) ? 'blocked' : 'modified-control';
+	}
 	const timeDigit = event.target.closest('.timecode-digit');
 	if (timeDigit?.getAttribute('data-state') === 'active'
 		|| event.target.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"])')) {
 		return isNativeEditableShortcut(event) ? 'blocked' : 'modified-control';
 	}
-	const control = event.target.closest('button, a, [role="menu"], [role="menubar"], [role="menuitem"], [role="toolbar"], [role="slider"], [role="spinbutton"]');
+	const control = event.target.closest('button, a, summary, [role="menu"], [role="menubar"], [role="menuitem"], [role="toolbar"], [role="slider"], [role="spinbutton"]');
 	if (!control) return 'allowed';
 	if (event.ctrlKey || event.metaKey || event.altKey) return 'modified-control';
 	if (control.closest('[role="menu"], [role="menubar"], [role="menuitem"]')) return 'blocked';
@@ -135,6 +146,7 @@ export function isWorkspaceModalShortcutTarget(target: EventTarget | null): bool
 	const element = target as Element | null;
 	if (typeof element?.closest !== 'function') return false;
 	if (element.closest('[role="dialog"], [role="alertdialog"]') !== null) return true;
+	if (portalDialogOwnsShortcuts(element)) return true;
 	const body = element.ownerDocument?.body;
 	return typeof body?.querySelectorAll === 'function'
 		&& [...body.querySelectorAll('[aria-modal="true"]')]
@@ -267,6 +279,7 @@ export function findShortcutMenuHandler(
 }
 
 export function handleEditorToolbarKeyDown(event: ReactKeyboardEvent<HTMLElement>): void {
+	if (event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey) return;
 	if (controlOwnsNavigationKeys(event.target)) return;
 	if (event.target instanceof Element && event.target.closest('[role="menu"], [role="dialog"]')) return;
 	if (!['ArrowRight', 'ArrowDown', 'ArrowLeft', 'ArrowUp', 'Home', 'End'].includes(event.key)) return;

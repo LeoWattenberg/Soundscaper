@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import type { AudioEditorCommand } from '../../../commands/protocol.ts';
-import { hasSequenceHierarchyProjectAuthority } from '../../../project-schema-version.ts';
+import { hasSequenceHierarchyProjectAuthority, isSelectedFramescaperProjectSchema } from '../../../project-schema-version.ts';
 import {
 	resolveTrackNodeSpanV12,
 	trackNodeLaneGroupsV12,
@@ -133,6 +133,11 @@ export function planTrackSort(
 		});
 		if (sorted.every((block, index) => block.nodeId === timed[index]?.nodeId)) continue;
 		for (const block of timed) assertBlockUnlocked(project, block);
+		// Framescaper owns sequence hierarchy but has no folder commands. Its
+		// existing track reorder keeps sequence boundaries and linked lanes intact.
+		const reorderTracks = isSelectedFramescaperProjectSchema(project);
+		const sequenceTrackIds = new Set(timed.flatMap(block => block.trackIds));
+		const trackPositions = project.tracks.flatMap((track, index) => sequenceTrackIds.has(track.id) ? [index] : []);
 		// Both index domains count individual entries, not blocks: a track index
 		// for the legacy reorder, a direct root child for a node move. Summing the
 		// widths of the preceding blocks keeps a lane pair or folder intact.
@@ -141,8 +146,8 @@ export function planTrackSort(
 				.reduce((total, preceding) => total + preceding.trackIds.length, 0);
 			const precedingRootChildren = sorted.slice(0, index)
 				.reduce((total, preceding) => total + preceding.rootWidth, 0);
-			return block.sequenceId === null
-				? { type: 'track/reorder', trackId: block.nodeId, index: precedingTracks }
+			return block.sequenceId === null || reorderTracks
+				? { type: 'track/reorder', trackId: block.nodeId, index: trackPositions[precedingTracks] }
 				: { type: 'track-node/move', sequenceId: block.sequenceId, nodeId: block.nodeId,
 					parentFolderId: null, index: precedingRootChildren };
 		}));

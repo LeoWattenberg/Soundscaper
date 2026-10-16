@@ -1,5 +1,6 @@
 import { darkTheme } from '../../vendor/audacity-design-system/tokens/src/themes/dark.v2.ts';
 import { lightTheme } from '../../vendor/audacity-design-system/tokens/src/themes/light.v2.ts';
+import { flushFocusCallbacks, holdFocusCallbacks, installControlledFocusCallbacks } from './helpers/controlled-focus-callbacks.js';
 import { expect, monoTone, test, toneA } from './audio-editor-test-fixtures.js';
 import {
 	bootEditor,
@@ -204,29 +205,31 @@ test.describe('audio editor React/design-system workflows', () => {
 	test('keeps focus where it moved after a command when the closing frame lands late', async ({ page }) => {
 		// A loaded runner can defer the frame that follows a menu command well past
 		// the next control the operator reaches for, so pin that ordering here.
-		await page.addInitScript(() => {
-			const nativeFrame = globalThis.requestAnimationFrame.bind(globalThis);
-			globalThis.requestAnimationFrame = (callback) => (globalThis.__delayEditorFrames
-				? setTimeout(() => nativeFrame(callback), 150)
-				: nativeFrame(callback));
-		});
+		await installControlledFocusCallbacks(page, 'animation-frame');
 		const editor = await bootEditor(page, '/embed/en/');
 		const view = editor.getByRole('menubar', { name: 'Application menu' })
 			.getByRole('menuitem', { name: 'View', exact: true });
 		const play = editor.locator('[data-editor-tool-toolbar]').getByRole('toolbar')
 			.getByRole('button', { name: 'Play', exact: true });
 
-		await page.evaluate(() => { globalThis.__delayEditorFrames = true; });
-		await chooseCommandAction(page, editor, 'View', 'Enable multi-track recording');
+		const commandMenu = page.getByRole('menu', { name: 'View', exact: true });
+		const chooseWithHeldFrame = async () => {
+			await view.press('Enter');
+			await expect(commandMenu).toBeVisible();
+			await holdFocusCallbacks(page);
+			await getMenuItem(commandMenu, 'Enable multi-track recording').press('Enter');
+			await expect(commandMenu).toBeHidden();
+		};
+		await chooseWithHeldFrame();
 		await play.focus();
 		await expect(play).toBeFocused();
-		await page.waitForTimeout(300);
+		expect(await flushFocusCallbacks(page)).toBeGreaterThan(0);
 		await expect(play).toBeFocused();
 
 		// A command the operator does not follow up on still returns focus to its menu.
-		await chooseCommandAction(page, editor, 'View', 'Enable multi-track recording');
+		await chooseWithHeldFrame();
 		await expect(view).toBeFocused();
-		await page.waitForTimeout(300);
+		expect(await flushFocusCallbacks(page)).toBeGreaterThan(0);
 		await expect(view).toBeFocused();
 	});
 

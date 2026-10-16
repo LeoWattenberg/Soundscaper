@@ -7,6 +7,7 @@ import { TrackFadeHandleGlyph } from '@soundscaper/design-system/Track/TrackFade
 import { AUDIO_EDITOR_SAMPLE_RATE, findClip, findClipTrack, findSource } from '../../project.js';
 import { readClipLoop } from '../../audio-clip-loop.ts';
 import AudioEditorTimeCodeInput from '../AudioEditorTimeCodeInput.tsx';
+import EditorMusicalTimeCodeProvider from '../EditorMusicalTimeCodeProvider.tsx';
 import { selectAudioEditorEditBlock } from '../edit-blocking.ts';
 import { ActionHook, CommitField, DesignCheckbox } from './inspector-controls.jsx';
 import ClipPropertyKnob from './ClipPropertyKnob.tsx';
@@ -48,7 +49,7 @@ export default function ClipPropertiesBody({ controller, snapshot, copy, clipId 
 	const track = clip ? findClipTrack(project, clip.id) : null;
 	const sampleRate = project?.sampleRate || AUDIO_EDITOR_SAMPLE_RATE;
 	const blocked = selectAudioEditorEditBlock(snapshot).blocked;
-	const disabled = blocked || !clip;
+	const disabled = blocked || !clip || track?.locked === true;
 	const isVideoClip = clip?.kind === 'video';
 	const [error, setError] = usePresentationFeedback(copy);
 	const [resampleOpen, setResampleOpen] = useState(false);
@@ -105,7 +106,7 @@ export default function ClipPropertiesBody({ controller, snapshot, copy, clipId 
 			} else if ((name === 'sourceInFrame' || name === 'durationFrame') && !isVideoClip
 				&& source && controller.actions.clipSourcePreview?.trim) {
 				const value = nonNegativeFrame(rawValue, copy);
-				controller.actions.clipSourcePreview.trim(clip.id, clipPropertiesMediaRange(clip, source.frameCount, name, value));
+				controller.actions.clipSourcePreview.trim(clip.id, clipPropertiesMediaRange(clip, source.frameCount, name, value, { project, source }));
 			} else if (name === 'sourceInFrame') {
 				const sourceStartFrame = nonNegativeFrame(rawValue, copy);
 				controller.actions.clip.trim(clip.id, { sourceStartFrame });
@@ -176,6 +177,7 @@ export default function ClipPropertiesBody({ controller, snapshot, copy, clipId 
 							source={source} sampleRate={source?.sampleRate || sampleRate} disabled={disabled}
 							onCommit={(value) => commitField('sourceInFrame', value)} />
 						<ClipTimeCodeField name="durationFrame" label={copy.clipDuration} value={clip?.durationFrames ?? 1}
+							controller={controller} musicalOriginFrame={clip?.timelineStartFrame ?? 0}
 							sampleRate={sampleRate} minimum={1} disabled={disabled}
 							onCommit={(value) => commitField('durationFrame', value)} />
 						{!isVideoClip && source && (
@@ -190,7 +192,7 @@ export default function ClipPropertiesBody({ controller, snapshot, copy, clipId 
 					{!isVideoClip && snapshot.capabilities?.audioEffects && (
 						<div className="audio-editor-clip-properties__toggles">
 							<div data-clip-field="reversed">
-								<DesignCheckbox label={copy.reverse} checked={Boolean(clip?.reversed)} disabled={disabled}
+								<DesignCheckbox label={copy.reverse} checked={Boolean(clip?.reversed)} disabled={disabled || clip?.warpMap != null}
 									onChange={() => run(controller.actions.clip.reverse)} />
 							</div>
 							<div data-clip-field="inverted">
@@ -204,12 +206,14 @@ export default function ClipPropertiesBody({ controller, snapshot, copy, clipId 
 				{!isVideoClip && <ClipPropertiesDrawer name="fading" label={copy.fading}>
 					<div className="audio-editor-clip-properties__stack">
 						<ClipTimeCodeField name="fadeInFrame" label={copy.fadeIn} value={clip?.fadeInFrames ?? 0}
+						controller={controller} musicalOriginFrame={clip?.timelineStartFrame ?? 0}
 							sampleRate={sampleRate} maximum={clip?.durationFrames ?? 0} disabled={disabled}
 							onCommit={(value) => commitField('fadeInFrame', value)} />
 						<ClipFadeShapeField name="fadeInShape" label={copy.fadeInShape} value={clip?.fadeInShape}
 							fadeFrames={clip?.fadeInFrames ?? 0} legacyLabel={copy.legacyLinearFadeShape}
 							disabled={disabled} onCommit={commitField} />
 						<ClipTimeCodeField name="fadeOutFrame" label={copy.fadeOut} value={clip?.fadeOutFrames ?? 0}
+						controller={controller} musicalOriginFrame={clip?.timelineStartFrame ?? 0}
 							sampleRate={sampleRate} maximum={clip?.durationFrames ?? 0} disabled={disabled}
 							onCommit={(value) => commitField('fadeOutFrame', value)} />
 						<ClipFadeShapeField name="fadeOutShape" label={copy.fadeOutShape} value={clip?.fadeOutShape}
@@ -239,7 +243,7 @@ export default function ClipPropertiesBody({ controller, snapshot, copy, clipId 
 							min={Math.min(0.25, clip?.speedRatio ?? 1)} max={Math.max(4, clip?.speedRatio ?? 1)}
 							step={0.01} defaultValue={1} disabled={disabled}
 							onCommit={commitField} onKnobCommit={(value) => commitField('speedRatio', value)} />
-						<div data-clip-field="linkPitchAndTempo"><DesignCheckbox label={copy.clipLinkPitchAndTempo} checked={linkedPitch} disabled={disabled} onChange={(checked) => { if (ownsTarget()) controller.actions.clip.setTimePitch(clip.id, { linkPitchAndTempo: checked }); }} /></div>
+						<div data-clip-field="linkPitchAndTempo"><DesignCheckbox label={copy.clipLinkPitchAndTempo} checked={linkedPitch} disabled={disabled} onChange={(checked) => run(id => controller.actions.clip.setTimePitch(id, { linkPitchAndTempo: checked }))} /></div>
 						<div data-clip-field="preserveFormants"><DesignCheckbox label={copy.preserveFormants} checked={Boolean(clip?.preserveFormants)} disabled={disabled} onChange={(checked) => { if (ownsTarget()) controller.actions.clip.setTimePitch(clip.id, { preserveFormants: checked }); }} /></div>
 						<div data-clip-field="stretchToTempo"><DesignCheckbox label={copy.stretchToTempo} checked={Boolean(clip?.stretchToTempo)} disabled={disabled} onChange={() => { if (ownsTarget()) controller.actions.clip.toggleStretchToTempo(clip.id); }} /></div>
 						<div className="audio-editor-panel-actions">
@@ -303,10 +307,13 @@ function ClipSourceFactRow({ name, label, value, action = null }) {
 }
 
 function ClipTimeCodeField({ name, label, value, sampleRate, minimum = 0,
-	maximum = Number.POSITIVE_INFINITY, disabled, onCommit }) {
-	return <label className="audio-editor-field" data-clip-field={name}><span>{label}</span>
-		<AudioEditorTimeCodeInput label={label} value={value} unit="samples" rate={sampleRate}
+	maximum = Number.POSITIVE_INFINITY, disabled, onCommit, controller, musicalOriginFrame }) {
+	const input = <AudioEditorTimeCodeInput label={label} value={value} unit="samples" rate={sampleRate}
 			format="hh:mm:ss+milliseconds" minimum={minimum} maximum={maximum}
-			disabled={disabled} onCommit={onCommit} />
+			disabled={disabled} onCommit={onCommit} />;
+	return <label className="audio-editor-field" data-clip-field={name}><span>{label}</span>
+		{musicalOriginFrame === undefined ? input : <EditorMusicalTimeCodeProvider controller={controller} originFrame={musicalOriginFrame}>
+			{input}
+		</EditorMusicalTimeCodeProvider>}
 	</label>;
 }

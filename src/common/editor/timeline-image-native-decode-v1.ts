@@ -5,6 +5,7 @@ import { admitImageDecodeWorkload, IMAGE_IMPORT_LIMITS } from './image-import-ad
 import { confirmFileSizeWarning, type FileSizeWarningOptions } from './controller/shared/file-size-warning.ts';
 import { routeImageDecoder } from './image-decoder-routing.ts';
 import { snapshotCanonicalRgba8V1 } from './imaging/pixel-frame-canonical-rgba8-v1.ts';
+import { assertBrowserNativeImagePrecision } from './browser-image-precision-admission.ts';
 import {
 	createFramescaperImageFramePackWithWarningsV1,
 	type FramescaperImageFramePackPublicationV1,
@@ -78,6 +79,7 @@ export async function decodeFramescaperBrowserNativeImageV1(
 	if (classification.status !== 'recognized') throw new RangeError('The image byte signature is not recognized.');
 	const mimeType = NATIVE_MIME_TYPES.get(classification.format);
 	if (!mimeType) throw new RangeError(`The reviewed ${classification.format} format has no supported browser-native route.`);
+	assertBrowserNativeImagePrecision(request.bytes, classification.format);
 	const maximumFileInputBytes = await confirmFileSizeWarning(request.bytes.byteLength,
 		request.maximumFileInputBytes ?? IMAGE_IMPORT_LIMITS.maximumFileInputBytes, request.fileName, request);
 	let session: FramescaperBrowserNativeImageDecodeSessionV1 | null = null;

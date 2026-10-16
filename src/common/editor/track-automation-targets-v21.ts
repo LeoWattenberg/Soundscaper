@@ -11,6 +11,7 @@ import {
 	type ParameterAddress,
 	type ParameterDescriptor,
 } from './parameter-address.ts';
+import { projectStripPanAvailable } from './terminal-channel-widths.ts';
 
 type DataRecord = Readonly<Record<string, unknown>>;
 
@@ -50,7 +51,13 @@ export function createTrackAutomationTargetInventoryV21(
 	for (const [parameterId, label] of [
 		['gain', 'Volume'], ['pan', 'Pan'], ['mute', 'Mute'],
 	] as const) {
-		const descriptor = stripParameterDescriptor({ kind: 'strip', strip, parameterId });
+		const descriptor = {
+			...stripParameterDescriptor({ kind: 'strip', strip, parameterId }),
+			...(parameterId === 'pan' && !projectStripPanAvailable(projectValue, strip) ? {
+				automatable: false,
+				automationBlockReason: 'Pan is unavailable while preserving multichannel or ADM channels.',
+			} : {}),
+		};
 		result.push(target({
 			descriptor,
 			label,

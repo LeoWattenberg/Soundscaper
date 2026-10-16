@@ -8,6 +8,7 @@ import type {
 import { scapeAbortReason } from './scape-abort.ts';
 import {
 	createScapeArchiveByteSource,
+	createBlobScapeArchiveByteSource,
 	type ScapeArchiveByteReadRequest,
 	type ScapeArchiveByteSource,
 } from './scape-archive-byte-source.ts';
@@ -27,6 +28,20 @@ const desktopSources = new WeakSet<ScapeArchiveByteSource>();
 
 export function isDesktopScapeArchiveByteSource(source: unknown): source is ScapeArchiveByteSource {
 	return typeof source === 'object' && source !== null && desktopSources.has(source as ScapeArchiveByteSource);
+}
+
+/** Preserve an admitted native archive's limits after copying it to owned staging. */
+export function createRetainedDesktopScapeArchiveByteSource(original: ScapeArchiveByteSource, archive: Blob): ScapeArchiveByteSource {
+	if (!isDesktopScapeArchiveByteSource(original)) throw new TypeError('An admitted desktop Scape source is required.');
+	if (!(archive instanceof Blob) || archive.size !== original.size) {
+		throw new Error('The retained desktop archive size does not match its admitted source.');
+	}
+	const blobSource = createBlobScapeArchiveByteSource(archive);
+	const retained = createScapeArchiveByteSource({ size: original.size, maximumReadBytes: original.maximumReadBytes,
+		read: (request) => blobSource.read(request),
+	});
+	desktopSources.add(retained);
+	return retained;
 }
 
 export interface DesktopScapeArchiveByteSourceOptions {

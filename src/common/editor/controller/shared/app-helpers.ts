@@ -107,7 +107,7 @@ export function isLegacyBlockFile(file: NamedFile | null | undefined): boolean {
 export function isWavFile(value: unknown): boolean {
 	const file = value && typeof value === 'object' ? value as NamedFile : null;
 	const mimeType = String(file?.type || '').trim().toLowerCase();
-	return /\.(?:wav|wave|rf64|bw64)$/i.test(String(file?.name || '').trim())
+	return /\.(?:wav|wave|rf64|bw64|bwf)$/i.test(String(file?.name || '').trim())
 		|| [
 			'audio/wav', 'audio/x-wav', 'audio/wave', 'audio/vnd.wave',
 			'audio/rf64', 'audio/x-rf64', 'audio/bw64', 'audio/x-bw64',

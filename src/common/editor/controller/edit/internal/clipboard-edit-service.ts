@@ -13,12 +13,14 @@ import type {
 } from '../../../commands/protocol.ts';
 import type { EditorControllerLifetime } from '../../shared/lifecycle.ts';
 import type { ControllerEditSessionClipboardCarrier } from '../../document/project-runtime.ts';
-import { resolveEditingSelectionAuthority } from '../../../commands/editing-selection-authority.ts';
+import { mergeEditingRanges, resolveEditingSelectionAuthority } from '../../../commands/editing-selection-authority.ts';
 import { prepareClipboardPasteTrackPlan, isClipboardMediaTrack as isMediaTrack } from './clipboard-paste-track-plan.ts';
 import { preparePasteCommandV7 } from '../../../commands/clipboard-runtime-v7.ts';
 import { normalizeAudioEditorClipboardDescriptor } from '../../../commands/clipboard-codec.ts';
 import { normalizeAudioEditorClipboardDescriptorV7 } from '../../../commands/clipboard-codec-v7.ts';
 import type { CurrentAudioEditorClipboardDescriptor as AudioEditorClipboard, CurrentAudioEditorMutationCommandV2 } from '../../../commands/clipboard-command-v2.ts';
+import { createAudioEditorSessionClipboard } from '../../../session-clipboard-codec.ts';
+import { createAudioEditorSessionClipboardV2 } from '../../../session-clipboard-codec-v2.ts';
 import type { RuntimeClipProject } from '../../../runtime-clip-projection.ts';
 export interface ClipboardEditClip extends Readonly<Record<string, unknown>> {
 	readonly id: string;
@@ -145,6 +147,7 @@ export interface ClipboardEditServiceDependencies {
 
 export interface ClipboardEditService {
 	setSessionClipboard(descriptor: AudioEditorClipboard): AudioEditorClipboard;
+	prepareSessionClipboard(descriptor: AudioEditorClipboard): () => AudioEditorClipboard;
 	splitAtFrame(frame: unknown, trackIds?: string | readonly string[] | null): unknown;
 	commitSplitAtFrames(frames: readonly unknown[], trackIds?: string | readonly string[] | null): unknown;
 	prepareControllerPaste(mode: ClipboardPasteMode, atFrame?: number, pasteAsNewClip?: boolean): CurrentAudioEditorMutationCommandV2;
@@ -163,6 +166,7 @@ export function createClipboardEditService(
 	let editSessionClipboard: ControllerEditSessionClipboardCarrier | null = null;
 	return Object.freeze({
 		setSessionClipboard,
+		prepareSessionClipboard,
 		splitAtFrame,
 		commitSplitAtFrames,
 		prepareControllerPaste,
@@ -171,29 +175,42 @@ export function createClipboardEditService(
 	});
 
 	function setSessionClipboard(descriptor: AudioEditorClipboard): AudioEditorClipboard {
+		return prepareClipboardPublication(descriptor, false)();
+	}
+
+	/** Capture sources before deletion, publishing the clipboard after successful admission. */
+	function prepareSessionClipboard(descriptor: AudioEditorClipboard): () => AudioEditorClipboard {
+		return prepareClipboardPublication(descriptor, true);
+	}
+
+	function prepareClipboardPublication(descriptor: AudioEditorClipboard, captureSources: boolean): () => AudioEditorClipboard {
 		dependencies.lifetime.assertActive();
 		const project = dependencies.getProject();
 		const carrier: ControllerEditSessionClipboardCarrier = dependencies.createEditSessionClipboard?.(
 			project,
 			descriptor,
 		) ?? Object.freeze({ descriptor });
-		const sessionValue = carrier.sources === undefined ? carrier.descriptor : {
+		const sessionValue = carrier.sources === undefined ? (captureSources
+			? (carrier.descriptor.schemaVersion === 7 ? createAudioEditorSessionClipboardV2 : createAudioEditorSessionClipboard)(project, { descriptor: carrier.descriptor }) : carrier.descriptor) : {
 			schemaVersion: carrier.descriptor.schemaVersion === 7 ? 2 : 1,
 			originProjectId: carrier.originProjectId ?? project.id,
 			descriptor: carrier.descriptor,
 			sources: carrier.sources,
 		} as const;
-		const result = dependencies.session.setClipboard(
-			sessionValue,
-			{ originProjectId: project.id },
-		);
-		const returned = result.clipboard.descriptor;
-		const schema = returned && typeof returned === 'object' ? Object.getOwnPropertyDescriptor(returned, 'schemaVersion') : undefined;
-		if (schema && Object.hasOwn(schema, 'value') && schema.value === 7) normalizeAudioEditorClipboardDescriptorV7(returned);
-		else normalizeAudioEditorClipboardDescriptor(returned);
-		dependencies.state.clipboard = returned as AudioEditorClipboard;
-		editSessionClipboard = carrier;
-		return dependencies.state.clipboard;
+		return () => {
+			dependencies.lifetime.assertActive();
+			const result = dependencies.session.setClipboard(
+				sessionValue,
+				{ originProjectId: project.id },
+			);
+			const returned = result.clipboard.descriptor;
+			const schema = returned && typeof returned === 'object' ? Object.getOwnPropertyDescriptor(returned, 'schemaVersion') : undefined;
+			if (schema && Object.hasOwn(schema, 'value') && schema.value === 7) normalizeAudioEditorClipboardDescriptorV7(returned);
+			else normalizeAudioEditorClipboardDescriptor(returned);
+			dependencies.state.clipboard = returned as AudioEditorClipboard;
+			editSessionClipboard = carrier;
+			return dependencies.state.clipboard;
+		};
 	}
 
 	function splitAtFrame(
@@ -213,25 +230,25 @@ export function createClipboardEditService(
 		dependencies.lifetime.assertActive();
 		const project = dependencies.getProject();
 		const targetClipIds = collectSplitTargetClipIds(project, trackIds);
-		const frames = [...new Set(requestedFrames.map((frame) => dependencies.normalizeFrame(frame)))]
-			.sort((left, right) => right - left);
+		const frames = [...new Set(requestedFrames.map((frame) => dependencies.normalizeFrame(frame)))].sort((left, right) => right - left);
 		const commands: AudioEditorCommand[] = [];
 		const handledLinks = new Set<string>();
 		for (const clipId of targetClipIds) {
 			const clip = findClip(project, clipId);
-			if (!clip) continue;
-			if (clip.avLinkId && handledLinks.has(clip.avLinkId)) continue;
+			if (!clip || (clip.avLinkId && handledLinks.has(clip.avLinkId))) continue;
 			if (clip.avLinkId) handledLinks.add(clip.avLinkId);
+			const handledFrames = new Set<number>();
 			const clipEndFrame = clip.timelineStartFrame + clip.durationFrames;
 			for (const frame of frames) {
 				if (frame <= clip.timelineStartFrame || frame >= clipEndFrame) continue;
-				commands.push(prepareLinkedSplit(project, clip.id, frame));
+				const split = prepareLinkedSplit(project, clip.id, frame);
+				if (handledFrames.has(split.atFrame)) continue;
+				handledFrames.add(split.atFrame);
+				commands.push(split);
 			}
 		}
 		if (!commands.length) return null;
-		const command: AudioEditorCommand = commands.length === 1
-			? commands[0]
-			: { type: 'batch', commands };
+		const command: AudioEditorCommand = commands.length === 1 ? commands[0] : { type: 'batch', commands };
 		return dependencies.commit(command);
 	}
 
@@ -321,6 +338,7 @@ export function createClipboardEditService(
 		if (dependencies.editingBlocked()) return false;
 		const project = dependencies.getProject();
 		const targetTrackIds = new Set(trackIds);
+		const scanRegions = mergeEditingRanges(regions.filter(region => region.endFrame > region.startFrame));
 		const commands: AudioEditorCommand[] = [];
 		for (const track of project.tracks) {
 			if (!targetTrackIds.has(track.id) || !Array.isArray((track as ClipboardEditMediaTrack).clipIds)) continue;
@@ -332,8 +350,7 @@ export function createClipboardEditService(
 				const current = dependencies.getProject();
 				if (current.id !== project.id || current.revision !== project.revision) return false;
 				if (!clip || !buffer) continue;
-				for (const region of [...regions].reverse()) {
-					if (region.endFrame <= region.startFrame) continue;
+				for (const region of [...scanRegions].reverse()) {
 					commands.push(...detachCommandsForClip(clip, findClipSilenceRegions(clip, buffer, region, project)));
 				}
 			}
@@ -357,7 +374,7 @@ export function createClipboardEditService(
 		for (const [startFrame, endFrame] of [...regions].reverse()) {
 			const after = prepareSplit(clip.id, endFrame);
 			const silence = prepareSplit(clip.id, startFrame);
-			commands.push(after, silence, { type: 'clip/remove', clipId: silence.rightClipId });
+			commands.push(after, silence, ...(clip.groupId ? [{ type: 'clip/ungroup' as const, clipIds: [silence.rightClipId] }] : []), { type: 'clip/remove', clipId: silence.rightClipId });
 		}
 		return commands;
 	}

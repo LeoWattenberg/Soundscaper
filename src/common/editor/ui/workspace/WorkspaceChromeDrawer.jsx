@@ -4,6 +4,7 @@ import { useEffect, useLayoutEffect, useRef } from 'react';
 
 import { retainAudioEditorDialogEscapeOwner } from '../dialog-escape-ownership.ts';
 import { resolveEditorReturnFocus } from '../focus-restoration.ts';
+import { workspaceChromeOwnsPopupFocus } from './workspace-chrome-popup-focus.ts';
 
 const FOCUSABLE_SELECTOR = [
 	'button:not([disabled])',
@@ -62,7 +63,11 @@ export default function WorkspaceChromeDrawer({
 	useEffect(() => {
 		const panel = panelRef.current;
 		if (!open || !panel) return undefined;
-		return retainAudioEditorDialogEscapeOwner(panel.ownerDocument, () => onCloseRef.current?.());
+		return retainAudioEditorDialogEscapeOwner(panel.ownerDocument, () => {
+			const active = panel.ownerDocument.activeElement;
+			if (active instanceof Element && workspaceChromeOwnsPopupFocus(panel, active)) return;
+			onCloseRef.current?.();
+		});
 	}, [open]);
 
 	const wasOpenRef = useRef(false);
@@ -94,6 +99,7 @@ export default function WorkspaceChromeDrawer({
 		const next = event.relatedTarget;
 		if (!(next instanceof Element)) return;
 		if (event.currentTarget.contains(next)) return;
+		if (workspaceChromeOwnsPopupFocus(event.currentTarget, next)) return;
 		if (next === toggleRef?.current) return;
 		if (next.closest('.kw-audio-editor__application-menu')) return;
 		departureTargetRef.current = next;

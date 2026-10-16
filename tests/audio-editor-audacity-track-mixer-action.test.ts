@@ -27,7 +27,7 @@ test('selected mute actions use one batch and durable-selection ownership', () =
 			type: 'batch',
 			commands: [
 				{ type: 'track/update', trackId: 'selected-audio', changes: { mute: true } },
-				{ type: 'track/update', trackId: 'focused-video', changes: { mute: true } },
+				{ type: 'track/update', trackId: 'focused-video', changes: { hidden: true } },
 			],
 		},
 		{
@@ -70,7 +70,7 @@ test('focused mixer actions use exact Audacity steps and explicit focus only', (
 	state.selectedTrackId = 'focused-video';
 	assert.equal(applyAudacityTrackMixerAction(ACTIONS[2], state, commit), null);
 	applyAudacityTrackMixerAction(ACTIONS[6], state, commit);
-	assert.deepEqual(commits, [{ type: 'track/update', trackId: 'focused-video', changes: { mute: true } }]);
+	assert.deepEqual(commits, [{ type: 'track/update', trackId: 'focused-video', changes: { hidden: true } }]);
 	state.selectedTrackId = 'labels';
 	assert.equal(applyAudacityTrackMixerAction(ACTIONS[7], state, commit), null);
 });
@@ -110,7 +110,7 @@ function snapshot(): MutableSnapshot {
 				track('focused-audio', 'audio', { gain: 1, pan: 0.27, mute: false, solo: true, locked: true }),
 				track('selected-audio', 'audio', { mute: false }),
 				track('selected-muted', 'audio', { mute: true }),
-				track('focused-video', 'video', { mute: false }),
+				track('focused-video', 'video', { hidden: false }),
 				track('labels', 'label'),
 			],
 			clips: [], sources: [], mixer: { groups: [], sends: [], routes: {} },

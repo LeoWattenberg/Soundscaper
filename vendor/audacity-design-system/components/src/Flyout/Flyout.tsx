@@ -169,7 +169,7 @@ export const Flyout: React.FC<FlyoutProps> = ({
     if (!isOpen || !closeOnEscape) return;
 
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape') return;
+      if (event.key !== 'Escape' || event.isComposing) return;
       event.stopPropagation();
       onClose();
       window.setTimeout(() => triggerRef?.current?.focus(), 0);

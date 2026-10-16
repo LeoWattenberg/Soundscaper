@@ -284,11 +284,12 @@ application overrides and source patches against the pin and upstream master.
     row, so delayed pointer highlighting cannot undo wheel navigation.
     `TimeCode` supplies editable leading digits in total-unit formats, preserves
     hidden fractions when editing a coarser format, and tolerates exact sample
-    round trips. Its digit clicks suppress enclosing-label activation, and its
+    round trips. Its digit and format-menu clicks suppress enclosing-label activation, and its
     format button and `Knob` explicitly avoid submitting containing forms.
     Covered by `tests/audio-editor-timecode-editing-regressions.test.tsx` and
     `tests/browser/audio-editor-dialog-regressions.spec.js` and
-    `tests/browser/audio-editor-dropdown-wheel-regressions.spec.js`. Upstream-PR candidates.
+    `tests/browser/audio-editor-dropdown-wheel-regressions.spec.js` and
+    `tests/audio-editor-round5-timecode-label-menu.test.tsx`. Upstream-PR candidates.
 34. `TextInput` exposes its existing rejected-value error state through
     `aria-invalid` on both input and textarea fields. Covered by
     `tests/audio-editor-effect-number-input.test.tsx` and
@@ -369,6 +370,111 @@ application overrides and source patches against the pin and upstream master.
     `tests/audio-editor-round4-clip-accessible-timing.test.tsx` and the public
     split-recording keyboard workflow. Upstream-PR candidate.
 
+51. `MixerFader` leaves already handled and Ctrl/Meta/Alt-modified navigation
+    keys available to application commands. Plain arrows, page keys and
+    Home/End retain their complete gain gesture. Covered by
+    `tests/audio-editor-round4-mixer-fader-shortcuts.test.tsx` and the ordinary
+    configured-command workflow in the Mixer. Upstream-PR candidate.
+
+52. `useContainerTabGroup` leaves Ctrl/Meta/Alt-modified navigation keys
+    available to application commands, including when a toolbar action button
+    is focused. Plain arrows and Home/End retain roving focus navigation.
+    Covered by `tests/audio-editor-round4-toolbar-shortcut.test.tsx` and the
+    ordinary configured-command workflow from the transport Play button.
+    Upstream-PR candidate.
+
+53. `ContextMenu` initially focuses its first enabled direct item, matching
+    keyboard navigation membership. An unavailable leading item no longer traps
+    Home, arrows or Escape as though it were a nested submenu. Covered by
+    `tests/vendored-design-system-context-menu-focus.test.tsx` and the ordinary
+    label-track menu keyboard workflow. Upstream-PR candidate.
+
+54. `ContextMenu` and `ContextMenuItem` leave already handled and Ctrl/Meta/Alt
+    navigation available to its existing owner across root and submenu levels.
+    Plain menu navigation and submenu entry retain their existing behavior.
+    Covered by `tests/audio-editor-round6-context-menu-modified-navigation.test.tsx`
+    and the ordinary configured-command workflow from an audio track's menu.
+    Upstream-PR candidate.
+
+55. `ContextMenuItem` restores the surviving root-menu trigger before invoking
+    a keyboard action. A synchronous action or newly opened dialog can then take
+    focus without delayed restoration stealing it. Pointer activation and child
+    submenu entry retain their existing behavior. The context is private to the
+    open menu, and its creation is annotated pure. Covered by
+    `tests/audio-editor-round6-context-menu-completion.test.tsx` and the ordinary
+    track-menu keyboard completion workflow. Upstream-PR candidate.
+
+56. `ClipHeader` leaves composing Enter/Escape with the native text input while
+    its inline clip-name draft is unfinished. Ordinary keyboard save/cancel and
+    the existing focus handoff remain available after composition completes.
+    Keep the input's existing propagation isolation during composition so the
+    enclosing track wrapper cannot reinterpret Enter as clip selection.
+    Covered by `tests/audio-editor-round6-clip-name-composition.test.tsx` and the
+    public import/F2/name-confirmation/Undo/Redo workflow. Upstream-PR candidate.
+
+57. `TrackNew` opens its clip context menu only for unclaimed plain ContextMenu
+    or Shift+F10, leaving modified keys with the configured workspace command.
+    Preserve existing pointer entry, keyboard geometry and clip selection/move
+    callbacks. Covered by `tests/audio-editor-round6-clip-context-shortcut.test.tsx`
+    and its ordinary Preferences/header/menu/Undo browser workflow.
+
+58. `Knob` leaves modified or already handled navigation with its existing
+    command owner before starting a parameter gesture. The application send
+    endpoint adapter applies the same admission; its prevented Home/End event
+    is not processed again by the generic knob. Preserve ordinary arrows,
+    endpoints, Shift stepping and pointer lifetimes. Covered by
+    `tests/audio-editor-round6-mixer-knob-shortcut.test.tsx` and the native
+    mixer pan/send command and endpoint browser workflows.
+
+59. `EnvelopeInteractionLayer` admits only the primary mouse button before
+    starting clip-gain point insertion, removal or dragging. Context clicks and
+    middle-button gestures preserve the authored envelope; ordinary primary
+    gestures, Escape cancellation and publication remain unchanged. Covered by
+    `tests/audio-editor-round6-envelope-pointer-button.test.tsx` and the ordinary
+    clip-gain/context-click/exported-audio/Undo browser workflow. Upstream-PR
+    candidate.
+
+60. `LabelMarker` starts move and ear-resize gestures only from the primary
+    mouse button. Preserve secondary context entry and ordinary primary label
+    movement, point-to-region conversion and resizing. Covered by the actual
+    timeline wrapper in `tests/audio-editor-round6-label-pointer-button.test.tsx`
+    and the ordinary label/context-drag/Undo browser workflow. Unused legacy
+    point/region components do not participate in this adaptation. Upstream-PR
+    candidate.
+
+61. `TimelineRuler` starts and completes playback-loop mouse clicks only with
+    the primary button. Secondary and middle clicks preserve the authored loop
+    flag and redo history while native context entry remains available. An
+    unowned release cannot settle a primary click. Covered by
+    `tests/audio-editor-round6-ruler-loop-button.test.tsx` and the ordinary
+    loop-authoring/primary-click/Undo/context-click/Redo browser workflow.
+    The unused legacy loop-drag callback is outside this user-path correction.
+    Upstream-PR candidate.
+
+62. `NumberStepper` leaves composing, modified and already handled keys with
+    their existing owner before stepping or toggling edit mode. Plain and
+    Shift arrows retain numeric edits; completed Enter/Escape retain mode
+    changes. Covered by `tests/audio-editor-round6-number-stepper-ownership.test.tsx`
+    and the normal Generate → Tone frequency/edit/exported-audio workflow.
+    This key admission correction is independent of deviation 37's numeric
+    parser and bounds handling. Upstream-PR candidate.
+
+63. `Flyout` leaves native composing Escape with the input method before
+    dismissing an open surface or restoring its trigger focus. Ordinary Escape,
+    disabled dismissal and listener cleanup retain their existing behavior.
+    Covered by `tests/audio-editor-round6-flyout-composition.test.tsx` and the
+    normal Effects → Add effect → Search effects composition/reopen workflow.
+    Upstream-PR candidate.
+
+64. `RulerFlyout` leaves native composing Escape with its frequency field
+    before dismissing the popup, and its `FreqStepper` leaves composing Enter
+    before publishing the unfinished numeric draft. Completed scientific
+    entries, ordinary Escape, trigger focus and arrow ownership are retained.
+    Covered by `tests/audio-editor-round6-ruler-composition.test.tsx` and the
+    normal Spectrogram → frequency ruler → exact frequency draft workflow.
+    This independently registered popup listener and field wrapper do not use
+    the shared `Flyout` dismissal owner. Upstream-PR candidate.
+
 ## Application-side adaptations
 
 Not deviations — application code that had to change because upstream did. Listed because they
@@ -400,3 +506,97 @@ are the places where the two keyboard models meet, so a future sync should re-ch
 4. Re-audit the portal selector list in `scripts/postcss-audacity-design-system.mjs` against
    new/renamed classes that render into `document.body` (dropdown/tooltip-style portals).
 5. Run the full battery: `npm run check`, `npm run test:browser`, dev + desktop smoke.
+
+65. `TimeCode` leaves Ctrl/Meta/Alt and already handled keys with their existing
+    command owner while a digit or its composite group is focused. The ordinary
+    digit edit, Shift navigation and completion behavior remains unchanged.
+    Covered by `tests/audio-editor-round6-timecode-digit-shortcut.test.tsx` and
+    the configured-command public browser regression.
+
+66. `ContextMenuItem` keeps Escape available when every submenu child is
+    unavailable, returning focus to its parent before the root menu closes.
+    Deferred keyboard entry focuses the first enabled direct child and leaves
+    focus on the parent when none is available. Existing modified-key ownership
+    and writable submenu navigation remain intact. Covered by
+    `tests/audio-editor-round6-disabled-submenu-escape.test.tsx` and the ordinary
+    locked Paste submenu workflow. Upstream-PR candidate.
+
+67. `EnvelopeInteractionLayer` completes a held primary point or segment drag
+    only on primary mouse release. Auxiliary release leaves the draft active
+    until the owning button releases. Covered by the mounted strict
+    `tests/audio-editor-round7-envelope-drag-release.test.tsx` and the ordinary
+    Clip gain drag, middle-button release, Undo and Redo browser workflow.
+    The application publication listener follows the same release ownership.
+    Upstream-PR candidate.
+
+68. `EffectsPanel` admits only primary presses for its track/master divider
+    and completes its resize only when that same mouse button releases.
+    Auxiliary release retains the accepted resize. Covered by the mounted
+    strict `tests/audio-editor-round7-rack-divider-release.test.tsx` and the
+    ordinary rack divider primary/middle-release continuation workflow.
+    Upstream-PR candidate.
+
+69. `LabelMarker` retains a primary move or edge resize through auxiliary
+    mouse release. The application label draft and Escape ownership remain
+    active until primary release, so final movement publishes once. Covered by
+    the mounted actual native-history regression
+    `tests/audio-editor-round7-label-drag-release.test.tsx` and the ordinary
+    label move, auxiliary release, continuation and Undo/Redo workflow.
+    Upstream-PR candidate.
+
+70. `Knob` commits its accepted mouse value when primary releases while an
+    auxiliary button remains held. Browsers report this as a pointer-move
+    transition before native capture loss; subsequent capture loss cannot
+    cancel the completed input. Unexpected capture loss still cancels active
+    input. Covered by the mounted native-contact regressions in
+    `tests/vendored-design-system-knob-gesture.test.tsx` and the ordinary stereo
+    Mixer Pan, primary release, Undo and Redo workflow. Upstream-PR candidate.
+
+71. `SelectionToolbar` accepts a host interval musical map for its read-only
+    Duration, while Start and End retain their absolute project map. The
+    application roots this interval at the actual selection start, preserving
+    later tempo changes. Covered by the actual mounted selection toolbar
+    regression `tests/audio-editor-round7-selection-musical-duration.test.tsx`
+    and the native Music workspace, tempo-event and selection-digit workflow.
+    Upstream-PR candidate.
+
+72. `TimeCode` steps backward from a bar's first beat into the preceding
+    actual meter's last beat, retaining the sub-beat sample phase and the
+    project-zero bound. Literal one-based beat entry, decimal digit wrapping
+    and forward stepping remain unchanged. Covered by the actual native
+    document-key listener regression
+    `tests/audio-editor-round7-musical-beat-step.test.tsx` and the ordinary
+    Music workspace Playhead beat-step workflow. Upstream-PR candidate.
+
+73. `Slider` retains one admitted primary pointer through another finger's
+    release or cancellation. The shared native touch lease preserves the
+    browser's range drag; the application fractional sliders retain the same
+    lease through their existing hook. Covered by the actual mounted
+    `tests/audio-editor-round7-track-volume-touch-owner.test.tsx` and ordinary
+    track Volume mouse, single-finger, two-finger and one-Undo controls.
+    Upstream-PR candidate.
+
+74. `Slider` publishes its accepted mouse edit when primary releases while
+    another button remains held. It recognizes the owning native pointermove
+    transition once, preserving foreign-pointer rejection, touch completion
+    and browser cancellation. Covered by the actual mounted
+    `tests/audio-editor-round7-track-volume-primary-release.test.tsx` and the
+    ordinary Volume completion, keyboard Undo and retained-import workflow.
+    Upstream-PR candidate.
+
+75. `MixerFader` retains its admitted primary pointer through foreign motion,
+    completion and cancellation. Secondary starts cannot replace native
+    capture; owning completion, cancellation, later gestures and keyboard
+    controls remain unchanged. Covered by the actual mounted
+    `tests/audio-editor-round7-mixer-fader-pointer-owner.test.tsx` and ordinary
+    Window → Mixer Volume mouse, one-finger, two-finger and Undo/Redo controls.
+    Upstream-PR candidate.
+
+76. `MixerFader` completes its admitted mouse gesture when primary releases
+    while another button remains held. Its native pointermove transition uses
+    the final coordinates and retires capture before the existing completion
+    callbacks, preserving foreign pointer rejection, touch/pen completion and
+    intentional cancellation. Covered by the mounted regression
+    `tests/audio-editor-round7-io-mixer-fader-primary-release.test.tsx` and the
+    ordinary Window → Mixer Master Volume, primary release and keyboard
+    Undo/Redo workflow that retains the imported recording. Upstream-PR candidate.

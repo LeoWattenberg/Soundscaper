@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import { readClipLoop } from '../../../../audio-clip-loop.ts';
+import { assertCameraAudioDurationChange } from './camera-audio-time-pitch-admission.ts';
+import { assertScalarTimePitchChange } from './scalar-time-pitch-admission.ts';
 
 import { createLocalizedError } from '../../../../../i18n/presentation-message.ts'; import { isAudioMediaKind } from '../../../../audio-media-kind.ts';
 
@@ -81,6 +83,7 @@ interface ClipFingerprint {
 	readonly sourceDurationFrames: number;
 	readonly durationFrames: number;
 	readonly renderCacheRevision: number;
+	readonly processing: string;
 }
 
 export interface ClipPropertyServiceDependencies {
@@ -166,6 +169,7 @@ export function createClipPropertyService(
 			if (action === 'normalize-lufs' && Number.isFinite(result.integratedLufs)) {
 				gain = 10 ** ((-14 - result.integratedLufs) / 20);
 			}
+			if (gain > 16) throw createLocalizedError(RangeError, dependencies.copy, 'clipNormalizationGainLimit');
 			return dependencies.commit({
 				type: 'clip/update',
 				clipId: clip.id,
@@ -200,6 +204,8 @@ export function createClipPropertyService(
 		const durationFrames = changes.speedRatio == null && !(linked && changes.pitchCents != null)
 			? clip.durationFrames
 			: Math.max(1, Math.round(sourceTimelineFrames(project, clip) / speedRatio));
+		assertCameraAudioDurationChange(project, clip, durationFrames, dependencies.copy);
+		assertScalarTimePitchChange(project, clip, linked, pitchCents, speedRatio, dependencies.copy);
 		const command = prepareTransformClipsCommand(project, [{
 			clipId: clip.id,
 			trackId: track.id,
@@ -239,6 +245,7 @@ export function createClipPropertyService(
 		if (!Number.isSafeInteger(timelineStartFrame) || !Number.isSafeInteger(durationFrames)) {
 			throw createLocalizedError(TypeError, dependencies.copy, 'timelineFramesFinite');
 		}
+		assertCameraAudioDurationChange(project, clip, durationFrames, dependencies.copy);
 		const clipIds = collectClipTransformIds(project, clip.id);
 		if (clipIds.length > 1) {
 			const clips = clipIds.map((id) => findTimePitchClip(project, id)).filter(isTimePitchClip);
@@ -253,6 +260,9 @@ export function createClipPropertyService(
 			}
 			const transforms = clips.map((item): PreparedTransform => {
 				const nextDurationFrames = Math.max(1, Math.round(item.durationFrames * stretchFactor));
+				assertScalarTimePitchChange(project, item, Boolean(item.linkPitchAndTempo), item.pitchCents,
+					sourceTimelineFrames(project, item) / nextDurationFrames, dependencies.copy);
+				assertCameraAudioDurationChange(project, item, nextDurationFrames, dependencies.copy);
 				return {
 					clipId: item.id,
 					trackId: findClipTrack(project, item.id)?.id,
@@ -274,6 +284,8 @@ export function createClipPropertyService(
 				{ selectTrackId: track.id, selectClipId: clip.id },
 			);
 		}
+		assertScalarTimePitchChange(project, clip, Boolean(clip.linkPitchAndTempo), clip.pitchCents,
+			sourceTimelineFrames(project, clip) / durationFrames, dependencies.copy);
 		return dependencies.commit(prepareTransformClipsCommand(project, [{
 			clipId: clip.id,
 			trackId: track.id,
@@ -331,6 +343,7 @@ function fingerprintClip(project: ClipTransformProject, clip: TimePitchClip): Cl
 		sourceDurationFrames: clip.sourceDurationFrames,
 		durationFrames: clip.durationFrames,
 		renderCacheRevision: clip.renderCacheRevision,
+		processing: normalizationProcessing(clip),
 	});
 }
 
@@ -340,7 +353,14 @@ function matchesFingerprint(clip: TimePitchClip, fingerprint: ClipFingerprint): 
 		&& clip.sourceStartFrame === fingerprint.sourceStartFrame
 		&& clip.sourceDurationFrames === fingerprint.sourceDurationFrames
 		&& clip.durationFrames === fingerprint.durationFrames
-		&& clip.renderCacheRevision === fingerprint.renderCacheRevision;
+		&& clip.renderCacheRevision === fingerprint.renderCacheRevision
+		&& normalizationProcessing(clip) === fingerprint.processing;
+}
+
+function normalizationProcessing(clip: TimePitchClip): string {
+	return JSON.stringify([clip.gain, clip.fadeInFrames, clip.fadeOutFrames, clip.fadeInShape,
+		clip.fadeOutShape, clip.envelope, clip.reversed, clip.inverted, clip.pitchCents,
+		clip.speedRatio, clip.linkPitchAndTempo, clip.preserveFormants, clip.warpMap, readClipLoop(clip)]);
 }
 
 function findTimePitchClip(

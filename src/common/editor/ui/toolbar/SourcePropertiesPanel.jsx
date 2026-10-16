@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import React from 'react';
+import { useOperationFocusRecovery } from '../useOperationFocusRecovery.ts';
 
 import { resolveVideoSourcePropertiesView } from '../../source-properties-model.ts';
 import {
@@ -36,6 +37,7 @@ export function SourcePropertiesPanel({ source, copy, onReprobe = null, disabled
 	);
 	const [outcome, setOutcome] = React.useState(null);
 	const inspectedId = view ? view.sourceId : null;
+	const captureFocus = useOperationFocusRecovery(outcome?.state === 'busy', inspectedId);
 	const inspectedIdRef = React.useRef(inspectedId);
 	const reprobeSequence = React.useRef(0);
 	if (inspectedIdRef.current !== inspectedId) {
@@ -48,6 +50,7 @@ export function SourcePropertiesPanel({ source, copy, onReprobe = null, disabled
 		return () => { reprobeSequence.current += 1; };
 	}, [inspectedId]);
 	const reprobe = async () => {
+		captureFocus();
 		const sourceId = inspectedId;
 		const sequence = ++reprobeSequence.current;
 		setOutcome({ state: 'busy' });

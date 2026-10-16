@@ -9,6 +9,7 @@ import {
 	type TrackTransformServiceDependencies,
 } from '../src/common/editor/controller/track-audio/internal/track-transform-service.ts';
 import { findControllerSource } from '../src/common/editor/controller/track-audio/track-domain-types.ts';
+import { createDefaultMixerGraphV21 } from '../src/common/editor/mixer-graph-v21.ts';
 import { createImportedSourceProvenance } from '../src/common/editor/source-provenance.ts';
 import type {
 	ControllerClip,
@@ -29,7 +30,8 @@ function projectFixture(overrides: Partial<ControllerProject> = {}): ControllerP
 		clips: [],
 		sources: [],
 		selection: { startFrame: 0, endFrame: 0, trackIds: [], clipIds: [] },
-		mixer: { groups: [], sends: [], routes: {} },
+		mixer: createDefaultMixerGraphV21((overrides.tracks ?? []).filter(track => track.type === 'audio')
+			.map(track => ({ id: track.id, channelCount: Number(track.channelCount) || 1 })), 2),
 		automationLanes: [],
 		...overrides,
 	} as ControllerProject;
@@ -400,11 +402,11 @@ test('joining mono tracks bakes each authored strip and resets the merged strip'
 	const rightClip = clipFixture('right-clip', 'right-source');
 	const left = trackFixture({
 		id: 'left', clipIds: [leftClip.id], gain: 0.5,
-		effects: [{ id: 'left-effect', type: 'gain' }], envelope: [{ frame: 0, value: 0.5 }],
+		effects: [{ id: 'left-effect', type: 'compressor' }], envelope: [{ frame: 0, value: 0.5 }],
 	});
 	const right = trackFixture({
 		id: 'right', clipIds: [rightClip.id], gain: 0.25,
-		effects: [{ id: 'right-effect', type: 'gain' }], envelope: [{ frame: 0, value: 0.25 }],
+		effects: [{ id: 'right-effect', type: 'compressor' }], envelope: [{ frame: 0, value: 0.25 }],
 	});
 	const fixture = createTransformFixture(projectFixture({
 		tracks: [left, right], clips: [leftClip, rightClip],

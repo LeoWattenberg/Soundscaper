@@ -69,8 +69,14 @@ const CAPTION_DELIVERIES = Object.freeze([
  * delivery cannot state a custom matrix, because the per-channel editor that
  * makes one legible belongs to the audio dialog.
  */
+/**
+ * @param {{ copy: Readonly<Record<string, string>>, disabled: boolean,
+ * labelTracks?: readonly { id: string, name?: string }[], settings: Readonly<Record<string, unknown>>,
+ * onChange: (name: string, value: unknown) => void, captionDeliveryUnavailable?: boolean,
+ * productId?: string | null }} props
+ */
 export default function VideoDeliveryFields({
-	copy, disabled, labelTracks = [], settings, onChange, captionDeliveryUnavailable = false,
+	copy, disabled, labelTracks = [], settings, onChange, captionDeliveryUnavailable = false, productId = null,
 }) {
 	const target = findPlatformDeliveryPreset(settings.deliveryTarget);
 	// The fallback named here has to be the one the delivery actually reaches,
@@ -208,7 +214,9 @@ export default function VideoDeliveryFields({
 			/>
 			{captionDeliveryUnavailable ? (
 				<p className="audio-editor-panel-hint" data-export-field="captionDeliveryUnavailable">
-					{copy.videoCaptionDeliveryUnavailable || 'Caption burn-in and mux are unavailable for Framescaper 1.0. Export SRT, WebVTT, or IMSC 1.1 sidecars from Tracks > Caption Tracks.'}
+					{productId === 'soundscaper'
+						? copy.soundscaperVideoCaptionDeliveryUnavailable
+						: copy.videoCaptionDeliveryUnavailable || 'Caption burn-in and mux are unavailable for Framescaper 1.0. Export SRT, WebVTT, or IMSC 1.1 sidecars from Tracks > Caption Tracks.'}
 				</p>
 			) : (
 				<>

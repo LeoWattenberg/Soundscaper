@@ -125,9 +125,11 @@ export default function GraphicEqEditor({ name, label, descriptor, value, disabl
 		<div className="audio-editor-graphic-eq__viewport">
 			<div className="audio-editor-graphic-eq__board" tabIndex={-1}
 				onPointerDownCapture={begin} onPointerMoveCapture={(event) => {
-					if (pointer.current === event.pointerId && !disabled) preview(gesture.current.move(atEvent(event)), true);
-				}} onPointerUpCapture={finish} onPointerCancel={cancel}
-				onLostPointerCapture={() => { if (pointer.current !== null) cancel(); }}
+					if (pointer.current !== event.pointerId || disabled) return;
+					if (event.pointerType === 'mouse' && !(event.buttons & 1)) { finish(event); return; }
+					preview(gesture.current.move(atEvent(event)), true);
+				}} onPointerUpCapture={finish} onPointerCancel={(event) => { if (pointer.current === event.pointerId) cancel(); }}
+				onLostPointerCapture={(event) => { if (pointer.current === event.pointerId) cancel(); }}
 				onDoubleClick={(event) => {
 					if (disabled || event.button !== 0) return;
 					const index = elements.current.findIndex((element) => {
@@ -149,6 +151,7 @@ export default function GraphicEqEditor({ name, label, descriptor, value, disabl
 					className="audio-editor-graphic-eq__fader" data-effect-param={`${name}.${String(index)}`}
 					title={(copy.effectCurvePoint || canonicalCopyValue('effectCurvePoint')).replace('{frequency}', String(frequency)).replace('{gain}', points[index]!.toFixed(1))}
 					onKeyDownCapture={(event) => {
+						if (event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey) return;
 						if (!['ArrowUp', 'ArrowDown'].includes(event.key)) return;
 						event.preventDefault(); event.stopPropagation();
 						atomic(index, points[index]! + (event.key === 'ArrowUp' ? 1 : -1));

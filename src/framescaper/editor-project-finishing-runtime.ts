@@ -20,6 +20,7 @@ import {
 	validateFramescaperProjectFinishing,
 	type FramescaperProjectFinishing,
 } from './editor-project-finishing-validation.ts';
+import { restoreFramescaperProjectFinishingEnvelopes } from './editor-project-feature-requirements-finishing.ts';
 
 type DataRecord = Record<string, unknown>;
 
@@ -135,6 +136,7 @@ function mergeSelectedState(baseValue: DataRecord, project: FramescaperProjectFi
 		'videoProcessorStacks', 'videoMotionAnalyses', 'videoFinishingPresets',
 		'videoCaptionTracks', 'automationLanes', 'mixer',
 	]) base[field] = structuredClone(canonical[field]);
+	restoreFramescaperProjectFinishingEnvelopes(base, canonical);
 	return base;
 }
 

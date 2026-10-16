@@ -20,7 +20,7 @@ interface Props {
 	readonly disabled: boolean;
 	readonly controller: Readonly<{ actions: Readonly<{
 		labels: Readonly<{ update(trackId: string, id: string, changes: unknown): unknown; remove(trackId: string, id: string): unknown }>;
-		timeline: Readonly<{ setSelection(startFrame: number, endFrame: number): unknown }>;
+		timeline: Readonly<{ setExactSelection(startFrame: number, endFrame: number): unknown }>;
 	}> }>;
 	run(operation: () => unknown): unknown;
 	onAdd(): void;

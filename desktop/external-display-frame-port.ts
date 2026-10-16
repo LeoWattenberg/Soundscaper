@@ -57,6 +57,7 @@ export interface FramescaperExternalDisplayFramePortOptions {
 
 interface FramescaperExternalDisplayControllerPort {
 	externalDisplays(): Readonly<{ readonly activeDisplayId: string | null }>;
+	externalDisplaySessionIdentity(): object | null;
 	presentExternalDisplay(frame: FramescaperExternalDisplayFrame): unknown;
 }
 
@@ -114,7 +115,12 @@ async function acceptFrame(
 	if (controller.externalDisplays().activeDisplayId === null) {
 		throw new Error('No external-display session is active.');
 	}
+	const session = controller.externalDisplaySessionIdentity();
+	if (session === null) throw new Error('No external-display session is active.');
 	const rgba = await receiveFrameBytes(request.binding, port, signal);
+	if (controller.externalDisplaySessionIdentity() !== session) {
+		throw new Error('The external-display session changed while its frame was transferred.');
+	}
 	const projection = controller.presentExternalDisplay(Object.freeze({
 		...request.frame,
 		rgba,

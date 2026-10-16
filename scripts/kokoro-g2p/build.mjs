@@ -4,10 +4,12 @@
 /** Build the frozen multilingual G2P closure on its target package runner. */
 import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { copyFile, cp, lstat, mkdir, mkdtemp, readFile, readdir, realpath, rename, rm, stat, writeFile } from 'node:fs/promises';
+import { chmod, copyFile, cp, lstat, mkdir, mkdtemp, readFile, readdir, realpath, rename, rm, stat, writeFile } from 'node:fs/promises';
 import { dirname, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { extract, list } from 'tar';
+import gpuRecipe from '../../config/assistance-kokoro-g2p-gpu-build.json' with { type: 'json' };
+import { prepareDesktopKokoroG2pGpu, verifyFrozenKokoroG2pGpu } from '../lib/desktop-kokoro-g2p-gpu.mjs';
 import {
 	describeDesktopKokoroG2pBundle,
 	verifyDesktopKokoroG2pRuntime,
@@ -27,7 +29,7 @@ const COLLECTIONS = Object.freeze([
 ]);
 const HIDDEN_IMPORTS = Object.freeze([
 	'misaki.en', 'misaki.espeak', 'misaki.ja', 'misaki.zh',
-	'kokoro.pipeline', 'spacy.lang.en',
+	'kokoro.pipeline', 'spacy.lang.en', 'assistance_kokoro_g2p_gpu',
 ]);
 
 export function kokoroG2pBuildPlan({ targetId, platform = process.platform, arch = process.arch }) {
@@ -70,6 +72,12 @@ export async function buildKokoroG2pBundle({
 		fileURLToPath(import.meta.url), join(PROJECT, 'collect_notices.py'),
 		join(PROJECT, 'hooks/hook-curated_transformers.py'), join(PROJECT, 'notices/sources.json'),
 		join(PROJECT, 'pyproject.toml'),
+		join(ROOT, 'scripts/lib/desktop-kokoro-g2p-gpu.mjs'),
+		join(ROOT, 'scripts/lib/desktop-assistance-onnx-native-closure.mjs'),
+		join(ROOT, 'config/assistance-kokoro-g2p-gpu-build.json'),
+		join(ROOT, 'config/assistance-onnx-runtime-payloads.json'),
+		join(ROOT, 'config/assistance-onnx-webgpu-plugin.json'),
+		...Object.keys(gpuRecipe.recipeFiles).map((path) => join(ROOT, path)),
 		...noticeRegister.notices.map((notice) => join(PROJECT, 'notices', notice.path)),
 	].map((path) => readFile(path)));
 	const recipeSha256 = sha256(Buffer.concat(recipeBytes));
@@ -82,6 +90,7 @@ export async function buildKokoroG2pBundle({
 		const provenance = JSON.parse(await readFile(join(destination, 'build-provenance.json'), 'utf8'));
 		if (provenance.targetId === targetId
 			&& provenance.recipeSha256 === recipeSha256
+			&& provenance.gpu?.recipeId === gpuRecipe.recipeId
 			&& provenance.dependencyLock?.sha256 === sha256(lockBytes)
 			&& provenance.entrypoint?.sha256 === sha256(helperBytes)
 			&& provenance.dictionary?.sha256 === DICTIONARY_SHA256) {
@@ -110,6 +119,9 @@ export async function buildKokoroG2pBundle({
 	try {
 		await validateAndExtractDictionary(archive, work);
 		const dictionaryRoot = join(work, DICTIONARY_DIRECTORY);
+		const gpuRoot = join(work, 'gpu');
+		const gpu = await prepareDesktopKokoroG2pGpu({ targetId, repositoryRoot: ROOT,
+			outputRoot: gpuRoot, cacheRoot: join(cacheRoot, 'gpu'), fetchImpl, platform, arch });
 		const environment = {
 			...process.env,
 			UV_PROJECT_ENVIRONMENT: join(cacheRoot, 'venv', targetId),
@@ -125,6 +137,7 @@ export async function buildKokoroG2pBundle({
 			'--workpath', join(work, 'work'), '--specpath', join(work, 'spec'),
 			'--additional-hooks-dir', join(PROJECT, 'hooks'),
 			'--add-data', `${dictionaryRoot}${delimiter}pyopenjtalk/${DICTIONARY_DIRECTORY}`,
+			'--add-data', `${gpuRoot}${delimiter}scape-gpu`,
 			...COLLECTIONS.flatMap((name) => ['--collect-all', name]),
 			...HIDDEN_IMPORTS.flatMap((name) => ['--hidden-import', name]),
 			HELPER,
@@ -133,6 +146,9 @@ export async function buildKokoroG2pBundle({
 		const built = join(work, 'dist', 'kokoro-g2p');
 		const executable = join(built, plan.executable);
 		if (!(await stat(executable)).isFile()) throw new Error('PyInstaller did not emit the Kokoro G2P executable.');
+		await chmod(join(built, '_internal/scape-gpu', plan.executable.endsWith('.exe')
+			? 'onnx-webgpu-device-probe.exe' : 'onnx-webgpu-device-probe'), 0o755);
+		await verifyFrozenKokoroG2pGpu(join(built, '_internal/scape-gpu'), gpu.files);
 		const normalizedEmptyFiles = await normalizeKokoroG2pEmptyFiles(built);
 		await materializeKokoroG2pSymlinks(built);
 		await command('uv', ['run', '--no-sync', 'python', join(PROJECT, 'collect_notices.py'), built],
@@ -142,7 +158,8 @@ export async function buildKokoroG2pBundle({
 		const provenance = {
 			schemaVersion: 1,
 			targetId,
-			recipeId: 'kokoro-g2p-pyinstaller-onedir-v1',
+			recipeId: 'kokoro-g2p-pyinstaller-onedir-v2',
+			gpu: gpu.provenance,
 			recipeSha256,
 			pythonArchitecture: plan.pythonArchitecture,
 			dependencyLock: { path: 'scripts/kokoro-g2p/uv.lock', sha256: sha256(lockBytes) },

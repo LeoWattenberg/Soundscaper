@@ -23,7 +23,7 @@
  * intentionally excluded; the functions below operate on immutable channel
  * selections instead.
  */
-import { normalizeAudacityEffectParams } from './manifest.js';
+import { AUDACITY_EFFECT_DEFINITIONS, normalizeAudacityEffectParams } from './manifest.js';
 import { fft } from '../pffft.js';
 import { dbToLinear } from './basic-channel-math.js';
 import {
@@ -201,7 +201,7 @@ export function applyAudacityPaulstretch(channels, sampleRate, params = {}, cont
 export function applyAudacityRepair(channels, sampleRate, params = {}, context = {}) {
 	const { frameCount } = validateChannels(channels, sampleRate);
 	normalizeAudacityEffectParams('audacity-repair', params);
-	if (frameCount > 128) {
+	if (frameCount > AUDACITY_EFFECT_DEFINITIONS['audacity-repair'].maximumInputFrames) {
 		throw new RangeError('Repair is intended for damaged selections of at most 128 samples.');
 	}
 

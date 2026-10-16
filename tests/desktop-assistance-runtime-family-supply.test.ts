@@ -93,7 +93,7 @@ test('runtime provision tasks pin upstream identity and delegate exact closure t
 		assert.match(task.packageBehavior, /target package|verif/iu);
 		assert.deepEqual(task.steps, [
 			'fetch-pinned-source',
-			'build-or-extract-cpu-target',
+			'build-or-extract-reviewed-target',
 			'inventory-regular-files',
 			'sha256-every-file',
 			'pack-immutable-runtime-prefix',
@@ -108,6 +108,20 @@ test('runtime provision tasks pin upstream identity and delegate exact closure t
 		'371b5a7561823ab2bb32142d2751e35e7534727b');
 	assert.equal(runtimeSupply.provisionTasks[2].source.commit,
 		'fe8156f789011f6ea0baf6917ea09f88b89d9554');
+});
+
+test('GPU companion recipes replace the earlier accelerated closure contract', () => {
+	for (const familyId of ['whisper-cpp', 'llama-cpp']) {
+		const task = runtimeSupply.provisionTasks.find((candidate) => candidate.familyId === familyId);
+		assert.ok(task);
+		assert.equal(task.recipeId, `${familyId}-locked-accelerated-build-v2`);
+		assert.match(task.packageBehavior, /Vulkan/iu);
+		const obsolete = structuredClone(runtimeSupply);
+		const oldTask = obsolete.provisionTasks.find((candidate) => candidate.familyId === familyId);
+		assert.ok(oldTask);
+		oldTask.recipeId = `${familyId}-locked-accelerated-build-v1`;
+		assert.throws(() => validateMilestone7RuntimeSupplyRegister(obsolete), /recipe|provision|identity/iu);
+	}
 });
 
 test('Sherpa Windows ARM64 delegates its Node payload to the target package build', () => {

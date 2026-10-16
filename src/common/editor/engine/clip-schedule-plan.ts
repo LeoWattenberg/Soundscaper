@@ -30,6 +30,7 @@ import type {
 
 import { getTrackClips, automaticCrossfadeRanges } from './clip-schedule-geometry.ts';
 import { indexedClipScheduleRange } from './clip-schedule-index.ts';
+import { preferOfflineChunkSource } from './offline-buffer-source.ts';
 
 export { mergeFrameRanges, getTrackClips, automaticCrossfadeRanges };
 export type { ClipCrossfadeRanges, FrameRange };
@@ -143,6 +144,7 @@ export interface BuildClipSchedulePlansOptions {
 	readonly toFrame: number;
 	readonly sampleRate: number;
 	readonly sourceResolver?: EngineSourceResolver | null;
+	readonly offlineSampleRate?: number;
 }
 
 export function buildClipSchedulePlans({
@@ -154,6 +156,7 @@ export function buildClipSchedulePlans({
 	toFrame,
 	sampleRate,
 	sourceResolver = null,
+	offlineSampleRate,
 }: BuildClipSchedulePlansOptions): ClipSchedulePlan[] {
 	let clipsById: ReadonlyMap<string, EngineClip> | null = null;
 	const plans: ClipSchedulePlan[] = [];
@@ -175,7 +178,7 @@ export function buildClipSchedulePlans({
 			if (segmentEnd <= segmentStart) continue;
 			const loop = readClipLoop(clip);
 			if (loop) {
-				const resolved = resolveClipSource(clip, project, sources, sourceResolver, chunkSources);
+				const resolved = preferOfflineChunkSource(resolveClipSource(clip, project, sources, sourceResolver, chunkSources), offlineSampleRate);
 				if (resolved.buffer) {
 					const sourceDuration = resolved.sourceDurationFrames ?? clip.sourceDurationFrames ?? loop.periodFrames;
 					const sourceSampleRate = resolved.buffer.sampleRate;
@@ -197,7 +200,7 @@ export function buildClipSchedulePlans({
 					const virtual = { ...clip, opaqueExtensions: withoutClipLoop(clip.opaqueExtensions),
 						timelineStartFrame: repeatStart + shift, durationFrames: loop.periodFrames };
 					const repeats = buildClipSchedulePlans({ project: { ...project, clips: [virtual], tracks: [{ ...track, clipIds: [String(clip.id)] }] },
-						sources, chunkSources, trackInputs, fromFrame: Math.max(segmentStart, repeatStart) + shift, toFrame: Math.min(segmentEnd, repeatStart + loop.periodFrames) + shift, sampleRate, sourceResolver });
+						sources, chunkSources, trackInputs, fromFrame: Math.max(segmentStart, repeatStart) + shift, toFrame: Math.min(segmentEnd, repeatStart + loop.periodFrames) + shift, sampleRate, sourceResolver, offlineSampleRate });
 					const crossfade = crossfades.get(String(clip.id)) ?? { crossfadeInRanges: [], crossfadeOutRanges: [] };
 					plans.push(...repeats.map(plan => ({ ...plan, ...crossfade, clip, duration, segmentStart: plan.segmentStart - shift, segmentEnd: plan.segmentEnd - shift, relativeStart: plan.segmentStart - shift - start })));
 				}
@@ -205,13 +208,13 @@ export function buildClipSchedulePlans({
 			}
 			// A scalar pitch/speed cache cannot stand in for an authored piecewise
 			// map. Warped clips resolve only their canonical source media here.
-			const resolvedSource = resolveClipSource(
+			const resolvedSource = preferOfflineChunkSource(resolveClipSource(
 				clip,
 				project,
 				sources,
 				clip.warpMap == null ? sourceResolver : null,
 				chunkSources,
-			);
+			), offlineSampleRate);
 			const originalBuffer = resolvedSource.buffer;
 			const chunkSource = resolvedSource.chunkSource;
 			if (!originalBuffer && !chunkSource) continue;

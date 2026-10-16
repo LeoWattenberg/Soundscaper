@@ -15,7 +15,7 @@ test('parallel processing menu guards the live transport after a stopped menu wa
 	let playing = false;
 	let recording = false;
 	const runtime = createParallelStackMenuRuntime({
-		productId: 'soundscaper', desktop: true, recording: false,
+		productId: 'soundscaper', recording: false,
 		controller: {
 			engine: { getState: () => ({ state: playing ? 'playing' : 'stopped' }) },
 			getSnapshot: () => ({ recording }),
@@ -42,18 +42,19 @@ test('parallel processing menu guards the live transport after a stopped menu wa
 	} finally { writeParallelStackPreferences(original); }
 });
 
-test('parallel processing runtime is omitted outside the Soundscaper desktop', () => {
-	for (const [productId, desktop] of [['soundscaper', false], ['framescaper', true]] as const) {
-		assert.equal(createParallelStackMenuRuntime({
-			productId, desktop, recording: false, run: (operation) => operation(),
-		}), null);
-	}
+test('parallel processing runtime requires Soundscaper without depending on host identity', () => {
+	assert.ok(createParallelStackMenuRuntime({
+		productId: 'soundscaper', recording: false, run: (operation) => operation(),
+	}));
+	assert.equal(createParallelStackMenuRuntime({
+		productId: 'framescaper', recording: false, run: (operation) => operation(),
+	}), null);
 });
 
 test('settings cannot change while Play is preparing and the engine still reports stopped', () => {
 	let pendingPlayRequest = 0;
 	const runtime = createParallelStackMenuRuntime({
-		productId: 'soundscaper', desktop: true, recording: false,
+		productId: 'soundscaper', recording: false,
 		controller: {
 			engine: {
 				getState: () => ({ state: 'stopped' }),
@@ -78,7 +79,7 @@ test('settings cannot change during an unsequenced parallel graph preparation', 
 	}));
 	const preparing = prepareParallelStackPlayback(engine, {} as ParallelStackPlaybackRequest);
 	const runtime = createParallelStackMenuRuntime({
-		productId: 'soundscaper', desktop: true, recording: false,
+		productId: 'soundscaper', recording: false,
 		controller: { engine }, run: (operation) => operation(),
 	});
 	assert.ok(runtime);
@@ -91,7 +92,7 @@ test('settings cannot change during an unsequenced parallel graph preparation', 
 test('settings cannot change while an asynchronous recording start is pending', () => {
 	let recordingStarting = false;
 	const runtime = createParallelStackMenuRuntime({
-		productId: 'soundscaper', desktop: true, recording: false,
+		productId: 'soundscaper', recording: false,
 		controller: {
 			engine: { getState: () => ({ state: 'stopped' }) },
 			getSnapshot: () => ({ recording: false, recordingStarting }),

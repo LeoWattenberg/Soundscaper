@@ -99,7 +99,7 @@ export default function WorkspacePanelDock({
 		};
 		const finishResize = (event) => {
 			const session = resizeSessionRef.current;
-			if (event?.type === 'pointerup' && session?.pointerId !== event.pointerId) return;
+			if (event?.type.startsWith('pointer') && session?.pointerId !== event.pointerId) return;
 			resizeSessionRef.current = null;
 			if (!session?.element?.isConnected) return;
 			const bounds = session.element.getBoundingClientRect();
@@ -157,7 +157,7 @@ export default function WorkspacePanelDock({
 	const beginFloatingMove = useFloatingWorkspacePanelMove({ dock, dockRef, resizeSessionRef,
 		controller, run, setActiveFloatingPanelId, onPanelDragStart, onPanelDragEnd, onPanelMove });
 	const beginResize = (event) => {
-		if (event.button !== 0) return;
+		if (event.button !== 0 || event.isPrimary === false || resizeSessionRef.current) return;
 		const dockResizeHandle = event.target.closest?.('[data-workspace-dock-resize-handle]');
 		if ((dock === 'left' || dock === 'right') && dockResizeHandle?.closest('[data-panel-dock]') === dockRef.current) {
 			const element = dockRef.current;
@@ -286,6 +286,7 @@ export default function WorkspacePanelDock({
 		event.preventDefault();
 	};
 	const adjustFloatingPanelGeometry = (event, panelId, panel, mode) => {
+		if (event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey) return false;
 		if (dock !== 'floating' || !['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)) return false;
 		const workspaceBounds = dockRef.current?.getBoundingClientRect();
 		if (!workspaceBounds) return false;
@@ -315,6 +316,7 @@ export default function WorkspacePanelDock({
 		return true;
 	};
 	const adjustHorizontalDockSize = (event) => {
+		if (event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey) return;
 		if ((dock !== 'top' && dock !== 'bottom') || !['ArrowUp', 'ArrowDown'].includes(event.key)) return;
 		const bounds = dockRef.current?.getBoundingClientRect();
 		if (!bounds) return;
@@ -325,6 +327,7 @@ export default function WorkspacePanelDock({
 		run(() => controller.actions.preferences.setPanelDockExtent(dock, { size }));
 	};
 	const adjustSideDockSize = (event) => {
+		if (event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey) return;
 		if ((dock !== 'left' && dock !== 'right') || !['ArrowLeft', 'ArrowRight'].includes(event.key)) return;
 		const bounds = dockRef.current?.getBoundingClientRect();
 		const workspaceBounds = dockRef.current?.parentElement?.getBoundingClientRect();

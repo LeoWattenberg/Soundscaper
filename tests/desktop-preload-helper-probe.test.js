@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import { readDesktopPreloadSource } from './helpers/desktop-preload-source.mjs';
 import test from 'node:test';
 import vm from 'node:vm';
 
@@ -157,7 +157,7 @@ async function loadPreload(invocationResults) {
 	const invocations = [];
 	const sent = [];
 	const listeners = new Map();
-	const source = await readFile(new URL('../desktop/preload.mjs', import.meta.url), 'utf8');
+	const source = await readDesktopPreloadSource();
 	vm.runInNewContext(source, {
 		AggregateError, ArrayBuffer, Array, JSON, Number, Object, Promise, RangeError, String, TypeError,
 		Uint8Array, URL,

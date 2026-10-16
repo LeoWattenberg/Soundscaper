@@ -14,6 +14,8 @@ import {
 	validateFramescaperProjectVisual,
 	type FramescaperProjectVisual,
 } from './editor-project-visual-validation.ts';
+import { adjustmentLayersAfterSplit } from './editor-adjustment-effect-membership.ts';
+import { conformRestoredSequenceVisualClips } from './editor-sequence-visual-rate-conformance.ts';
 
 /** Apply inherited authority to its exact transitions projection, then restore visual-owned state. */
 export function applyInheritedFramescaperProjectCommandVisual(
@@ -39,6 +41,8 @@ export function applyInheritedFramescaperProjectCommandVisual(
 	const original = structuredClone(project) as unknown as Record<string, unknown>;
 	const visualSourceIds = ownedIds(original.sources, isVisual);
 	const originalBin = record(original.projectBin, 'projectBin');
+	original.clips = conformRestoredSequenceVisualClips(original, applied, records(original.clips, 'clips'));
+	originalBin.clips = conformRestoredSequenceVisualClips(original, applied, records(originalBin.clips, 'projectBin.clips'));
 	const visualBinClipIds = ownedIds(originalBin.clips, isVisual);
 	const originalTracks = records(original.tracks, 'tracks');
 	const appliedTracks = records(applied.tracks, 'tracks');
@@ -65,7 +69,8 @@ export function applyInheritedFramescaperProjectCommandVisual(
 	}
 	const sourceIds = new Set(records(applied.sources, 'sources').map(({ id }) => String(id)));
 	applied.videoAdjustmentLayers = retainedAdjustmentLayers(
-		original.videoAdjustmentLayers,
+		adjustmentLayersAfterSplit(records(original.videoAdjustmentLayers, 'adjustment layers'),
+			records(original.clips, 'clips'), records(applied.clips, 'clips'), command),
 		survivingTrackIds,
 	);
 	applied.videoVisualPresets = structuredClone(original.videoVisualPresets);

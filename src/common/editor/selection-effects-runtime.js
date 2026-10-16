@@ -22,6 +22,7 @@ import { applyMultibandCompressor } from './first-party-effects/multiband-compre
 import { isStandardEffect } from './first-party-effects/standard/definition.ts';
 import { applyStandardEffect } from './first-party-effects/standard/dsp.ts';
 import { applyStandardDelaySelection } from './first-party-effects/standard/delay-selection.ts';
+import { applySelectionEffectSpectralContext } from './selection-effect-spectral-context.ts';
 
 export async function applyAudioSelectionEffectAsync(type, channels, sampleRate, params = {}, context = {}) {
 	if (!AUDIO_SELECTION_EFFECT_DEFINITIONS[type]) {
@@ -42,19 +43,22 @@ export async function applyAudioSelectionEffectAsync(type, channels, sampleRate,
 	}
 	if (isBandDynamicsEffect(type)) {
 		const apply = type === 'deesser' ? applyDeesser : applyMultibandCompressor;
-		return assertAudacityEffectOutput(withValidatedSelectionInput(channels, (input, validation) => (
+		const output = assertAudacityEffectOutput(withValidatedSelectionInput(channels, (input, validation) => (
 			apply(input, sampleRate, normalizeAudioSelectionEffectParams(type, params), validation)
 		)));
+		return applySelectionEffectSpectralContext(channels, output, sampleRate, context);
 	}
 	if (type === REVIEWED_UTILITY_GAIN_SELECTION_EFFECT_TYPE) {
-		return applyReviewedUtilityGainSelection(channels, sampleRate, params);
+		const output = await applyReviewedUtilityGainSelection(channels, sampleRate, params);
+		return applySelectionEffectSpectralContext(channels, output, sampleRate, context);
 	}
 	if (type === BITCRUSHER_EFFECT_TYPE) {
-		return assertAudacityEffectOutput(applyBitcrusher(
+		const output = assertAudacityEffectOutput(applyBitcrusher(
 			assertAudacityEffectOutput(channels),
 			sampleRate,
 			normalizeAudioSelectionEffectParams(type, params),
 		));
+		return applySelectionEffectSpectralContext(channels, output, sampleRate, context);
 	}
 	if (type !== 'eq') return applyAudacityEffectAsync(type, channels, sampleRate, params, context);
 	const input = assertAudacityEffectOutput(channels);

@@ -2,7 +2,7 @@
 
 import assert from 'node:assert/strict';
 import { webcrypto } from 'node:crypto';
-import { readFile } from 'node:fs/promises';
+import { readDesktopPreloadSource } from './helpers/desktop-preload-source.mjs';
 import test from 'node:test';
 import vm from 'node:vm';
 import { MessageChannel } from 'node:worker_threads';
@@ -102,7 +102,7 @@ test('OpenFX Interact crosses preload as exact normalized actions and copied 64 
 async function loadPreload(result) {
 	let bridge;
 	const invocations = [];
-	const source = await readFile(new URL('../desktop/preload.mjs', import.meta.url), 'utf8');
+	const source = await readDesktopPreloadSource();
 	vm.runInNewContext(source, {
 		AggregateError, Array, ArrayBuffer, JSON, Number, Object, Promise, RangeError, String,
 		TypeError, Uint8Array, URL, Blob, MessageChannel, setTimeout, clearTimeout,

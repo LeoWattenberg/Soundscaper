@@ -13,7 +13,7 @@
 const preparationTests = Object.freeze({
 	'editor-vamp-analyzer': /src[\\/]common[\\/]editor[\\/]ui[\\/]dialogs[\\/]useAnalyzerLookup\.ts$/,
 	'editor-effect-parameter-surfaces': /src[\\/]common[\\/]editor[\\/]ui[\\/](?:useCompressionCurve|useLegacyEffectGraphPresentation)\.ts$/,
-	'editor-optional-surfaces': /src[\\/]common[\\/]editor[\\/]ui[\\/]workspace[\\/](?:RoutingGraphWires\.tsx|(?:routing-graph-presentation|useRoutingHoverFrame)\.ts)$/,
+	'editor-optional-surfaces': /src[\\/]common[\\/]editor[\\/]ui[\\/]workspace[\\/](?:RoutingGraphWires\.tsx|(?:routing-graph-presentation|routing-edge-handle-position|useRoutingHoverFrame)\.ts)$/,
 });
 
 /**

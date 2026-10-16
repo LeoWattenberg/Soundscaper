@@ -21,7 +21,7 @@ import {
 	probeBrowserAacEncoding,
 	validateBrowserAacM4aOutput,
 } from '../src/common/editor/browser-webcodecs-aac.ts';
-import { browserAacMetadataTags } from '../src/common/editor/browser-aac-metadata.ts';
+import { browserAacMetadataFormat, browserAacMetadataTags } from '../src/common/editor/browser-aac-metadata.ts';
 import { aacLcM4a48_000Fixture } from './helpers/os-audio-codec-fixtures.ts';
 
 const EXPECTED_M4A_GEOMETRY = Object.freeze({
@@ -61,7 +61,7 @@ test('AAC capability fails closed when WebCodecs is absent or refuses the tuple'
 	}, { sampleRate: 48_000, channelCount: 2, bitrate: 192_000 }), false);
 });
 
-test('AAC metadata maps only fields the MP4 muxer can state exactly', () => {
+test('AAC metadata maps standard fields and preserves extended descriptive fields', () => {
 	assert.deepEqual(browserAacMetadataTags({
 		title: 'Complete file', artist: 'Soundscaper', trackNumber: '2',
 		year: '2026', comments: 'Browser generated',
@@ -74,10 +74,7 @@ test('AAC metadata maps only fields the MP4 muxer can state exactly', () => {
 	}), {
 		date: new Date('2026-05-01T00:00:00.000Z'),
 	});
-	assert.throws(
-		() => browserAacMetadataTags({ copyright: 'Example' }),
-		/metadata fields: copyright/iu,
-	);
+	assert.deepEqual(browserAacMetadataTags({ copyright: 'Example', composer: 'Élodie' }), { raw: { copyright: 'Example', composer: 'Élodie' } });
 	assert.throws(
 		() => browserAacMetadataTags({ trackNumber: 'side A' }),
 		/positive integer/iu,
@@ -94,6 +91,21 @@ test('AAC metadata rejects impossible calendar days instead of exporting a diffe
 	assert.deepEqual(browserAacMetadataTags({ date: '2024-02-29' }), {
 		date: new Date('2024-02-29T00:00:00.000Z'),
 	});
+});
+
+test('AAC muxing retains disc numbers alongside extended descriptive metadata', async () => {
+	const bytes = await aacLcM4aAccessUnitFixture(3, { title: 'Episode', composer: 'Renée', genre: 'Ambient', discNumber: '2/3', trackNumber: '4/9' });
+	const input = new Input({ source: new BufferSource(bytes), formats: [MP4] });
+	try {
+		const tags = await input.getMetadataTags();
+		assert.equal(tags.title, 'Episode');
+		assert.equal(tags.genre, 'Ambient');
+		assert.equal(tags.raw?.composer, 'Renée');
+		assert.equal(tags.trackNumber, 4);
+		assert.equal(tags.tracksTotal, 9);
+		assert.equal(tags.discNumber, 2);
+		assert.equal(tags.discsTotal, 3);
+	} finally { input.dispose(); }
 });
 
 test('AAC output validation demuxes an exact AAC-LC audio-only MP4', async () => {
@@ -229,7 +241,7 @@ test('AAC file generation observes cancellation while its exact support probe is
 	}
 });
 
-async function aacLcM4aAccessUnitFixture(packetCount: number): Promise<Uint8Array<ArrayBuffer>> {
+async function aacLcM4aAccessUnitFixture(packetCount: number, metadata?: Readonly<Record<string, string>>): Promise<Uint8Array<ArrayBuffer>> {
 	const fixtureInput = new Input({ source: new BufferSource(aacLcM4a48_000Fixture()), formats: [MP4] });
 	try {
 		const [fixtureTrack] = await fixtureInput.getAudioTracks();
@@ -242,7 +254,8 @@ async function aacLcM4aAccessUnitFixture(packetCount: number): Promise<Uint8Arra
 		assert.ok(decoderConfig);
 
 		const target = new BufferTarget();
-		const output = new Output({ format: new Mp4OutputFormat(), target });
+		const output = new Output({ format: new Mp4OutputFormat({ metadataFormat: browserAacMetadataFormat(metadata) }), target });
+		output.setMetadataTags(browserAacMetadataTags(metadata));
 		const source = new EncodedAudioPacketSource('aac');
 		output.addAudioTrack(source);
 		await output.start();

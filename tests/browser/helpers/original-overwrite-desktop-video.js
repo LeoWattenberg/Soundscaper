@@ -131,6 +131,8 @@ export async function installPinnedOriginalOverwriteVideoCodec(page) {
 		throw new Error('The native video action is unknown.');
 	});
 	await page.addInitScript(() => {
+		// Exercise the pinned external encoder even when Chromium offers WebCodecs.
+		Object.defineProperty(globalThis, 'VideoEncoder', { configurable: true, value: undefined });
 		const invoke = (action, request) => globalThis.__originalOverwriteVideoCodec(action, request);
 		const plans = [];
 		Object.defineProperty(globalThis, '__originalOverwriteVideoPlans', { value: plans });

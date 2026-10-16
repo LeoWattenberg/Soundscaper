@@ -34,6 +34,10 @@ const EXPECTED_PINS = {
 		'121e1063962aea6e02817fec6bd3066162e22f262904c00b4be4e8a1fb3f826b'],
 	'vamp-plugin-sdk': ['2.10.0', '67adfc2bf9486912a0fce5123cf54360ea2678bc', 313354,
 		'aeaf3762a44b148cebb10cde82f577317ffc9df2720e5445c3df85f3739ff75f'],
+	'ara-api': ['2.3.0', '65ec5c43b943a48cb5446f448a0492db6af8534b', 1903668,
+		'cb4b2af9899095180186383bb1ca564e303bc51d5791b707c575282f263e796e'],
+	'ara-library': ['2.3.0', 'd18a6a5e489816316be84a9de0eaf7307bc1abe4', 2030466,
+		'691b673d02db79d749b1032125bce1d15200cf76ff180b0541bf1df4830c81cf'],
 	'asio-sdk': ['2.3.4', null, 8910208,
 		'd5ebf0c20dd2c5f43771fd0c1418f4b361bf52434ee670097cfa6b3a335e2eca'],
 	'ladspa-sdk': ['1.17', null, 71053,
@@ -61,6 +65,7 @@ const EXPECTED_LICENSE_SELECTIONS = {
 	clap: 'MIT',
 	'vst3-sdk': 'MIT',
 	'vamp-plugin-sdk': 'BSD-3-Clause',
+	'ara-api': 'Apache-2.0', 'ara-library': 'Apache-2.0',
 	'asio-sdk': 'GPL-3.0-only',
 	'ladspa-sdk': 'LGPL-2.1-or-later',
 	lv2: 'ISC',
@@ -146,7 +151,7 @@ test('Soundscaper source audit excludes every deferred Framescaper native input'
 		null,
 	);
 	assert.deepEqual(audit.sources.map(({ id }) => id), [
-		'electron-node-api-headers', 'juce', 'clap', 'vst3-sdk', 'vamp-plugin-sdk',
+		'electron-node-api-headers', 'juce', 'clap', 'vst3-sdk', 'vamp-plugin-sdk', 'ara-api', 'ara-library',
 		'asio-sdk', 'ladspa-sdk', 'lv2',
 	]);
 	assert.deepEqual(audit.delegatedSources, []);

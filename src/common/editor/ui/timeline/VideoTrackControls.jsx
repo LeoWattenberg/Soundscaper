@@ -7,6 +7,7 @@ import { ToggleButton } from '@soundscaper/design-system/ToggleButton';
 
 import { TrackNameEditor } from './TrackControls.jsx';
 import { focusFirst } from './timeline-navigation.js';
+import { selectTrackFromHeader } from './track-header-selection.ts';
 
 export function VideoTrackControls({
 	controller, track, panelWidth, selected, blocked, isFlatNavigation, copy, run,
@@ -16,6 +17,7 @@ export function VideoTrackControls({
 	const [editingName, setEditingName] = useState(false);
 	const controlTabIndex = isFlatNavigation ? 0 : -1;
 	const handleKeyDown = (event) => {
+		if (event.ctrlKey || event.metaKey || event.altKey) return;
 		if (event.key === 'Tab') {
 			const controls = [...controlsRef.current.querySelectorAll('button:not([disabled]), input:not([disabled])')];
 			const currentIndex = controls.indexOf(document.activeElement);
@@ -35,7 +37,11 @@ export function VideoTrackControls({
 	return <div ref={controlsRef} className="audio-editor-video-track-controls track-control-panel"
 		data-track-header data-selected={selected ? 'true' : 'false'} style={{ width: panelWidth }}
 		onFocusCapture={() => !selected && run(() => controller.actions.timeline.selectTrack(track.id))}
-		onClick={() => !selected && run(() => controller.actions.timeline.selectTrack(track.id))}
+		onClick={(event) => {
+			if (blocked || event.target.closest?.('button,input,textarea,select,[contenteditable="true"]')) return;
+			const mode = event.shiftKey ? 'range' : event.ctrlKey || event.metaKey ? 'toggle' : 'replace';
+			run(() => selectTrackFromHeader(controller, track.id, mode));
+		}}
 		onKeyDownCapture={handleKeyDown}>
 		{selected && <span className="audio-editor-track-header-selection" aria-hidden="true" />}
 		<div className="track-control-panel__main">

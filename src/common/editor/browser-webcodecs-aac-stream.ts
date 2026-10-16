@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import { AppendOnlyStreamTarget, EncodedAudioPacketSource, Mp4OutputFormat, Output } from 'mediabunny';
-import { browserAacMetadataTags } from './browser-aac-metadata.ts';
+import { browserAacMetadataFormat, browserAacMetadataTags } from './browser-aac-metadata.ts';
 import { aacSourceMetadata, validateAacSourceGeometry } from './aac-source-geometry.ts';
 import { probeBrowserWebCodecsAudioEncoding } from './browser-webcodecs-audio-profile.ts';
 import { awaitNativeAacAbort, createNativeAacEncoder, NATIVE_AAC_ACCESS_UNIT_FRAMES, type NativeAacResources } from './browser-native-aac-encoder.ts';
@@ -27,7 +27,7 @@ export async function encodeBrowserAacStreamed(request: StreamedAacRequest): Pro
 	assertCurrent();
 	let encoder: ReturnType<typeof createNativeAacEncoder> | undefined;
 	const output = new Output({
-		format: new Mp4OutputFormat({ fastStart: 'fragmented', minimumFragmentDuration: 1 }),
+		format: new Mp4OutputFormat({ fastStart: 'fragmented', minimumFragmentDuration: 1, metadataFormat: browserAacMetadataFormat(request.metadata) }),
 		target: new AppendOnlyStreamTarget(new WritableStream<Uint8Array>({ async write(bytes) {
 			assertCurrent(); encoder?.assertCurrent();
 			const writing = request.write(bytes);
@@ -40,7 +40,8 @@ export async function encodeBrowserAacStreamed(request: StreamedAacRequest): Pro
 	let acceptedFrames = 0;
 	const source = new EncodedAudioPacketSource('aac');
 	output.addAudioTrack(source);
-	output.setMetadataTags({ ...browserAacMetadataTags(request.metadata), raw: { scaf: sourceMetadata } });
+	const metadata = browserAacMetadataTags(request.metadata);
+	output.setMetadataTags({ ...metadata, raw: { ...metadata.raw, scaf: sourceMetadata } });
 	let cancellation: Promise<void> | null = null;
 	let finalized = false;
 	const cancel = (): Promise<void> => cancellation ??= finalized ? Promise.resolve() : output.cancel().catch(() => undefined);

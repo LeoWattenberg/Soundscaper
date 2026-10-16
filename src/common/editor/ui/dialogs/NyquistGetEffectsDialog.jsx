@@ -11,6 +11,7 @@ import {
 import { nyquistArchiveStore } from '../../nyquist/archive-store.js';
 import { resolveNyquistArchiveCopy } from '../../../i18n/editor-nyquist-archive-copy.ts';
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
+import { useOperationFocusRecovery } from '../useOperationFocusRecovery.ts';
 
 export default function NyquistGetEffectsDialog({ copy, onClose }) {
 	const archiveCopy = resolveNyquistArchiveCopy(copy);
@@ -19,6 +20,7 @@ export default function NyquistGetEffectsDialog({ copy, onClose }) {
 	const [installed, setInstalled] = useState(() => nyquistArchiveStore.list());
 	const [busy, setBusy] = useState(null);
 	const [error, setError] = useState('');
+	const captureFocus = useOperationFocusRecovery(busy !== null, nyquistArchiveStore);
 	const requestRef = useRef(null);
 
 	useEffect(() => {
@@ -46,6 +48,7 @@ export default function NyquistGetEffectsDialog({ copy, onClose }) {
 		onClose();
 	};
 	const install = async (artifact) => {
+		captureFocus();
 		const request = new AbortController();
 		requestRef.current = request;
 		setBusy(artifact.fileName);

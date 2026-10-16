@@ -1,0 +1,42 @@
+name: Set up native tooling
+description: Require native Node and select verified native Windows ARM64 build tools
+inputs:
+  windows-media-tools:
+    description: Also install native GNU Make and pkg-config with their authenticated DLL closure
+    default: 'false'
+runs:
+  using: composite
+  steps:
+    - name: Verify and select native tooling
+      shell: bash
+      run: node scripts/setup-ci-native-tooling.mjs ${{ inputs.windows-media-tools == 'true' && '--windows-media-tools' || '' }}
+    - name: Activate native Windows ARM64 compiler tools
+      if: runner.os == 'Windows' && runner.arch == 'ARM64'
+      shell: pwsh
+      run: |
+        $ErrorActionPreference = 'Stop'
+        $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
+        $installation = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.ARM64 -property installationPath
+        if (-not $installation) { throw 'Visual Studio ARM64 C++ tools are unavailable.' }
+        $devCmd = Join-Path $installation 'Common7\Tools\VsDevCmd.bat'
+        $activation = Join-Path $env:RUNNER_TEMP 'soundscaper-native-vs.cmd'
+        Set-Content -LiteralPath $activation -Encoding ascii -Value "@call `"$devCmd`" -no_logo -arch=arm64 -host_arch=arm64`r`n@if errorlevel 1 exit /b 1`r`n@set"
+        $lines = & cmd.exe /d /c $activation
+        if ($LASTEXITCODE -ne 0) { throw 'Native ARM64 compiler environment activation failed.' }
+        foreach ($key in @('INCLUDE', 'LIB', 'LIBPATH', 'PATH')) {
+          $line = $lines | Where-Object { $_ -like "$key=*" } | Select-Object -Last 1
+          if (-not $line) { throw "The native ARM64 compiler environment omitted $key." }
+          Add-Content -LiteralPath $env:GITHUB_ENV -Value $line
+        }
+    - name: Verify native Windows ARM64 compiler
+      if: runner.os == 'Windows' && runner.arch == 'ARM64'
+      shell: pwsh
+      run: |
+        $ErrorActionPreference = 'Stop'
+        $compiler = (Get-Command cl.exe -CommandType Application).Source
+        node --input-type=module -e 'import { readFileSync } from "node:fs"; import { assertNativeWindowsExecutable } from "./scripts/setup-ci-native-tooling.mjs"; assertNativeWindowsExecutable(readFileSync(process.argv[1]), "MSVC compiler");' $compiler
+        if ($LASTEXITCODE -ne 0) { throw 'MSVC must use a native ARM64 compiler host.' }
+    - name: Build the native Windows ARM64 resource editor
+      if: runner.os == 'Windows' && runner.arch == 'ARM64'
+      shell: bash
+      run: node scripts/setup-ci-native-tooling.mjs --build-rcedit

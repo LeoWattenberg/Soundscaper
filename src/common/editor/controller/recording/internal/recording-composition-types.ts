@@ -109,7 +109,7 @@ export interface RecordingCompositionDependencies {
 		ControllerRecordingState,
 		RecordingCompositionWritableState
 	>;
-	readonly lifetime: Pick<EditorControllerLifetime, 'capture' | 'assertActive' | 'startTask' | 'cancelTask'>;
+	readonly lifetime: Pick<EditorControllerLifetime, 'capture' | 'assertActive' | 'startTask' | 'cancelTask' | 'inactive' | 'signal'>;
 	readonly document: ControllerDocumentScope<RecordingCompositionProject>;
 	readonly projectRuntime: Readonly<{
 		cloneProject(project: unknown): unknown;

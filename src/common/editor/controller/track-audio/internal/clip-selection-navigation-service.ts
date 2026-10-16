@@ -6,6 +6,10 @@ import {
 	type RuntimePersistedClip,
 } from '../../../runtime-clip-projection.ts';
 import { resolveSelectionRange } from '../../../selection-range.ts';
+import { resolveEditingSelectionAuthority } from '../../../commands/editing-selection-authority.ts';
+import { clipContentRange } from '../../../clip-content-range.ts';
+import { visibleNavigationTracks } from '../../../audacity-visible-navigation-tracks.ts';
+import { createDocumentTrackFolderSnapshot } from '../../document/document-track-folder-snapshot.ts';
 
 export interface ClipSelectionNavigationFrequencyRange {
 	readonly minimumFrequency: number;
@@ -94,7 +98,7 @@ export function createClipSelectionNavigationService<
 		const project = dependencies.getProject();
 		const selection = project?.selection;
 		if (!project || !selection) return null;
-		const range = resolveSelectionRange(resolveRuntimeProjectProjection(project)) ?? selection;
+		const range = resolveSelectionRange(project) ?? selection;
 		const startFrame = selectionFrame(range.startFrame, 'selection.startFrame');
 		const endFrame = selectionFrame(range.endFrame, 'selection.endFrame');
 		const pivot = next ? endFrame : startFrame;
@@ -111,7 +115,7 @@ export function createClipSelectionNavigationService<
 		const project = dependencies.getProject();
 		const selection = project?.selection;
 		if (!project || !selection) return null;
-		const range = resolveSelectionRange(resolveRuntimeProjectProjection(project)) ?? selection;
+		const range = resolveSelectionRange(project) ?? selection;
 		const startFrame = selectionFrame(range.startFrame, 'selection.startFrame');
 		const endFrame = selectionFrame(range.endFrame, 'selection.endFrame');
 		const candidate = adjacentClip(project, selection, startFrame, endFrame, next);
@@ -145,9 +149,26 @@ export function createClipSelectionNavigationService<
 	function skipToSelectionBoundary(
 		boundary: 'startFrame' | 'endFrame',
 	): number | null {
-		const selection = resolveSelectionRange(dependencies.getProject(), {
-			selectedClipId: dependencies.state.selectedClipId,
+		const project = dependencies.getProject();
+		if (!project) return null;
+		const authority = resolveEditingSelectionAuthority({
+			project: { tracks: project.tracks, selection: project.selection,
+				clips: project.clips.map(clip => ({ id: clip.id,
+					groupId: typeof clip.groupId === 'string' ? clip.groupId : null,
+					avLinkId: typeof clip.avLinkId === 'string' ? clip.avLinkId : null })) },
+			focusedClipId: dependencies.state.selectedClipId,
 		});
+		let selection = authority.range;
+		if (!selection && authority.clipIds.length) {
+			const selectedIds = new Set(authority.clipIds);
+			const ranges = project.clips.filter(clip => selectedIds.has(clip.id))
+				.map(clip => clipContentRange(project, clip));
+			if (!ranges.length || ranges.some(range => range === null)) return null;
+			selection = {
+				startFrame: Math.min(...ranges.map(range => range!.startFrame)),
+				endFrame: Math.max(...ranges.map(range => range!.endFrame)),
+			};
+		}
 		if (!selection) return null;
 		const frame = selectionFrame(selection[boundary], `selection.${boundary}`);
 		dependencies.seek(frame);
@@ -220,7 +241,10 @@ function projectedAudioClips(
 	project: ClipSelectionNavigationProject,
 	selection: ClipSelectionNavigationSelection,
 ): ProjectedAudioClipCandidate[] {
-	const projection = resolveRuntimeProjectProjection(project);
+	const navigationProject = { ...project,
+		clips: project.clips.filter(clip => clip.kind === 'audio'), projectBin: { clips: [] },
+	};
+	const projection = resolveRuntimeProjectProjection(navigationProject);
 	const clipById = new Map<string, Readonly<{
 		readonly clip: Readonly<Record<string, unknown>>;
 		readonly documentIndex: number;
@@ -233,7 +257,7 @@ function projectedAudioClips(
 	}
 
 	const selectedTrackIds = new Set(selectionIds(selection.trackIds, 'selection.trackIds'));
-	const audioTracks = projection.tracks
+	const audioTracks = visibleNavigationTracks(projection.tracks, createDocumentTrackFolderSnapshot(project))
 		.map((track, trackIndex) => ({ track, trackIndex }))
 		.filter(({ track }) => track.type === 'audio');
 	const selectedAudioTracks = audioTracks.filter(({ track }) => (
@@ -310,13 +334,17 @@ function exactClipSelectionCommand(
 ): ClipSelectionNavigationSelectionCommand {
 	const clipIds = [...new Set([clip.clipId, ...relatedIds])];
 	const selectedIds = new Set(clipIds);
-	const projection = resolveRuntimeProjectProjection(project);
-	const selectedClips = projection.clips.filter(candidate => selectedIds.has(candidate.id));
-	const trackIds = projection.tracks
+	const selectedClips = project.clips.filter(candidate => selectedIds.has(candidate.id));
+	const ranges = selectedClips.map(candidate => {
+		const range = clipContentRange(project, candidate);
+		if (!range) throw new RangeError('Selected clips require resolved timeline geometry.');
+		return range;
+	});
+	const trackIds = project.tracks
 		.filter(track => track.clipIds?.some(id => selectedIds.has(id)))
 		.map(track => track.id);
-	const startFrame = Math.min(...selectedClips.map(candidate => selectionFrame(candidate.timelineStartFrame, 'clip.timelineStartFrame')));
-	const endFrame = Math.max(...selectedClips.map(candidate => selectionFrame(candidate.timelineEndFrame, 'clip.timelineEndFrame')));
+	const startFrame = Math.min(...ranges.map(range => selectionFrame(range.startFrame, 'clip.timelineStartFrame')));
+	const endFrame = Math.max(...ranges.map(range => selectionFrame(range.endFrame, 'clip.timelineEndFrame')));
 	return Object.freeze({
 		type: 'selection/set',
 		startFrame,

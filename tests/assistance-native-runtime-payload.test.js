@@ -88,6 +88,17 @@ test('production assistance registration verifies the target payload before help
 	assert.doesNotMatch(source, /verifyBinary:\s*\(\)\s*=>\s*Promise\.resolve/iu);
 });
 
+test('legacy Sherpa payloads cannot claim unbuilt GPU providers', () => {
+	for (const executionProviders of [
+		['webgpu', 'cpu'], ['coreml', 'cpu'], ['cuda', 'cpu'], ['webgpu'], ['cpu', 'cpu'],
+	]) {
+		const changed = structuredClone(manifest);
+		changed.targets['linux-x64'].executionProviders = executionProviders;
+		assert.throws(() => assistanceNativeRuntimeStageSummary(changed, 'linux-x64'),
+			/GPU|provider|capabilit/iu);
+	}
+});
+
 async function temporaryRoot(context) {
 	const root = await mkdtemp(join(tmpdir(), 'assistance-native-runtime-'));
 	context.after(() => rm(root, { recursive: true, force: true }));

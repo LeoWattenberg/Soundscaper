@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-/** Shared authenticated CPU/session/publication mechanics for visual ONNX adapters. */
+/** Shared authenticated session/publication mechanics for visual ONNX adapters. */
 
 import type {
 	AssistanceOnnxInferenceSessionV1,
@@ -8,8 +8,8 @@ import type {
 	AssistanceOnnxTensorV1,
 } from './assistance-onnx-runtime-worker.ts';
 import {
-	assertAssistanceOnnxCpuJobV1,
-	createAssistanceOnnxCpuSessionV1,
+	assertAssistanceOnnxJobV1,
+	createAssistanceOnnxSessionV1,
 	publishAssistanceOnnxOutputV1,
 	reviewAssistanceOnnxRuntimeModuleV1,
 } from './assistance-onnx-worker-common.ts';
@@ -29,7 +29,7 @@ export function assertAssistanceOnnxVisualRuntimeJobV1(
 	context: AssistanceRuntimeFamilyWorkerExecutionContext,
 	task: AssistanceRuntimeFamilyTask,
 ): void {
-	assertAssistanceOnnxCpuJobV1(context, task,
+	assertAssistanceOnnxJobV1(context, task,
 		'The visual adapter received a foreign authenticated CPU job.');
 }
 
@@ -54,13 +54,13 @@ export function exactAssistanceOnnxVisualArtifactsV1<Role extends string>(
 	return Object.freeze(result);
 }
 
-export async function createAssistanceOnnxVisualCpuSessionV1(
+export async function createAssistanceOnnxVisualSessionV1(
 	runtime: AssistanceOnnxRuntimeModuleV1,
 	modelPath: string,
 	inputNames: readonly string[],
 	outputNames: readonly string[],
 ): Promise<AssistanceOnnxInferenceSessionV1> {
-	const session = await createAssistanceOnnxCpuSessionV1(runtime, modelPath, {
+	const session = await createAssistanceOnnxSessionV1(runtime, modelPath, {
 		value: 'The visual ONNX inference session surface is invalid.',
 		surface: 'The visual ONNX inference session surface is invalid.',
 	});

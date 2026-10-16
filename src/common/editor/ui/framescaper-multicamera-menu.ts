@@ -125,6 +125,8 @@ function createCommand(
 	clip: DataRecord,
 	groups: readonly DataRecord[],
 ): FramescaperMulticameraMenuCommand | null {
+	// The native group planner deliberately admits only un-retimed one-to-one outputs.
+	if (clip.retimeMap != null || clip.sequenceFrameCount !== clip.sourceFrameCount) return null;
 	const projectId = string(project.id);
 	const revision = integer(project.revision, 0);
 	const clipId = string(clip.id);

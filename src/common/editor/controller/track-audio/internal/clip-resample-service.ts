@@ -4,8 +4,9 @@ import { hasCoreEditingProjectAuthority } from '../../../project-schema-version.
 
 import { createAddClipCommand, createAddSourceCommand } from '../../../commands/factories.ts';
 import type { AudioEditorCommand } from '../../../commands/protocol.ts';
-import { addMultiplyDivideRationals, scaleSampleFrame, subtractRationals } from '../../../timeline-time.ts';
-import { normalizeAudioWarpMap } from '../../../audio-warp-domain.ts';
+import { scaleSampleFrame } from '../../../timeline-time.ts';
+import { remapAudioWarpSourceWindow } from '../../../audio-warp-source-window.ts';
+import { resampledClipSelectionCommands } from './resampled-clip-selection.ts';
 import type { DerivedSourceService } from './derived-audio/derived-source-service.ts';
 import {
 	isCurrentAssertion,
@@ -102,7 +103,8 @@ export function resampledClipCommands(
 		replacement.frameCount - sourceStartFrame - sourceDurationFrames,
 		Math.max(0, Math.round((clip.trimEndFrames || 0) * ratio)),
 	);
-	const warpMap = clip.warpMap == null ? null : normalizeAudioWarpMap(clip.warpMap);
+	const warpMap = clip.warpMap == null ? null
+		: remapAudioWarpSourceWindow(clip.warpMap, clip, { sourceStartFrame, sourceDurationFrames });
 	return [
 		// Removal expands related membership; detach and restore this clip's links.
 		...(typeof clip.groupId === 'string' && clip.groupId
@@ -118,12 +120,7 @@ export function resampledClipCommands(
 			sourceDurationFrames,
 			trimStartFrames,
 			trimEndFrames,
-			...(warpMap ? { warpMap: { ...warpMap, points: warpMap.points.map((point) => ({
-				...point,
-				source: addMultiplyDivideRationals(sourceStartFrame,
-					subtractRationals(point.source, clip.sourceStartFrame),
-					sourceDurationFrames, clip.sourceDurationFrames),
-			})) } } : {}),
+			...(warpMap ? { warpMap } : {}),
 		}),
 		...(avLinkId && linkedVideo ? [{
 			type: 'clip/link-av' as const, videoClipId: linkedVideo.id, audioClipId: clip.id, avLinkId,
@@ -197,23 +194,12 @@ export function createClipResampleService(
 				'resampled-source',
 			);
 			assertOwned(ownership);
-			// The production projection prunes the temporarily removed clip from selection.
-			// Restore the live selection after re-add/relink in the same history entry.
-			const selection = dependencies.getProject().selection;
-			const selectionCommands: AudioEditorCommand[] = selection?.clipIds?.includes(clip.id) ? [{
-				...selection,
-				type: 'selection/set',
-				frequencyRange: selection.frequencyRange ? {
-					minimumFrequency: selection.frequencyRange.minimumFrequency,
-					maximumFrequency: selection.frequencyRange.maximumFrequency,
-				} : null,
-			}] : [];
 			dependencies.commit({
 				type: 'batch',
 				commands: [
 					createAddSourceCommand(record.source),
 					...resampledClipCommands(track.id, clip, source, record.source, sampleRate, linkedVideo),
-					...selectionCommands,
+					...resampledClipSelectionCommands(dependencies.getProject().selection, [clip.id]),
 				],
 			}, { selectTrackId: track.id, selectClipId: clip.id });
 			setLocalizedStatus(dependencies.setStatus, dependencies.copy, "done", undefined, 'success');

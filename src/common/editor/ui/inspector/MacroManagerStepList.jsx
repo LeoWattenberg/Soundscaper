@@ -7,6 +7,7 @@ import { useContainerTabGroup } from '@soundscaper/design-system/hooks/useContai
 import EffectPicker from './EffectPicker.jsx';
 import { isMacroCommandStep } from '../../macro-command-steps.ts';
 import { safeEffectLabel } from './effect-helpers.ts';
+import { useMacroStepRemovalFocus } from './useMacroStepRemovalFocus.ts';
 
 /**
  * The steps of the selected macro, in the order they run.
@@ -32,6 +33,8 @@ export default function MacroManagerStepList({
 	const [picker, setPicker] = useState(null);
 	const [drag, setDrag] = useState(null);
 	const stackRef = useRef(null);
+	const listRef = useRef(null);
+	const captureRemoval = useMacroStepRemovalFocus(listRef, effects);
 	const stepTabGroup = useContainerTabGroup({
 		containerRef: stackRef,
 		groupId: 'effects-panel',
@@ -53,7 +56,7 @@ export default function MacroManagerStepList({
 
 	return (
 		<>
-			<div className="audio-editor-macros-palette__steps" data-macro-steps>
+			<div ref={listRef} className="audio-editor-macros-palette__steps" data-macro-steps>
 				<div
 					ref={stackRef}
 					className="audio-editor-macros-palette__stack"
@@ -86,7 +89,7 @@ export default function MacroManagerStepList({
 							isDragging={drag?.fromIndex === index}
 							style={drag?.toIndex === index && drag.fromIndex !== index ? { outline: '1px solid var(--accent)' } : undefined}
 							onSelectEffect={() => onSelectEffect(effect.id)}
-							onRemoveEffect={() => onRemoveEffect(effect.id)}
+							onRemoveEffect={() => { captureRemoval(effect.id, index); onRemoveEffect(effect.id); }}
 							{...(isMacroCommandStep(effect) ? {} : {
 								onReplaceEffect: (candidate) => onReplaceEffect(effect.id, candidate),
 								replaceEffectOptions,

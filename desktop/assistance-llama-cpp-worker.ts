@@ -24,6 +24,12 @@ import {
 	reviewAssistanceEditorialGenerationPlanV1,
 	type AssistanceEditorialGenerationPlanV1,
 } from '../src/common/editor/assistance/editorial-generation-v1.ts';
+import {
+	AssistanceNativeCliExecutionError,
+	assistanceNativeCliSpawnErrorV1,
+	assistanceNativeGpuEntrypointV1,
+	createAssistanceNativeGpuExecutorV1,
+} from './assistance-native-gpu-execution.ts';
 
 interface AssistanceLlamaCppReadable {
 	on(event: 'data', listener: (chunk: unknown) => void): this;
@@ -124,24 +130,28 @@ async function executeLlamaCppEditorial(
 	const plan = await readEditorialPlan(input);
 	context.signal?.throwIfAborted();
 	context.onProgress(0);
-	const stdout = await withInvocationFiles(plan, context.signal, async (files) => await runCli({
-		spawn,
-		executable: context.job.descriptor.entrypoint,
-		args: Object.freeze([
-			'--model', model.path, '--file', files.prompt, '--grammar-file', files.grammar,
-			'--offline', '--device', 'none', '--gpu-layers', '0', '--no-kv-offload',
-			'--no-op-offload', '--threads', '4', '--predict',
-			String(ASSISTANCE_EDITORIAL_GENERATION_MAXIMUM_OUTPUT_TOKENS),
-			'--temp', '0', '--top-k', '1', '--top-p', '1', '--seed', '0',
-			'--reasoning', 'off', '--reasoning-budget', '0', '--single-turn',
-			'--no-context-shift', '--no-display-prompt', '--no-perf',
-			'--no-warmup', '--jinja', '--no-escape', '--color', 'off', '--simple-io',
-			'--log-verbosity', '1',
-		]),
-		maximumStdoutBytes: Math.min(output.maximumByteLength, plan.runtime.maximumOutputBytes),
-		signal: context.signal,
-		env: restrictedEnvironment(files.root),
-	}));
+	const gpu = createAssistanceNativeGpuExecutorV1(context.job.descriptor);
+	const stdout = await withInvocationFiles(plan, context.signal, async (files) => await gpu.run(
+		context.signal, async (provider) => await runCli({
+			spawn,
+			executable: assistanceNativeGpuEntrypointV1(context.job.descriptor, provider),
+			args: Object.freeze([
+				'--model', model.path, '--file', files.prompt, '--grammar-file', files.grammar,
+				'--offline', ...(provider === 'cpu'
+					? ['--device', 'none', '--gpu-layers', '0', '--no-kv-offload', '--no-op-offload']
+					: ['--gpu-layers', 'auto']),
+				'--threads', '4', '--predict',
+				String(ASSISTANCE_EDITORIAL_GENERATION_MAXIMUM_OUTPUT_TOKENS),
+				'--temp', '0', '--top-k', '1', '--top-p', '1', '--seed', '0',
+				'--reasoning', 'off', '--reasoning-budget', '0', '--single-turn',
+				'--no-context-shift', '--no-display-prompt', '--no-perf',
+				'--no-warmup', '--jinja', '--no-escape', '--color', 'off', '--simple-io',
+				'--log-verbosity', '1',
+			]),
+			maximumStdoutBytes: Math.min(output.maximumByteLength, plan.runtime.maximumOutputBytes),
+			signal: context.signal,
+			env: restrictedEnvironment(files.root),
+	})));
 	context.signal?.throwIfAborted();
 	let reviewed: ReturnType<typeof reviewAssistanceEditorialGenerationOutputV1>;
 	try { reviewed = reviewAssistanceEditorialGenerationOutputV1(plan, stdout); }
@@ -230,14 +240,15 @@ async function runCli(options: Readonly<{
 	return await new Promise<Uint8Array>((resolve, reject) => {
 		let child: AssistanceLlamaCppChild;
 		try {
-			child = inspectChild(options.spawn(options.executable, options.args, {
+			child = options.spawn(options.executable, options.args, {
 				// Node may append NODE_V8_COVERAGE to the supplied environment during spawn.
 				stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true, shell: false, env: { ...options.env },
-			}));
+			});
 		} catch (error) {
-			reject(new Error('The authenticated llama.cpp CLI could not be started.', { cause: error }));
+			reject(assistanceNativeCliSpawnErrorV1('The authenticated llama.cpp CLI could not be started.', error));
 			return;
 		}
+		child = inspectChild(child);
 		const stdout: Uint8Array[] = [];
 		let stdoutBytes = 0;
 		let stderrBytes = 0;
@@ -288,7 +299,7 @@ async function runCli(options: Readonly<{
 			}
 		});
 		child.once('error', (error) => {
-			stop(new Error('The authenticated llama.cpp CLI failed to execute.', { cause: error }));
+			stop(assistanceNativeCliSpawnErrorV1('The authenticated llama.cpp CLI failed to execute.', error));
 		});
 		child.once('close', (code, processSignal) => {
 			if (settled) return;
@@ -299,7 +310,7 @@ async function runCli(options: Readonly<{
 			if (code !== 0 || processSignal !== null) {
 				const exitCode = code !== null && Number.isSafeInteger(code)
 					? String(code) : 'unknown';
-				reject(new Error(`The authenticated llama.cpp CLI did not complete successfully `
+				reject(new AssistanceNativeCliExecutionError(`The authenticated llama.cpp CLI did not complete successfully `
 					+ `(exit code ${exitCode}${processSignal === null ? '' : ', terminated by signal'}).`));
 				return;
 			}

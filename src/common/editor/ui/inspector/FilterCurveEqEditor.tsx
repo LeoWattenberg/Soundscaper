@@ -14,6 +14,7 @@ import { createFilterCurveGesture } from '../../controller/effects/filter-curve-
 import { CommitField, DesignCheckbox } from './inspector-controls.jsx';
 import { useEqDraftFrame, useFilterEqGrid, useFilterEqPolyline, useFilterResponseFrequencies } from './useEqPresentation.ts';
 import { moveFilterCurvePointByKey } from './filter-curve-keyboard.ts';
+import { filterCurveCanInvert, invertFilterCurve } from './filter-curve-inversion.ts';
 
 interface Props {
 	readonly name: string;
@@ -124,6 +125,7 @@ export default function FilterCurveEqEditor({
 		if (next) onCommit(next);
 	};
 	const keyPoint = (event: KeyboardEvent<SVGCircleElement>, index: number): void => {
+		if (event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey) return;
 		if (disabled || pointer.current !== null) return;
 		if (event.key === 'Delete' || event.key === 'Backspace') {
 			event.preventDefault(); event.stopPropagation();
@@ -142,8 +144,11 @@ export default function FilterCurveEqEditor({
 		<svg ref={svgRef} viewBox="0 0 640 300" preserveAspectRatio="none" role="group"
 			aria-label={text('effectCardEqualizationCurve')} aria-describedby={`${id}-instructions`} aria-disabled={disabled} tabIndex={disabled ? -1 : 0}
 			onPointerDown={begin} onPointerMove={(event) => {
-				if (pointer.current === event.pointerId && !disabled) draftFrame.publish(gesture.current.move(atEvent(event)));
-			}} onPointerUp={finish} onPointerCancel={cancel} onLostPointerCapture={() => { if (pointer.current !== null) cancel(); }}
+				if (pointer.current !== event.pointerId || disabled) return;
+				if (event.pointerType === 'mouse' && !(event.buttons & 1)) { finish(event); return; }
+				draftFrame.publish(gesture.current.move(atEvent(event)));
+			}} onPointerUp={finish} onPointerCancel={(event) => { if (pointer.current === event.pointerId) cancel(); }}
+			onLostPointerCapture={(event) => { if (pointer.current === event.pointerId) cancel(); }}
 			onKeyDown={(event) => {
 				if (event.key === 'Escape' && pointer.current !== null) {
 					event.preventDefault(); event.stopPropagation(); cancel();
@@ -190,7 +195,7 @@ export default function FilterCurveEqEditor({
 			onCommit={(_field: string, next: string) => onCommit(parseAudacityCurve(next))} /></details>
 		<div className="audio-editor-panel-actions audio-editor-filter-curve__actions">
 			<Button variant="secondary" disabled={disabled} onClick={() => onCommit(EMPTY)}>{copy.reset}</Button>
-			<Button variant="secondary" disabled={disabled} onClick={() => onCommit(points.map((point) => ({ ...point, gain: Math.max(-120, Math.min(60, -point.gain)) })))}>{copy.invert}</Button>
+			<span title={!filterCurveCanInvert(points) ? text('effectCurveInverseUnavailable') : undefined}><Button variant="secondary" disabled={disabled || !filterCurveCanInvert(points)} onClick={() => onCommit(invertFilterCurve(points))}>{copy.invert}</Button></span>
 		</div>
 	</div>;
 }

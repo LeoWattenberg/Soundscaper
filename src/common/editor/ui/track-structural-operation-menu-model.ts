@@ -18,6 +18,17 @@ interface TrackStructuralMenuItem {
 	readonly items?: readonly TrackStructuralMenuItem[];
 }
 
+interface TrackStructuralMenuProject {
+	readonly tracks: readonly Readonly<{
+		id: string; locked?: boolean; laneGroupId?: string | null;
+	}>[];
+	readonly sequences?: readonly Readonly<{
+		trackNodes?: readonly Readonly<{
+			id: string; kind: 'track' | 'folder'; parentFolderId: string | null;
+		}>[];
+	}>[];
+}
+
 export interface TrackStructuralMenuModel {
 	readonly muteItems: readonly TrackStructuralMenuItem[];
 	readonly alignMenu: TrackStructuralMenuItem;
@@ -30,9 +41,13 @@ export function createTrackStructuralOperationMenuModel(options: Readonly<{
 	editingBlocked: boolean;
 	hasTracks: boolean;
 	hasAlignmentTarget: boolean;
+	project?: TrackStructuralMenuProject | null;
+	selectedTrackIds?: readonly string[];
 }>): Readonly<TrackStructuralMenuModel> {
 	const writeDisabled = options.editingBlocked || !options.hasTracks;
-	const alignDisabled = writeDisabled || !options.hasAlignmentTarget;
+	const alignDisabled = writeDisabled || !options.hasAlignmentTarget
+		|| alignmentTargetLocked(options.project, options.selectedTrackIds ?? []);
+	const sortDisabled = writeDisabled || options.project?.tracks.some(track => track.locked === true) === true;
 	const leaf = (id: string, label: string, disabled: boolean): TrackStructuralMenuItem => (
 		Object.freeze({ id, label, disabled })
 	);
@@ -59,9 +74,38 @@ export function createTrackStructuralOperationMenuModel(options: Readonly<{
 		sortMenu: Object.freeze({
 			id: 'menu-sort', label: options.copy.sortTracks,
 			items: Object.freeze([
-				leaf('sort-by-time', options.copy.sortByTime, writeDisabled),
-				leaf('sort-by-name', options.copy.sortByName, writeDisabled),
+				leaf('sort-by-time', options.copy.sortByTime, sortDisabled),
+				leaf('sort-by-name', options.copy.sortByName, sortDisabled),
 			]),
 		}),
 	});
+}
+
+/** Alignment moves a whole root folder or linked lane block, including its locks. */
+function alignmentTargetLocked(
+	project: TrackStructuralMenuProject | null | undefined,
+	selectedTrackIds: readonly string[],
+): boolean {
+	if (!project) return false;
+	const selected = new Set(selectedTrackIds);
+	const laneGroups = new Set(project.tracks.flatMap(track => (
+		selected.has(track.id) && track.laneGroupId ? [track.laneGroupId] : []
+	)));
+	const folderByTrack = new Map<string, string>();
+	for (const sequence of project.sequences ?? []) {
+		let rootFolder: string | null = null;
+		for (const node of sequence.trackNodes ?? []) {
+			if (node.parentFolderId === null) rootFolder = node.kind === 'folder' ? node.id : null;
+			if (node.kind === 'track' && rootFolder !== null) folderByTrack.set(node.id, rootFolder);
+		}
+	}
+	const folders = new Set(selectedTrackIds.flatMap(id => {
+		const folder = folderByTrack.get(id);
+		return folder === undefined ? [] : [folder];
+	}));
+	return project.tracks.some(track => track.locked === true && (
+		selected.has(track.id)
+		|| (track.laneGroupId != null && laneGroups.has(track.laneGroupId))
+		|| folders.has(folderByTrack.get(track.id) ?? '')
+	));
 }

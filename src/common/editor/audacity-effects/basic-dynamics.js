@@ -109,7 +109,8 @@ export function applyLegacyCompressorChannel(channel, sampleRate, settings) {
 			rmsWindow[rmsPosition] = channel[index] * channel[index];
 			rmsSum += rmsWindow[rmsPosition];
 			rmsPosition = (rmsPosition + 1) % RMS_WINDOW_SIZE;
-			level = Math.sqrt(rmsSum / RMS_WINDOW_SIZE);
+			// Removing the last real samples can leave a tiny negative rounding remainder.
+			level = Math.sqrt(Math.max(0, rmsSum) / RMS_WINDOW_SIZE);
 		}
 		if (level < noiseFloor) noiseCounter += 1;
 		else noiseCounter = 0;

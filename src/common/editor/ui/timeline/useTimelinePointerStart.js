@@ -16,6 +16,9 @@ import { captureTimelineRollRippleTrimPointerMode } from './roll-ripple-trim-poi
 import { captureTimelineSlipSlidePointerGesture } from './slip-slide-pointer-routing.ts';
 import { isRulerLoopBand, samplePointAtPointer } from './track-row-helpers.jsx';
 import { readTimelineContentScrollX } from './timeline-scroll-space.ts';
+import { clipGestureBlocked } from './clip-gesture-admission.ts';
+import { createTimelineSelectionBoundaryEdit, previewTimelineSelectionBoundaryEdit } from './selection-pointer-edit.ts';
+import { resolveTimelineSelectionPointerTarget, setTimelineSelectionPointerCursor } from './selection-pointer-target.ts';
 import {
 	resolveSplitToolGuidelineFrame,
 	splitToolTargetTrackIds,
@@ -53,6 +56,34 @@ export function useTimelinePointerStart({
 	const { frameAtClientX } = hitTesting;
 	const { run } = menuActions;
 	const onPointerDown = useCallback((event) => {
+		const beginBoundaryEdit = () => {
+			const selection = project.selection || { startFrame: 0, endFrame: 0 };
+			const playheadFrame = controller.getTelemetrySnapshot?.().positionFrame ?? 0;
+			const target = resolveTimelineSelectionPointerTarget(event, {
+				selection: selection.endFrame > selection.startFrame ? selection : { startFrame: playheadFrame, endFrame: playheadFrame },
+				tracks: project.tracks, selectedTrackId: snapshot.selectedTrackId,
+				frameAtClientX, pixelsPerSecond, sampleRate, splitToolActive, automationToolEnabled,
+				samplePencilActive: false,
+			});
+			if (!target) return false;
+			const session = {
+				...createTimelineSelectionBoundaryEdit(selection, target.edge, playheadFrame, [target.lane.dataset.trackId]),
+				lane: target.lane, pointerId: event.pointerId,
+				frequencyRange: selection.frequencyRange,
+			};
+			pointerSession.current = session;
+			const preview = previewTimelineSelectionBoundaryEdit({
+				session, project, rawFrame: frameAtClientX(event.clientX, target.lane),
+				currentTrackId: target.lane.dataset.trackId, pixelsPerSecond, sampleRate,
+			});
+			setSelectionPreview(preview.selection);
+			setBoundarySnapGuideFrames(preview.guideFrames);
+			setTimelineSelectionPointerCursor(scrollRef.current, session.edge);
+			event.preventDefault();
+			event.stopPropagation();
+			event.currentTarget.setPointerCapture?.(event.pointerId);
+			return true;
+		};
 		const beginSelection = (lane, rawStartFrame, trackIds) => {
 			const snapIndex = createBoundarySnapIndex(project);
 			const startSnap = resolveBoundarySnap({
@@ -61,7 +92,7 @@ export function useTimelinePointerStart({
 			});
 			const startFrame = startSnap.frame;
 			pointerSession.current = {
-				kind: 'selection', startFrame, rawStartFrame, startX: event.clientX, lane,
+				kind: 'selection', pointerId: event.pointerId, startFrame, rawStartFrame, startX: event.clientX, lane,
 				snapIndex,
 				startSnapGuideFrame: startSnap.snapped ? startFrame : null,
 				lastRawEndFrame: rawStartFrame, lastTrackIds: trackIds,
@@ -81,6 +112,9 @@ export function useTimelinePointerStart({
 			event.stopPropagation();
 			return;
 		}
+		if (pointerSession.current
+			&& !(event.pointerType === 'touch' && touchPointers.current.size === 1)) return;
+		if (event.pointerType === 'touch' && event.isPrimary === false && touchPointers.current.size === 0) return;
 		const crossfadeHandle = event.target.closest?.('[data-crossfade-handle]');
 		if (crossfadeHandle) {
 			if (event.button !== 0 || mutationsBlocked || pointerSession.current) return;
@@ -88,7 +122,8 @@ export function useTimelinePointerStart({
 			const incomingClipId = crossfadeHandle.dataset.incomingClipId;
 			const outgoing = project.clips.find(item => String(item.id) === outgoingClipId);
 			const incoming = project.clips.find(item => String(item.id) === incomingClipId);
-			if (outgoing?.kind !== 'audio' || incoming?.kind !== 'audio') return;
+			if (outgoing?.kind !== 'audio' || incoming?.kind !== 'audio'
+				|| clipGestureBlocked(project, [outgoing.id, incoming.id])) return;
 			const initialPosition = Number(crossfadeHandle.dataset.crossfadePosition);
 			const initialGain = Number(crossfadeHandle.dataset.crossfadeGain);
 			const width = Number(crossfadeHandle.dataset.crossfadeWidth);
@@ -115,7 +150,7 @@ export function useTimelinePointerStart({
 			if (event.button !== 0 || mutationsBlocked || pointerSession.current) return;
 			const clipId = fadeShapeHandle.closest('[data-clip-id]')?.dataset.clipId;
 			const clip = project.clips.find(item => item.id === clipId);
-			if (clip?.kind !== 'audio') return;
+			if (clip?.kind !== 'audio' || clipGestureBlocked(project, [clip.id])) return;
 			const edge = fadeShapeHandle.dataset.clipFadeShapeHandle;
 			pointerSession.current = {
 				kind: 'fade-shape', edge, clipId, original: { ...clip }, startY: event.clientY,
@@ -136,7 +171,7 @@ export function useTimelinePointerStart({
 			if (event.button !== 0 || mutationsBlocked || pointerSession.current) return;
 			const clipId = fadeHandle.closest('[data-clip-id]')?.dataset.clipId;
 			const clip = project.clips.find(item => item.id === clipId);
-			if (clip?.kind !== 'audio') return;
+			if (clip?.kind !== 'audio' || clipGestureBlocked(project, [clip.id])) return;
 			const edge = fadeHandle.dataset.clipFadeHandle;
 			pointerSession.current = {
 				kind: 'fade', edge, clipId, original: { ...clip }, startX: event.clientX,
@@ -185,6 +220,7 @@ export function useTimelinePointerStart({
 					const timelineInnerHeight = scrollRef.current?.querySelector('.audio-editor-timeline-inner')?.getBoundingClientRect().height || originalVisualHeight;
 					pointerSession.current = {
 						kind: 'track-resize',
+						pointerId: event.pointerId,
 						trackId,
 						edge,
 						startY: event.clientY,
@@ -226,6 +262,7 @@ export function useTimelinePointerStart({
 				&& startFrame >= loop.startFrame && startFrame <= loop.endFrame);
 			pointerSession.current = {
 				kind: 'loop',
+				pointerId: event.pointerId,
 				startFrame,
 				startX: event.clientX,
 				startY: event.clientY,
@@ -240,7 +277,7 @@ export function useTimelinePointerStart({
 		}
 		const trackId = lane.dataset.trackId;
 		const laneTrack = project.tracks.find((track) => track.id === trackId);
-		if (splitToolActive && !event.altKey && trackId
+		if (splitToolActive && !event.altKey && trackId && laneTrack?.locked !== true
 			&& lane.dataset.rulerInteraction === undefined
 			&& laneTrack?.type !== 'label' && Array.isArray(laneTrack?.clipIds)) {
 			const rawStartFrame = frameAtClientX(event.clientX, lane);
@@ -251,7 +288,7 @@ export function useTimelinePointerStart({
 				sampleRate,
 			});
 			const trackIds = splitToolTargetTrackIds(project.tracks, trackId, event.shiftKey);
-			pointerSession.current = { kind: 'split', startFrame, lane };
+			pointerSession.current = { kind: 'split', pointerId: event.pointerId, startFrame, lane };
 			if (clipElement) run(() => controller.actions.edit.splitAt(startFrame, trackIds));
 			event.preventDefault();
 			event.currentTarget.setPointerCapture?.(event.pointerId);
@@ -259,6 +296,7 @@ export function useTimelinePointerStart({
 		}
 		if (!clipElement) {
 			if (automationToolEnabled && laneTrack?.type === 'audio') return;
+			if (beginBoundaryEdit()) return;
 			if (trackId && lane.dataset.rulerInteraction === undefined) {
 				run(() => controller.actions.timeline.selectTrack(trackId));
 			}
@@ -277,10 +315,11 @@ export function useTimelinePointerStart({
 		const samplePencilAvailable = Boolean(clip.kind === 'audio' && source && clip.durationFrames && sourceDurationFrames
 			&& clipDisplayMode === 'waveform'
 			&& pixelsPerSecond >= sampleRate * sourceDurationFrames / clip.durationFrames);
-		if (snapshot.sampleEdit?.available && snapshot.sampleEdit.mode === 'pencil' && samplePencilAvailable) {
+		if (snapshot.sampleEdit?.available && snapshot.sampleEdit.mode === 'pencil' && samplePencilAvailable && clipTrack?.locked !== true) {
 			const point = samplePointAtPointer(event, lane, clip, source, frameAtClientX);
 			pointerSession.current = {
 				kind: 'sample-pencil',
+				pointerId: event.pointerId,
 				clipId: clip.id,
 				trackId,
 				channel: point.channel,
@@ -297,6 +336,7 @@ export function useTimelinePointerStart({
 			return;
 		}
 		if (automationToolEnabled && clipTrack?.type === 'audio') return;
+		if (beginBoundaryEdit()) return;
 		const clipEditHandle = event.target.closest('.clip-display__handle');
 		let edgeKind = null;
 		const clipDisplay = event.target.closest('.clip-display');
@@ -326,8 +366,10 @@ export function useTimelinePointerStart({
 		const interactionClipIds = kind === 'clip-loop' || clipHasLoopRepeats(clip) && (kind === 'trim-left' || kind === 'trim-right') ? [clip.id] : kind === 'trim-left' || kind === 'trim-right'
 			? collectClipTrimIds(project, clip.id, kind === 'trim-left' ? 'left' : 'right')
 			: transformClipIds;
+		const interactionBlocked = clipGestureBlocked(project, interactionClipIds);
 		const session = {
 			kind,
+			pointerId: event.pointerId,
 			moveOptions: moveOptions ? { ...moveOptions, clipIds: transformClipIds } : undefined,
 			clipId: clip.id,
 			clipIds: interactionClipIds,
@@ -343,7 +385,7 @@ export function useTimelinePointerStart({
 				< Math.abs(frameAtClientX(event.clientX, lane) - clip.timelineStartFrame),
 			lane,
 		};
-		const slipSlideGesture = captureTimelineSlipSlidePointerGesture({
+		const slipSlideGesture = interactionBlocked ? null : captureTimelineSlipSlidePointerGesture({
 			session,
 			canonicalVideoTrim: snapshot.capabilities?.videoCompositing === true,
 			pointerType: event.pointerType,
@@ -368,6 +410,11 @@ export function useTimelinePointerStart({
 			run(() => controller.actions.timeline.selectTrack(trackId));
 			run(() => controller.actions.timeline.selectClip(null));
 			beginSelection(lane, frameAtClientX(event.clientX, lane), [trackId]);
+			return;
+		}
+		if (interactionBlocked) {
+			run(() => controller.actions.timeline.selectClip(clip.id, event.shiftKey ? { additive: true }
+				: event.metaKey || event.ctrlKey ? { toggle: true } : undefined));
 			return;
 		}
 		const rollRippleMode = kind === 'trim-left' || kind === 'trim-right'
@@ -398,7 +445,7 @@ export function useTimelinePointerStart({
 			run(() => controller.actions.timeline.selectClip(clip.id));
 		}
 		event.currentTarget.setPointerCapture?.(event.pointerId);
-	}, [automationToolEnabled, automationVisibleTrackIds, controller, frameAtClientX, mutationsBlocked, pixelsPerSecond, project, run, sampleRate, setBoundarySnapGuideFrames, showArmControls, snapshot.sampleEdit?.available, snapshot.sampleEdit?.mode, splitToolActive, timelineView, visualTrackHeight]);
+	}, [automationToolEnabled, automationVisibleTrackIds, controller, frameAtClientX, mutationsBlocked, pixelsPerSecond, project, run, sampleRate, setBoundarySnapGuideFrames, showArmControls, snapshot.sampleEdit?.available, snapshot.sampleEdit?.mode, snapshot.selectedTrackId, splitToolActive, timelineView, visualTrackHeight]);
 
 	return { onPointerDown };
 }

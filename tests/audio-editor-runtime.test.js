@@ -85,6 +85,9 @@ test('Web Audio engine schedules canonical clips, transport, reverse, loop, and 
 	assert.equal(realtime.bufferSources.length, 1);
 	assert.deepEqual(realtime.bufferSources[0].started, [0, 0, 1]);
 	realtime.currentTime = 0.5;
+	assert.equal(engine.getPositionFrames(), 24_000 - 288);
+	// Transport reports the samples actually heard after native compressor delay.
+	realtime.currentTime += .006;
 	assert.equal(engine.getPositionFrames(), 24000);
 	engine.pause();
 	assert.equal(engine.getState().positionFrame, 24000);
@@ -97,8 +100,8 @@ test('Web Audio engine schedules canonical clips, transport, reverse, loop, and 
 	project.clips[0].reversed = true;
 	const rendered = await engine.renderMix({ startFrame: 0, endFrame: 24000, includeTail: true });
 	assert.equal(rendered.numberOfChannels, 2);
-	// Half a second of audio plus 0.5 s of delay and 2.01 s of default reverb tail.
-	assert.equal(rendered.length, 144480);
+	// Half a second, the native high-pass release, delay, then default reverb.
+	assert.equal(rendered.length, 24_000 + 3_385 + 24_000 + 96_480);
 	assert.equal(offlineContexts.length, 1);
 	assert.ok(Math.abs(offlineContexts[0].bufferSources[0].buffer.getChannelData(0)[47999] - 0.1) < 1e-6);
 	assert.ok(offlineContexts[0].nodeKinds.includes('biquad'));

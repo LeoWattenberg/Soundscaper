@@ -139,6 +139,62 @@ test('knob pointer gestures settle once across capture loss, cancellation, blur,
 	}
 });
 
+for (const heldButtons of [2, 4]) {
+	test(`knob primary release commits before native capture loss with auxiliary buttons ${heldButtons}`, async () => {
+		const dom = installReactTestDom();
+		const actGlobal = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean };
+		const priorAct = actGlobal.IS_REACT_ACT_ENVIRONMENT;
+		actGlobal.IS_REACT_ACT_ENVIRONMENT = true;
+		const ends: number[] = [], changes: number[] = [], releases: number[] = [];
+		let cancellations = 0;
+		const captured = new Set<number>();
+		const { createRoot } = await import('react-dom/client');
+		const root = createRoot(dom.container as unknown as Element);
+		try {
+			await act(async () => root.render(<Knob value={0} min={-100} max={100}
+				onChange={(value) => changes.push(value)} onGestureEnd={(value) => ends.push(value)}
+				onGestureCancel={() => { cancellations += 1; }} />));
+			const button = dom.one('button');
+			const target = button as ReactTestElement & {
+				setPointerCapture(id: number): void;
+				hasPointerCapture(id: number): boolean;
+				releasePointerCapture(id: number): void;
+			};
+			target.setPointerCapture = (id) => { captured.add(id); };
+			target.hasPointerCapture = (id) => captured.has(id);
+			target.releasePointerCapture = (id) => { captured.delete(id); releases.push(id); };
+			const mouse = (id: number, x: number, button = -1, buttons = 1) => ({
+				...pointerEvent(target, id, 'mouse', x, 0), button, buttons,
+			});
+			await invoke(button, 'onPointerDown', mouse(1, 0, 0));
+			await invoke(button, 'onPointerMove', mouse(1, 24));
+			await invoke(button, 'onPointerUp', mouse(1, 24, 0, 0));
+			assert.deepEqual(ends, [24], 'ordinary primary release commits the accepted value');
+			await invoke(button, 'onPointerDown', mouse(2, 0, 0));
+			await invoke(button, 'onPointerMove', mouse(2, 24));
+			await invoke(button, 'onPointerMove', mouse(3, 60, 0, heldButtons));
+			assert.deepEqual(ends, [24], 'foreign release does not finish the accepted contact');
+			await invoke(button, 'onPointerMove', mouse(2, 24, 0, heldButtons));
+			assert.deepEqual(ends, [24, 24], 'native primary-release transition commits before capture is lost');
+			await invoke(button, 'onLostPointerCapture', mouse(2, 24, -1, heldButtons));
+			await invoke(button, 'onPointerMove', mouse(2, 60, -1, heldButtons));
+			await invoke(button, 'onPointerUp', mouse(2, 60, heldButtons === 4 ? 1 : 2, 0));
+			assert.deepEqual(changes, [24, 24]);
+			assert.deepEqual(ends, [24, 24]);
+			assert.deepEqual(releases, [1, 2]);
+			assert.equal(cancellations, 0, 'expected capture loss cannot cancel completed primary input');
+			await invoke(button, 'onPointerDown', pointerEvent(target, 4, 'touch', 0, 0));
+			await invoke(button, 'onPointerMove', pointerEvent(target, 4, 'touch', 24, 0));
+			await invoke(button, 'onPointerUp', pointerEvent(target, 4, 'touch', 24, 0));
+			assert.deepEqual(ends, [24, 24, 24], 'later ordinary touch input is still admitted');
+		} finally {
+			await act(async () => root.unmount());
+			actGlobal.IS_REACT_ACT_ENVIRONMENT = priorAct;
+			dom.restore();
+		}
+	});
+}
+
 async function invoke(
 	button: ReactTestElement,
 	handler: string,

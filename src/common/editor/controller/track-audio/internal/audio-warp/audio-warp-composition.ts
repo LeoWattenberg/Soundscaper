@@ -218,31 +218,23 @@ export function createAudioWarpControllerComposition(
 		const clipId = requireSelectedAudioClip();
 		const outcome = await analyzeWithProcessing(clipId);
 		assertStillSelected(clipId);
-		const preparation = ensureWarpMap(clipId);
-		return authoring.quantizeTransients(preparation, transientSources(outcome), options);
+		const preparation = authoring.prepareClipEdit(clipId);
+		return authoring.quantizeTransients(preparation, transientSources(outcome), options,
+			preparation.warpMap === null ? identityWarpMap(preparation) : undefined);
 	}
 
 	async function applyGrooveSelected(options: AudioWarpGrooveApplicationOptions): Promise<unknown> {
 		const clipId = requireSelectedAudioClip();
 		const outcome = await analyzeWithProcessing(clipId);
 		assertStillSelected(clipId);
-		const preparation = ensureWarpMap(clipId);
-		return authoring.applyGrooveTemplate(preparation, transientSources(outcome), options);
+		const preparation = authoring.prepareClipEdit(clipId);
+		return authoring.applyGrooveTemplate(preparation, transientSources(outcome), options,
+			preparation.warpMap === null ? identityWarpMap(preparation) : undefined);
 	}
 
 	function clearSelected(): unknown {
 		const clipId = requireSelectedAudioClip();
 		return authoring.clearWarpMap(authoring.prepareClipEdit(clipId));
-	}
-
-	function ensureWarpMap(clipId: string): PreparedAudioWarpClipEdit {
-		let preparation = authoring.prepareClipEdit(clipId);
-		if (preparation.warpMap === null) {
-			authoring.setWarpMap(preparation, identityWarpMap(preparation));
-			assertStillSelected(clipId);
-			preparation = authoring.prepareClipEdit(clipId);
-		}
-		return preparation;
 	}
 
 	function preparedMap(): PreparedAudioWarpClipEdit & Readonly<{ warpMap: Readonly<AudioWarpMap> }> {

@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 #include "juce_plugin_adapter.h"
+#include "juce_ara_adapter.h"
 #include "ladspa_host_state.h"
 #include "ladspa_plugin_metadata.h"
 
@@ -114,7 +115,7 @@ std::unique_ptr<juce::AudioPluginInstance> instantiate(
 		error = "Instrument plug-ins are recorded but never hosted as effects.";
 		return nullptr;
 	}
-	if (selected->uniqueId < 0) { error = "The descriptor index is invalid."; return nullptr; }
+	if (format == "ladspa" && selected->uniqueId < 0) { error = "The descriptor index is invalid."; return nullptr; }
 	descriptorIndex = static_cast<uint32_t>(selected->uniqueId);
 	return manager.createPluginInstance(*selected, sampleRate,
 		static_cast<int>(maximumFrames), error);
@@ -140,30 +141,35 @@ public:
 class Instance final : public JucePluginInstance {
 public:
 	Instance(std::unique_ptr<juce::AudioPluginInstance> opened, uint32_t maximumFrames,
-		bool ladspa, const std::vector<LadspaParameterHint> &ladspaHints)
+		bool ladspa, bool araCandidate, const std::vector<LadspaParameterHint> &ladspaHints)
 		: plugin(std::move(opened)), ceiling(maximumFrames), isLadspa(ladspa)
 	{
 		const int channels = std::max(plugin->getTotalNumInputChannels(), plugin->getTotalNumOutputChannels());
 		buffer.setSize(std::max(1, channels), static_cast<int>(maximumFrames), false, true, false);
-		plugin->prepareToPlay(plugin->getSampleRate(), static_cast<int>(maximumFrames));
 		parametersValid = cacheParameters(ladspaHints);
+		if (araCandidate && JuceAraSession::supported(*plugin)) ara = std::make_unique<JuceAraSession>(*plugin, ceiling);
+		else prepareNormalProcessing();
 	}
 
 	~Instance() override
 	{
 		closeVendorWindow();
 		plugin->releaseResources();
+		if (ara != nullptr) ara->unregisterRenderers();
+		plugin.reset();
+		ara.reset();
 	}
 
 	soundscaper_pro_status process(
 		const float *const *inputs, uint32_t inputChannels, float **outputs,
 		uint32_t outputChannels, uint32_t frames) override
 	{
-		if (frames == 0u || frames > ceiling
+		if (araBound || frames == 0u || frames > ceiling
 			|| inputChannels != static_cast<uint32_t>(plugin->getTotalNumInputChannels())
 			|| outputChannels != static_cast<uint32_t>(plugin->getTotalNumOutputChannels())) {
 			return SOUNDSCAPER_PRO_FORMAT_REFUSED;
 		}
+		prepareNormalProcessing();
 		buffer.clear();
 		for (uint32_t channel = 0; channel < inputChannels; ++channel) {
 			if (inputs == nullptr || inputs[channel] == nullptr) return SOUNDSCAPER_PRO_FORMAT_REFUSED;
@@ -217,6 +223,7 @@ public:
 			}
 			return SOUNDSCAPER_PRO_OK;
 		}
+		if (!araBound) normalModeEntered = true;
 		plugin->setStateInformation(bytes, static_cast<int>(length));
 		return SOUNDSCAPER_PRO_OK;
 	}
@@ -266,6 +273,7 @@ public:
 			window->toFront(true);
 			return SOUNDSCAPER_PRO_OK;
 		}
+		if (!araBound) normalModeEntered = true;
 		auto *editor = plugin->createEditorIfNeeded();
 		if (editor == nullptr) return SOUNDSCAPER_PRO_UNSUPPORTED;
 		window = std::make_unique<VendorWindow>(plugin->getName(), *editor);
@@ -282,9 +290,28 @@ public:
 		}
 	}
 
+	bool araSupported() const override { return ara != nullptr; }
+	soundscaper_pro_status araConfigure(const soundscaper_pro_ara_clip &clip) override { return ara == nullptr ? SOUNDSCAPER_PRO_UNSUPPORTED : ara->configure(clip); }
+	soundscaper_pro_status araWrite(uint32_t start, const float *const *planes, uint32_t channels, uint32_t frames) override { return ara == nullptr ? SOUNDSCAPER_PRO_UNSUPPORTED : ara->write(start, planes, channels, frames); }
+	soundscaper_pro_status araBind() override
+	{
+		if (ara == nullptr || normalPrepared || normalModeEntered) return SOUNDSCAPER_PRO_UNSUPPORTED;
+		const auto status = ara->bind(); araBound = status == SOUNDSCAPER_PRO_OK;
+		return status;
+	}
+	soundscaper_pro_status araRender(uint32_t start, float **planes, uint32_t channels, uint32_t frames) override { return ara == nullptr ? SOUNDSCAPER_PRO_UNSUPPORTED : ara->render(start, planes, channels, frames); }
+	soundscaper_pro_status araSave(uint8_t *bytes, size_t capacity, size_t &written) override { return ara == nullptr ? SOUNDSCAPER_PRO_UNSUPPORTED : ara->save(bytes, capacity, written); }
+	soundscaper_pro_status araLoad(const uint8_t *bytes, size_t length) override { return ara == nullptr ? SOUNDSCAPER_PRO_UNSUPPORTED : ara->load(bytes, length); }
 	bool valid() const { return parametersValid; }
 
 private:
+	void prepareNormalProcessing()
+	{
+		if (!normalPrepared) {
+			plugin->prepareToPlay(plugin->getSampleRate(), static_cast<int>(ceiling));
+			normalPrepared = true;
+		}
+	}
 	struct Parameter {
 		juce::AudioProcessorParameter *juce = nullptr;
 		soundscaper_pro_plugin_parameter description{};
@@ -335,12 +362,16 @@ private:
 	}
 
 	std::unique_ptr<juce::AudioPluginInstance> plugin;
+	std::unique_ptr<JuceAraSession> ara;
 	const uint32_t ceiling;
 	const bool isLadspa;
 	juce::AudioBuffer<float> buffer;
 	juce::MidiBuffer midi;
 	std::vector<Parameter> parameters;
 	bool parametersValid = false;
+	bool normalPrepared = false;
+	bool normalModeEntered = false;
+	bool araBound = false;
 	std::unique_ptr<VendorWindow> window;
 	std::string vendorWindowId;
 };
@@ -397,7 +428,7 @@ soundscaper_pro_status openJucePlugin(
 #endif
 	plugin->setRateAndBufferSizeDetails(sampleRate, static_cast<int>(maximumFrames));
 	auto opened = std::make_unique<Instance>(
-		std::move(plugin), maximumFrames, format == "ladspa", ladspaHints);
+		std::move(plugin), maximumFrames, format == "ladspa", format == "vst3", ladspaHints);
 	if (!opened->valid()) return SOUNDSCAPER_PRO_PLUGIN_MALFORMED;
 	instance = std::move(opened);
 	return SOUNDSCAPER_PRO_OK;

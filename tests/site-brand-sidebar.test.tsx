@@ -169,6 +169,23 @@ async function change(node: ReactTestElement, value: string): Promise<void> {
 }
 
 for (const productId of ['soundscaper', 'framescaper']) {
+	for (const locale of ['en', 'de']) {
+		test(`${productId}'s ${locale} sidebar links to its latest desktop build`, async () => {
+			const context = harness();
+			try {
+				await context.render(productId, locale);
+				const links = context.dom.one('.website-sidebar-nav').querySelectorAll('a');
+				const downloads = links.filter((link) => link.textContent === (locale === 'de' ? 'Herunterladen' : 'Download'));
+				assert.equal(downloads.length, 1);
+				assert.equal(downloads[0]?.getAttribute('href'), `https://${productId}.org/download/desktop/`);
+				assert.equal(downloads[0]?.getAttribute('target'), '_blank');
+				assert.equal(downloads[0]?.getAttribute('rel'), 'noreferrer');
+			} finally {
+				await context.close();
+			}
+		});
+	}
+
 	test(`${productId}'s brand link is the page's H1`, async () => {
 		const context = harness();
 		try {
@@ -249,6 +266,16 @@ test('the rail reserves product names for its brand and gives both editor links 
 			const parentLink = links.find((link) => link.getAttribute('href') === parentSite);
 			assert.ok(parentLink);
 			assert.equal(parentLink.textContent, locale === 'de' ? 'Mach mit' : 'Join us');
+			assert.equal(parentLink.querySelector('img')?.getAttribute('src'), '/logo/mindscaper.svg');
+			assert.equal(parentLink.querySelector('img')?.getAttribute('alt'), '');
+			for (const link of links.filter(link => !link.querySelector('img'))) {
+				const icon = link.querySelector('svg');
+				assert.ok(icon, `${link.textContent} has a navigation icon`);
+				assert.equal(icon.getAttribute('aria-hidden'), 'true');
+				assert.equal(icon.getAttribute('focusable'), 'false');
+				assert.equal(icon.getAttribute('width'), '24');
+				assert.equal(icon.getAttribute('height'), '24');
+			}
 		} finally {
 			await context.close();
 		}

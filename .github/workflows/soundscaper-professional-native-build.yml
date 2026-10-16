@@ -19,34 +19,29 @@ jobs:
       matrix:
         include:
           - target: linux-x64
-            runner: ubuntu-24.04
+            runner: ubuntu-22.04
             platform: linux
             arch: x64
-            tooling_node_arch: x64
             node_arch: x64
           - target: linux-arm64
             runner: ubuntu-24.04-arm
             platform: linux
             arch: arm64
-            tooling_node_arch: arm64
             node_arch: arm64
           - target: mac-arm64
             runner: macos-15
             platform: mac
             arch: arm64
-            tooling_node_arch: arm64
             node_arch: arm64
           - target: win-x64
             runner: windows-2025
             platform: win
             arch: x64
-            tooling_node_arch: x64
             node_arch: x64
           - target: win-arm64
             runner: windows-11-arm
             platform: win
             arch: arm64
-            tooling_node_arch: x64
             node_arch: arm64
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 120
@@ -55,6 +50,9 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 0
+      - name: Install authenticated CMake for the Ubuntu 22.04 baseline
+        if: matrix.target == 'linux-x64'
+        run: bash scripts/ci-install-professional-cmake.sh
       - name: Install JUCE Linux development dependencies
         if: runner.os == 'Linux'
         timeout-minutes: 10
@@ -72,15 +70,20 @@ jobs:
           libxrandr-dev
           libxrender-dev
       - name: Allow unprivileged user namespaces for the native isolation launcher
-        if: runner.os == 'Linux'
+        if: matrix.target == 'linux-arm64'
         run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
       - uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
         with:
           node-version-file: .nvmrc
-          architecture: ${{ matrix.tooling_node_arch }}
+          architecture: ${{ matrix.node_arch }}
           cache: npm
+
+      - name: Set up native tooling
+        uses: ./.github/actions/setup-native-tooling
       - run: npm install --global npm@12.0.1
       - run: npm ci
+      - name: Verify durable native manifest staging
+        run: node --import tsx --test tests/soundscaper-professional-native-manifest-sync.test.ts
       - name: Install pinned uv for the Kokoro G2P helper
         uses: astral-sh/setup-uv@eb1897b8dc4b5d5bfe39a428a8f2304605e0983c # v7.0.0
         with:
@@ -89,10 +92,10 @@ jobs:
         with:
           name: ${{ inputs.source-cache-artifact }}
           path: ${{ runner.temp }}/soundscaper-native-sources
-      - name: Install local-model CPU build tools
+      - name: Install local-model build tools
         if: runner.os == 'Linux'
         timeout-minutes: 10
-        run: bash scripts/ci-apt-install.sh build-essential cmake
+        run: bash scripts/ci-apt-install.sh build-essential cmake pkg-config python3
 
       - name: Build a non-publishable Electron self-test harness
         shell: bash
@@ -108,17 +111,7 @@ jobs:
             --${{ matrix.platform }} --${{ matrix.arch }} --dir --publish never
           mkdir -p "$RUNNER_TEMP/soundscaper-packaged-app"
           cp -a release/desktop/. "$RUNNER_TEMP/soundscaper-packaged-app/"
-      - name: Activate target-native Node.js
-        if: matrix.tooling_node_arch != matrix.node_arch
-        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
-        with:
-          node-version-file: .nvmrc
-          architecture: ${{ matrix.node_arch }}
-      - name: Pin target-native npm
-        if: matrix.tooling_node_arch != matrix.node_arch
-        run: npm install --global npm@12.0.1
       - name: Verify target-native Node.js
-        if: matrix.tooling_node_arch != matrix.node_arch
         shell: bash
         env:
           SOUNDSCAPER_EXPECTED_NODE_ARCH: ${{ matrix.node_arch }}

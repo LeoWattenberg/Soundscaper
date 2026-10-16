@@ -14,6 +14,41 @@ whether later material stays in place or moves to close the removed region.
 Use track folders, clip groups, and the Project Bin to keep larger projects
 organized.
 
+### Select and adjust audio {#audio-selection}
+
+Drag across a waveform to select a time range. Drag across adjacent tracks to
+include the same passage on those tracks. Drawing a new selection while
+playback is stopped places the playhead at the selection's beginning; drawing
+one during playback lets playback continue.
+
+With the timeline focused, use these shortcuts to create or adjust a time
+selection. The same commands are available from **Select → Region**.
+
+| Shortcut | Selection change |
+| --- | --- |
+| **Shift+Left** | Extend the left edge to the left. |
+| **Shift+Right** | Extend the right edge to the right. |
+| **Ctrl+Shift+Right** | Contract the left edge to the right. |
+| **Ctrl+Shift+Left** | Contract the right edge to the left. |
+| **Shift+Home** | Extend to the start of the project. |
+| **Shift+End** | Extend to the end of the project. |
+
+Use **Cmd** in place of **Ctrl** on macOS. With no audio selected,
+**Shift+Left** or **Shift+Right** starts a selection at the playhead. Selecting
+a clip header uses that clip's time span as the starting range. Each arrow
+step covers one screen pixel, so zoom in for finer adjustments. Snapping uses
+the next grid position in the chosen direction. Contracting stops when the
+two edges meet.
+
+To adjust a selection with the mouse, hover near either edge in a selected
+track. The cursor changes to a left- or right-pointing arrow beside a vertical
+bar. Drag that edge to extend or shorten the range; the opposite edge stays
+fixed. You can also **Shift+click** in the waveform to move the nearest edge to
+the clicked position, then drag to refine it.
+
+Adjusting selection boundaries leaves the playhead where it is, including
+during playback. The playhead's own arrow controls keep their usual behavior.
+
 ### Adjust clip fades {#clip-fades}
 
 Select an audio clip to reveal small triangular handles along the top of its
@@ -180,6 +215,27 @@ adds the returned timestamps as a new label track only after the complete
 analysis succeeds, so cancelling or changing the project cannot leave partial
 labels behind.
 
+## Project metadata {#project-metadata}
+
+Choose **Edit → Metadata editor → ID3** to enter descriptive tags before
+exporting. The tab includes genre, album artist, composer, credits, dates,
+sorting, lyrics, rights, links, ratings, ownership, and artwork. Title, artist,
+album, track number, and comments share their values with **General**. Changes
+are saved with the project and support **Undo** and **Redo**.
+
+Enter credits as one `role=name` pair per line. Language fields use three-letter
+ISO 639-2 codes, such as `eng` or `deu`. Timed lyrics use `[mm:ss.xxx] text` on
+each line. Artwork accepts PNG and JPEG images, up to 4 MiB per picture and
+8 MiB in total. Give each picture a different description. The file icon type
+requires a 32 × 32 PNG. **Custom fields** adds named text fields; use a name
+beginning with `url.` for a custom link.
+
+The export dialog inherits these values. Its **Metadata** editor changes the
+current delivery without changing the project. Browser exports write ID3v2.4
+for MP3 and MP2, Vorbis comments and pictures for FLAC, Ogg Vorbis and Opus,
+and APEv2 tags for WavPack. WAV and AIFF include ID3 metadata; AAC/M4A uses MP4
+metadata. MP3 chapter labels and descriptive metadata share one tag.
+
 ## Export
 
 Choose **File → Export audio** for a mixed delivery or **Export selected audio**
@@ -201,8 +257,9 @@ characters are replaced, and the numbers keep repeated clip names distinct.
 Track effects are included; master effects, mute, and solo do not affect this
 export. Unfreeze frozen tracks first to export their editable clips individually.
 
-Compressed formats use the FFmpeg runtime. Exact formats and conditional
-availability are listed in the [generated format reference](/reference/).
+The browser uses dedicated audio codecs; desktop export can also use FFmpeg.
+Exact formats and conditional availability are listed in the
+[generated format reference](/reference/).
 
 ### Embed chapter labels {#embedded-chapters}
 

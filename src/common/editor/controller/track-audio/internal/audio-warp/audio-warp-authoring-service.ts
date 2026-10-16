@@ -38,6 +38,7 @@ import { isAudioWarpProjectSchema } from '../../../../project-schema-version.ts'
 import type { RationalInput } from '../../../../timeline-time.ts';
 import type { ProjectVisualSource, ProjectVisualClip } from '../../../document/project-visual-types.ts';
 import type { EditorControllerLifetime } from '../../../shared/lifecycle.ts';
+import { readClipLoop } from '../../../../audio-clip-loop.ts';
 
 export type AudioWarpAuthoringProject = {
 	readonly [Key in keyof ProjectHierarchyDocument]: Key extends 'sources' ? readonly (ProjectVisualSource & Readonly<{ name?: string }>)[]
@@ -74,12 +75,14 @@ export interface AudioWarpAuthoringService {
 		preparation: PreparedAudioWarpClipEdit,
 		transientSources: readonly RationalInput[],
 		options: AudioWarpQuantizeOptions,
+		initialWarpMap?: Readonly<AudioWarpMap>,
 	): unknown;
 	createGrooveTemplate(value: AudioGrooveTemplateInput): Readonly<AudioGrooveTemplate>;
 	applyGrooveTemplate(
 		preparation: PreparedAudioWarpClipEdit,
 		transientSources: readonly RationalInput[],
 		options: AudioWarpGrooveApplicationOptions,
+		initialWarpMap?: Readonly<AudioWarpMap>,
 	): unknown;
 }
 
@@ -114,6 +117,10 @@ export function createAudioWarpAuthoringService(
 		const preparation = prepared(preparationValue);
 		const project = writableProject();
 		assertCurrentTrackWritable(project, preparation.clipId);
+		const clip = project.clips.find((candidate) => candidate.id === preparation.clipId);
+		if (clip && readClipLoop(clip)) {
+			throw new RangeError('Turn off clip looping before authoring a warp map.');
+		}
 		const warpMap = normalizeAudioWarpMap(warpMapValue);
 		return dependencies.commit({
 			type: 'audio-warp/set',
@@ -141,14 +148,16 @@ export function createAudioWarpAuthoringService(
 		preparationValue: PreparedAudioWarpClipEdit,
 		transientSourceValues: readonly RationalInput[],
 		optionsValue: AudioWarpQuantizeOptions,
+		initialWarpMap?: Readonly<AudioWarpMap>,
 	): unknown {
-		return commitQuantization(preparationValue, transientSourceValues, optionsValue);
+		return commitQuantization(preparationValue, transientSourceValues, optionsValue, initialWarpMap);
 	}
 
 	function applyGrooveTemplate(
 		preparationValue: PreparedAudioWarpClipEdit,
 		transientSourceValues: readonly RationalInput[],
 		optionsValue: AudioWarpGrooveApplicationOptions,
+		initialWarpMap?: Readonly<AudioWarpMap>,
 	): unknown {
 		const record = readClosedDomainRecord(
 			optionsValue,
@@ -165,16 +174,18 @@ export function createAudioWarpAuthoringService(
 					record, 'grooveStrength', 'audio warp groove application',
 				) as RationalInput,
 			} : {}),
-		});
+		}, initialWarpMap);
 	}
 
 	function commitQuantization(
 		preparationValue: PreparedAudioWarpClipEdit,
 		transientSourceValues: readonly RationalInput[],
 		optionsValue: AudioWarpQuantizeOptions,
+		initialWarpMap?: Readonly<AudioWarpMap>,
 	): unknown {
 		const preparation = prepared(preparationValue);
-		if (preparation.warpMap === null) {
+		const map = preparation.warpMap ?? (initialWarpMap === undefined ? null : normalizeAudioWarpMap(initialWarpMap));
+		if (map === null) {
 			throw new RangeError(`Audio clip ${preparation.clipId} has no prepared warp map.`);
 		}
 		const transientValues = readClosedDomainArray(
@@ -187,7 +198,8 @@ export function createAudioWarpAuthoringService(
 			normalizeAudioWarpRational(value, `audio warp transient source ${String(index)}`)
 		)));
 		const options = canonicalQuantizeOptions(optionsValue);
-		quantizeAudioWarpTransients(preparation.warpMap, transients, options);
+		const quantized = quantizeAudioWarpTransients(map, transients, options);
+		if (preparation.warpMap === null) return setWarpMap(preparation, quantized);
 		const project = writableProject();
 		assertCurrentTrackWritable(project, preparation.clipId);
 		return dependencies.commit({

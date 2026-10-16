@@ -89,8 +89,8 @@ test('staging selects package names from the independent product release line', 
 	const packageRoot = join(repositoryRoot, 'release/desktop');
 	const outputRoot = join(repositoryRoot, 'release/milestone-5-package');
 	const releaseNames = [
-		'Framescaper-0.9.0-rc.7-linux-x86_64.AppImage',
-		'Framescaper-0.9.0-rc.7-linux-amd64.deb',
+		'Framescaper-0.9.0-rc.7-linux-x64.AppImage',
+		'Framescaper-0.9.0-rc.7-linux-x64.deb',
 		'runtime-manifest-framescaper-linux-x64.json',
 	];
 	await mkdir(packageRoot, { recursive: true });
@@ -116,8 +116,8 @@ async function packagingOutput(context) {
 	const packageRoot = join(root, 'desktop');
 	const version = JSON.parse(await readFile(join(ROOT, 'package.json'), 'utf8')).version;
 	const releaseNames = [
-		`Soundscaper-${version}-linux-x86_64.AppImage`,
-		`Soundscaper-${version}-linux-amd64.deb`,
+		`Soundscaper-${version}-linux-x64.AppImage`,
+		`Soundscaper-${version}-linux-x64.deb`,
 		'runtime-manifest-soundscaper-linux-x64.json',
 	];
 	await mkdir(packageRoot, { recursive: true });
@@ -127,7 +127,7 @@ async function packagingOutput(context) {
 	await mkdir(join(packageRoot, 'linux-unpacked', 'resources'), { recursive: true });
 	await mkdir(join(packageRoot, '.icon-set'), { recursive: true });
 	await writeFile(join(packageRoot, 'builder-debug.yml'), 'debug');
-	await writeFile(join(packageRoot, `Soundscaper-${version}-linux-x86_64.AppImage.blockmap`), 'map');
+	await writeFile(join(packageRoot, `Soundscaper-${version}-linux-x64.AppImage.blockmap`), 'map');
 	await symlink(join(packageRoot, 'builder-debug.yml'), join(packageRoot, 'builder-debug-link.yml'));
 	return { packageRoot, outputRoot: join(root, 'milestone-5-package'), releaseNames };
 }

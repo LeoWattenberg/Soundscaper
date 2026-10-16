@@ -115,11 +115,11 @@ test('download route refuses unknown hosts and non-navigation methods', async ()
 	)).status, 405);
 });
 
-test('Pages Functions route only the download path and the existing Freesound API', () => {
+test('Pages Functions route the download paths and both audio provider APIs', () => {
 	const routes = JSON.parse(readFileSync(new URL('../public/_routes.json', import.meta.url), 'utf8')) as unknown;
 	assert.deepEqual(routes, {
 		version: 1,
-		include: ['/api/freesound/*', '/download/desktop', '/download/desktop/*'],
+		include: ['/api/freesound/*', '/api/audiocom/*', '/download/desktop', '/download/desktop/*'],
 		exclude: [],
 	});
 });

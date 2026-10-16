@@ -50,7 +50,7 @@ export function createBusNoiseProfileRenderProject(
 		edges: [...edges, capture] };
 	const retainedEdgeIds = new Set(captureMixer.edges.map(edge => edge.id));
 	return { ...project, masterChannels,
-		master: { ...project.master, gain: 1, effects: [] },
+		master: { ...project.master, gain: 1, mute: false, effects: [] },
 		automationLanes: Array.isArray(project.automationLanes) ? project.automationLanes.filter(lane => {
 			const address = (lane as { address?: { kind?: string; edgeId?: string; effectId?: string;
 				strip?: { kind?: string; id?: string } } }).address;

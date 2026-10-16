@@ -71,6 +71,7 @@ export function adoptFramescaperSelectedVisualAuthoringRuntime(from: object, to:
 export function bindFramescaperSelectedAuthoringController(options: Readonly<{
 	readonly controller: FramescaperSelectedAuthoringController;
 	readonly store: AudioEditorProjectStore;
+	readonly projectForRuntimeConsumers?: (project: unknown) => unknown;
 }>): void {
 	const { controller, store } = options;
 	if (!controller || typeof controller !== 'object') {
@@ -115,18 +116,20 @@ export function bindFramescaperSelectedAuthoringController(options: Readonly<{
 					project: state.project,
 					store,
 					request,
+					freezeRuntimeProject: surface === 'video-freeze' ? options.projectForRuntimeConsumers?.(state.project) : undefined,
 					capture: captures.framescaperSelectedFreezeCaptureFinishingFor(
 						VISUAL_CAPTURE_OWNERS.get(controller as object) ?? controller,
 					),
 				});
-				const current = runtimeState(controller);
-				model.assertFramescaperSelectedVisualAuthoringRuntimeFenceFinishing({
-					project: current.project,
-					fence: request.fence,
-					selectedClipId: current.selectedClipId,
-					playheadSample: current.playheadSample,
+				await commitWithRollback(controller, prepared, () => {
+					const current = runtimeState(controller);
+					model.assertFramescaperSelectedVisualAuthoringRuntimeFenceFinishing({
+						project: current.project,
+						fence: request.fence,
+						selectedClipId: current.selectedClipId,
+						playheadSample: current.playheadSample,
+					});
 				});
-				await commitWithRollback(controller, prepared);
 			});
 		},
 	});
@@ -146,8 +149,10 @@ export function bindFramescaperSelectedAuthoringController(options: Readonly<{
 async function commitWithRollback(
 	controller: FramescaperSelectedAuthoringController,
 	prepared: Readonly<{ readonly command: unknown; readonly rollback?: () => Promise<void> }>,
+	beforeCommit?: () => void,
 ): Promise<void> {
 	try {
+		beforeCommit?.();
 		await controller.actions.edit.commit(prepared.command);
 	} catch (error) {
 		if (!prepared.rollback) throw error;

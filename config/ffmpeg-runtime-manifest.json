@@ -54,8 +54,8 @@
 	"evidence": {
 		"lineEndings": {
 			"path": ".gitattributes",
-			"byteLength": 3195,
-			"sha256": "c2eaff411a1d114e5b84b35eb9b85f58d82e0e17646486657848c337e06b4c9e"
+			"byteLength": 4085,
+			"sha256": "6f24de3e2795936e97438dbe41799c322c6fa731eb82f451a0738a9a7ea049a2"
 		},
 		"correspondingSource": {
 			"path": "desktop/ffmpeg-corresponding-source.json",
@@ -64,28 +64,28 @@
 		},
 		"notices": {
 			"path": "THIRD_PARTY_LICENSES.md",
-			"byteLength": 91638,
-			"sha256": "c03b54d68eef3a0eae1bcd83ccffd25c5f5a986e6d7d139210038adef399dfef"
+			"byteLength": 92356,
+			"sha256": "04451bea04a75a1a33d4883069cbb19c6ff00734320a9c07cc5594d99a00fed0"
 		},
 		"licensingPolicy": {
 			"path": "docs/policies/licensing.md",
-			"byteLength": 33351,
-			"sha256": "0914fb0faa773651da85a86000971c1f0cb0ecf5c23cc9dd18efc3808b621938"
+			"byteLength": 34064,
+			"sha256": "2d931d17f9334f5a94b3b2819fcf5051833b4305ca31d3b741854e710c480b63"
 		},
 		"licensingMatrix": {
 			"path": "config/production-licensing-matrix.json",
-			"byteLength": 153129,
-			"sha256": "676d1629dcabc33ccda5c7600bf79c78d1cd69507756e5b1d06519289881bda8"
+			"byteLength": 154130,
+			"sha256": "7ae00e9ab3ea21045e603f36511d16ed1e3d662adbc83699783a096a0e8d4b75"
 		},
 		"securityMatrix": {
 			"path": "config/production-security-matrix.json",
-			"byteLength": 866667,
-			"sha256": "de405ca4906c1b2414f8b2f985c0c297759d89a8cf117a9a30b023dfe00dbcaa"
+			"byteLength": 890122,
+			"sha256": "18a2c5f5418b9530e4159b79f2700f49fedee312b62fef7b274828a345362e52"
 		},
 		"threatModel": {
 			"path": "docs/policies/security.md",
-			"byteLength": 335964,
-			"sha256": "cb18598801edf87e3834908825738dd12a163daa199b5347e06bdadd33b97d7a"
+			"byteLength": 346784,
+			"sha256": "fc61a881609faa030e75606e9e610327be8b7e522c136107bc76ac3180542102"
 		}
 	},
 	"security": {
@@ -115,6 +115,6 @@
 		}
 	},
 	"integrity": {
-		"payloadSha256": "2067ba5efd48da86fa3b821eaba72ca4b807f8714f443e42ce0afdefbea7cbac"
+		"payloadSha256": "b0e75a3b2ee59f886f56d28c6bdf258f62477ce440cd180d2b2d320d615cabdf"
 	}
 }

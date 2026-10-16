@@ -117,6 +117,7 @@ const COPY_ENTRIES = Object.freeze([
 	["effectCurveGrid","Show gridlines","Gitterlinien anzeigen"],
 	["effectCurveMinimumDb","Minimum gain (dB)","Minimale Verstärkung (dB)"],
 	["effectCurveMaximumDb","Maximum gain (dB)","Maximale Verstärkung (dB)"],
+	["effectCurveInverseUnavailable","The curve's inverse exceeds the supported gain range. Adjust gains below -60 dB before inverting.","Die inverse Kurve überschreitet den unterstützten Verstärkungsbereich. Passe Werte unter -60 dB vor dem Invertieren an."],
 	["effectCardDisplay","Display","Anzeige"],
 	["effectCardFilter","Filter","Filter"],
 	["effectCardThirdOctaveBands","Third-octave bands","Terzbänder"],

@@ -49,6 +49,7 @@ import {
 } from './take-cycle-routed-capture-settlement.ts';
 import { acquireTakeCycleRoutedSources } from './take-cycle-routed-source-acquisition.ts';
 import { startTakeCycleRoutedPlayback } from './take-cycle-routed-playback-start.ts';
+import { createTakeCycleRoutedCaptureControls } from './take-cycle-routed-capture-controls.ts';
 export type {
 	TakeCycleRoutedCaptureEngine,
 	TakeCycleRoutedCaptureProject,
@@ -69,12 +70,11 @@ export function createTakeCycleRoutedCaptureService(
 	let stopPromise: Promise<TakeCycleRoutedCaptureResult> | null = null;
 	let lastResult: TakeCycleRoutedCaptureResult | null = null;
 	let inputsOwned = false;
-	return Object.freeze({
-		get active() { return phase === 'active'; },
+	return createTakeCycleRoutedCaptureControls(
+		() => phase === 'active' ? activeCapture?.sources ?? null : null,
 		start,
 		stop,
-		pause() { throw new Error('Take cycle routed capture cannot be paused.'); },
-	});
+	);
 	async function start(
 		requestValue: TakeCycleRoutedCaptureStartRequest,
 		scope: RecordingStartScope,

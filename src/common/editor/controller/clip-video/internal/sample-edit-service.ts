@@ -307,9 +307,9 @@ export function createSampleEditService<Project extends ControllerRuntimeProject
 	): number {
 		const chunkIndices = new Set<number>();
 		for (const edit of edits || []) chunkIndices.add(Math.floor(edit.frame / source.chunkFrames));
-		if (smooth) {
-			const first = Math.floor(smooth.startFrame / source.chunkFrames);
-			const last = Math.floor((smooth.endFrame - 1) / source.chunkFrames);
+		for (const segment of smooth?.segments ?? (smooth ? [smooth] : [])) {
+			const first = Math.floor(segment.startFrame / source.chunkFrames);
+			const last = Math.floor((segment.endFrame - 1) / source.chunkFrames);
 			for (let index = first; index <= last; index += 1) chunkIndices.add(index);
 		}
 		return Math.max(1, chunkIndices.size) * source.chunkFrames * source.channelCount * Float32Array.BYTES_PER_ELEMENT;

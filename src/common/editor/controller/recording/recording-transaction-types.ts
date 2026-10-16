@@ -129,6 +129,8 @@ export interface RecordingControllerFactoryOptions {
 	readonly stream: RecordingMediaStream;
 	readonly channelCount: number;
 	readonly discreteChannels?: boolean;
+	/** A timed deadline stays fixed while ordinary punch duration excludes pauses. */
+	readonly fixedStopFrame?: boolean;
 	readonly monitor: boolean;
 	readonly inputGain: number;
 	readonly onChunk: (chunk: RecordingCaptureChunk) => Promise<void>;

@@ -84,11 +84,15 @@ export function createEditorTransportService<Project extends TransportProject = 
 	}
 
 	async function handlePlayAtSpeed(requestedRate: unknown = state.playAtSpeedRate) {
-		transportRequestGeneration += 1;
+		const requestGeneration = ++transportRequestGeneration;
 		foregroundPlayPreparation = null;
 		if (state.recordingStarting || state.timedRecordingPreparing || state.timedRecording || state.recorder) return false;
 		if (hasMissingTimelineSources()) throw createLocalizedError(Error, copy, 'localSourcesMissing');
 		const rate = setPlayAtSpeedRate(requestedRate);
+		if (state.projectBinPreview) {
+			await stopProjectBinPreview();
+			if (requestGeneration !== transportRequestGeneration) return false;
+		}
 		const currentPlayback = engine.getState();
 		const playAtSpeedActive = currentPlayback.state === 'playing'
 			&& ['naive', 'staffpad'].includes(currentPlayback.playbackMode);
@@ -230,8 +234,8 @@ export function createEditorTransportService<Project extends TransportProject = 
 	}
 
 	function clearLoopRegion() {
-		const current = requireProject().loop || { startFrame: 0, endFrame: 0 };
-		const next = commit({ type: 'loop/set', ...current, enabled: false });
+		requireProject();
+		const next = commit({ type: 'loop/set', startFrame: 0, endFrame: 0, enabled: false });
 		engine.setLoop(next.loop);
 		return next.loop;
 	}

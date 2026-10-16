@@ -32,6 +32,21 @@ export const selectionEffects = Object.freeze({
 
 export async function installOscillatorMicrophone(page) {
 	await page.addInitScript(() => {
+		// This synthetic source has no hardware I/O delay. Keep native PCM/worklet
+		// processing while excluding the runner's changing device latency metadata.
+		for (const name of ['AudioContext', 'webkitAudioContext']) {
+			const NativeAudioContext = globalThis[name];
+			if (typeof NativeAudioContext !== 'function') continue;
+			globalThis[name] = class extends NativeAudioContext {
+				constructor(...arguments_) {
+					super(...arguments_);
+					Object.defineProperties(this, {
+						baseLatency: { configurable: true, value: 0 },
+						outputLatency: { configurable: true, value: 0 },
+					});
+				}
+			};
+		}
 		const streams = [];
 		Object.defineProperty(globalThis, '__complexWorkflowStreams', {
 			configurable: true,
@@ -229,8 +244,13 @@ export async function addTrackAutomation(page, editor, row, {
 	const point = overlay.locator('[data-automation-point-id]').last();
 	if (nudge !== 0) {
 		await point.focus();
+		await expect(point).toBeFocused();
 		const key = nudge > 0 ? 'ArrowUp' : 'ArrowDown';
-		for (let step = 0; step < Math.abs(nudge); step += 1) await page.keyboard.press(key);
+		for (let step = 0; step < Math.abs(nudge); step += 1) {
+			const before = await point.getAttribute('aria-valuenow');
+			await point.press(key);
+			await expect(point).not.toHaveAttribute('aria-valuenow', before);
+		}
 	}
 	const modeSelect = controls.getByRole('combobox', { name: 'Automation mode', exact: true });
 	await modeSelect.selectOption(mode);

@@ -61,10 +61,13 @@ def phonemize(language: str, voice: str, text: str) -> list[str]:
     os.environ["TRANSFORMERS_OFFLINE"] = "1"
     os.environ["SPACY_WARNING_IGNORE"] = "W008"
 
+    gpu = None
     if language in "ab":
         import spacy
         if not spacy.util.is_package("en_core_web_sm"):
             raise RuntimeError("The frozen English spaCy model is unavailable.")
+        from assistance_kokoro_g2p_gpu import install_gpu_ops
+        gpu = install_gpu_ops()
 
     if language == "j":
         import unidic
@@ -76,27 +79,31 @@ def phonemize(language: str, voice: str, text: str) -> list[str]:
         # Misaki; bind it to the dictionary sealed into this frozen helper.
         unidic.DICDIR = dictionary
 
-    from kokoro import KPipeline
+    try:
+        from kokoro import KPipeline
 
-    pipeline = KPipeline(
-        lang_code=language,
-        repo_id="hexgrad/Kokoro-82M",
-        model=False,
-    )
-    chunks: list[str] = []
-    for piece in split_text(text):
-        for result in pipeline(piece, voice=voice):
-            phonemes = result.phonemes
-            if not isinstance(phonemes, str) or not phonemes:
-                raise ValueError("The Kokoro G2P pipeline returned no phonemes.")
-            if len(phonemes) > MAXIMUM_PHONEMES:
-                raise ValueError("The Kokoro G2P pipeline exceeded one model context.")
-            chunks.append(phonemes)
-            if len(chunks) > MAXIMUM_CHUNKS:
-                raise ValueError("The Kokoro G2P pipeline exceeded its chunk bound.")
-    if not chunks:
-        raise ValueError("The Kokoro G2P pipeline returned no audio-bearing chunks.")
-    return chunks
+        pipeline = KPipeline(
+            lang_code=language,
+            repo_id="hexgrad/Kokoro-82M",
+            model=False,
+        )
+        chunks: list[str] = []
+        for piece in split_text(text):
+            for result in pipeline(piece, voice=voice):
+                phonemes = result.phonemes
+                if not isinstance(phonemes, str) or not phonemes:
+                    raise ValueError("The Kokoro G2P pipeline returned no phonemes.")
+                if len(phonemes) > MAXIMUM_PHONEMES:
+                    raise ValueError("The Kokoro G2P pipeline exceeded one model context.")
+                chunks.append(phonemes)
+                if len(chunks) > MAXIMUM_CHUNKS:
+                    raise ValueError("The Kokoro G2P pipeline exceeded its chunk bound.")
+        if not chunks:
+            raise ValueError("The Kokoro G2P pipeline returned no audio-bearing chunks.")
+        return chunks
+    finally:
+        if gpu is not None:
+            gpu.close()
 
 
 def main() -> int:

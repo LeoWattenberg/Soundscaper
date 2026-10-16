@@ -4,7 +4,6 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import React, { act } from 'react';
-
 import { installReactTestDom, reactProps as props, type ReactTestElement as TestElement } from './helpers/react-test-dom.ts';
 
 import FramescaperVideoProxyDialog from '../src/common/editor/ui/dialogs/FramescaperVideoProxyDialog.tsx';

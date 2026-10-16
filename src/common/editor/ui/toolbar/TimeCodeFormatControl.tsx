@@ -54,6 +54,7 @@ export default function TimeCodeFormatControl({
 	</button>;
 	return <span ref={containerRef} className="kw-audio-editor__timecode-format-control"
 		onKeyDownCapture={(event) => {
+			if (event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey) return;
 			if (event.key !== 'F10' || !event.shiftKey) return;
 			event.preventDefault();
 			event.stopPropagation();

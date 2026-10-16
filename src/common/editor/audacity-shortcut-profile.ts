@@ -61,8 +61,6 @@ const CONTEXTUAL_ACTION_TARGETS: Readonly<Record<string, string>> = Object.freez
 	'nav-prev-section': 'track-view-prev-panel',
 	'nav-next-panel': 'track-view-next-panel',
 	'nav-prev-panel': 'track-view-prev-panel',
-	'sel-start': 'select-track-start-to-cursor',
-	'sel-end': 'select-cursor-to-track-end',
 	'curs-project-start': 'action://playback/rewind-start',
 	'curs-project-end': 'action://playback/rewind-end',
 	'seek-left-short': 'play-position-decrease',

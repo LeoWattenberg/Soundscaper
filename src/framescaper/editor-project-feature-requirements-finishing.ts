@@ -162,6 +162,22 @@ export function stripFramescaperProjectFinishingState(project: Record<string, un
 	master.envelope = [];
 }
 
+/** Return authored strip curves to a detached consumer or inherited command view. */
+export function restoreFramescaperProjectFinishingEnvelopes(
+	project: Record<string, unknown>,
+	authored: Readonly<Record<string, unknown>>,
+): void {
+	const master = record(authored.master, 'authored master');
+	record(project.master, 'consumer master').envelope = structuredClone(master.envelope ?? []);
+	const owners = new Map(records(authored.tracks, 'authored tracks')
+		.filter((track) => track.type === 'audio').map((track) => [track.id, track]));
+	for (const track of records(project.tracks, 'consumer tracks')) {
+		if (track.type !== 'audio') continue;
+		const owner = owners.get(track.id);
+		if (owner) track.envelope = structuredClone(owner.envelope ?? []);
+	}
+}
+
 function stripOwnedDialogueChains(project: Record<string, unknown>, sampleRate: unknown): void {
 	for (const track of records(project.tracks, 'tracks')) {
 		if (track.type !== 'audio') continue;

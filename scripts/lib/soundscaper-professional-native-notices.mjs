@@ -18,7 +18,7 @@ import {
 export const SOUNDSCAPER_PROFESSIONAL_NATIVE_NOTICE_PREFIX = 'licenses/professional-native/';
 
 const ALL_SOURCE_IDS = Object.freeze([
-	'electron-node-api-headers', 'juce', 'clap', 'vst3-sdk', 'vamp-plugin-sdk',
+	'electron-node-api-headers', 'juce', 'clap', 'vst3-sdk', 'vamp-plugin-sdk', 'ara-api', 'ara-library',
 	'asio-sdk', 'ladspa-sdk', 'lv2',
 ]);
 const FORBIDDEN_SOURCE_IDS = new Set(['x264', 'x265', 'libvpx', 'libopus', 'zlib']);
@@ -81,7 +81,7 @@ export function typedUnavailableSoundscaperProfessionalNativeNotices(targetValue
 		status: 'typed-unavailable',
 		target: targetId(targetValue),
 		inventoryId: null,
-		blockedBy: 'Professional-native installed notices are emitted only by Stable Soundscaper packaging.',
+		blockedBy: 'Professional-native installed notices require an authenticated target build result.',
 		sources: [],
 		notices: [],
 	});
@@ -112,7 +112,7 @@ export function assertSoundscaperProfessionalNativePackageNoticeSummary({
 export function assertTypedUnavailableSoundscaperProfessionalNativePackageNotices(summary, target) {
 	const expected = typedUnavailableSoundscaperProfessionalNativeNotices(target);
 	if (JSON.stringify(summary) !== JSON.stringify(expected)) {
-		throw new Error('Non-Stable Soundscaper professional-native notices must remain typed-unavailable.');
+		throw new Error('Unbuilt professional-native notices must remain typed-unavailable.');
 	}
 	return expected;
 }
@@ -120,10 +120,11 @@ export function assertTypedUnavailableSoundscaperProfessionalNativePackageNotice
 export function assertDesktopProfessionalNativeNoticeClosure({
 	runtime, professional, target, requireFile, expectedByPrefix,
 }, authorities = {}) {
-	if (runtime.productId === 'soundscaper') {
-		const stable = runtime.applicationVersionChannel === 'stable'
-			&& runtime.releaseChannel === 'stable';
-		if (stable) {
+	if (runtime.productId === 'soundscaper'
+		|| runtime.productId === 'framescaper' && professional?.hostingScope === 'audio-plugin-host') {
+		const installed = professional?.status === 'built' || runtime.productId === 'soundscaper'
+			&& runtime.applicationVersionChannel === 'stable' && runtime.releaseChannel === 'stable';
+		if (installed) {
 			return assertSoundscaperProfessionalNativePackageNoticeSummary({
 				summary: runtime.desktopNotices?.professionalNative,
 				professional, target, requireFile,

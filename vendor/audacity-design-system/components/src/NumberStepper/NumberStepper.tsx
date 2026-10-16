@@ -120,6 +120,7 @@ export const NumberStepper = React.forwardRef<HTMLInputElement, NumberStepperPro
   const handleDecrement = () => handleStep(-step);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey || e.nativeEvent?.isComposing) return;
     // Enter toggles edit mode
     if (e.key === 'Enter') {
       e.preventDefault();

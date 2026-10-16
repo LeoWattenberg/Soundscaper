@@ -24,9 +24,6 @@ import {
 } from '../src/common/editor/audacity-pinned-ui-inventory.js';
 import { AUDACITY_EFFECT_DEFINITIONS } from '../src/common/editor/audacity-effects/manifest.js';
 import { AUDIO_EDITOR_GENERATOR_TYPES } from '../src/common/editor/generators.js';
-import {
-	AUDIO_EDITOR_UNAVAILABLE_APPLICATION_MENU_ACTION_IDS,
-} from '../src/common/editor/ui/application-menu-registry.ts';
 
 const PINNED_COMMIT = '4c177d436e48c1d20f231eada44035593cb26292';
 
@@ -170,13 +167,4 @@ test('excluded menu actions disappear and disabled actions remain inert and expl
 			assert.equal(typeof output.get(id)?.onClick, 'function', id);
 		}
 	}
-});
-
-test('no implemented pinned action is registered as an unavailable application-menu placeholder', () => {
-	assert.deepEqual(
-		AUDIO_EDITOR_UNAVAILABLE_APPLICATION_MENU_ACTION_IDS.filter(
-			(id) => audacityActionDefinition(id)?.status === AUDACITY_ACTION_STATUS.IMPLEMENTED,
-		),
-		[],
-	);
 });

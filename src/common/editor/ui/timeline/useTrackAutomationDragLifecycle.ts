@@ -3,13 +3,14 @@
 import { useCallback, useEffect, type RefObject } from 'react';
 
 interface DragEvent {
+	readonly pointerId?: number;
 	preventDefault(): void;
 	stopPropagation(): void;
 }
 
 export function useTrackAutomationDragLifecycle<
 	Lane,
-	Drag extends { readonly expected: Lane | null },
+	Drag extends { readonly expected: Lane | null; readonly pointerId: number },
 >(
 	svgRef: RefObject<SVGSVGElement | null>,
 	dragRef: RefObject<Drag | null>,
@@ -20,7 +21,7 @@ export function useTrackAutomationDragLifecycle<
 ) {
 	const finishDrag = useCallback((event: DragEvent, cancel = false) => {
 		const drag = dragRef.current;
-		if (!drag) return;
+		if (!drag || (event.pointerId !== undefined && event.pointerId !== drag.pointerId)) return;
 		flushDraft?.current?.(cancel);
 		event.preventDefault();
 		event.stopPropagation();
@@ -35,8 +36,15 @@ export function useTrackAutomationDragLifecycle<
 		const cancelOnEscape = (event: KeyboardEvent) => {
 			if (event.key === 'Escape') finishDrag(event, true);
 		};
+		const finishOnPrimaryRelease = (event: PointerEvent) => {
+			if (event.pointerType === 'mouse' && event.button === 0 && (event.buttons & 1) === 0) finishDrag(event);
+		};
 		document.addEventListener('keydown', cancelOnEscape);
-		return () => document.removeEventListener('keydown', cancelOnEscape);
+		document.addEventListener('pointermove', finishOnPrimaryRelease, true);
+		return () => {
+			document.removeEventListener('keydown', cancelOnEscape);
+			document.removeEventListener('pointermove', finishOnPrimaryRelease, true);
+		};
 	}, [finishDrag, svgRef]);
 	return finishDrag;
 }

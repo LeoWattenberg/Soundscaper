@@ -72,7 +72,8 @@ test('a play range the playhead has already passed does not stop playback on the
 	await engine.dispose();
 });
 
-test('a bounded run leaves the playhead on the boundary it stopped at', async () => {
+test('a bounded run leaves the playhead on the boundary it stopped at', async testContext => {
+	testContext.mock.timers.enable({ apis: ['setInterval'] });
 	const { context, engine } = createEngine();
 
 	engine.setPlayRange({ startFrame: RANGE_START_FRAME, endFrame: RANGE_END_FRAME });
@@ -80,7 +81,9 @@ test('a bounded run leaves the playhead on the boundary it stopped at', async ()
 	await engine.play();
 	// Run the audio clock past the end of the range and let the ticker observe it.
 	(context as unknown as { currentTime: number }).currentTime += 1;
-	await new Promise<void>((resolve) => { setTimeout(resolve, 80); });
+	testContext.mock.timers.tick(49);
+	assert.equal(engine.getState().state, 'playing');
+	testContext.mock.timers.tick(1);
 
 	assert.equal(engine.getState().state, 'stopped');
 	assert.equal(engine.getPositionFrames(), RANGE_END_FRAME);

@@ -774,11 +774,22 @@
 			"video": {
 				"status": "implemented-exact-keyed-rgba-delivery-only",
 				"formats": {
-					"mp4": "keyed-rgba-h264-libx264-aac",
+					"mp4": "keyed-rgba-h264-main-selected-execution-verified-encoder-aac",
 					"webm": "keyed-rgba-vp9-libvpx-vp9-opus-libopus"
 				},
 				"compatibilityCanary": "live-16x16-one-frame-rgba-plus-48khz-stereo-audio-check-per-exact-format-with-finite-container-validation-and-exact-ffprobe-two-track-codec-geometry-inspection",
 				"compatibilityInspection": "exact-verified-ffprobe-two-stream-indices-0-and-1-16x16-yuv420p-48khz-stereo-five-second-64kib-private-environment-tree-terminated",
+				"h264EncoderSelection": {
+					"authority": "main-only-closed-enum-not-renderer-supplied",
+					"macos": ["h264_videotoolbox", "libx264"],
+					"windows": ["h264_mf", "libx264"],
+					"linux": ["libx264"],
+					"admission": "advertised-token-and-exact-pair-execution-canary-required-before-selection",
+					"fallback": "failed-native-canary-may-select-independently-verified-libx264-identity-change-is-terminal",
+					"identity": "both-executable-hashes-rechecked-before-and-after-candidate-canaries-and-real-execution",
+					"videoToolbox": "allow-operating-system-software-fallback",
+					"mediaFoundation": "default-operating-system-transform-selection"
+				},
 				"rendererAuthority": "owner-scoped-pathless-sessions-main-owned-fixed-arguments-private-pipes-and-scratch",
 				"privateInputs": ["fd3-rgba", "fd4-optional-float-wav"],
 				"maximumSessions": 2,
@@ -804,8 +815,8 @@
 			},
 			"operatingSystem": {
 				"status": "disabled",
-				"windows": "no-media-foundation-video-operation",
-				"macos": "no-videotoolbox-or-avfoundation-video-operation"
+				"windows": "no-direct-or-separately-shipped-media-foundation-video-provider",
+				"macos": "no-direct-or-separately-shipped-videotoolbox-or-avfoundation-video-provider"
 			},
 			"external": {
 				"status": "implemented-exact-keyed-rgba-delivery-only",
@@ -820,7 +831,7 @@
 			"bundledExecutionModel": "authenticated-whole-buffer-one-shot-supervised-electron-utility-process-per-phase-max-four",
 			"operatingSystemCodecs": "target-native-ci-built-canary-tested-and-package-authenticated-on-mac-arm64-win-x64-win-arm64-linux-unavailable",
 			"externalFfmpeg": "audio-and-keyed-RGBA-H264/AAC MP4-and-VP9/Opus WebM-user-installed-cli-4.4-through-9.x-no-redistribution",
-			"webmAv1": "external-vp9-opus-webm-verified-bundled-and-os-video-and-all-av1-disabled",
+			"webmAv1": "external-vp9-opus-webm-verified-bundled-and-separately-shipped-os-video-and-all-av1-disabled",
 			"receiptTiming": "null-no-timing-claim"
 		},
 		"patentPosition": "No patent clearance or non-infringement representation is made for any codec, provider, use, or territory.",
@@ -909,6 +920,7 @@
 			"desktop/external-ffmpeg-installer.ts",
 			"desktop/external-ffmpeg-audio-operation-runner.ts",
 			"desktop/desktop-video-codec-operation-contract.ts",
+			"desktop/desktop-video-h264-encoder.ts",
 			"desktop/external-ffmpeg-video-process.ts",
 			"desktop/external-ffmpeg-video-operation-service.ts",
 			"desktop/external-ffmpeg-video-verification.ts",
@@ -918,8 +930,11 @@
 			"desktop/desktop-video-codec-registration.mjs",
 			"desktop/desktop-codec-main-integration.mjs",
 			"src/common/editor/desktop-video-codec-runtime.ts",
+			"src/common/editor/platform-video-delivery-encoder.ts",
 			"src/common/editor/editor-codec-runtime.desktop.ts",
 			"tests/external-ffmpeg-video-verification.test.ts",
+			"tests/external-ffmpeg-video-native-encoder.test.ts",
+			"tests/audio-editor-platform-video-delivery-encoder.test.ts",
 			"tests/external-ffmpeg-video-canary-inspection.test.ts",
 			"tests/external-ffmpeg-video-operation-service.test.ts",
 			"tests/desktop-video-codec-main-ipc.test.ts",

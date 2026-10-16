@@ -100,59 +100,56 @@ async function readExportedPixelEvidence(page, dialog) {
 	const videoPath = test.info().outputPath('letterbox.mp4');
 	await writeFile(videoPath, bytes);
 	await test.info().attach('letterbox-video', { path: videoPath, contentType: 'video/mp4' });
-	const pixel = await page.evaluate(async (data) => {
+	return readDecodedVideoPixels(page, bytes);
+}
+
+export async function readDecodedVideoPixels(page, bytes) {
+	return page.evaluate(async (data) => {
 		const url = URL.createObjectURL(new Blob([Uint8Array.from(data)], { type: 'video/mp4' }));
 		const video = document.createElement('video');
+		Object.assign(video, { muted: true, playsInline: true, preload: 'auto' });
+		// A verifier below the editor can be culled before its decoder paints.
+		Object.assign(video.style, { position: 'fixed', left: '8px', top: '8px',
+			width: '54px', height: '96px', zIndex: '2147483647' });
 		document.body.append(video);
+		let callback = null;
 		try {
 			await new Promise((resolve, reject) => {
 				video.onloadeddata = resolve;
 				video.onerror = () => reject(new Error('The exported video could not be decoded.'));
 				video.src = url;
 			});
-			let callbackId = null;
-			let timer = null;
-			try {
-				const presented = new Promise((resolve, reject) => {
-					timer = setTimeout(() => reject(new Error(
-						'Timed out waiting for the exported video frame to be presented.',
-					)), 5_000);
-					callbackId = video.requestVideoFrameCallback(resolve);
-				});
-				const seeked = new Promise((resolve, reject) => {
-					video.addEventListener('seeked', resolve, { once: true });
-					video.addEventListener('error', () => reject(new Error(
-						'The exported video seek failed.',
-					)), { once: true });
-				});
-				video.currentTime = 0.1;
-				await Promise.all([presented, seeked]);
-				callbackId = null;
-			} finally {
-				if (timer !== null) clearTimeout(timer);
-				if (callbackId !== null) video.cancelVideoFrameCallback(callbackId);
-			}
-			if (video.videoWidth !== 54 || video.videoHeight !== 96) {
-				throw new Error(`Unexpected exported video dimensions: ${video.videoWidth}×${video.videoHeight}.`);
-			}
-			if (video.readyState < video.HAVE_CURRENT_DATA) {
-				throw new Error('The exported video has no current decoded frame.');
-			}
+			// Seek completion alone does not promise a drawable decoded picture.
+			const presented = new Promise((resolve) => {
+				const onFrame = (_now, metadata) => {
+					if (metadata.mediaTime > 0 && metadata.mediaTime <= 0.1) resolve(metadata);
+					else callback = video.requestVideoFrameCallback(onFrame);
+				};
+				callback = video.requestVideoFrameCallback(onFrame);
+			});
+			const seeked = new Promise((resolve) => {
+				video.onseeked = resolve;
+			});
+			video.currentTime = 0.1;
+			const [frame] = await Promise.all([presented, seeked]);
+			callback = null;
 			const canvas = document.createElement('canvas');
 			canvas.width = video.videoWidth;
 			canvas.height = video.videoHeight;
 			const context = canvas.getContext('2d');
 			context.drawImage(video, 0, 0);
 			return {
+				width: video.videoWidth, height: video.videoHeight, currentTime: video.currentTime,
+				presentedTime: frame.mediaTime,
 				top: [...context.getImageData(27, 5, 1, 1).data],
 				center: [...context.getImageData(27, 48, 1, 1).data],
 			};
 		} finally {
+			if (callback !== null) video.cancelVideoFrameCallback(callback);
 			video.removeAttribute('src');
 			video.load();
 			video.remove();
 			URL.revokeObjectURL(url);
 		}
 	}, [...bytes]);
-	return pixel;
 }

@@ -7,6 +7,7 @@ import { LOCAL_ASSISTANCE_ADDITIONAL_COPY } from '../../../i18n/editor-local-ass
 import { Children, isValidElement, type ReactNode } from 'react';
 import { Checkbox } from '@soundscaper/design-system/Checkbox';
 import PreferenceDropdownField from './PreferenceDropdownField.jsx';
+import PreferenceNumberInput from './PreferenceNumberInput.tsx';
 
 import type {
 	AssistanceWorkflowSettingsV1,
@@ -210,10 +211,8 @@ function NumberSetting({ label, value, min, max, step, disabled, onChange }: Rea
 	label: string; value: number; min: number; max: number; step: number; disabled: boolean;
 	onChange: (value: number) => unknown;
 }>) {
-	return <label>{label}<input type="number" value={value} min={min} max={max} step={step}
-		disabled={disabled} onChange={(event) => {
-			if (event.currentTarget.value !== '') void onChange(event.currentTarget.valueAsNumber);
-		}} /></label>;
+	return <label>{label}<PreferenceNumberInput label={label} value={value} minimum={min} maximum={max}
+		step={step} integer={Number.isInteger(step)} disabled={disabled} onCommit={onChange} /></label>;
 }
 
 function TimeSetting({ label, value, min, max, disabled, onChange }: Readonly<{

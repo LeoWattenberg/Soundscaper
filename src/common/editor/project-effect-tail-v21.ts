@@ -7,8 +7,9 @@ import {
 	normalizeMixerGraphV21,
 } from './mixer-graph-v21.ts';
 import { createMixerSignalTopologyV21 } from './mixer-signal-topology-v21.ts';
+import { audibleEffectTailGraphV21, type EffectTailGateOwner } from './project-effect-tail-gates-v21.ts';
 
-interface EffectRackOwner {
+interface EffectRackOwner extends EffectTailGateOwner {
 	readonly effectsActive?: unknown;
 	readonly effects?: readonly Readonly<Record<string, unknown>>[];
 }
@@ -22,11 +23,13 @@ interface EffectTailProject extends Readonly<Record<string, unknown>> {
 	readonly tracks?: readonly EffectTailTrack[];
 	readonly master?: EffectRackOwner;
 	readonly mixer?: unknown;
+	readonly automationLanes?: readonly unknown[];
 }
 
 interface ProjectEffectTailV21Options {
 	readonly trackId: unknown;
 	readonly includeMaster: boolean;
+	readonly respectMuteSolo?: boolean;
 	readonly maximum: number;
 	readonly rackTail: (owner: EffectRackOwner | null | undefined) => number;
 }
@@ -57,7 +60,10 @@ export function projectEffectTailFramesV21(
 	}
 	nodeTails.set('master', options.includeMaster ? options.rackTail(project.master) : 0);
 
-	const topology = createMixerSignalTopologyV21(graph, { includeOutputs: true });
+	const audibleGraph = audibleEffectTailGraphV21(project, graph, {
+		includeMaster: options.includeMaster, respectMuteSolo: options.respectMuteSolo !== false,
+	});
+	const topology = createMixerSignalTopologyV21(audibleGraph, { includeOutputs: true });
 	const mainOutputKey = `output:${mainOutputId}`;
 
 	const cache = new Map<string, number>();

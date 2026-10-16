@@ -252,3 +252,28 @@ test('signing pin replacement preserves numeric file counts without inventing an
 	const summary = { files: 17, byteLength: 1234, sourceSha256: 'unchanged-source' };
 	assert.deepEqual(rebindSigningPins(summary, new Map()), summary);
 });
+
+test('signed Sherpa aliases retain separate signatures without rebinding other source evidence', () => {
+	const manifest = structuredClone(assistance);
+	const descriptor = manifest.targets['mac-arm64'].package;
+	const original = { byteLength: 128, sha256: '1'.repeat(64) };
+	const names = ['libonnxruntime.1.29.0.dylib', 'libonnxruntime.1.dylib', 'unsigned-copy.dylib'];
+	for (const name of names) descriptor.files[name] = { ...original };
+	manifest.sourceEvidence = { sha256: original.sha256, byteLength: original.byteLength };
+	const otherPlatform = manifest.targets['linux-x64'].package;
+	otherPlatform.files['unchanged-copy.so'] = { ...original };
+	const first = { byteLength: 140, sha256: '2'.repeat(64) };
+	const second = { byteLength: 150, sha256: '3'.repeat(64) };
+	const prefix = `${manifest.runtimePrefix}/node_modules/${descriptor.name}/`;
+	const signing = { schemaVersion: 1, teamId: 'ABCDEFGHIJ', files: [
+		{ path: `${prefix}${names[0]}`, original, signed: first },
+		{ path: `${prefix}${names[1]}`, original, signed: second },
+	] };
+	const signed = signedAssistanceAuthority(manifest, signing, 'mac-arm64');
+	assert.deepEqual(signed.targets['mac-arm64'].package.files[names[0]], first);
+	assert.deepEqual(signed.targets['mac-arm64'].package.files[names[1]], second);
+	assert.deepEqual(signed.targets['mac-arm64'].package.files[names[2]], original);
+	assert.deepEqual(signed.targets['linux-x64'].package, otherPlatform);
+	assert.deepEqual(signed.sourceEvidence, manifest.sourceEvidence);
+	assert.deepEqual(manifest.targets['mac-arm64'].package.files[names[0]], original);
+});

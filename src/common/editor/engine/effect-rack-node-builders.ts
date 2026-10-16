@@ -24,6 +24,7 @@ import {
 import type { EngineEffect, UnknownRecord } from './types.ts';
 import type { EffectRackOptions } from './effect-rack.ts';
 import { audioWorkletNodeConstructor, registerEffectNode } from './effect-rack-node-registry.ts';
+import { qualityFactorLinearRamp } from './native-filter-quality-ramp.ts';
 
 const MAX_DELAY_SECONDS = 5;
 const DELAY_WORKLET_NAME = 'kw-audio-delay';
@@ -47,12 +48,20 @@ export function connectBiquad(
 ): AudioNode {
 	if (typeof context.createBiquadFilter !== 'function') return input;
 	const filter = addNode(nodes, context.createBiquadFilter());
+	// A max-mode filter loses its channel histories when an ended source narrows
+	// the silent input to mono. Retain the strip width through the filter release.
+	filter.channelCount = clamp(positiveInteger(options.effectChannelCount, 2), 1, 32);
+	filter.channelCountMode = 'explicit';
 	filter.type = (typeof params.type === 'string' ? params.type : 'peaking') as BiquadFilterType;
+	// Web Audio low/high-pass Q is in dB; the authored control is a quality factor.
+	const nativeQ = (value: number): number => filter.type === 'lowpass' || filter.type === 'highpass'
+		? 20 * Math.log10(Math.max(0.0001, value)) : Math.max(0.0001, value);
 	setParam(filter.frequency, clamp(finite(params.frequency, 1_000), 10, 24_000), context.currentTime);
-	setParam(filter.Q, Math.max(0.0001, finite(params.q ?? params.Q, 0.707)), context.currentTime);
+	setParam(filter.Q, nativeQ(finite(params.q ?? params.Q, 0.707)), context.currentTime);
 	setParam(filter.gain, finite(params.gain, 0), context.currentTime);
 	registerEffectAudioParam(effect, 'frequency', filter.frequency, options);
-	registerEffectAudioParam(effect, 'q', filter.Q, options);
+	registerEffectAudioParam(effect, 'q', filter.Q, { ...options, transformValue: nativeQ,
+		...(filter.type === 'lowpass' || filter.type === 'highpass' ? { transformLinearRamp: qualityFactorLinearRamp } : {}) });
 	registerEffectAudioParam(effect, 'gain', filter.gain, options);
 	connect(input, filter);
 	return filter;

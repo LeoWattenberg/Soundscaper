@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { createNativeFixtureCompiler, lazyNativeFixtureValue } from './native-fixture-compiler.ts';
+import { copyOpenFxTestFixture } from '../../scripts/lib/node-test-openfx-fixture.ts';
 
 import {
 	boostClosureIncludeArguments,
@@ -62,13 +63,21 @@ export function buildOpenFxNativeContractFixture(context) {
 		if (retainedBuild === null) context.skip('A C++ compiler is not installed on this source-audit host.');
 		return retainedBuild;
 	}
-	if (spawnSync('c++', ['--version'], { encoding: 'utf8' }).status !== 0) {
+	const directory = mkdtempSync(join(tmpdir(), 'framescaper-openfx-runtime-'));
+	retainedCleanup = () => rmSync(directory, { recursive: true, force: true });
+	const sharedCopy = copyOpenFxTestFixture({ repositoryRoot, directory });
+	if (sharedCopy === null) {
+		retainedCleanup();
 		context.skip('A C++ compiler is not installed on this source-audit host.');
 		retainedBuild = null;
 		return null;
 	}
-	const directory = mkdtempSync(join(tmpdir(), 'framescaper-openfx-runtime-'));
-	retainedCleanup = () => rmSync(directory, { recursive: true, force: true });
+	if (!sharedCopy && spawnSync('c++', ['--version'], { encoding: 'utf8' }).status !== 0) {
+		retainedCleanup();
+		context.skip('A C++ compiler is not installed on this source-audit host.');
+		retainedBuild = null;
+		return null;
+	}
 	const compiler = createNativeFixtureCompiler({
 		directory,
 		invoke: (arguments_, label) => assertBuilt(spawnSync('c++', arguments_, { encoding: 'utf8' }), label),
@@ -103,7 +112,7 @@ export function buildOpenFxNativeContractFixture(context) {
 	];
 	const common = [...abiCommon, '-DFRAMESCAPER_OPENFX_CONFORMANCE_FIXTURE=1'];
 	const shared = process.platform === 'darwin' ? ['-dynamiclib'] : ['-shared', '-fPIC'];
-	const buildPlugin = lazyNativeFixtureValue(() => compiler.artifact({
+	const buildPlugin = lazyNativeFixtureValue(() => sharedCopy?.artifacts.plugin ?? compiler.artifact({
 		arguments: [...common, ...shared, fixture], outputPath: plugin, label: 'OpenFX conformance plug-in',
 	}));
 	const buildMismatch = lazyNativeFixtureValue(() => compiler.artifact({ arguments: [
@@ -138,18 +147,18 @@ export function buildOpenFxNativeContractFixture(context) {
 		join(repositoryRoot, 'native/framescaper-media-host/src/legacy_plan_semantics.cpp'),
 		join(repositoryRoot, 'native/framescaper-media-host/src/legacy_plan_v8_filter_semantics.cpp'),
 	];
-	function hostExecutable(entry, outputPath, flags) {
+	function hostExecutable(entry, outputPath, flags, artifact) {
 		const link = process.platform === 'linux' ? ['-ldl', '-pthread'] : ['-pthread'];
-		return lazyNativeFixtureValue(() => compiler.executable({
+		return lazyNativeFixtureValue(() => sharedCopy?.artifacts[artifact] ?? compiler.executable({
 			arguments: [...flags, '-I', join(repositoryRoot, 'native/framescaper-media-host/src')],
 			sources: [...hostSources, join(sources, entry)],
 			objectArguments: ['-pthread'], linkArguments: link,
 			outputPath, label: `OpenFX ${entry}`,
 		}));
 	}
-	const buildScanner = hostExecutable('ofx_scanner.cpp', scanner, common);
-	const buildRuntime = hostExecutable('ofx_runtime_host.cpp', runtime, common);
-	const buildBlockedScanner = hostExecutable('ofx_scanner.cpp', blockedScanner, abiCommon);
+	const buildScanner = hostExecutable('ofx_scanner.cpp', scanner, common, 'scanner');
+	const buildRuntime = hostExecutable('ofx_runtime_host.cpp', runtime, common, 'runtime');
+	const buildBlockedScanner = hostExecutable('ofx_scanner.cpp', blockedScanner, abiCommon, 'blockedScanner');
 	const pluginDigest = lazyNativeFixtureValue(() => digest(readFileSync(buildPlugin())));
 	const mismatchDigest = lazyNativeFixtureValue(() => digest(readFileSync(buildMismatch())));
 	const spoofDigest = lazyNativeFixtureValue(() => digest(readFileSync(buildSpoof())));

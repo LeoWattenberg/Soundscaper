@@ -52,7 +52,7 @@ export class Aup4WorkerClient {
 		return this.call('open-file', { projectId, ...(desktopRange ? { desktopRange } : { file }), ...deviceOptions(options) }, options);
 	}
 	planImport(projectId, options = {}) {
-		return this.call('plan-import', { projectId, title: options.title }, options);
+		return this.call('plan-import', { projectId, title: options.title, preserveSampleBlocks: options.preserveSampleBlocks === true }, options);
 	}
 	async *readSourceChunks(projectId, sourceId, options = {}) {
 		for (let index = 0; ; index += 1) {

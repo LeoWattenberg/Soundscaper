@@ -13,6 +13,17 @@ export function useAudioTrackEnvelope({
 }) {
 	const envelopePreviewRef = useRef(new Map());
 	const [envelopePreviewRevision, setEnvelopePreviewRevision] = useState(0);
+	const currentClipLookupRef = useRef(clipLookup);
+	currentClipLookupRef.current = clipLookup;
+
+	useEffect(() => {
+		const previousSize = envelopePreviewRef.current.size;
+		for (const [key, preview] of envelopePreviewRef.current) {
+			const current = clipLookup.get(preview.clipId);
+			if (!current || !sameEnvelopePoints(current.envelope, preview.expectedEnvelope)) envelopePreviewRef.current.delete(key);
+		}
+		if (previousSize !== envelopePreviewRef.current.size) setEnvelopePreviewRevision(revision => revision + 1);
+	}, [clipLookup]);
 
 	useEffect(() => {
 		const pendingTasks = new Set();
@@ -30,15 +41,20 @@ export function useAudioTrackEnvelope({
 				setEnvelopePreviewRevision((revision) => revision + 1);
 			});
 		};
-		const finishEnvelopeEdit = () => afterEvent(() => {
-			const previews = [...envelopePreviewRef.current.values()];
-			if (!previews.length) return;
-			envelopePreviewRef.current.clear();
-			setEnvelopePreviewRevision((revision) => revision + 1);
-			for (const preview of previews) {
-				run(() => controller.actions.clip.update(preview.clipId, { envelope: preview.envelope }));
-			}
-		});
+		const finishEnvelopeEdit = (event) => {
+			if (event.button !== 0) return;
+			afterEvent(() => {
+				const previews = [...envelopePreviewRef.current.values()];
+				if (!previews.length) return;
+				envelopePreviewRef.current.clear();
+				setEnvelopePreviewRevision((revision) => revision + 1);
+				for (const preview of previews) {
+					const current = currentClipLookupRef.current.get(preview.clipId);
+					if (!current || !sameEnvelopePoints(current.envelope, preview.expectedEnvelope)) continue;
+					run(() => controller.actions.clip.update(preview.clipId, { envelope: preview.envelope }));
+				}
+			});
+		};
 		document.addEventListener('mouseup', finishEnvelopeEdit);
 		document.addEventListener('keydown', discardEnvelopeEdit);
 		return () => {
@@ -63,6 +79,7 @@ export function useAudioTrackEnvelope({
 		const endFrame = projected.waveformEndFrame;
 		envelopePreviewRef.current.set(String(canonical.id), {
 			clipId: canonical.id,
+			expectedEnvelope: envelopePreviewRef.current.get(String(canonical.id))?.expectedEnvelope ?? canonical.envelope,
 			designPoints,
 			envelope: mergeDesignEnvelopePoints(
 				canonical.envelope,
@@ -75,4 +92,10 @@ export function useAudioTrackEnvelope({
 		setEnvelopePreviewRevision((revision) => revision + 1);
 	};
 	return { envelopePreviewRef, envelopePreviewRevision, updateEnvelope };
+}
+
+function sameEnvelopePoints(left, right) {
+	return left === right || (left.length === right.length && left.every((point, index) => (
+		point.frame === right[index].frame && point.value === right[index].value
+	)));
 }

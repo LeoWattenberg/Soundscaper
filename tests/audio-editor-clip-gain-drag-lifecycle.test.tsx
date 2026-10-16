@@ -31,7 +31,7 @@ for (const nativeCheckpoint of [false, true]) test(`clip gain cancellation and p
 		if (listener) listeners.get(type)?.delete(listener);
 	};
 	const dispatch = async (type: string) => {
-		const event = { key: 'Escape', preventDefault() {}, stopPropagation() {} } as unknown as Event;
+		const event = { key: 'Escape', button: 0, buttons: 0, preventDefault() {}, stopPropagation() {} } as unknown as Event;
 		for (const listener of [...listeners.get(type) ?? []]) {
 			if (typeof listener === 'function') listener(event);
 			else listener.handleEvent(event);

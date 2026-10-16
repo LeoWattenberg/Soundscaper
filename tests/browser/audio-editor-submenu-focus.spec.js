@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { expect, test } from './audio-editor-test-fixtures.js';
+import { flushFocusCallbacks, holdFocusCallbacks, installControlledFocusCallbacks } from './helpers/controlled-focus-callbacks.js';
 import {
 	bootEditor,
 	getMenuItem,
@@ -12,22 +13,14 @@ test.describe('application submenu focus', () => {
 	registerAudioEditorHooks();
 
 	test('does not reclaim focus after the user moves to another submenu command', async ({ page }) => {
-		await page.addInitScript(() => {
-			// Hold submenu focus timers until after the next item is focused.
-			const schedule = window.setTimeout.bind(window);
-			window.setTimeout = (callback, delay, ...args) => schedule(
-				callback,
-				globalThis.__delaySubmenuTimers && delay === 0 ? 150 : delay,
-				...args,
-			);
-		});
+		await installControlledFocusCallbacks(page, 'timeout');
 		const editor = await bootEditor(page, '/embed/en/');
-		await page.evaluate(() => { globalThis.__delaySubmenuTimers = true; });
+		await holdFocusCallbacks(page);
 		const submenu = await openNestedCommandMenu(page, editor, 'View', ['Workspace']);
 		const audacity = getMenuItem(submenu, 'Audacity');
 		await audacity.focus();
 		await expect(audacity).toBeFocused();
-		await page.waitForTimeout(400);
+		expect(await flushFocusCallbacks(page)).toBeGreaterThan(0);
 		await expect(audacity).toBeFocused();
 	});
 });

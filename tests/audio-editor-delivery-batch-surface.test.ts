@@ -2,6 +2,7 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { createMenuActionFixture } from './helpers/application-menu-fixture.ts';
 import { readFile } from 'node:fs/promises';
 
 import { ENGLISH_COPY } from '../src/common/i18n/catalogs.js';
@@ -105,13 +106,9 @@ test('the delivery queue is menu-reached and opens its own surface', () => {
 		selectionActive: false, selectedClip: null, durationFrames: 100,
 		effectsPanelOpen: false, projectBinEffectivelyOpen: false, uiFlags: {},
 		actionRuntime: null,
-		actions: new Proxy({
+		actions: createMenuActionFixture({
 			openDeliveryQueue: () => { opened.push('delivery-queue'); },
-		} as Record<string, unknown>, {
-			get: (target, property, receiver) => (Reflect.has(target, property)
-				? Reflect.get(target, property, receiver)
-				: () => undefined),
-		}),
+		} as Record<string, unknown>),
 	} as never);
 
 	const file = menus.find(({ id }: { id: string }) => id === 'file');

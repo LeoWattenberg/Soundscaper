@@ -21,28 +21,29 @@ test('fade-shape previews publish one completed edit and cancellation publishes 
 			value={1} fadeFrames={0} legacyLabel="Legacy" disabled={false}
 			onCommit={(_name, value) => { committed.push(value); }} />));
 		const slider = dom.one('input');
-		await act(async () => reactProps(slider).onPointerDown());
+		const pointer = { pointerId: 1, button: 0, isPrimary: true, preventDefault() {} };
+		await act(async () => reactProps(slider).onPointerDown(pointer));
 		for (const value of ['2', '3', '4']) {
 			await act(async () => reactProps(slider).onChange({ currentTarget: { value } }));
 			assert.deepEqual(committed, []);
 		}
-		await act(async () => reactProps(slider).onPointerUp());
+		await act(async () => reactProps(slider).onPointerUp(pointer));
 		assert.deepEqual(committed, [4]);
-		await act(async () => reactProps(slider).onPointerDown());
+		await act(async () => reactProps(slider).onPointerDown(pointer));
 		await act(async () => reactProps(slider).onChange({ currentTarget: { value: '5' } }));
 		let prevented = false;
 		await act(async () => reactProps(slider).onKeyDown({ key: 'Escape', preventDefault() { prevented = true; }, stopPropagation() {} }));
 		assert.equal(prevented, true);
 		assert.equal(slider.value, '1');
 		await act(async () => reactProps(slider).onChange({ currentTarget: { value: '5.5' } }));
-		await act(async () => reactProps(slider).onPointerUp());
+		await act(async () => reactProps(slider).onPointerUp(pointer));
 		const trailingInput = { currentTarget: { value: '5' } };
 		await act(async () => reactProps(slider).onChange(trailingInput));
 		assert.equal(trailingInput.currentTarget.value, '1');
 		assert.deepEqual(committed, [4]);
-		await act(async () => reactProps(slider).onPointerDown());
+		await act(async () => reactProps(slider).onPointerDown(pointer));
 		await act(async () => reactProps(slider).onChange({ currentTarget: { value: '2' } }));
-		await act(async () => reactProps(slider).onPointerUp());
+		await act(async () => reactProps(slider).onPointerUp(pointer));
 		assert.deepEqual(committed, [4, 2]);
 	} finally {
 		await act(async () => root.unmount());

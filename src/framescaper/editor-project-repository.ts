@@ -14,6 +14,7 @@ import {
 } from './editor-project.ts';
 import { assertFramescaperProjectRuntimeProfile } from './editor-project-runtime-profile.ts';
 import type { FramescaperScapeImageProjectPublication } from './editor-scape-image-project-publication.ts';
+import { compactFramescaperProjectSourceMetadata } from './editor-project-source-compaction.ts';
 
 const REQUIRED_METHODS = Object.freeze([
 	'createIfAbsent', 'createForScapeImportIfAbsent', 'save', 'saveIfCurrent',
@@ -38,7 +39,7 @@ export class FramescaperProjectRepository implements ProjectRepositoryPort {
 	async createIfAbsent(projectValue: ProjectDocument): Promise<ProjectDocument | null> {
 		const project = this.#exact(projectValue);
 		assertNoBodyAttachments(project, 'create');
-		return this.#optionalExact(await this.#delegate.createIfAbsent!(project));
+		return this.#optionalExact(await this.#delegate.createIfAbsent!(this.#publication(project)));
 	}
 
 	async createForScapeImportIfAbsent(projectValue: ProjectDocument): Promise<ProjectDocument | null> {
@@ -48,7 +49,7 @@ export class FramescaperProjectRepository implements ProjectRepositoryPort {
 			return this.#scapeImages.create(project);
 		}
 		assertNoBodyAttachments(project, 'Scape import');
-		return this.#optionalExact(await this.#delegate.createForScapeImportIfAbsent!(project));
+		return this.#optionalExact(await this.#delegate.createForScapeImportIfAbsent!(this.#publication(project)));
 	}
 
 	async save(
@@ -61,7 +62,7 @@ export class FramescaperProjectRepository implements ProjectRepositoryPort {
 		const current = this.#exact(currentValue);
 		assertSameBodyAttachments(current, project);
 		await this.#prepareSave(project);
-		const saved = await this.#delegate.saveIfCurrent!(current, project, postCommit);
+		const saved = await this.#delegate.saveIfCurrent!(current, this.#publication(project), postCommit);
 		if (saved === null) throw new Error('The Framescaper project changed before save.');
 		return this.#exact(saved);
 	}
@@ -78,7 +79,7 @@ export class FramescaperProjectRepository implements ProjectRepositoryPort {
 		}
 		assertSameBodyAttachments(expected, project);
 		await this.#prepareSave(project);
-		return this.#optionalExact(await this.#delegate.saveIfCurrent!(expected, project, postCommit));
+		return this.#optionalExact(await this.#delegate.saveIfCurrent!(expected, this.#publication(project), postCommit));
 	}
 
 	claimWriteFence(projectId: string): Promise<string> {
@@ -97,7 +98,7 @@ export class FramescaperProjectRepository implements ProjectRepositoryPort {
 		assertSameBodyAttachments(expected, project);
 		await this.#prepareSave(project);
 		return this.#optionalExact(await this.#delegate.saveIfCurrentAndFenced!(
-			expected, project, writeFence, postCommit,
+			expected, this.#publication(project), writeFence, postCommit,
 		));
 	}
 
@@ -197,6 +198,10 @@ export class FramescaperProjectRepository implements ProjectRepositoryPort {
 
 	#exact(value: unknown): FramescaperProject & ProjectDocument {
 		return cloneFramescaperProject(this.#profile, value) as FramescaperProject & ProjectDocument;
+	}
+
+	#publication(project: FramescaperProject): FramescaperProject & ProjectDocument {
+		return compactFramescaperProjectSourceMetadata(this.#profile, project) as FramescaperProject & ProjectDocument;
 	}
 
 	#optionalExact(value: ProjectDocument | null): ProjectDocument | null {

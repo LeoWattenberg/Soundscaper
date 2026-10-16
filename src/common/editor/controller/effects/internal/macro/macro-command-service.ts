@@ -12,6 +12,8 @@
 import { audacityMacroMenuCommand } from '../../../../audacity-macro-menu-commands.ts';
 import type { MacroCommandStep } from '../../../../macro-command-steps.ts';
 import { resolveSelectionRange } from '../../../../selection-range.ts';
+import { prepareSelectedTrackRemoval } from '../../../../selected-track-removal.ts';
+import type { AudioEditorCommand } from '../../../../commands/protocol.ts';
 
 export interface MacroCommandTrack extends Readonly<Record<string, unknown>> {
 	readonly id: string;
@@ -32,6 +34,7 @@ export interface MacroCommandProject extends Readonly<Record<string, unknown>> {
 
 export interface MacroCommandServiceRuntime {
 	readonly getProject: () => MacroCommandProject;
+	readonly getSelectedTrackId?: () => string | null;
 	readonly projectSampleRate: () => number;
 	/**
 	 * The last frame the project's own content reaches, which `ProjectEnd`
@@ -59,9 +62,10 @@ const TRACK_MODES = Object.freeze({ set: 'set', add: 'add', remove: 'remove' } a
 
 /** Whether this build can run the command a step names. */
 export function isRunnableMacroCommand(command: string): boolean {
+	const menuCommand = audacityMacroMenuCommand(command);
 	return command === 'Select' || command === 'SelectTime'
 		|| command === 'SelectFrequencies' || command === 'SelectTracks'
-		|| audacityMacroMenuCommand(command) !== null;
+		|| (menuCommand !== null && menuCommand.runnable !== false);
 }
 
 export function createMacroCommandService(runtime: MacroCommandServiceRuntime) {
@@ -113,6 +117,14 @@ export function createMacroCommandService(runtime: MacroCommandServiceRuntime) {
 			details.frequencyRange = frequencyRange(params, selection);
 		}
 		runtime.setExactSelection(range.startFrame, range.endFrame, details);
+		// Native No tracks also retires the focused-track edit fallback. A macro
+		// that explicitly removes every track must publish the same empty scope.
+		if (changesTracks && Array.isArray(details.trackIds) && details.trackIds.length === 0) {
+			const timeline = runtime.getActions?.()?.timeline;
+			const action = timeline && typeof timeline === 'object'
+				? (timeline as Readonly<Record<string, unknown>>).selectNoTracks : null;
+			if (typeof action === 'function') (action as () => unknown)();
+		}
 	}
 
 	/**
@@ -133,6 +145,10 @@ export function createMacroCommandService(runtime: MacroCommandServiceRuntime) {
 		}
 		if (typeof target !== 'function') {
 			throw new RangeError(`The macro command ${command} has no editor action (${path}).`);
+		}
+		if (command === 'RemoveTracks') {
+			const removal = prepareSelectedTrackRemoval(runtime.getProject(), runtime.getSelectedTrackId?.());
+			return removal ? (target as (value: AudioEditorCommand) => unknown)(removal) : null;
 		}
 		return (target as () => unknown)();
 	}
@@ -171,7 +187,7 @@ export function createMacroCommandService(runtime: MacroCommandServiceRuntime) {
 		params: Readonly<Record<string, unknown>>,
 		selection: MacroCommandSelection,
 	): Readonly<{ minimumFrequency: number; maximumFrequency: number }> {
-		const current = selection.frequencyRange ?? { minimumFrequency: 0, maximumFrequency: 0 };
+		const current = selection.frequencyRange ?? { minimumFrequency: 0, maximumFrequency: runtime.projectSampleRate() / 2 };
 		return {
 			minimumFrequency: has(params, 'low') ? number(params.low) : current.minimumFrequency,
 			maximumFrequency: has(params, 'high') ? number(params.high) : current.maximumFrequency,

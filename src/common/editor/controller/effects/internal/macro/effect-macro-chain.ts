@@ -12,11 +12,13 @@
 
 import { createLocalizedError } from '../../../../../i18n/presentation-message.ts'; import { AUDIO_SELECTION_EFFECT_DEFINITIONS } from '../../../../effects.js';
 import { createAudioPreviewProject } from '../../../../engine/audio-preview-project.ts';
+import { defaultMixerChannelMapV21, type MixerGraphV21 } from '../../../../mixer-graph-v21.ts';
 import { createStableId } from '../../../../project.js';
 import { isRealtimeEffectMacroStepType } from '../../../../effect-macro-steps.ts';
 import { runOfflineSelectionSegment, type RunOfflineSelectionChain } from './offline-selection-chain.ts';
 import { createMacroNeighbourPcmCache, type MacroNeighbourPcmCache } from './macro-neighbour-pcm-cache.ts';
 import { independentTrackEffectParams } from '../independent-track-effect-params.ts';
+import { composeMacroSpectralResult, type MacroSpectralSelection } from './macro-spectral-context.ts';
 
 const selectionEffectDefinitions = AUDIO_SELECTION_EFFECT_DEFINITIONS as unknown as
 	Readonly<Record<string, SelectionEffectDefinition | undefined>>;
@@ -64,6 +66,7 @@ interface ChainCopy {
 }
 
 export interface EffectMacroChainRuntime<Buffer = MacroRenderBuffer> {
+	readonly spectralSelection?: MacroSpectralSelection;
 	readonly contextCacheBytes?: number;
 	/** Opt-in private worker port guarantees the canonical per-step channel match. */
 	readonly runSelectionEffectChain?: RunOfflineSelectionChain;
@@ -77,6 +80,9 @@ export interface EffectMacroChainRuntime<Buffer = MacroRenderBuffer> {
 		endFrame: number,
 		channelCount: number,
 		clipIds?: readonly string[],
+	) => Promise<readonly Float32Array[]>;
+	readonly renderControlTrackRange?: (
+		trackId: string, target: EffectMacroChainTarget,
 	) => Promise<readonly Float32Array[]>;
 	readonly runSelectionEffect: (request: Readonly<{
 		operation: 'apply';
@@ -138,6 +144,7 @@ export function createEffectMacroChainRunner<Buffer = MacroRenderBuffer>(runtime
 		if (!definition) throw new RangeError(`Unsupported macro effect: ${step.type}.`);
 		if (definition.requiresControlTrack) throw createLocalizedError(Error, runtime.copy, 'autoDuckControlTrack');
 		const context: Record<string, unknown> = {};
+		if (runtime.spectralSelection && step.type !== 'eq') context.spectralSelection = runtime.spectralSelection;
 		if (definition.requiresNoiseProfile) {
 			const noiseProfile = step.context?.noiseProfile;
 			if (!isRecord(noiseProfile)) throw createLocalizedError(Error, runtime.copy, 'noiseProfileMissing');
@@ -187,6 +194,7 @@ export function createEffectMacroChainRunner<Buffer = MacroRenderBuffer>(runtime
 	async function renderRackSegment(
 		steps: readonly EffectMacroChainStep[],
 		channels: readonly Float32Array[],
+		target: EffectMacroChainTarget,
 	): Promise<readonly Float32Array[]> {
 		const frames = channels[0]?.length ?? 0;
 		if (!frames) throw createLocalizedError(Error, runtime.copy, 'effectInvalidAudio');
@@ -195,6 +203,32 @@ export function createEffectMacroChainRunner<Buffer = MacroRenderBuffer>(runtime
 		const sourceId = createStableId('macro-step-source');
 		const clipId = createStableId('macro-step-clip');
 		const trackId = createStableId('macro-step-track');
+		const controlSources: Record<string, unknown>[] = [];
+		const controlClips: Record<string, unknown>[] = [];
+		const controlTracks: Record<string, unknown>[] = [];
+		const controlWidths = new Map<string, number>();
+		const sourceBuffers = new Map([[sourceId, buffer]]);
+		const controlIds = new Set(steps.filter(step => step.type === 'audacity-auto-duck')
+			.map(step => step.context?.controlTrackId).filter((id): id is string => typeof id === 'string' && Boolean(id)));
+		for (const controlTrackId of controlIds) {
+			const controlTarget = { ...target, endFrame: target.startFrame + frames };
+			const control = runtime.renderControlTrackRange
+				? await runtime.renderControlTrackRange(controlTrackId, controlTarget)
+				: await runtime.renderDryRange(controlTrackId, controlTarget.startFrame, controlTarget.endFrame, 1);
+			runtime.assertCurrent();
+			const controlBuffer = await runtime.createAudioBuffer(control, runtime.sampleRate);
+			runtime.assertCurrent();
+			const controlSourceId = createStableId('macro-control-source');
+			const controlClipId = createStableId('macro-control-clip');
+			sourceBuffers.set(controlSourceId, controlBuffer);
+			controlWidths.set(controlTrackId, control.length);
+			controlSources.push({ id: controlSourceId, name: 'Macro control', storageKey: controlSourceId,
+				frameCount: frames, channelCount: control.length, sampleRate: runtime.sampleRate });
+			controlClips.push({ id: controlClipId, sourceId: controlSourceId, timelineStartFrame: 0,
+				durationFrames: frames, sourceStartFrame: 0, sourceDurationFrames: frames });
+			controlTracks.push({ id: controlTrackId, name: 'Macro control', clipIds: [controlClipId],
+				effects: [], gain: 1, pan: 0, mute: false, solo: false });
+		}
 		const project = createAudioPreviewProject({
 			title: 'Macro step',
 			sampleRate: runtime.sampleRate,
@@ -206,7 +240,7 @@ export function createEffectMacroChainRunner<Buffer = MacroRenderBuffer>(runtime
 				frameCount: frames,
 				channelCount: channels.length,
 				sampleRate: runtime.sampleRate,
-			}],
+			}, ...controlSources],
 			clips: [{
 				id: clipId,
 				sourceId,
@@ -215,7 +249,7 @@ export function createEffectMacroChainRunner<Buffer = MacroRenderBuffer>(runtime
 				durationFrames: frames,
 				sourceStartFrame: 0,
 				sourceDurationFrames: frames,
-			}],
+			}, ...controlClips],
 			tracks: [{
 				id: trackId,
 				name: 'Macro step',
@@ -225,9 +259,20 @@ export function createEffectMacroChainRunner<Buffer = MacroRenderBuffer>(runtime
 				pan: 0,
 				mute: false,
 				solo: false,
-			}],
+			}, ...controlTracks],
 		});
-		const rendered = await runtime.renderSnapshot(project, {
+		const mixer = project.mixer as MixerGraphV21;
+		const sidechainEdges = steps.filter(step => step.type === 'audacity-auto-duck').map(step => ({
+			id: createStableId('macro-control-edge'), kind: 'sidechain' as const,
+			source: { kind: 'track' as const, id: String(step.context?.controlTrackId) },
+			destination: { kind: 'effect-sidechain' as const, strip: { kind: 'track' as const, id: trackId }, effectId: step.id },
+			position: 'pre-fader' as const, level: 1, enabled: true,
+			channelMap: defaultMixerChannelMapV21(controlWidths.get(String(step.context?.controlTrackId)) ?? 1, channels.length),
+		}));
+		// Every audio track retains its valid output route. The selected-track
+		// render omits other programme edges while keeping their sidechains.
+		const staged = { ...project, mixer: { ...mixer, edges: [...mixer.edges, ...sidechainEdges] } };
+		const rendered = await runtime.renderSnapshot(staged, {
 			startFrame: 0,
 			endFrame: frames,
 			trackId,
@@ -236,7 +281,7 @@ export function createEffectMacroChainRunner<Buffer = MacroRenderBuffer>(runtime
 			respectMuteSolo: false,
 			outputFrames: frames,
 			preRollFrames: 0,
-		}, new Map([[sourceId, buffer]]));
+		}, sourceBuffers);
 		runtime.assertCurrent();
 		return runtime.matchSelectionChannels(
 			runtime.audioBufferChannels(rendered),
@@ -254,13 +299,23 @@ export function createEffectMacroChainRunner<Buffer = MacroRenderBuffer>(runtime
 		let channels = initialChannels;
 		for (const segment of segments) {
 			if (segment.realtime) {
-				channels = await renderRackSegment(segment.steps, channels);
+				if (runtime.spectralSelection) {
+					// Each step receives audio with the preceding step's unselected
+					// bins intact. A final-only blend changes nonlinear detectors.
+					for (const step of segment.steps) {
+						const processed = await renderRackSegment([step], channels, target);
+						channels = step.type === 'eq' ? processed : await composeMacroSpectralResult(
+							channels, processed, runtime.sampleRate, runtime.spectralSelection);
+						runtime.assertCurrent();
+					}
+				} else channels = await renderRackSegment(segment.steps, channels, target);
 				continue;
 			}
 			const steps = segment.steps.map(step => ({ ...step,
 				params: independentTrackEffectParams(step.type, step.params) }));
 			channels = await runOfflineSelectionSegment(steps, channels,
-				(step, current) => applyOfflineStep(step, current, target, cache), runtime.sampleRate, runtime.assertCurrent, runtime.runSelectionEffectChain);
+				(step, current) => applyOfflineStep(step, current, target, cache), runtime.sampleRate, runtime.assertCurrent,
+				runtime.spectralSelection ? undefined : runtime.runSelectionEffectChain);
 		}
 		return channels;
 	}

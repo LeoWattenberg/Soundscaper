@@ -209,6 +209,7 @@ export default function AudioEditorMenuBar({
 	// The drawer lays the menubar out vertically, so Up/Down move between menus
 	// there and Right opens one; the desktop row keeps the horizontal keys.
 	const onTopLevelKeyDown = (event, index) => {
+		if (event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey) return;
 		const nextKey = compact ? 'ArrowDown' : 'ArrowRight';
 		const previousKey = compact ? 'ArrowUp' : 'ArrowLeft';
 		const step = compact ? 1 : horizontalRightDelta;

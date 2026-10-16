@@ -134,11 +134,13 @@ export function resolveEditingActionAvailability(
 		: selectedMediaTracks;
 	const split = authority.clipIds.length > 0
 		|| splitTracks.some((track) => track.clipIds.length > 0);
+	// Native image/still/generator leaves deliberately have no editable groupId.
+	const groupingSupported = authority.clips.every(({ kind }) => kind === undefined || kind === 'audio' || kind === 'video');
 	return Object.freeze({
 		...authority,
 		split,
 		join: Boolean(authority.project && canJoinClips(authority.project, authority.clipIds)),
-		group: authority.clipIds.length > 1,
+		group: groupingSupported && authority.clipIds.length > 1,
 		ungroup: authority.clips.some((clip) => typeof clip.groupId === 'string' && clip.groupId.length > 0),
 	});
 }

@@ -44,6 +44,7 @@ async function fixture(
 	maximumByteLength = 64 * 1024,
 	voiceActivityBody?: unknown,
 	language: unknown = 'auto',
+	executionProviders?: readonly ('cpu' | 'metal')[],
 ) {
 	const root = await mkdtemp(join(tmpdir(), 'soundscaper-whisper-worker-'));
 	context.after(() => rm(root, { recursive: true, force: true }));
@@ -87,8 +88,9 @@ async function fixture(
 		task: 'speech-recognition' as const, maximumRssBytes: 8 * 1024 ** 3,
 		maximumDurationMs: 60_000, grant,
 		descriptor: {
-			familyId: 'whisper-cpp' as const, runtimeVersion: 'v1.9.3', target: 'linux-x64' as const,
+			familyId: 'whisper-cpp' as const, runtimeVersion: 'v1.9.3', target: executionProviders?.includes('metal') ? 'mac-arm64' as const : 'linux-x64' as const,
 			executionProvider: 'cpu' as const, entrypoint: '/runtime/whisper-cli',
+			...(executionProviders ? { executionProviders } : {}),
 			files: [{ path: '/runtime/whisper-cli', relativePath: 'whisper-cli',
 				byteLength: 1, sha256: '4'.repeat(64), executable: true }],
 		},
@@ -355,3 +357,121 @@ function floatWave(sampleCount: number): Uint8Array {
 	view.setUint32(40, sampleCount * 4, true);
 	return bytes;
 }
+
+
+test('authenticated Whisper GPU capability removes CPU forcing and falls back once after execution failure', async (context) => {
+	const { job, paths } = await fixture(context, 64 * 1024, undefined, 'auto', ['cpu', 'metal']);
+	const seen: Array<{ executable: string; args: readonly string[]; shell: boolean | undefined }> = [];
+	const cpuSuccess = successfulSpawn(seen);
+	const spawn: AssistanceWhisperCppSpawn = (executable, args, options) => {
+		if (seen.length > 0) return cpuSuccess(executable, args, options);
+		seen.push({ executable, args: [...args], shell: options.shell });
+		const child = new FakeChild();
+		queueMicrotask(() => {
+			child.stdout.end('discarded partial GPU output');
+			child.emit('close', 1, null);
+		});
+		return child;
+	};
+	await createAssistanceWhisperCppWorkerSpawnerV1({ spawn })(job, {
+		onProgress: () => undefined,
+	}).completion;
+	assert.equal(seen.length, 2);
+	assert.equal(seen[0]!.args.includes('--no-gpu'), false);
+	assert.equal(seen[1]!.args.includes('--no-gpu'), true);
+	assert.equal(seen[0]!.executable, seen[1]!.executable);
+	assert.equal(seen[0]!.args[seen[0]!.args.indexOf('--file') + 1], paths.input);
+	assert.equal(seen[1]!.args[seen[1]!.args.indexOf('--file') + 1], paths.input);
+	const transcript = JSON.parse(await readFile(paths.output, 'utf8')) as { language: string };
+	assert.equal(transcript.language, 'en');
+});
+
+test('GPU Whisper output validation failures do not launch a CPU retry', async (context) => {
+	for (const body of ['{invalid json', 'x'.repeat(64 * 1024 + 1)]) {
+		const { job, paths } = await fixture(context, 64 * 1024, undefined, 'auto', ['cpu', 'metal']);
+		let starts = 0;
+		const spawn: AssistanceWhisperCppSpawn = () => {
+			starts += 1;
+			const child = new FakeChild();
+			queueMicrotask(() => { child.stdout.end(body); child.emit('close', 0, null); });
+			return child;
+		};
+		await assert.rejects(createAssistanceWhisperCppWorkerSpawnerV1({ spawn })(job, {
+			onProgress: () => undefined,
+		}).completion, /malformed.*JSON|output bound/iu);
+		assert.equal(starts, 1);
+		assert.equal((await readFile(paths.output)).byteLength, 0);
+	}
+});
+
+test('GPU Whisper termination never retries on CPU', async (context) => {
+	const { job } = await fixture(context, 64 * 1024, undefined, 'auto', ['cpu', 'metal']);
+	const children: FakeChild[] = [];
+	const spawn: AssistanceWhisperCppSpawn = () => {
+		const child = new FakeChild(); children.push(child); return child;
+	};
+	const worker = createAssistanceWhisperCppWorkerSpawnerV1({ spawn })(job, {
+		onProgress: () => undefined,
+	});
+	for (let attempt = 0; children.length === 0 && attempt < 100; attempt += 1) {
+		await new Promise((resolve) => { setTimeout(resolve, 1); });
+	}
+	assert.equal(children.length, 1);
+	await worker.terminate();
+	await assert.rejects(worker.completion, /abort|terminated|cancel/iu);
+	assert.equal(children.length, 1);
+});
+
+
+test('a failed Whisper GPU remains disabled across later authenticated VAD ranges', async (context) => {
+	const { job, paths } = await fixture(context, 64 * 1024, {
+		sampleRate: 16_000,
+		segments: [
+			{ startSample: 16_000, sampleCount: 48_000 },
+			{ startSample: 96_000, sampleCount: 48_000 },
+		],
+	}, 'auto', ['cpu', 'metal']);
+	const seen: Array<{ executable: string; args: readonly string[]; shell: boolean | undefined }> = [];
+	const cpuSuccess = successfulSpawn(seen);
+	const spawn: AssistanceWhisperCppSpawn = (executable, args, options) => {
+		if (seen.length > 0) return cpuSuccess(executable, args, options);
+		seen.push({ executable, args: [...args], shell: options.shell });
+		const child = new FakeChild();
+		queueMicrotask(() => child.emit('close', 1, null));
+		return child;
+	};
+	await createAssistanceWhisperCppWorkerSpawnerV1({ spawn })(job, {
+		onProgress: () => undefined,
+	}).completion;
+	assert.deepEqual(seen.map(({ args }) => args.includes('--no-gpu')), [false, true, true]);
+	const body = JSON.parse(await readFile(paths.output, 'utf8')) as {
+		segments: { startSeconds: number }[];
+	};
+	assert.deepEqual(body.segments.map(({ startSeconds }) => startSeconds), [1, 2.25, 6, 7.25]);
+});
+
+test('a successful Metal Whisper job never starts a CPU process', async (context) => {
+	const { job } = await fixture(context, 64 * 1024, undefined, 'auto', ['cpu', 'metal']);
+	const seen: Array<{ executable: string; args: readonly string[]; shell: boolean | undefined }> = [];
+	await createAssistanceWhisperCppWorkerSpawnerV1({ spawn: successfulSpawn(seen) })(job, {
+		onProgress: () => undefined,
+	}).completion;
+	assert.equal(seen.length, 1);
+	assert.equal(seen[0]!.args.includes('--no-gpu'), false);
+});
+
+test('a GPU CLI without an observed exit is never overlapped by a CPU fallback', async (context) => {
+	const { job } = await fixture(context, 64 * 1024, undefined, 'auto', ['cpu', 'metal']);
+	let starts = 0;
+	const spawn: AssistanceWhisperCppSpawn = () => {
+		starts += 1;
+		const child = new FakeChild();
+		child.kill = () => true;
+		queueMicrotask(() => child.emit('error', Object.assign(new Error('backend failed'), { code: 'ELIBBAD' })));
+		return child;
+	};
+	await assert.rejects(createAssistanceWhisperCppWorkerSpawnerV1({ spawn, terminationGraceMs: 5 })(job, {
+		onProgress: () => undefined,
+	}).completion, /force-terminated/iu);
+	assert.equal(starts, 1);
+});

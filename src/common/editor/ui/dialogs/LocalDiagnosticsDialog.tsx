@@ -57,7 +57,11 @@ export default function LocalDiagnosticsDialog({
 				isDesktop: fileService.isDesktop === true,
 				locale,
 				desktopEnvironment,
-				navigator: globalThis.navigator,
+				navigator: {
+					platform: globalThis.navigator?.platform,
+					userAgent: globalThis.navigator?.userAgent,
+					language: globalThis.navigator?.language,
+				},
 			});
 			const snapshot = controller.getSnapshot();
 			const next = buildLocalDiagnosticsReport({

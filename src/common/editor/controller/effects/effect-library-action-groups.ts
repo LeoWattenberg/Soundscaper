@@ -35,6 +35,7 @@ export type EffectLibraryActionScope = Pick<EditorActionFunctions,
 	| 'timelineDurationFrames'
 	| 'beginMacroTransaction'
 > & Pick<EditorActionResources, 'effectLibraryState' | 'copy' | 'productId' | 'locale' | 'onMacroScriptLog' | 'macroScriptStartedAt' | 'startMacroScriptTask'> & {
+	readonly state: Pick<EditorActionResources['state'], 'selectedTrackId'>;
 	readonly getEditorActions?: () => Readonly<Record<string, unknown>> | null;
 	readonly selection: Pick<MacroCommandServiceRuntime, 'setExactSelection'>;
 };
@@ -91,6 +92,7 @@ export function createEffectMacroActions(
 			return project;
 		},
 		projectSampleRate: scope.projectSampleRate,
+		getSelectedTrackId: () => scope.state.selectedTrackId,
 		timelineDurationFrames: scope.timelineDurationFrames,
 		setExactSelection: scope.selection.setExactSelection,
 		getActions: () => actions ?? scope.getEditorActions?.() ?? null,

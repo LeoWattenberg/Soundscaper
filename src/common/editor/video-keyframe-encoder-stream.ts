@@ -16,9 +16,9 @@ import {
 	type VideoKeyframeExportFrameSource,
 } from './video-keyframe-export-frame-source.ts';
 import { executeVideoKeyframeEncoder } from './video-keyframe-encoder-execution.ts';
+import { validateVideoKeyframeWebCodecsDecision } from './video-keyframe-webcodecs-decision.ts';
 import {
 	executeVideoKeyframeWebCodecsEncoder,
-	admitVideoKeyframeWebCodecsEncode,
 	type VideoKeyframeWebCodecsEncode,
 } from './video-keyframe-webcodecs-execution.ts';
 
@@ -314,7 +314,7 @@ function validateWebCodecs(
 	request: Readonly<Record<string, unknown>>,
 ): VideoKeyframeWebCodecsEncode | null {
 	if (!Object.hasOwn(request, 'webCodecs')) return null;
-	return admitVideoKeyframeWebCodecsEncode(
+	return validateVideoKeyframeWebCodecsDecision(
 		dataProperty(request, 'webCodecs', 'video keyframe encoder request'),
 	);
 }

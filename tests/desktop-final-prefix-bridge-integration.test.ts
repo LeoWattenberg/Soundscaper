@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, rm } from 'node:fs/promises'; import { readDesktopPreloadSource } from './helpers/desktop-preload-source.mjs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -95,7 +95,7 @@ async function loadPreloadBridge(
 	invoke: (channel: string, value?: unknown) => Promise<unknown>,
 ): Promise<DesktopBridge> {
 	let bridge: DesktopBridge | undefined;
-	const source = await readFile(new URL('../desktop/preload.mjs', import.meta.url), 'utf8');
+	const source = await readDesktopPreloadSource();
 	vm.runInNewContext(source, {
 		ArrayBuffer, Object, Promise, RangeError, String, TypeError, Uint8Array, URL,
 		require: () => ({

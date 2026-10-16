@@ -2,7 +2,7 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createFramescaperAudioEditorController } from '../src/framescaper/editor-controller.ts';
+import { createFramescaperFixtureController } from './helpers/framescaper-controller-project-fixture.ts';
 import { createFramescaperEditorProjectEnvironment } from '../src/framescaper/editor-project-environment.ts';
 import { applyFramescaperProjectCommand } from '../src/framescaper/editor-project-commands.ts';
 import { FRAMESCAPER_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-project-runtime-profile.ts';
@@ -27,12 +27,13 @@ for (const sourceStartTicks of ['0', '1000000']) test(`public range Copy/Paste r
 	const authored = applyFramescaperProjectCommand(FRAMESCAPER_PROJECT_RUNTIME_PROFILE, base, { type: 'batch', commands: [{
 		type: 'image-source/set', sourceId: fixture.source.id, expectedSource: null, source: fixture.source,
 	}, { type: 'image-clip/set', clipId: fixture.clip.id, expectedClip: null, expectedPlacement: null,
-		clip: authoredClip, placement: { scope: 'timeline', trackId: owner.id } }] });
+		clip: authoredClip, placement: { scope: 'timeline', trackId: owner.id } }] },
+	{ now: new Date(Date.parse(String(base.updatedAt)) + 1).toISOString() });
 	assert.ok(await environment.timelineImages.publishIfCurrent({ expected: base, project: authored, bytes: fixture.bytes }));
-	const controller = createFramescaperAudioEditorController(environment);
+	const controller = await createFramescaperFixtureController(environment, fixture.project.id);
 	context.after(async () => { await controller.dispose(); await environment.close(); });
 	await controller.ready;
-	await controller.actions.project.openById(fixture.project.id);
+	assert.equal(controller.project?.id, fixture.project.id);
 	controller.actions.timeline.selectClip(fixture.clip.id);
 	controller.actions.timeline.setSelection(0, 720_000, { trackIds: [owner.id] });
 	controller.actions.edit.copy();

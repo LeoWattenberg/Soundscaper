@@ -17,7 +17,7 @@ export async function renderLinkedClipAudio(
 ): Promise<AudioBufferLike> {
 	signal.throwIfAborted();
 	const channelCount = Number(source.channelCount);
-	const preview = createAudioPreviewProject({ sampleRate: project.sampleRate, masterChannels: channelCount,
+	const preview = { ...createAudioPreviewProject({ sampleRate: project.sampleRate, masterChannels: channelCount,
 		sources: [source], tracks: [{ id: 'linked-render', type: 'audio', name: 'Clip', channelCount, clipIds: [clip.id] }],
 		clips: [{ ...clip, anchor: 'sample', musicalStartBeat: null, musicalDurationBeats: null, musicalExtent: 'fixedSamples',
 			timelineStartFrame: 0, gain: 1, inverted: false, envelope: [], fadeInFrames: 0, fadeOutFrames: 0,
@@ -25,7 +25,7 @@ export async function renderLinkedClipAudio(
 			warpMap: clipSourcePreviewWarpMap(project as unknown as ClipSourceTimingProject, clip,
 				{ sampleRate: Number(source.sampleRate), frameCount: Number(source.frameCount) }),
 		}],
-	});
+	}), tempoMap: (project as unknown as ClipSourceTimingProject).tempoMap };
 	const engine = resources.createEngine({ onState: () => {} });
 	try {
 		if (!('renderMix' in engine) || typeof engine.renderMix !== 'function') throw new Error('Clip rendering requires an offline audio engine.');

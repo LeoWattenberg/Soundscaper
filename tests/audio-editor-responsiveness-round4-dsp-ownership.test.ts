@@ -8,15 +8,16 @@ import { FrequencyWaveformAnalyzer } from '../src/common/editor/frequency-wavefo
 import { round4Audio, round4Digest } from './helpers/responsiveness-round4-dsp-fixtures.ts';
 
 test('admitted spectrum arrays with overridden lengths retain physical sample reads', () => {
+	const source = Float32Array.of(0, 1, .5, .25);
+	const expected = calculateAudioSpectrum([source], 48000, { size: 32 });
 	for (const reportedLength of [2.5, 2, 7]) {
-		const input = Float32Array.of(0, 1, .5, .25);
+		const input = source.slice();
 		Object.defineProperty(input, 'length', { value: reportedLength });
 		const result = calculateAudioSpectrum([input], 48000, { size: 32 });
-		assert.equal(result.bins[0]!.amplitude, .003306259144861598, `reported length ${String(reportedLength)}`);
+		assert.deepEqual(result, expected, `reported length ${String(reportedLength)}`);
 	}
-	const source = Float32Array.of(0, 1, .5, .25);
 	const proxy = new Proxy(source, { get(target, key) { return key === 'length' ? 2 : Reflect.get(target, key, target) as unknown; } });
-	assert.equal(calculateAudioSpectrum([proxy], 48000, { size: 32 }).bins[0]!.amplitude, .003306259144861598);
+	assert.deepEqual(calculateAudioSpectrum([proxy], 48000, { size: 32 }), expected);
 });
 
 test('reentrant spectrum calculations lease independent scratch and publish independent bins', () => {

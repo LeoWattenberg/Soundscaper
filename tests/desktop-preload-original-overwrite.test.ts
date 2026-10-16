@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import { readDesktopPreloadSource } from './helpers/desktop-preload-source.mjs';
 import test from 'node:test';
 import vm from 'node:vm';
 
@@ -10,6 +10,7 @@ type Bridge = {
 	chooseFiles(options: { purpose: string }): Promise<ReadonlyArray<{ originalFile?: OriginalFile }>>;
 	prepareOriginalOverwrite(id: string): Promise<OriginalFile>;
 	releaseOriginalFile(id: string): Promise<boolean>;
+	releaseSaveTarget(id: string): Promise<boolean>;
 };
 
 const ID = 'a'.repeat(48);
@@ -24,7 +25,7 @@ const descriptor = {
 async function fixture(results: unknown[] = []) {
 	let bridge: Bridge | undefined;
 	const calls: unknown[][] = [];
-	const source = await readFile(new URL('../desktop/preload.mjs', import.meta.url), 'utf8');
+	const source = await readDesktopPreloadSource();
 	vm.runInNewContext(source, {
 		ArrayBuffer, Object, Promise, RangeError, String, TypeError, Uint8Array, URL,
 		require: () => ({
@@ -56,4 +57,13 @@ test('preload rejects forged original descriptors and malformed overwrite respon
 	const entry = await fixture([{ ...originalFile, path: '/tmp/original.wav' }, 'true']);
 	await assert.rejects(entry.bridge.prepareOriginalOverwrite(ID), /original/iu);
 	await assert.rejects(entry.bridge.releaseOriginalFile(ID), /boolean/iu);
+});
+
+test('preload retires unused opaque save targets with strict boolean acknowledgements', async () => {
+	const entry = await fixture([true, false, 'true']);
+	assert.equal(await entry.bridge.releaseSaveTarget(ID), true);
+	assert.equal(await entry.bridge.releaseSaveTarget(ID), false);
+	assert.deepEqual(entry.calls[0], ['soundscaper:v1:save:release-target', ID]);
+	await assert.rejects(entry.bridge.releaseSaveTarget(ID), /boolean/iu);
+	assert.throws(() => entry.bridge.releaseSaveTarget('/tmp/original.wav'), /opaque identifier/iu);
 });

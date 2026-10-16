@@ -72,7 +72,7 @@ export class ReverbLiveProcessor {
 
 	updateParams(params: Partial<ReverbParams> = {}): void {
 		const normalized = normalizeReverbParams({ ...this.params, ...params });
-		const rebuild = normalized.preDelay !== this.params.preDelay;
+		const rebuild = Math.round(normalized.preDelay / 1_000 * this.sampleRate) !== this.preDelayFrames;
 		this.params = normalized;
 		this.configure();
 		if (rebuild) this.reset();
@@ -155,7 +155,8 @@ export class ReverbLiveProcessor {
 				this.wetValues[channel] = Math.fround(this.processWet(this.states[channel]!, this.dryValues[channel]!));
 			}
 			for (let channel = 0; channel < output.length; channel += 1) {
-				const opposite = this.wetValues[(channel + 1) % output.length]!;
+				const partner = channel ^ 1;
+				const opposite = this.wetValues[partner < output.length ? partner : channel]!;
 				output[channel]![frame] = this.dryValues[channel]! * this.dryGain
 					+ (this.wetValues[channel]! * this.directWet + opposite * this.crossWet) * this.wetGain;
 			}

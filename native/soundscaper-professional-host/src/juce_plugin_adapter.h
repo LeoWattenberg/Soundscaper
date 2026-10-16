@@ -27,6 +27,13 @@ public:
 	virtual soundscaper_pro_status writeParameter(uint32_t index, double value) = 0;
 	virtual soundscaper_pro_status openVendorWindow(const std::string &opaqueId) = 0;
 	virtual void closeVendorWindow() = 0;
+	virtual bool araSupported() const { return false; }
+	virtual soundscaper_pro_status araConfigure(const soundscaper_pro_ara_clip &) { return SOUNDSCAPER_PRO_UNSUPPORTED; }
+	virtual soundscaper_pro_status araWrite(uint32_t, const float *const *, uint32_t, uint32_t) { return SOUNDSCAPER_PRO_UNSUPPORTED; }
+	virtual soundscaper_pro_status araBind() { return SOUNDSCAPER_PRO_UNSUPPORTED; }
+	virtual soundscaper_pro_status araRender(uint32_t, float **, uint32_t, uint32_t) { return SOUNDSCAPER_PRO_UNSUPPORTED; }
+	virtual soundscaper_pro_status araSave(uint8_t *, size_t, size_t &) { return SOUNDSCAPER_PRO_UNSUPPORTED; }
+	virtual soundscaper_pro_status araLoad(const uint8_t *, size_t) { return SOUNDSCAPER_PRO_UNSUPPORTED; }
 };
 
 soundscaper_pro_status scanJucePlugin(

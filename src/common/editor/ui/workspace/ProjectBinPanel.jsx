@@ -12,6 +12,7 @@ import { selectAudioEditorEditBlock } from '../edit-blocking.ts';
 import { createFramescaperVideoProxyApplicationMenuItems } from '../framescaper-video-proxy-application-menu.ts';
 import ProjectBinCard from './ProjectBinCard.jsx';
 import ProjectBinNotices from './ProjectBinNotices.tsx';
+import ProjectBinRemoveDialog from './ProjectBinRemoveDialog.tsx';
 import ProjectBinVideoProxyDialog from './ProjectBinVideoProxyDialog.jsx';
 import { WorkspacePanelOverlayPortal } from './WorkspacePanelOverlayPortal.tsx';
 import {
@@ -23,6 +24,7 @@ import { useProjectBinItems, useProjectBinSources } from './useProjectBinPresent
 import { queueFreesoundClipUploadCommand } from './freesound-clip-upload-command.ts';
 import { withWebFileLoadLimitContext } from '../../web-file-limit-failure.ts';
 import { useProjectBinSourceProperties } from './use-project-bin-source-properties.jsx';
+import { openDesktopWorkspaceFiles } from './desktop-workspace-file-choice.ts';
 
 const AUDIO_EDITOR_AUDIO_FILE_ACCEPT = 'audio/*,video/mp4,video/webm,.aac,.aif,.aiff,.bw64,.flac,.m4a,.m4v,.mp2,.mp3,.mp4,.oga,.ogg,.opus,.rf64,.wav,.wave,.wavpack,.webm,.wv';
 export default function ProjectBinPanel({ controller, snapshot, copy: providedCopy, locale, fileService, run, blocked, confirmFileSizeWarning = /** @type {import('../../controller/shared/file-size-warning.ts').FileSizeWarningConfirmation | undefined} */ (undefined) }) {
@@ -134,10 +136,11 @@ export default function ProjectBinPanel({ controller, snapshot, copy: providedCo
 			inputRef.current?.click();
 			return;
 		}
-		const descriptors = await fileService.chooseFiles({ purpose: 'media', multiple: true });
-		await fileService.withReadDescriptors(descriptors, {}, async (files) => {
-			if (files.length) await importFiles(files);
-		});
+		await openDesktopWorkspaceFiles({
+			getProjectId: () => controller.getSnapshot().project?.id ?? null,
+			fileService,
+			importFiles,
+		}, 'media', true);
 	});
 	const chooseLinkedAudio = () => run(async () => {
 		if (mutationBlocked) return;
@@ -478,26 +481,13 @@ export default function ProjectBinPanel({ controller, snapshot, copy: providedCo
 			portalTarget={overlayTarget} />}
 		{removeConfirmation && (
 			<WorkspacePanelOverlayPortal target={overlayTarget}>
-				<div className="kw-audio-editor-dialog-backdrop" data-project-bin-remove-dialog>
-					<div className="kw-audio-editor-dialog kw-audio-editor__project-bin-confirm" role="alertdialog" aria-modal="true" aria-labelledby="project-bin-remove-title">
-						<DialogHeader os="windows" title={copy.projectBinRemoveFromProject} onClose={() => setRemoveConfirmation(null)} />
-						<div className="kw-audio-editor-dialog__body">
-							<p id="project-bin-remove-title">
-								{copy.projectBinRemoveConfirm
-									.replace('{name}', removeConfirmation.name)
-									.replace('{count}', String(removeConfirmation.count))}
-							</p>
-							<div className="kw-audio-editor-dialog__actions">
-								<Button variant="secondary" onClick={() => setRemoveConfirmation(null)}>{copy.cancel}</Button>
-								<Button variant="primary" onClick={() => {
-									const clipId = removeConfirmation.clipId;
-									setRemoveConfirmation(null);
-									run(() => controller.actions.projectBin.removeFromProject(clipId));
-								}}>{copy.projectBinRemoveFromProject}</Button>
-							</div>
-						</div>
-					</div>
-				</div>
+				<ProjectBinRemoveDialog name={removeConfirmation.name} count={removeConfirmation.count}
+					copy={copy} disabled={mutationBlocked} onCancel={() => setRemoveConfirmation(null)}
+					onConfirm={() => {
+						const clipId = removeConfirmation.clipId;
+						setRemoveConfirmation(null);
+						run(() => controller.actions.projectBin.removeFromProject(clipId));
+					}} />
 			</WorkspacePanelOverlayPortal>
 		)}
 		{relinkChangedChoice && (

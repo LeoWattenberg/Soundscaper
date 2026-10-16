@@ -1,3 +1,4 @@
+import { capturePassingScreenshot } from './helpers/passing-screenshots.js';
 import { expect, monoTone, test } from './audio-editor-test-fixtures.js';
 import { bootEditor, chooseCommandAction, chooseNestedCommandAction, clipByName, importFiles, registerAudioEditorHooks } from './audio-editor-test-helpers.js';
 
@@ -161,7 +162,7 @@ for (const product of ['soundscaper', 'framescaper']) {
 			await button.focus();
 			await expect(button).toHaveCSS('outline-style', 'solid');
 			await contrast(button, 'outlineColor', 3, true);
-			await page.screenshot({ path: testInfo.outputPath('Sakura-raised.png') });
+			await capturePassingScreenshot(page, { path: testInfo.outputPath('Sakura-raised.png') });
 			// Native Firefox buttons activate on Space release without :active.
 			// Check face travel with the pointer, then keyboard activation below.
 			await button.hover();
@@ -169,7 +170,7 @@ for (const product of ['soundscaper', 'framescaper']) {
 			await expect.poll(async () => (await label.boundingBox()).y - idle.y).toBeGreaterThanOrEqual(5);
 			expect(await button.boundingBox()).toEqual(bounds);
 			await contrast(button);
-			await page.screenshot({ path: testInfo.outputPath('Sakura-pressed.png') });
+			await capturePassingScreenshot(page, { path: testInfo.outputPath('Sakura-pressed.png') });
 			await page.mouse.move(0, 0);
 			await page.mouse.up();
 			await expect(dialog).toBeVisible();

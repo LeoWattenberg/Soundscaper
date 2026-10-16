@@ -122,6 +122,7 @@ export interface MixRenderServiceDependencies {
 		effects: readonly ControllerEffect[],
 		sampleRate: number,
 		maximumSeconds: number,
+		automationLanes?: readonly unknown[],
 	): number;
 	isFixedStereoEffect(type: string): boolean;
 	renderSnapshot(project: ControllerProject, options: Readonly<Record<string, unknown>>): Promise<AudioBufferLike>;

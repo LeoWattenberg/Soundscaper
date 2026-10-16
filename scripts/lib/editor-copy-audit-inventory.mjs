@@ -16,6 +16,7 @@ import { imageExportTextCopy } from '../../src/common/i18n/image-export-text-cop
 import { imageHdrMergeCopy } from '../../src/common/i18n/image-hdr-merge-copy.ts';
 import { photoFramescaperHandoffCopy, photoFramescaperReceiveCopy, photoFramescaperCollectionHandoffCopy } from '../../src/common/i18n/lightscaper-photo-framescaper-handoff-copy.ts';
 import { photoFramescaperHandoffMenuLabel, photoFramescaperReceiveMenuLabel, photoFramescaperCollectionHandoffMenuLabel } from '../../src/common/i18n/lightscaper-photo-framescaper-handoff-menu-copy.ts';
+import { AUDIOCOM_COPY_BY_LOCALE } from '../../src/common/i18n/audiocom-copy.ts';
 
 const freesoundAttribution = Object.fromEntries(Object.entries(FREESOUND_ATTRIBUTION_ENGLISH_COPY)
 	.map(([key, value]) => [`ui.freesoundAttribution.${key}`, value]));
@@ -57,4 +58,5 @@ export const EDITOR_COPY_AUDIT_INVENTORY = Object.freeze({
 	'ui.photoFramescaperHandoffMenu.download': photoFramescaperHandoffMenuLabel('en'),
 	'ui.photoFramescaperHandoffMenu.receive': photoFramescaperReceiveMenuLabel('en'),
 	'ui.photoFramescaperHandoffMenu.collection': photoFramescaperCollectionHandoffMenuLabel('en'),
+	...Object.fromEntries(Object.entries(AUDIOCOM_COPY_BY_LOCALE.en).map(([key, value]) => [`ui.audiocom.${key}`, value])),
 });

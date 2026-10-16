@@ -9,8 +9,8 @@ import { join } from 'node:path';
 import test, { type TestContext } from 'node:test';
 
 import {
-	assertAssistanceOnnxCpuJobV1,
-	createAssistanceOnnxCpuSessionV1,
+	assertAssistanceOnnxJobV1,
+	createAssistanceOnnxSessionV1,
 	publishAssistanceOnnxOutputV1,
 	reviewAssistanceOnnxRuntimeModuleV1,
 } from '../desktop/assistance-onnx-worker-common.ts';
@@ -35,7 +35,7 @@ const INVALID_SESSION = Object.freeze({
 test('one CPU job admission authority preserves task and branded descriptor checks', async (testContext) => {
 	const { context } = await publicationFixture(testContext, 64);
 	const error = 'The nomic adapter received a foreign authenticated CPU job.';
-	assert.doesNotThrow(() => assertAssistanceOnnxCpuJobV1(context, 'text-embedding', error));
+	assert.doesNotThrow(() => assertAssistanceOnnxJobV1(context, 'text-embedding', error));
 	for (const invalid of [
 		{ ...context, grant: { ...context.grant, familyId: 'whisper-cpp' } },
 		{ ...context, grant: { ...context.grant, task: 'beat-tracking' } },
@@ -49,12 +49,12 @@ test('one CPU job admission authority preserves task and branded descriptor chec
 			...context.job.descriptor, executionProvider: 'cuda',
 		} } },
 	]) {
-		assert.throws(() => assertAssistanceOnnxCpuJobV1(
+		assert.throws(() => assertAssistanceOnnxJobV1(
 			invalid as unknown as AssistanceRuntimeFamilyWorkerExecutionContext,
 			'text-embedding', error,
 		), { name: 'TypeError', message: error });
 	}
-	assert.throws(() => assertAssistanceOnnxCpuJobV1(context, 'audio-tagging',
+	assert.throws(() => assertAssistanceOnnxJobV1(context, 'audio-tagging',
 		'The audio-tagging adapter received a foreign authenticated CPU job.'),
 	{ message: 'The audio-tagging adapter received a foreign authenticated CPU job.' });
 });
@@ -69,7 +69,7 @@ test('all ONNX worker adapters delegate identical CPU job admission to the commo
 		'assistance-onnx-visual-worker-common.ts',
 	]) {
 		const source = readFileSync(new URL(`../desktop/${file}`, import.meta.url), 'utf8');
-		assert.match(source, /assertAssistanceOnnxCpuJobV1\(/u, file);
+		assert.match(source, /assertAssistanceOnnxJobV1\(/u, file);
 		assert.doesNotMatch(source, /context\.job\.descriptor\.executionProvider/u, file);
 	}
 });
@@ -95,7 +95,7 @@ test('shared ONNX session creation fixes CPU options and preserves validation bo
 		receivedPath = path;
 		receivedOptions = options;
 	});
-	assert.equal(await createAssistanceOnnxCpuSessionV1(
+	assert.equal(await createAssistanceOnnxSessionV1(
 		runtime, '/models/network.onnx', INVALID_SESSION,
 	), session);
 	assert.equal(receivedPath, '/models/network.onnx');
@@ -104,10 +104,10 @@ test('shared ONNX session creation fixes CPU options and preserves validation bo
 		interOpNumThreads: 1, intraOpNumThreads: 4,
 	});
 
-	await assert.rejects(createAssistanceOnnxCpuSessionV1(
+	await assert.rejects(createAssistanceOnnxSessionV1(
 		fakeRuntime(null), '/models/network.onnx', INVALID_SESSION,
 	), new TypeError(INVALID_SESSION.value));
-	await assert.rejects(createAssistanceOnnxCpuSessionV1(
+	await assert.rejects(createAssistanceOnnxSessionV1(
 		fakeRuntime({ inputNames: [], outputNames: [] }),
 		'/models/network.onnx', INVALID_SESSION,
 	), new TypeError(INVALID_SESSION.surface));

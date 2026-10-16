@@ -76,9 +76,10 @@ export function createControllerResources(options: ControllerResourceOptions, ca
 		onPosition: callbacks.onPosition, onMeter: callbacks.onMeter, onState: callbacks.onState,
 	});
 	if (options.productId === 'soundscaper') enableParallelProductionMeterSessionV21(engine);
-	if (options.productId === 'soundscaper' && fileService.isDesktop) enableParallelEffectStackPlayback(engine);
+	if (options.productId === 'soundscaper') enableParallelEffectStackPlayback(engine);
 	const renderEngineFactory = options.engineFactory || createAudioEditorEngine;
-	const playbackPreviews = createPlaybackPreviewEngines(renderEngineFactory, () => engine.getPlaybackGain());
+	const playbackPreviews = createPlaybackPreviewEngines(renderEngineFactory, () => engine.getPlaybackGain(),
+		() => engine.getOutputDeviceState?.().preferredDeviceId ?? '');
 	const clipTimePitchCache = options.clipTimePitchCache || new ClipTimePitchRenderCacheCoordinator({
 		store, client: options.staffPadRenderClient,
 		loadSourceChannels: async (source: Readonly<{ id: string; frameCount: number; channelCount: number; storageKey?: string }>, context = {}) => {

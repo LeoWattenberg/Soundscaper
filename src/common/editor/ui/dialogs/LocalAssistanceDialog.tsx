@@ -50,6 +50,7 @@ type Copy = Readonly<Record<string, string | undefined>>;
 
 export interface LocalAssistanceDialogProps {
 	readonly request?: AssistanceDialogRequest;
+	readonly initialSettings?: AssistanceWorkflowSettingsV1;
 	readonly modelBridge?: LocalModelManagerBridge | null;
 	readonly locale?: string;
 	readonly projectId: string | null;
@@ -107,7 +108,7 @@ export default function LocalAssistanceDialog({
 }
 
 function LocalAssistanceProjectSession({
-	bridge, preparation, copy, onClose, request, modelBridge = null, locale = 'en',
+	bridge, preparation, copy, onClose, request, initialSettings, modelBridge = null, locale = 'en',
 }: LocalAssistanceDialogProps) {
 	const store = useMemo(() => createLocalAssistanceAdvancedWorkflowSessionStore({
 		bridge, preparation,
@@ -116,8 +117,9 @@ function LocalAssistanceProjectSession({
 	const guidedStore = useMemo(() => {
 		const session = createLocalAssistanceGuidedSessionStore({ bridge, preparation });
 		if (workflowId) session.selectWorkflow(workflowId);
+		if (workflowId && initialSettings) session.setSettings(initialSettings);
 		return session;
-	}, [bridge, preparation, workflowId]);
+	}, [bridge, initialSettings, preparation, workflowId]);
 	const [managingModels, setManagingModels] = useState(false);
 	const [returningFromModels, setReturningFromModels] = useState(false);
 	const [reviewedResultIdentity, setReviewedResultIdentity] = useState<string | null>(null);

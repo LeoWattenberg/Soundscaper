@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { selectedAdjustmentEffectId } from './editor-adjustment-effect-membership.ts';
+
 import { normalizeVideoVisualPresetV1 } from '../common/editor/video-visual-preset-v24.ts';
 import { normalizeVideoMaskMatteGraphV1, type VideoLinearGradientMaskNodeV1, type VideoMaskMatteNodeV1 } from '../common/editor/video-mask-matte-v24.ts';
 import { readClosedDomainField } from '../common/editor/closed-domain-value.ts';
@@ -103,6 +105,7 @@ export interface FramescaperSelectedVisualAuthoringModelFinishing {
 	readonly fence: FramescaperSelectedVisualAuthoringFenceFinishing;
 	readonly selectedClipId: string | null;
 	readonly selectedClipKind: string | null;
+	readonly selectedClipEditable: boolean;
 	readonly transitionPairs: readonly FramescaperSelectedTransitionPairFinishing[];
 	readonly selectedPairId: string | null;
 	readonly adjustmentLayerId: string | null;
@@ -155,6 +158,7 @@ export function createFramescaperSelectedVisualAuthoringModelFinishing(input: Re
 		}),
 		selectedClipId,
 		selectedClipKind: typeof selectedClip?.kind === 'string' ? selectedClip.kind : null,
+		selectedClipEditable: selectedClipId !== null && editableClipOwner(project, selectedClipId),
 		transitionPairs,
 		selectedPairId: selectedPair?.id ?? null,
 		adjustmentLayerId: typeof adjustment?.id === 'string' ? adjustment.id : null,
@@ -254,17 +258,24 @@ function createTransitionPairs(project: Data, clips: readonly Data[]): readonly 
 	const sequences = records(project.sequences, 'project sequences');
 	const clipById = new Map(clips.map((clip) => [String(clip.id), clip]));
 	const linked = linkedAudioIds(project, clips);
+	const lockedAudioLinks = new Set(records(project.tracks, 'project tracks')
+		.filter(track => track.locked === true && Array.isArray(track.clipIds))
+		.flatMap(track => (track.clipIds as unknown[]).map(id => clipById.get(String(id))))
+		.filter((clip): clip is Data => clip?.kind === 'audio' && typeof clip.avLinkId === 'string')
+		.map(clip => String(clip.avLinkId)));
 	const result: FramescaperSelectedTransitionPairFinishing[] = [];
 	for (const track of records(project.tracks, 'project tracks')) {
 		if (track.type !== 'video' || track.locked === true || !Array.isArray(track.clipIds)) continue;
 		const ordered = track.clipIds.map(String).map((id) => clipById.get(id))
-			.filter((clip): clip is Data => clip?.kind === 'video')
+			.filter((clip): clip is Data => clip !== undefined)
 			.sort((left, right) => Number(left.sequenceStartFrame) - Number(right.sequenceStartFrame));
 		const transitions = Array.isArray(track.videoTransitions)
 			? records(track.videoTransitions, 'track transitions') : [];
 		for (let index = 1; index < ordered.length; index += 1) {
 			const outgoing = ordered[index - 1]!;
 			const incoming = ordered[index]!;
+			if (outgoing.kind !== 'video' || incoming.kind !== 'video') continue;
+			if (typeof incoming.avLinkId === 'string' && lockedAudioLinks.has(incoming.avLinkId)) continue;
 			if (outgoing.sequenceId !== incoming.sequenceId) continue;
 			const sequence = sequences.find(({ id }) => id === outgoing.sequenceId);
 			if (!sequence) continue;
@@ -272,9 +283,10 @@ function createTransitionPairs(project: Data, clips: readonly Data[]): readonly 
 			const incomingCount = positiveInteger(incoming.sequenceFrameCount, 'incoming duration');
 			nonNegativeInteger(outgoing.sequenceStartFrame, 'outgoing start');
 			nonNegativeInteger(incoming.sequenceStartFrame, 'incoming start');
-			const maximumDurationFrames = Math.max(1, Math.min(
+			const maximumDurationFrames = Math.min(
 				Math.floor(outgoingCount / 2), Math.floor(incomingCount / 2), 10_000,
-			));
+			);
+			if (maximumDurationFrames < 1) continue;
 			const existing = transitions.find((transition) => transition.outgoingClipId === outgoing.id
 				&& transition.incomingClipId === incoming.id);
 			const durationFrames = existing
@@ -322,6 +334,7 @@ function selectedAdjustment(project: Data, clip: Data): Data | null {
 	const end = start + positiveInteger(clip.sequenceFrameCount, 'selected video duration');
 	return records(project.videoAdjustmentLayers, 'adjustment layers').find((layer) => (
 		Array.isArray(layer.targetTrackIds) && layer.targetTrackIds.includes(track.id)
+		&& selectedAdjustmentEffectId(layer, clip) !== null
 		&& Number(layer.sequenceStartFrame) <= start
 		&& Number(layer.sequenceStartFrame) + Number(layer.sequenceFrameCount) >= end
 	)) ?? null;
@@ -390,4 +403,11 @@ function nonNegativeInteger(value: unknown, name: string): number {
 function positiveInteger(value: unknown, name: string): number {
 	if (!Number.isSafeInteger(value) || Number(value) < 1) throw new RangeError(`${name} must be positive.`);
 	return Number(value);
+}
+
+function editableClipOwner(project: Data, clipId: string): boolean {
+	const owners = records(project.tracks, 'project tracks').filter((track) => (
+		Array.isArray(track.clipIds) && track.clipIds.includes(clipId)
+	));
+	return owners.length === 1 && owners[0]?.locked !== true;
 }

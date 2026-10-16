@@ -348,10 +348,14 @@ controls verify only the enumerated tuples on a package whose target-native
 build has passed; they do not establish general OS availability, patent
 clearance, or non-infringement.
 
-Stable bundled and operating-system video providers remain disabled. The
-stable Soundscaper package contains no libwebm, libvpx, dav1d, SVT-AV1, or
-libaom provider payload and has no supported Media Foundation or VideoToolbox
-video operation. Separately, the repository-owned Framescaper test media host
+Stable bundled and separately shipped operating-system video providers remain
+disabled. The stable Soundscaper package contains no libwebm, libvpx, dav1d,
+SVT-AV1, or libaom provider payload and has no direct Media Foundation or
+VideoToolbox video IPC provider. Desktop keyed video first admits its exact
+WebCodecs video and optional audio tuple. The verified external FFmpeg fallback
+may use the installed program's canary-qualified operating-system H.264 adapters,
+without copying those programs or codec libraries into the package.
+Separately, the repository-owned Framescaper test media host
 now builds authenticated FFmpeg 9.0.1 with static x264, x265 Main10, libvpx,
 libopus, and zlib, including the internal AV1 decoder. Its five target-native CI
 jobs inspect the binaries, run the closed component canary and a real x265
@@ -394,8 +398,14 @@ security boundaries and residual risks, not evidence about the external
 program's license or patent posture.
 
 The external tier also has a closed, owner-scoped video-session contract for
-exact keyed-RGBA H.264/AAC MP4 through `libx264`/`aac` and VP9/Opus WebM through
-`libvpx-vp9`/`libopus`. Encoder/muxer tokens alone do not enable either tuple:
+exact keyed-RGBA H.264/AAC MP4 and VP9/Opus WebM through
+`libvpx-vp9`/`libopus`. MP4 prefers `h264_videotoolbox` on macOS or `h264_mf`
+on Windows after a native execution canary; an unavailable or failed native
+canary may use independently verified `libx264`. AAC uses `aac`. The chosen
+H.264 implementation stays main-owned, bound to the exact executable-pair
+admission, and absent from the closed renderer wire. VideoToolbox permits its
+operating-system software fallback; Media Foundation uses default transform
+selection. Encoder/muxer tokens alone do not enable either tuple:
 the current executable pair must complete a live one-frame 16x16 RGBA plus
 48 kHz stereo-audio canary and produce a structurally valid finite container.
 The exact admitted `ffprobe` must then report exactly two streams at indices 0

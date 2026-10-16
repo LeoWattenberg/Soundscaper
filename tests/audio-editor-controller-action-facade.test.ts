@@ -28,6 +28,7 @@ const EXPECTED_ACTION_GROUPS = Object.freeze([
 	'project',
 	'projectBin',
 	'recording',
+	'recordingNotes',
 	'sampleEdit',
 	'sequences',
 	'spectral',

@@ -32,6 +32,8 @@ test('professional-native notice summaries are exact, target-specific, and recei
 			soundscaperProfessionalNativeSourceIdsForTarget(target));
 		assert.equal(summary.sources.some(({ id }) => ['x264', 'x265', 'libvpx', 'libopus'].includes(id)), false);
 		assert.equal(summary.notices.some(({ name }) => name === 'AGPL-3.0.txt'), true);
+		assert.equal(summary.notices.some(({ name }) => name === 'ARA-API-Apache-2.0.txt'), true);
+		assert.equal(summary.notices.some(({ name }) => name === 'ARA-Library-Apache-2.0.txt'), true);
 		assert.equal(summary.notices.some(({ name }) => name === 'ASIO-SDK-LICENSE.txt'),
 			target.startsWith('win-'));
 		assert.equal(summary.notices.some(({ name }) => name === 'LV2-ISC.txt'),
@@ -50,7 +52,7 @@ test('preview notice state stays explicitly unavailable and cannot claim legal a
 		status: 'typed-unavailable',
 		target: 'mac-arm64',
 		inventoryId: null,
-		blockedBy: 'Professional-native installed notices are emitted only by Stable Soundscaper packaging.',
+		blockedBy: 'Professional-native installed notices require an authenticated target build result.',
 		sources: [],
 		notices: [],
 	});
@@ -126,7 +128,7 @@ async function noticeFixture(context, target) {
 
 function fixtureRegisters() {
 	const ids = [
-		'electron-node-api-headers', 'juce', 'clap', 'vst3-sdk', 'vamp-plugin-sdk',
+		'electron-node-api-headers', 'juce', 'clap', 'vst3-sdk', 'vamp-plugin-sdk', 'ara-api', 'ara-library',
 		'asio-sdk', 'ladspa-sdk', 'lv2',
 	];
 	const sources = ids.map((id, index) => {

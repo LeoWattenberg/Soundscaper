@@ -46,6 +46,7 @@ export default function NyquistNumberInput({ value, minimum, maximum, integer, d
 			if (Number.isFinite(number) && number >= (minimum ?? -Infinity)
 				&& number <= (maximum ?? Infinity)) onChange(integer ? Math.round(number) : number);
 		}} onKeyDown={event => {
+			if (event.nativeEvent?.isComposing) return;
 			if (event.key === 'Escape' && active.current) { event.preventDefault(); event.stopPropagation(); cancel(); }
 			else if (event.key === 'Enter') { event.preventDefault(); commit(); }
 		}} />;

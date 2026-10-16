@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useLayoutEffect } from 'react';
 import { useTheme } from '../ThemeProvider';
+import { ContextMenuActionFocus } from './context-menu-action-focus';
 import { Icon } from '../Icon';
 import { contextSubmenuPosition } from './context-submenu-position';
 import './ContextMenuItem.css';
@@ -189,6 +190,7 @@ export const ContextMenuItem: React.FC<ContextMenuItemProps> = ({
   isDivider = false,
 }) => {
   const { theme } = useTheme();
+  const prepareKeyboardAction = React.useContext(ContextMenuActionFocus);
   const [submenuOpen, setSubmenuOpen] = useState(false);
   const itemRef = useRef<HTMLDivElement>(null);
   const submenuRef = useRef<HTMLDivElement>(null);
@@ -283,7 +285,7 @@ export const ContextMenuItem: React.FC<ContextMenuItemProps> = ({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (disabled) return;
+    if (disabled || e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey) return;
 
     // For items with submenus
     if (hasSubmenu || children) {
@@ -294,7 +296,7 @@ export const ContextMenuItem: React.FC<ContextMenuItemProps> = ({
         setSubmenuOpen(true);
         // Keyboard entry focuses the child even when pointer hover opened it.
         setTimeout(() => {
-          const firstSubmenuItem = submenuRef.current?.querySelector('[role="menuitem"], [role="menuitemradio"]') as HTMLElement;
+          const firstSubmenuItem = submenuRef.current?.querySelector(':scope > [role="menuitem"]:not([aria-disabled="true"]), :scope > [role="menuitemradio"]:not([aria-disabled="true"])') as HTMLElement;
           // Another focus target may have been chosen before this timer runs.
           if (firstSubmenuItem && itemRef.current?.ownerDocument.activeElement === itemRef.current) {
             firstSubmenuItem.focus();
@@ -315,6 +317,7 @@ export const ContextMenuItem: React.FC<ContextMenuItemProps> = ({
       // For regular menu items without submenus
       if (e.key === 'Enter' || e.key === ' ') {
         e.preventDefault();
+        prepareKeyboardAction?.();
         onClick?.();
         onClose?.();
       }
@@ -415,6 +418,7 @@ export const ContextMenuItem: React.FC<ContextMenuItemProps> = ({
     if (!submenuOpen) return;
 
     const handleSubmenuKeyboard = (e: KeyboardEvent) => {
+      if (e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey) return;
       // Only handle if focus is within the submenu
       const submenu = submenuRef.current;
       if (!submenu || document.activeElement?.closest('[role="menu"]') !== submenu) return;
@@ -423,7 +427,7 @@ export const ContextMenuItem: React.FC<ContextMenuItemProps> = ({
         submenu.querySelectorAll(':scope > [role="menuitem"]:not([aria-disabled="true"]), :scope > [role="menuitemradio"]:not([aria-disabled="true"])')
       ) as HTMLElement[];
 
-      if (items.length === 0) return;
+      if (items.length === 0 && e.key !== 'Escape') return;
 
       const currentIndex = items.findIndex(item => item === document.activeElement);
 

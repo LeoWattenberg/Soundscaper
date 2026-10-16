@@ -16,7 +16,8 @@ test('timeline clip rename paths require a selected focused clip and preserve in
 	]);
 
 	assert.match(track, /e\.key === 'F2'[\s\S]*?!e\.altKey[\s\S]*?!e\.ctrlKey[\s\S]*?!e\.metaKey[\s\S]*?!e\.shiftKey[\s\S]*?!e\.repeat[\s\S]*?clipSelected[\s\S]*?onClipRename/u);
-	assert.match(videoRow, /event\.key === 'F2'[\s\S]*?!event\.altKey[\s\S]*?!event\.ctrlKey[\s\S]*?!event\.metaKey[\s\S]*?!event\.shiftKey[\s\S]*?!event\.repeat[\s\S]*?!blocked[\s\S]*?selectedClipIdSet\.has/u);
+	assert.match(videoRow, /event\.key === 'F2'[\s\S]*?!event\.altKey[\s\S]*?!event\.ctrlKey[\s\S]*?!event\.metaKey[\s\S]*?!event\.shiftKey[\s\S]*?!event\.repeat[\s\S]*?!renameBlockedRef\.current[\s\S]*?selectedClipIdSet\.has/u);
+	for (const row of [audioRow, videoRow]) assert.match(row, /renameBlockedRef\.current = blocked \|\| track\.locked/u);
 	assert.match(header, /renameRequestId[\s\S]*?consumedRenameRequestRef[\s\S]*?setIsRenaming\(true\)/u);
 	assert.match(header, /const commit = renameCommitRef\.current \?\? onRename;[\s\S]*?if \(next && next !== name\) commit\?\.\(next\);[\s\S]*?onRenameFinished\?\.\(\);/u);
 	assert.match(header, /if \(e\.key === 'Escape'\)[\s\S]*?cancelRename\(\);/u);

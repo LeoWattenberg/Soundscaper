@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, type RefObject } from 'react';
 import { createLatestFrameTask } from './animation-frame-coalescer.ts';
 
 interface PointerFrameEvent { readonly pointerId: number; preventDefault(): void; }
-interface PointerFrameSession { readonly kind: string; }
+interface PointerFrameSession { readonly kind: string; readonly pointerId?: number; }
 
 export function useTimelinePointerFrame<Event extends PointerFrameEvent>(
 	handle: (event: Event) => void,
@@ -28,6 +28,7 @@ export function useTimelinePointerFrame<Event extends PointerFrameEvent>(
 	}, [flushRef, pointerSession]);
 	return useCallback((event: Event) => {
 		const session = pointerSession.current;
+		if (session?.pointerId !== undefined && session.pointerId !== event.pointerId) return;
 		const immediate = touchPointers?.current.has(event.pointerId)
 			|| ['sample-pencil', 'fade', 'fade-shape', 'crossfade-shape'].includes(session?.kind ?? '');
 		if (immediate || !flushRef || !taskRef.current) { handleRef.current(event); return; }

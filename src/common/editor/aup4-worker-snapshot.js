@@ -11,14 +11,14 @@
 import { encodeAudacityBinaryXml } from './audacity-binary-xml.js';
 import { insertAup3SampleBlock, writeAup3Document } from './aup3-database.ts';
 import { createAup3ProjectDocument } from './aup3-profile.ts';
-import { deleteAup4SampleBlocks, insertAup4SampleBlock, writeAup4Document } from './aup4-database.js';
+import { deleteAup4SampleBlocks, insertAup4SampleBlock, readAup4SampleBlock, writeAup4Document } from './aup4-database.js';
+import { audacityExportBlockRanges, createAudacitySampleBlockReuse } from './audacity-sample-block-reuse.ts';
 import {
 	createAup4ExportPlan,
 	normalizeAup4ExportSource,
 	requiredAup4SourceIds,
 } from './aup4-export.js';
 import {
-	AUP4_MAX_BLOCK_SAMPLES,
 	addAup4CompatibilityItem,
 	createAup4ProjectDocument,
 	createAup4SampleBlock,
@@ -70,6 +70,7 @@ export function createAup4SnapshotWrites({ requireWritableProject }) {
 			receivedSourceIds: new Set(),
 			channelBlocks: new Map(),
 			insertedBlockIds: [],
+			blockReuseIndex: new Map(entry.sampleBlockReuseIndex || []),
 			totalSamples: plan.sources.reduce((total, variant) => (
 				total + variant.source.frameCount * variant.source.channelCount
 			), 0),
@@ -97,20 +98,29 @@ export function createAup4SnapshotWrites({ requireWritableProject }) {
 		const localBlocks = new Map();
 		const localBlockIds = [];
 		let completedSamples = 0;
+		const reuse = createAudacitySampleBlockReuse(session.blockReuseIndex,
+			(id) => readAup4SampleBlock(session.entry.database, id));
 		session.entry.database.exec('BEGIN IMMEDIATE');
 		try {
 			for (const source of normalizedSources) {
+				const variant = session.plan.sources.find((candidate) => candidate.source.id === source.sourceId);
 				for (let channelIndex = 0; channelIndex < source.channels.length; channelIndex += 1) {
 					const samples = normalizeFloat32(source.channels[channelIndex]);
 					const blocks = [];
-					for (let offset = 0; offset < samples.length; offset += AUP4_MAX_BLOCK_SAMPLES) {
+					for (const range of audacityExportBlockRanges(variant, channelIndex, samples.length)) {
 						context.checkCancelled();
-						const chunk = samples.subarray(offset, Math.min(samples.length, offset + AUP4_MAX_BLOCK_SAMPLES));
+						const chunk = samples.subarray(range.start, range.start + range.frameCount);
 						const insertSampleBlock = session.targetGeneration === 'aup3'
 							? insertAup3SampleBlock : insertAup4SampleBlock;
-						const blockId = insertSampleBlock(session.entry.database, createAup4SampleBlock(chunk));
-						localBlockIds.push(blockId);
-						blocks.push({ blockId, start: offset, sampleCount: chunk.length });
+						let blockId;
+						if (range.silent && chunk.every((sample) => sample === 0)) blockId = -chunk.length;
+						else {
+							const block = createAup4SampleBlock(chunk);
+							const written = reuse.write(block, () => insertSampleBlock(session.entry.database, block));
+							blockId = written.blockId;
+							if (written.inserted) localBlockIds.push(blockId);
+						}
+						blocks.push({ blockId, start: range.start, sampleCount: chunk.length });
 						completedSamples += chunk.length;
 						context.progress(
 							session.totalSamples ? (session.completedSamples + completedSamples) / session.totalSamples : 1,
@@ -122,6 +132,7 @@ export function createAup4SnapshotWrites({ requireWritableProject }) {
 				}
 			}
 			session.entry.database.exec('COMMIT');
+			reuse.commit();
 		} catch (error) {
 			try { session.entry.database.exec('ROLLBACK'); } catch { /* Preserve original error. */ }
 			throw error;
@@ -224,6 +235,7 @@ export function createAup4SnapshotWrites({ requireWritableProject }) {
 				: writeAup4Document(session.entry.database, encoded, { autosave: session.autosave });
 			session.entry.database.exec('COMMIT');
 			session.entry.lastExportCompatibilityReport = session.plan.compatibilityReport || null;
+			session.entry.sampleBlockReuseIndex = session.blockReuseIndex;
 			completeSnapshotWrite(session);
 			context.progress(1, 'complete');
 			return {

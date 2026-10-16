@@ -2,6 +2,8 @@
 
 /** Exact native image/library support leaves; no directory-wide helper admission. */
 export const NIGHTLY_IMAGE_TEST_HELPER_INPUTS = Object.freeze([
+	{ source: 'tests/helpers/image-geometry-native-fixture.ts', destination: 'tests/helpers/image-geometry-native-fixture.ts', kind: 'file', label: 'shared geometry native pixel qualification' },
+
 	{ source: 'tests/helpers/lightscaper-current-app-fixture.tsx', destination: 'tests/helpers/lightscaper-current-app-fixture.tsx', kind: 'file', label: 'current Photo2 selected-namespace UI observation' },
 	{ source: 'tests/helpers/lightscaper-current-catalog-companions-fixture.ts', destination: 'tests/helpers/lightscaper-current-catalog-companions-fixture.ts', kind: 'file', label: 'current selected tiny catalog full document, body, custody and companion observation' },
 	{ source: 'tests/helpers/lightscaper-current-library-loop-fixture.ts', destination: 'tests/helpers/lightscaper-current-library-loop-fixture.ts', kind: 'file', label: 'current selected Photo library keyboard fault and preview eviction fixture' },

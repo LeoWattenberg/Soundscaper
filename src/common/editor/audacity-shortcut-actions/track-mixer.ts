@@ -2,6 +2,7 @@
 
 import type { AudioEditorCommand } from '../commands/protocol.ts';
 import type { ControllerProject } from '../controller/track-audio/track-domain-types.ts';
+import { projectStripPanAvailable } from '../terminal-channel-widths.ts';
 
 interface AudacityTrackMixerSnapshot {
 	readonly project?: ControllerProject | null;
@@ -29,11 +30,12 @@ export function applyAudacityTrackMixerAction(
 	const track = project.tracks.find((candidate) => candidate.id === snapshot.selectedTrackId);
 	if (!track || track.type === 'label') return null;
 	if (action >= 6) {
-		const key = action === 6 ? 'mute' : 'solo';
+		const key = action === 6 ? muteKey(track.type) : 'solo';
 		return commit({ type: 'track/update', trackId: track.id, changes: { [key]: !track[key] } });
 	}
 	if (track.type !== 'audio') return null;
 	const gain = action >= 4;
+	if (!gain && !projectStripPanAvailable(project, { kind: 'track', id: track.id })) return null;
 	const minimum = gain ? -60 : -1;
 	const maximum = gain ? 12 : 1;
 	const linear = Number(track.gain ?? 1);
@@ -62,13 +64,17 @@ function setSelectedMuted(
 		? selectionTrackIds
 		: focusedTrackId ? [focusedTrackId] : []);
 	const tracks = project.tracks.filter((track) => (
-		track.type !== 'label' && selected.has(track.id) && track.mute !== mute
+		track.type !== 'label' && selected.has(track.id) && Boolean(track[muteKey(track.type)]) !== mute
 	));
 	if (!tracks.length) return null;
 	return commit({
 		type: 'batch',
 		commands: tracks.map((track) => ({
-			type: 'track/update', trackId: track.id, changes: { mute },
+			type: 'track/update', trackId: track.id, changes: { [muteKey(track.type)]: mute },
 		})),
 	});
+}
+
+function muteKey(type: string): 'hidden' | 'mute' {
+	return type === 'video' ? 'hidden' : 'mute';
 }

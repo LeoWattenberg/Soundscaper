@@ -35,7 +35,7 @@ test('every application ContextMenu is closed through a stable reference', async
 		'AudioEditorMenuBar.jsx',
 		'workspace/WorkspacePanelHeader.jsx',
 		'toolbar/WorkspaceSwitcherControl.jsx',
-		'inspector/AudioEditorEffectsOverlay.jsx',
+		'inspector/EffectStackMenu.tsx',
 		'inspector/EffectPresetBar.jsx',
 	];
 

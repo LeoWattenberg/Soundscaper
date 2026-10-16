@@ -1,6 +1,6 @@
 {
 	"name": "soundscaper",
-	"version": "1.0.0-rc.Oct.5.b",
+	"version": "1.0.0-rc.Oct.13.a",
 	"description": "A local-first multitrack audio editor for the web and desktop.",
 	"private": true,
 	"type": "module",
@@ -247,7 +247,9 @@
 		"miniflare": {
 			"undici": "7.30.0"
 		},
-		"rimraf": "6.1.3"
+		"postcss-nested": "7.0.2",
+		"rimraf": "6.1.3",
+		"sharp": "0.35.5"
 	},
 	"allowScripts": {
 		"electron-winstaller@5.4.4": true,

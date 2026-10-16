@@ -64,6 +64,7 @@ export interface EditMonoConversionConfirmationRequest {
 }
 
 export interface EditCompositionRuntime<History extends ControllerRuntimeHistory> extends ControllerEditClipboardRuntimeBindings {
+	readonly applyCommand?: ControllerProjectRuntime['applyCommand'];
 	readonly prepareEditClipboardDescriptor: ControllerProjectRuntime['prepareEditClipboardDescriptor'];
 	readonly captureEditClipboardDescriptor?: ControllerProjectRuntime['captureEditClipboardDescriptor'];
 	readonly prepareTrackDuplicateCarrier?: ControllerProjectRuntime['prepareTrackDuplicateCarrier'];

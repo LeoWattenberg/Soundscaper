@@ -18,10 +18,12 @@ type History = MutationHistory<Project> & Readonly<{
 	dropped: number;
 }>;
 
-test('a macro transaction keeps its opening checkpoint through 210 edits', () => {
+test('a macro transaction keeps its opening checkpoint after every opening entry was dropped', () => {
+	const limit = 4;
+	const editCount = limit + 2;
 	const opening = createCurrentAudioEditorProject({ id: 'long-macro', title: 'Long macro' });
 	let project = opening;
-	let history = createEditorHistory(opening, { limit: 200 }) as unknown as History;
+	let history = createEditorHistory(opening, { limit }) as unknown as History;
 	const generation = new EditorProjectGeneration();
 	generation.activate(opening.id);
 	const state = {
@@ -80,10 +82,11 @@ test('a macro transaction keeps its opening checkpoint through 210 edits', () =>
 		isExpectedCancellation: () => false,
 	});
 	const edit = () => {
-		for (let index = 0; index < 210; index += 1) {
+		for (let index = 0; index < editCount; index += 1) {
 			service.commit({ type: 'track/add', track: { name: `macro-${index}` } });
 		}
-		assert.equal(history.undoStack.length, 200);
+		assert.equal(history.undoStack.length, limit);
+		assert.equal(history.dropped, editCount - limit);
 	};
 
 	const failed = service.beginMacroTransaction();
@@ -91,10 +94,11 @@ test('a macro transaction keeps its opening checkpoint through 210 edits', () =>
 	failed.rollback();
 	assert.deepEqual(project.tracks, opening.tracks, 'rollback removes every edit');
 	assert.equal(history.undoStack.length, 0);
+	assert.equal(history.dropped, 0, 'rollback restores the opening history depth');
 
 	const completed = service.beginMacroTransaction();
 	edit();
-	completed.commit({ type: 'macro/run', name: 'Long macro', stepCount: 210 });
+	completed.commit({ type: 'macro/run', name: 'Long macro', stepCount: editCount });
 	assert.equal(history.undoStack.length, 1);
 	assert.deepEqual(
 		(undoEditorCommand(history) as unknown as History).present.tracks,

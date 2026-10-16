@@ -36,6 +36,8 @@ import { FRAMESCAPER_IMAGE_SEQUENCE_IMPORT_AUTHORITY } from './framescaper-route
 import { framescaperWebVcrSmokeTrust } from './framescaper-web-vcr-smoke-plan.js';
 import { disposeDesktopNativeTier, registerDesktopNativeTier, revokeDesktopNativeTierOwner } from './native-tier-registration.mjs';
 import { registerHostAffordances } from './host-affordances.mjs';
+import { createTrustedDesktopIpc } from './project-library-runtime/desktop/main-trusted-ipc.js';
+import { registerBlenderIpc } from './project-library-runtime/desktop/blender-ipc.js';
 import { registerExternalFfmpegPreferences } from './external-ffmpeg-registration.mjs';
 import { registerDesktopCodecProviders } from './desktop-codec-main-integration.mjs';
 import { ReadCapabilityStore } from './file-capabilities.js'; import { cleanReadCapabilityDisplayName } from './read-capability-support.js';
@@ -45,7 +47,7 @@ import {
 } from './file-associations.js';
 import { registerSelectedReadCapability } from './read-selection-service.js';
 import { registerFileCapabilityIpc } from './main-file-capability-ipc.mjs'; import { SesxMediaSessionStore } from './sesx-media-session.mjs'; import { registerExternalMediaIpc } from './project-library-runtime/desktop/external-media-ipc.js'; import { OriginalFileOverwriteStore } from './project-library-runtime/desktop/original-file-overwrite.js';
-import { createProtocolHandler, registerAppScheme } from './protocol.js'; import { createDesktopFreesoundIntegration } from './freesound-integration.js';
+import { createProtocolHandler, registerAppScheme } from './protocol.js'; import { createDesktopFreesoundIntegration } from './freesound-integration.js'; import { createDesktopAudiocomIntegration } from './project-library-runtime/desktop/audiocom-integration.js';
 import { createDesktopSmokeProbe } from './desktop-smoke.js';
 import { createDesktopNightlyTestsWindow } from './nightly-tests-window.mjs';
 import { createSoakDebugDialog } from './soak-debug-dialog.mjs'; import { collectSoakDebugProcessMetrics, createSoakDebugMainCoverageCheckpoint, soakDebugProcessMetricsEnabled, SOAK_DEBUG_FLAG } from './soak-debug-process-metrics.mjs';
@@ -76,17 +78,20 @@ const saveTargets = new SaveTargetStore(); const originalFiles = new OriginalFil
 const saves = new AtomicSaveManager({ targets: saveTargets, confirmFileSizeWarning: createDesktopSaveSizeWarningConfirmation((options) => dialog.showMessageBox(options)) });
 if (DECLARED_APPLICATION_VERSION !== null && app.getVersion() !== DECLARED_APPLICATION_VERSION) throw new Error('Packaged application version does not match its selected product release line.');
 const rendererSaveOwnership = new RendererSaveOwnership();
+const { handle, on } = createTrustedDesktopIpc({ ipcMain, windowFor: () => mainWindow, assertDocumentUrl: assertEditorDocumentUrl });
 let mainWindow = null; const sesxMediaSessions = new SesxMediaSessionStore({ readCapabilities, dialog, windowFor: () => mainWindow });
 let nightlyTestsWindow = null;
 let settings = null, releaseChecker = null;
+let blender = null;
 let rendererReady = false;
 let pendingClose = null;
 let projectLibraryRuntime = null, projectLibraryStartup = null, projectLibraryIpc = null;
 let linkedVideoLocators = null, nativeTier = null, nativeServices = null, soundscaperDelivery = null;
-let captureSecurity = null, assistance = null, assistanceSemanticSearch = null, externalFfmpegPreferences = null, desktopCodecs = null, freesound = null;
+let captureSecurity = null, assistance = null, assistanceSemanticSearch = null, externalFfmpegPreferences = null, desktopCodecs = null, freesound = null, audiocom = null;
 let allowNextClose = false;
 let applicationIsQuitting = false;
 const rendererOwnershipCleanup = new DesktopRendererOwnershipCleanup({
+	revokeBlender: (owner) => blender?.revokeOwner(owner),
 	revokeCapture: (owner) => revokeDesktopCaptureOwner(captureSecurity, owner), revokeAssistanceSemanticSearch: (owner) => assistanceSemanticSearch?.revokeOwner(owner),
 	revokeDesktopCodecs: (owner) => desktopCodecs?.revokeOwner(owner), revokeSoundscaperDelivery: (owner) => soundscaperDelivery?.revokeOwner(owner),
 	revokeNativeServices: (owner) => nativeServices?.revokeOwner(owner),
@@ -112,6 +117,7 @@ const pendingOpenProjects = new PendingProjectQueue(createPendingProjectDelivery
 }));
 const applicationShutdown = new DesktopApplicationShutdown({
 	tasks: [
+		{ name: 'Blender', run: () => blender?.dispose() },
 		{ name: 'desktop codecs', run: () => desktopCodecs?.dispose() }, { name: 'persistent delivery', run: () => soundscaperDelivery?.dispose() },
 		{ name: 'external FFmpeg preferences', run: () => externalFfmpegPreferences?.dispose() },
 		{ name: 'capture security', run: () => disposeDesktopCaptureSecurity(captureSecurity) },
@@ -214,13 +220,13 @@ async function startApplication() {
 		...createFramescaperNativeServicesElectronPorts(settings, (error) => console.error('Framescaper native service failed:', cleanError(error))),
 	});
 	releaseChecker = new ReleaseChecker({ currentVersion: app.getVersion(), settings, tagPrefix: UPDATE_TAG_PREFIX });
-	freesound = await createDesktopFreesoundIntegration({ appOrigin: APP_ORIGIN, apiOrigin: 'https://soundscaper.org', channels: IPC, filePath: resolve(desktopStorage.stateRoot, 'freesound-session.json'), handle, platform: process.platform, productId: PRODUCT_ID, safeStorage, shell });
+	freesound = await createDesktopFreesoundIntegration({ appOrigin: APP_ORIGIN, apiOrigin: 'https://soundscaper.org', channels: IPC, filePath: resolve(desktopStorage.stateRoot, 'freesound-session.json'), handle, platform: process.platform, productId: PRODUCT_ID, safeStorage, shell }); audiocom = await createDesktopAudiocomIntegration({ appOrigin: APP_ORIGIN, apiOrigin: 'https://soundscaper.org', channels: IPC, filePath: resolve(desktopStorage.stateRoot, 'audiocom-session.json'), handle, platform: process.platform, productId: PRODUCT_ID, safeStorage, shell });
 	const desktopSession = session.fromPartition(SESSION_PARTITION);
 	await desktopSession.protocol.handle(APP_SCHEME, createProtocolHandler({
 		productId: PRODUCT_ID,
 		rendererRoot: resources.renderer,
 		runtimeRoot: resources.runtime,
-		readCapabilities, freesoundProxy: freesound.proxy,
+		readCapabilities, freesoundProxy: freesound.proxy, audiocomProxy: audiocom.proxy,
 	}));
 	if (applicationShutdown.requested) return;
 	await registerIpcHandlers(desktopSession);
@@ -350,6 +356,7 @@ function isRendererSaveOwnerCurrent(owner) { if (!owner || !rendererReady || !ma
 function currentRendererSaveOwner() { if (!rendererReady || !mainWindow || mainWindow.isDestroyed()) return null; try { return rendererSaveOwnership.currentOwnerFor(mainWindow.webContents); } catch { return null; } }
 
 async function registerIpcHandlers(desktopSession) {
+	if (PRODUCT_ID === 'soundscaper') blender = registerBlenderIpc({ handle, ownerFor: rendererSaveOwnerFor, isOwnerCurrent: isRendererSaveOwnerCurrent, removeHandler: (channel) => ipcMain.removeHandler(channel), dialog, windowFor: () => mainWindow, addonPath: resolve(__dirname, 'blender/soundscaper_blender.py') });
 	captureSecurity = registerDesktopCaptureSecurity({
 		appOrigin: APP_ORIGIN, desktopCapturer, desktopRoot: __dirname, desktopSession,
 		createWebVcrWindow: (options) => new BrowserWindow(options), sessionFromPartition: (partition) => session.fromPartition(partition),
@@ -407,28 +414,6 @@ async function registerIpcHandlers(desktopSession) {
 		void pendingOpenProjects.dispatch();
 	});
 	on(IPC.respondToClose, (_event, response) => respondToClose(response));
-}
-
-function handle(channel, listener) {
-	ipcMain.handle(channel, (event, ...args) => {
-		assertTrustedIpc(event);
-		return listener(event, ...args);
-	});
-}
-
-function on(channel, listener) {
-	ipcMain.on(channel, (event, ...args) => {
-		assertTrustedIpc(event);
-		listener(event, ...args);
-	});
-}
-
-function assertTrustedIpc(event) {
-	if (!mainWindow || event.sender !== mainWindow.webContents) throw new Error('IPC sender is not the application window');
-	if (!event.senderFrame || event.senderFrame !== event.sender.mainFrame) {
-		throw new Error('IPC sender is not the active main document');
-	}
-	assertEditorDocumentUrl(event.senderFrame.url);
 }
 
 function respondToClose(value) {

@@ -13,6 +13,8 @@ import {
 	sequenceTimecodeLabelAtSample,
 } from '../../sequence-timing-model.ts';
 import { useAudioEditorTelemetrySelector } from '../DesignSystemRuntime.jsx';
+import { createDraftBlurCommitGuard, draftBlurShouldCommit } from '../draft-blur-commit.ts';
+import { handleSequenceFieldKeyDown } from './sequence-timing-field-keyboard.ts';
 
 const RATE_PRESETS = Object.freeze([
 	{ id: '24000/1001', label: '23.976', rate: { num: 24_000, den: 1_001 } },
@@ -90,6 +92,8 @@ function SequenceTimingEditor({ project, view, disabled, controller, copy, run }
 	const dropFrameAvailable = isSequenceDropFrameRate(view.rate);
 	const [startTimecodeError, setStartTimecodeError] = React.useState(false);
 	const [nameDraft, setNameDraft] = React.useState(view.name);
+	const nameBlurGuard = React.useRef(createDraftBlurCommitGuard()).current;
+	const timecodeBlurGuard = React.useRef(createDraftBlurCommitGuard()).current;
 	React.useEffect(() => setNameDraft(view.name), [view.name]);
 	const update = (changes) => run(() => controller.actions.sequences.update(view.id, changes));
 	const startLabel = formatSequenceTimecode(view.startTimecode, view.rate, view.dropFrame);
@@ -106,7 +110,9 @@ function SequenceTimingEditor({ project, view, disabled, controller, copy, run }
 				value={nameDraft}
 				onChange={(event) => setNameDraft(event.currentTarget.value)}
 				disabled={disabled}
+				onKeyDown={(event) => handleSequenceFieldKeyDown(event, nameBlurGuard, view.name, () => setNameDraft(view.name))}
 				onBlur={(event) => {
+					if (!draftBlurShouldCommit(nameBlurGuard)) return;
 					const name = event.currentTarget.value.trim();
 					setNameDraft(name || view.name);
 					if (name && name !== view.name) update({ name });
@@ -155,7 +161,9 @@ function SequenceTimingEditor({ project, view, disabled, controller, copy, run }
 				aria-invalid={startTimecodeError ? 'true' : 'false'}
 				data-sequence-start-timecode={startLabel}
 				disabled={disabled}
+				onKeyDown={(event) => handleSequenceFieldKeyDown(event, timecodeBlurGuard, startLabel, () => setStartTimecodeError(false))}
 				onBlur={(event) => {
+					if (!draftBlurShouldCommit(timecodeBlurGuard)) return;
 					const value = event.currentTarget.value.trim();
 					if (value === startLabel) return setStartTimecodeError(false);
 					if (!parsesAt(value, view)) return setStartTimecodeError(true);

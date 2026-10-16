@@ -30,7 +30,10 @@ import { discoverPasteCommandTree } from './internal/paste-command-tree.ts';
 import { findControllerSource } from '../track-audio/track-domain-types.ts';
 import { generateAudioEditorSignalStream } from '../../signal-generator-stream-client.ts';
 import type { CurrentAudioEditorClipboardDescriptor as AudioEditorClipboard, CurrentAudioEditorMutationCommandV2 as AudioEditorCommand } from '../../commands/clipboard-command-v2.ts';
+import type { AudioEditorCommand as LegacyAudioEditorCommand } from '../../commands/protocol.ts';
 import { normalizeAudioEditorClipboardDescriptor } from '../../commands/clipboard-codec.ts';
+import { preserveProductionTrackRouting } from '../../derived-track-routing.ts';
+import { prepareFrozenTrackEditCommand } from './internal/frozen-track-edit-command.ts';
 
 export type {
 	EditCommandProject,
@@ -211,7 +214,9 @@ export function createEditComposition<History extends ControllerRuntimeHistory>(
 	const handleEdit = createEditorEditService({
 		supportsTrackFolders: dependencies.supportsTrackFolders,
 		activeSelection: dependencies.activeSelection,
-		commit: dependencies.commit,
+		commit: (command: LegacyAudioEditorCommand, selection?: Readonly<{ selectTrackId?: string | null; selectClipId?: string | null }>) => (
+			dependencies.commit(prepareFrozenTrackEditCommand(requireProject(), command), selection)
+		),
 		commitPreparedPaste,
 		commitSplitAtFrames: clipboard.commitSplitAtFrames,
 		compactLiveSourceState: dependencies.compactLiveSourceState,
@@ -226,6 +231,9 @@ export function createEditComposition<History extends ControllerRuntimeHistory>(
 			)
 		),
 		createStableId,
+		preserveTrackRouting: (command: Extract<LegacyAudioEditorCommand, { type: 'batch' }>, copies: readonly Readonly<{ sourceTrackId: string; targetTrackId: string }>[]) => preserveProductionTrackRouting(
+			requireProject(), prepareFrozenTrackEditCommand(requireProject(), command), copies, projectRuntime.applyCommand, createStableId,
+		),
 		prepareDuplicateCommand: projectRuntime.prepareEditDuplicateCommand
 			? (descriptor: AudioEditorClipboard, command: AudioEditorCommand) => (
 				projectRuntime.prepareEditDuplicateCommand!(requireProject(), descriptor, command, createStableId) as AudioEditorCommand
@@ -271,6 +279,7 @@ export function createEditComposition<History extends ControllerRuntimeHistory>(
 		redoEditorCommand: projectRuntime.redo,
 		resolveEditingSelection,
 		setSessionClipboard: clipboard.setSessionClipboard,
+		prepareSessionClipboard: clipboard.prepareSessionClipboard,
 		state,
 		undoEditorCommand: projectRuntime.undo,
 	});

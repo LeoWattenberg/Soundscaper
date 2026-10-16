@@ -18,7 +18,6 @@ export interface ParallelStackMenuItem {
 
 export interface ParallelStackMenuInput {
 	readonly productId: string;
-	readonly desktop: boolean;
 	readonly blocked: boolean;
 	readonly preferences: ParallelStackPreferences;
 	readonly status: ParallelStackStatus;
@@ -32,7 +31,7 @@ export function appendParallelStackProcessingMenu(
 	input: ParallelStackMenuInput | null,
 	change: (patch: Partial<ParallelStackPreferences>) => unknown,
 ): readonly ParallelStackMenuItem[] {
-	if (!input || input.productId !== 'soundscaper' || !input.desktop) return items;
+	if (!input || input.productId !== 'soundscaper') return items;
 	const copy = resolveEditorCopyScope('parallelStacks', PARALLEL_STACK_COPY_BY_LOCALE.en, input.copy);
 	const { preferences, status, blocked } = input;
 	const entry = (id: string, label: string, checked: boolean, patch: Partial<ParallelStackPreferences>): ParallelStackMenuItem => ({

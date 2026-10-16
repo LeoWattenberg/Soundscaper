@@ -2,6 +2,9 @@
 
 /** Complete generation-free Soundscaper 1.0 desktop runtime inventory. */
 export const DESKTOP_SOUNDSCAPER_RUNTIME_FILES = Object.freeze([
+	'desktop/audiocom-integration.js',
+	'desktop/audiocom-authorization.js',
+	'desktop/audiocom-links.js',
 	'desktop/native-audio-helper-adapter.js',
 	'desktop/native-audio-session-service.js',
 	'desktop/native-audio-session-validation.js',

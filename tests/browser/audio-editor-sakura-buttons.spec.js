@@ -1,3 +1,4 @@
+import { capturePassingScreenshot } from './helpers/passing-screenshots.js';
 import { wcagContrastRatio } from '../../src/common/editor/ui/theme-contrast.ts';
 import { expect, monoTone, test } from './audio-editor-test-fixtures.js';
 import { bootEditor, chooseCommandAction, importFiles, registerAudioEditorHooks } from './audio-editor-test-helpers.js';
@@ -10,6 +11,7 @@ const buttonGroups = [
 	['toggle', '.toggle-tool-button, .toggle-button'],
 	['split and meter', '.kw-audio-editor__split-button-arrow, .kw-audio-editor__audacity-level-button'],
 ];
+const pointerSweeps = [buttonGroups.slice(0, 2), buttonGroups.slice(2)];
 
 for (const product of ['soundscaper', 'framescaper']) {
 	for (const mode of ['Light', 'Dark']) test.describe(`${product} Sakura ${mode} buttons`, () => {
@@ -28,7 +30,7 @@ for (const product of ['soundscaper', 'framescaper']) {
 		});
 		// Bound each pointer sweep as well as the stateful interactions within the
 		// WebKit budget even when other full-suite workers are importing media.
-		for (const [group, selector] of buttonGroups) test(`raises ${group} controls without moving their bounds`, async ({ page }, testInfo) => {
+		for (const groups of pointerSweeps) test(`raises ${groups.map(([group]) => group).join(' and ')} controls without moving their bounds`, async ({ page }, testInfo) => {
 			const editor = page.locator('[data-audio-editor]');
 			const undo = editor.locator('[data-edit="undo"] button');
 			const redo = editor.locator('[data-edit="redo"] button');
@@ -36,28 +38,30 @@ for (const product of ['soundscaper', 'framescaper']) {
 			await expect(redo).toBeVisible();
 			await expect(editor.locator('.kw-audio-editor__audacity-level-button').first()).toBeVisible();
 			await expect(undo.locator('.tool-button__icon')).toHaveCSS('display', 'flex');
-			const controls = editor.locator(selector);
-			await expect(controls.first()).toBeVisible();
-			for (const button of await controls.all()) {
-				if (!await button.isVisible()) continue;
-				if (await button.evaluate((node) => node.classList.contains('timecode__format-button'))) {
-					await expect(button).toHaveCSS('box-shadow', 'none');
-					continue;
+			for (const [group, selector] of groups) await test.step(group, async () => {
+				const controls = editor.locator(selector);
+				await expect(controls.first()).toBeVisible();
+				for (const button of await controls.all()) {
+					if (!await button.isVisible()) continue;
+					if (await button.evaluate((node) => node.classList.contains('timecode__format-button'))) {
+						await expect(button).toHaveCSS('box-shadow', 'none');
+						continue;
+					}
+					await expect(button).toHaveCSS('box-shadow', /inset/u);
+					await button.scrollIntoViewIfNeeded();
+					const bounds = await button.boundingBox();
+					if (await button.isEnabled() && await button.getAttribute('aria-pressed') !== 'true' && await button.getAttribute('aria-expanded') !== 'true') {
+						const raised = await button.evaluate((node) => getComputedStyle(node).boxShadow);
+						await button.hover();
+						await page.mouse.down();
+						await expect(button).not.toHaveCSS('box-shadow', raised);
+						expect(await button.boundingBox()).toEqual(bounds);
+						await page.mouse.move(0, 0);
+						await page.mouse.up();
+					}
 				}
-				await expect(button).toHaveCSS('box-shadow', /inset/u);
-				await button.scrollIntoViewIfNeeded();
-				const bounds = await button.boundingBox();
-				if (await button.isEnabled() && await button.getAttribute('aria-pressed') !== 'true' && await button.getAttribute('aria-expanded') !== 'true') {
-					const raised = await button.evaluate((node) => getComputedStyle(node).boxShadow);
-					await button.hover();
-					await page.mouse.down();
-					await expect(button).not.toHaveCSS('box-shadow', raised);
-					expect(await button.boundingBox()).toEqual(bounds);
-					await page.mouse.move(0, 0);
-					await page.mouse.up();
-				}
-			}
-			await page.screenshot({ path: testInfo.outputPath('Sakura-all-buttons.png') });
+				await capturePassingScreenshot(page, { path: testInfo.outputPath(`Sakura-${group.replaceAll(' ', '-')}-buttons.png`) });
+			});
 		});
 		test('preserves toggle contrast, keyboard focus, history and split-menu interactions', async ({ page }) => {
 			const editor = page.locator('[data-audio-editor]');

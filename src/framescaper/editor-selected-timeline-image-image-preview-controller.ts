@@ -4,6 +4,7 @@ import type { AudioEditorProjectStore } from '../common/editor/storage.js';
 import { sameProjectSnapshot } from '../common/editor/storage/project-snapshot-equality.ts';
 import { cloneFramescaperProjectTimelineImage } from './editor-project-timeline-image.ts';
 import type { FramescaperSelectedOpenFxExecutionNativeMedia } from './selected-native-media-openfx-exact-planes.ts';
+import { FRAMESCAPER_PROJECT_SCHEMA_FAMILY, classifyProjectSchemaIdentity } from '../common/editor/project-schema-identity.ts';
 import {
 	bindProductVideoVisualPreviewRuntime,
 	createProductVideoVisualPreviewRuntime,
@@ -38,19 +39,31 @@ export function bindFramescaperSelectedImagePreviewControllerTimelineImage(optio
 	};
 	bindProductVideoVisualPreviewRuntime(options.controller, createProductVideoVisualPreviewRuntime(
 		async (request) => {
+			if (isOpaquePreviewProject(request.project)) return null;
 			const captured = capture(request);
 			const module = await import('./editor-selected-timeline-image-image-preview.ts');
 			return module.createFramescaperSelectedVisualPreviewSessionTimelineImage(captured);
 		},
 		async (request) => {
+			if (isOpaquePreviewProject(request.project)) return null;
 			const captured = capture(request);
 			const module = await import('./editor-selected-timeline-image-image-preview.ts');
 			return module.createFramescaperSelectedProjectBinThumbnailTimelineImage(captured);
 		},
 		async (request) => {
+			if (isOpaquePreviewProject(request.project)) return null;
 			const captured = capture(request);
 			const module = await import('./editor-selected-timeline-image-image-filmstrip.ts');
 			return module.createFramescaperSelectedTimelineFilmstripTimelineImage(captured);
 		},
 	));
+}
+
+/** Opaque custody has no owning visual runtime; malformed inputs retain factory validation. */
+function isOpaquePreviewProject(project: unknown): boolean {
+	try {
+		return classifyProjectSchemaIdentity(project, FRAMESCAPER_PROJECT_SCHEMA_FAMILY).disposition !== 'current';
+	} catch {
+		return false;
+	}
 }

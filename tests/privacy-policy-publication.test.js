@@ -41,7 +41,7 @@ test('privacy policy locale and product URLs are closed over English and German 
 
 test('English and German dialog content carries equivalent privacy disclosures', () => {
 	const policies = [privacyPolicyContent('en'), privacyPolicyContent('de')];
-	const effectiveDates = ['24 September 2026', '24. September 2026'];
+	const effectiveDates = ['15 October 2026', '15. Oktober 2026'];
 	for (const [index, policy] of policies.entries()) {
 		const prose = [policy.effectiveDate, policy.summary, ...policy.sections.flatMap(
 			({ heading, body }) => [heading, body],
@@ -53,6 +53,9 @@ test('English and German dialog content carries equivalent privacy disclosures',
 		assert.ok(prose.includes(CONTROLLER), `the policy names the controller ${CONTROLLER}`);
 		assert.ok(prose.includes(CONTACT), `the policy names the contact address ${CONTACT}`);
 		assert.match(prose, /Cloudflare/iu);
+		assert.match(prose, /audio\.com/iu);
+		assert.match(prose, /unlisted audio is not private|Nicht gelistetes Audio ist nicht privat/iu);
+		assert.match(prose, /audio\.com\/legal\/privacy-notice/iu);
 		assert.match(prose, /GitHub/iu);
 		assert.match(prose, /Web VCR/iu);
 		assert.match(prose, /Migadu/iu);
@@ -71,7 +74,7 @@ test('English and German dialog content carries equivalent privacy disclosures',
 
 		const network = policy.sections.find(({ id }) => id === 'network')?.body ?? '';
 		assert.match(network, /Freesound/iu);
-		assert.match(network, /only if you use the Freesound feature|nur statt, wenn Sie die Freesound-Funktion.*nutzen/iu);
+		assert.match(network, /only if you use the respective feature|nur statt, wenn Sie die jeweilige Funktion.*nutzen/iu);
 		assert.match(network, /does not happen just because you open either editor|nicht schon beim Öffnen eines der beiden Editoren/iu);
 		assert.match(network, /search terms|Suchbegriffe/iu);
 		assert.match(network, /result page|Ergebnisseite/iu);

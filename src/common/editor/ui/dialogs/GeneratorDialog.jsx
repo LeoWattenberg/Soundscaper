@@ -7,6 +7,7 @@ import { TextInput } from '@soundscaper/design-system/TextInput';
 
 import { useGeneratorFormatters, useMorseSummary } from './useGeneratorPresentation.ts';
 import { resolveSelectionRange } from '../../selection-range.ts';
+import { selectAudioEditorEditBlock } from '../../edit-blocking.ts';
 import {
 	GeneratorKnob,
 	GeneratorNumberField,
@@ -15,16 +16,20 @@ import {
 } from './GeneratorDialogFields.jsx';
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 import AudioEditorTimeCodeInput from '../AudioEditorTimeCodeInput.tsx';
+import EditorMusicalTimeCodeProvider from '../EditorMusicalTimeCodeProvider.tsx';
 import EditorHelpTooltip from '../EditorHelpTooltip.tsx';
 import { runAwaitedAudioEditorOperation } from '../workspace/audio-editor-workspace-runner.ts';
+import { generatorReplacementTargetLocked } from './generator-replacement-admission.ts';
 
 // Real hand-sent Morse runs from a beginner's five words per minute to about
 // sixty; the generator itself accepts more for scripted use.
 const MORSE_SPEED_RANGE = Object.freeze({ minimum: 5, maximum: 60 });
 
-export default function GeneratorDialog({ type, controller, copy, locale, run, onClose }) {
+export default function GeneratorDialog({ type, controller, snapshot = {}, copy, locale, run, onClose }) {
 	const project = controller.project;
 	const sampleRate = project?.sampleRate || 48_000;
+	const durationOrigin = resolveSelectionRange(project)?.startFrame
+		?? controller.getTelemetrySnapshot?.().positionFrame ?? 0;
 	const [params, setParams] = useState(() => generatorDefaults(type, project));
 	useEffect(() => setParams(generatorDefaults(type, controller.project)), [controller, type]);
 	const [pending, setPending] = useState(false);
@@ -53,10 +58,12 @@ export default function GeneratorDialog({ type, controller, copy, locale, run, o
 	const morse = useMorseSummary(type, params.text, params.wordsPerMinute);
 	const formatters = useGeneratorFormatters(type, locale);
 	const unsendable = Boolean(morse && (morse.empty || morse.unsupported.length));
+	const editBlocked = selectAudioEditorEditBlock(snapshot).blocked
+		|| generatorReplacementTargetLocked(project, snapshot.selectedTrackId);
 	// The generate button sits in the shared footer, outside the form, so both
 	// it and an Enter press inside a field run this one handler.
 	const generate = () => {
-		if (unsendable || invalidDtmfTiming || activeGenerationRef.current !== null) return;
+		if (editBlocked || unsendable || invalidDtmfTiming || activeGenerationRef.current !== null) return;
 		const options = type === 'dtmf'
 			? { ...params, durationSeconds: dtmfTiming.totalSeconds, toneSeconds: dtmfTiming.toneSeconds, silenceSeconds: dtmfTiming.silenceSeconds }
 			: params;
@@ -110,6 +117,7 @@ export default function GeneratorDialog({ type, controller, copy, locale, run, o
 			);
 			return {
 				...current,
+				dutyPercent: dutyPercent ?? currentTiming.dutyPercent,
 				durationSeconds: next.totalSeconds,
 				toneSeconds: next.toneSeconds,
 				silenceSeconds: next.silenceSeconds,
@@ -135,6 +143,7 @@ export default function GeneratorDialog({ type, controller, copy, locale, run, o
 	};
 	const title = generatorLabel(type, copy);
 	return (
+		<EditorMusicalTimeCodeProvider controller={controller} originFrame={durationOrigin}>
 		<AudioEditorDialogShell
 			title={title}
 			headerOs={null}
@@ -150,7 +159,7 @@ export default function GeneratorDialog({ type, controller, copy, locale, run, o
 				className="audio-editor-dialog-footer"
 				rightContent={<>
 					<Button variant="secondary" onClick={cancelAndClose}>{copy.cancel}</Button>
-					<Button variant="primary" disabled={unsendable || invalidDtmfTiming || pending} onClick={generate}>{copy.generate}</Button>
+					<Button variant="primary" disabled={editBlocked || unsendable || invalidDtmfTiming || pending} onClick={generate}>{copy.generate}</Button>
 				</>}
 			/>}
 		>
@@ -349,6 +358,7 @@ export default function GeneratorDialog({ type, controller, copy, locale, run, o
 					</div>
 				</form>
 		</AudioEditorDialogShell>
+		</EditorMusicalTimeCodeProvider>
 	);
 }
 
@@ -356,9 +366,9 @@ function generatorDtmfTiming(params) {
 	const symbolCount = generatorDtmfSymbolCount(params.sequence);
 	const toneSeconds = Number(params.toneSeconds) || 0;
 	const silenceSeconds = Number(params.silenceSeconds) || 0;
-	const dutyPercent = toneSeconds + silenceSeconds > 0
+	const dutyPercent = params.dutyPercent ?? (toneSeconds + silenceSeconds > 0
 		? toneSeconds / (toneSeconds + silenceSeconds) * 100
-		: 100;
+		: 100);
 	const totalSeconds = Number(params.durationSeconds) > 0 ? Number(params.durationSeconds) : 30;
 	const durations = generatorDtmfDurations(totalSeconds, dutyPercent, symbolCount);
 	return {
@@ -423,7 +433,7 @@ function generatorDefaults(type, project) {
 	if (type === 'noise') return { ...common, amplitude: 0.8, color: 'white' };
 	if (type === 'dtmf') {
 		const durations = generatorDtmfDurations(durationSeconds, 2 / 3 * 100, 3);
-		return { ...common, amplitude: 0.8, sequence: '123', toneSeconds: durations.toneSeconds, silenceSeconds: durations.silenceSeconds };
+		return { ...common, amplitude: 0.8, sequence: '123', dutyPercent: 2 / 3 * 100, toneSeconds: durations.toneSeconds, silenceSeconds: durations.silenceSeconds };
 	}
 	// Morse takes its length from the message and the sending speed, so the
 	// shared duration default would only describe a clip it never produces.

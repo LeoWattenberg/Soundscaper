@@ -30,6 +30,7 @@ import {
 	registerAudioEditorHooks,
 	waitForEditor,
 } from './audio-editor-test-helpers.js';
+import { observeKnobWindowBlur } from './helpers/knob-window-blur-observer.js';
 
 	test.describe('audio editor React/design-system workflows', () => {
 	registerAudioEditorHooks();
@@ -163,6 +164,7 @@ import {
 	});
 
 	test('keeps rack knob updates live and ends Feedback delay gestures when the window blurs', async ({ page }) => {
+		const blurObserver = await observeKnobWindowBlur(page);
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');
 		const effectsPanel = await openEffectsForTrack(editor, 0);
@@ -196,11 +198,11 @@ import {
 		await commitInput(mixInput, '0');
 		const dryBox = await mixKnob.boundingBox();
 		expect(dryBox).not.toBeNull();
+		await blurObserver.arm(mixKnob);
 		await page.mouse.move(dryBox.x + dryBox.width / 2, dryBox.y + dryBox.height / 2);
 		await page.mouse.down();
 		try {
 			await expect(mixKnob).toHaveClass(/knob--dragging/);
-			await page.waitForTimeout(50);
 			await page.mouse.move(
 				dryBox.x + dryBox.width / 2,
 				dryBox.y + dryBox.height / 2 - 24,
@@ -210,14 +212,16 @@ import {
 		} finally {
 			await page.mouse.up();
 		}
+		await blurObserver.learn();
 
 		await commitInput(mixInput, '0.2');
 		const liveBox = await mixKnob.boundingBox();
 		expect(liveBox).not.toBeNull();
+		await blurObserver.arm(mixKnob);
 		await page.mouse.move(liveBox.x + liveBox.width / 2, liveBox.y + liveBox.height / 2);
 		await page.mouse.down();
 		await expect(mixKnob).toHaveClass(/knob--dragging/);
-		await page.waitForTimeout(50);
+		await blurObserver.waitForReady();
 		await page.mouse.move(
 			liveBox.x + liveBox.width / 2,
 			liveBox.y + liveBox.height / 2 - 20,

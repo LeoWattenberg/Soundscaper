@@ -18,8 +18,12 @@ export default function ExportPresetSection({
 }) {
 	const [busy, setBusy] = useState(false);
 	const guard = (work) => {
-		if (disabled || busy) return;
-		void runDeliveryPresetAction(work, { onError, onBusy: setBusy });
+		if (disabled || busy) return Promise.resolve(false);
+		let completed = false;
+		return runDeliveryPresetAction(async () => {
+			await work();
+			completed = true;
+		}, { onError, onBusy: setBusy }).then(() => completed);
 	};
 	return (
 		<section className="audio-editor-export-preset-banner" aria-label={copy.deliveryPreset} data-delivery-presets>

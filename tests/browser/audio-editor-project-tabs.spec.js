@@ -21,7 +21,7 @@ async function renameProject(page, editor, title) {
 }
 
 test.describe('project tab close controls', () => {
-	test('Window switches projects and workspaces and toggles panels in three flat groups', async ({ page }) => {
+	test('Window groups projects, workspaces, panels and fullscreen without submenus', async ({ page }) => {
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');
 		await renameProject(page, editor, 'First project');
@@ -33,8 +33,9 @@ test.describe('project tab close controls', () => {
 		await expect(getMenuItem(view, 'Panels')).toHaveCount(0);
 		await page.keyboard.press('Escape');
 		let window = await openNestedCommandMenu(page, editor, 'Window', []);
-		await expect(window.getByRole('separator')).toHaveCount(2);
+		await expect(window.getByRole('separator')).toHaveCount(3);
 		await expect(window.getByRole('menu')).toHaveCount(0);
+		await expect(getMenuItem(window, 'Fullscreen')).toBeVisible();
 		await expect(getMenuItem(window, 'First project')).toHaveAttribute('aria-checked', 'false');
 		await expect(getMenuItem(window, 'Second project')).toHaveAttribute('aria-checked', 'true');
 		for (const name of ['Soundscaper', 'Audacity', 'Music', 'Classic', 'Clip properties']) {

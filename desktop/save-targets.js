@@ -230,7 +230,7 @@ export class AtomicSaveManager {
 				: MAX_SAVE_CHUNK_BYTES;
 			const writeId = this.#newId();
 			const targetDirectory = dirname(target.path);
-			const temporaryPath = join(targetDirectory, `.${basename(target.path)}.${writeId}.soundscaper-part`);
+			const temporaryPath = join(targetDirectory, `.${writeId}.soundscaper-part`);
 			await this.#assertAvailableStorage(targetDirectory);
 			let handle;
 			try {

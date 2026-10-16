@@ -25,8 +25,8 @@ test('preference ownership keeps the frozen delegate identity and removes fiftee
 	assert.equal(Object.isFrozen(owner), true);
 	assert.deepEqual(Object.keys(owner), DELEGATE_NAMES);
 	assert.doesNotThrow(() => assertEditorPreferenceActionOwner(owner));
-	assert.equal(EDITOR_ACTION_FUNCTION_NAMES.length, 201);
-	assert.ok(EDITOR_ACTION_FUNCTION_NAMES.includes('readSourceSelectionSampleRate'));
+	assert.equal(EDITOR_ACTION_FUNCTION_NAMES.length, 203);
+	assert.equal(EDITOR_ACTION_FUNCTION_NAMES.includes('readSourceSelectionSampleRate'), true);
 	assert.equal(new Set(EDITOR_ACTION_FUNCTION_NAMES).size, EDITOR_ACTION_FUNCTION_NAMES.length);
 	assert.deepEqual(DELEGATE_NAMES.filter((name) => EDITOR_ACTION_FUNCTION_NAMES.includes(name as never)), []);
 });
@@ -42,7 +42,7 @@ test('preference assembly refuses an unbranded delegate copy', () => {
 	assert.throws(() => assertEditorPreferenceActionOwner(null), /Missing editor action dependency: preferenceActions\./u);
 });
 
-test('public preference adapters retain direct delegate identity and default-view update ordering', () => {
+test('public preference adapters retain direct delegate identity and default-view update ordering', async () => {
 	const calls: unknown[][] = [];
 	let resolveUpdate: (() => void) | undefined;
 	const updated = new Promise<void>((resolve) => { resolveUpdate = resolve; });
@@ -58,7 +58,9 @@ test('public preference adapters retain direct delegate identity and default-vie
 	assert.equal(actions.movePanel, runtime.preferenceActions.movePanelPreference);
 	assert.equal(actions.setShortcut, runtime.preferenceActions.setShortcutPreference);
 	assert.equal(actions.createWorkspace, runtime.preferenceActions.createWorkspacePreference);
-	assert.equal(actions.setDefaultView('spectrogram'), updated);
+	const changed = actions.setDefaultView('spectrogram');
+	assert.equal(changed instanceof Promise, true);
 	assert.deepEqual(calls, [['update', { appearance: { defaultView: 'spectrogram' } }], ['view', 'spectrogram']]);
 	resolveUpdate?.();
+	assert.equal(await changed, await updated);
 });

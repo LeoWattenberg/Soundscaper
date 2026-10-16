@@ -11,6 +11,7 @@ export interface OriginalOverwriteState extends AudioEditorControllerEditState {
 export interface OriginalOverwriteFileService {
 	readonly originalOverwriteAvailable?: boolean;
 	prepareOriginalOverwrite?(id: string): PromiseLike<unknown> | unknown;
+	releaseSaveTarget?(target: unknown): PromiseLike<unknown> | unknown;
 }
 
 interface OriginalOverwriteRuntime {
@@ -40,8 +41,9 @@ export function createOriginalOverwriteActions(runtime: OriginalOverwriteRuntime
 		const original = originalFile();
 		if (!original || !runtime.fileService?.prepareOriginalOverwrite) return;
 		preparing = true;
+		let target: unknown;
 		try {
-			const target = await runtime.fileService.prepareOriginalOverwrite(original.id);
+			target = await runtime.fileService.prepareOriginalOverwrite(original.id);
 			const project = runtime.getProject?.();
 			if (!target || runtime.state.disposed || runtime.state.recordingFinishing
 				|| !Array.isArray(project?.clips) || !project.clips.length
@@ -51,7 +53,11 @@ export function createOriginalOverwriteActions(runtime: OriginalOverwriteRuntime
 				masteringSequenceId: null, loudnessNormalization: null,
 				saveTarget: target,
 			});
-		} finally { preparing = false; }
+		} finally {
+			try {
+				if (target) await runtime.fileService.releaseSaveTarget?.(target);
+			} finally { preparing = false; }
+		}
 	}
 	return Object.freeze({ originalFile, overwriteOriginal, overwriteOriginalAvailable: available });
 }

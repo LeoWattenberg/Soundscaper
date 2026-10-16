@@ -4,6 +4,7 @@ import { Suspense } from 'react';
 import { lazyEditorModule } from '../../../offline/lazy-module.tsx';
 
 import { productProfile } from '../../../products.js';
+import { clipContentRange } from '../../clip-content-range.ts';
 import { WORKSPACE_IMPORT_FILE_ACCEPT, WORKSPACE_OPEN_FILE_ACCEPT } from './workspace-file-routing.js';
 import AudioEditorButtonTooltips from '../AudioEditorButtonTooltips.jsx';
 import EditorOverlayHost from '../EditorOverlayHost.tsx';
@@ -22,6 +23,7 @@ import WorkspacePanelDock from './WorkspacePanelDock.jsx';
 import AudioEditorWorkspaceOverlays from './AudioEditorWorkspaceOverlays.jsx';
 import { WORKSPACE_DOCK_IDS, workspaceDockLabel } from './workspace-panel-model.ts';
 import { handleWorkspaceKeyboard } from '../workspace-shortcuts.ts';
+import { handleClipSelectionKeyboardCapture } from '../timeline/selection-keyboard-capture.ts';
 import { useWorkspaceMouseShortcuts } from './useWorkspaceMouseShortcuts.ts';
 import { TrackAutomationRuntimeProvider } from '../soundscaper-workflow-product-runtime.tsx';
 import { useSplitToolShortcut } from '../timeline/useSplitToolShortcut.ts';
@@ -32,6 +34,7 @@ import { withWebFileLoadLimitContext } from '../../web-file-limit-failure.ts';
 import { MeterPanelControlsProvider } from './MeterPanelControls.jsx';
 import { createWorkspacePanelDockRuntime } from './workspace-model-boundaries.ts';
 const ProjectLockToast = lazyEditorModule(() => import('../ProjectLockToast.tsx'));
+const SoundscaperPluginScanToast = lazyEditorModule(() => import('./SoundscaperPluginScanToast.tsx'));
 
 const EMPTY_SPLIT_TOOL_SHORTCUTS = Object.freeze([]);
 export default function AudioEditorWorkspaceView({ model }) {
@@ -210,6 +213,7 @@ export default function AudioEditorWorkspaceView({ model }) {
 			data-workspace-preset={preferences?.workspace?.activeId || 'modern'}
 			data-edit-block-reason={editBlock.reason || undefined}
 			onKeyDown={(event) => handleWorkspaceKeyboard(event, snapshot, run, shortcutRegistry)}
+			onKeyDownCapture={(event) => handleClipSelectionKeyboardCapture(event, snapshot, run, shortcutRegistry)}
 			{...mouseShortcuts}
 			onContextMenu={(event) => event.preventDefault()}
 		>
@@ -303,6 +307,9 @@ export default function AudioEditorWorkspaceView({ model }) {
 					dismissLabel={copy.close}
 					onDismiss={clearError}
 				/>}
+				{productId === 'soundscaper' && fileService?.isDesktop && <Suspense fallback={null}>
+					<SoundscaperPluginScanToast copy={copy} openSurface={openSurface} />
+				</Suspense>}
 				{statusError && <EditorErrorToast key={statusError} id="workspace-status-error"
 					title={copy.unknownError} description={statusError} dismissLabel={copy.close} />}
 				{snapshot.monitor?.enabled && <EditorWarningToast id="input-monitoring" title={copy.recordLevel} description={copy.monitorWarning} dismissLabel={copy.close} />}
@@ -370,8 +377,10 @@ export default function AudioEditorWorkspaceView({ model }) {
 						onExportClip={(clipId) => {
 							const clip = project?.clips.find((candidate) => candidate.id === clipId);
 							if (!clip) return;
+							const range = clipContentRange(project, clip);
+							if (!range) return;
 							run(() => controller.actions.timeline.selectClip(clip.id));
-							run(() => controller.actions.timeline.setSelection(clip.timelineStartFrame, clip.timelineStartFrame + clip.durationFrames));
+							run(() => controller.actions.timeline.setExactSelection(range.startFrame, range.endFrame));
 							openSurface('export');
 						}}
 						onUploadClipToFreesound={productId === 'soundscaper' ? uploadClipToFreesound : undefined}

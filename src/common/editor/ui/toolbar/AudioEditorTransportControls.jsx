@@ -1,4 +1,4 @@
-import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Button } from '@soundscaper/design-system/Button';
 import { ContextMenuItem } from '@soundscaper/design-system/ContextMenuItem';
@@ -20,6 +20,7 @@ import { AudioDevicesFlyout } from './AudioEditorMeterControls.jsx';
 import EditorTaskProgressBar from './EditorTaskProgressBar.tsx';
 import WorkspaceSwitcherControl from './WorkspaceSwitcherControl.jsx';
 import TransportAuditionMenu from './TransportAuditionMenu.tsx';
+import { createMusicalDurationTimeCodeMap } from '../time-code-musical-map.ts';
 import { FRAMESCAPER_INPUTS_COPY } from '../../../i18n/editor-framescaper-inputs-copy.ts';
 import { lazyEditorModule } from '../../../offline/lazy-module.tsx';
 const FramescaperInputsSetupFlyout = lazyEditorModule(() => import('./FramescaperInputsSetupFlyout.tsx'));
@@ -317,6 +318,12 @@ export function AccessibleSelectionToolbar({
 	const canEdit = Boolean(selection && !disabled);
 	const selectionStart = selection ? framesToSeconds(selection.startFrame, { sampleRate }) : null;
 	const selectionEnd = selection ? framesToSeconds(selection.endFrame, { sampleRate }) : null;
+	const durationOrigin = selection?.startFrame;
+	const durationMusicalMap = useMemo(() => {
+		const project = snapshot.project;
+		return durationOrigin !== undefined && project?.tempoMap?.events.length && project.signatureMap?.events.length
+			? createMusicalDurationTimeCodeMap(project, durationOrigin) : undefined;
+	}, [snapshot.project, durationOrigin]);
 
 	useEffect(() => {
 		const root = wrapperRef.current;
@@ -398,6 +405,7 @@ export function AccessibleSelectionToolbar({
 				instructionText={copy.timelineHint}
 				format={format}
 				durationFormat={durationFormat}
+				durationMusicalMap={durationMusicalMap}
 				sampleRate={sampleRate}
 				onFormatChange={setFormat}
 				onDurationFormatChange={setDurationFormat}

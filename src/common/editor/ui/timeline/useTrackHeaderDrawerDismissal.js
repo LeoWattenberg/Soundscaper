@@ -32,7 +32,7 @@ export function useTrackHeaderDrawerDismissal({ drawer, onPointerDown }) {
 		onPointerDown(event);
 	}, [drawer, onPointerDown]);
 	const onKeyDown = useCallback((event) => {
-		if (!drawer?.isOpen || event.key !== 'Escape' || event.defaultPrevented) return;
+		if (!drawer?.isOpen || event.key !== 'Escape' || event.defaultPrevented || event.nativeEvent?.isComposing) return;
 		if (!isWithinTrackHeaderDrawer(event.target)) return;
 		event.preventDefault();
 		const toggle = event.currentTarget.querySelector('[data-track-header-toggle]');

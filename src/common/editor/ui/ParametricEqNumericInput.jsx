@@ -38,6 +38,7 @@ export function ParametricEqNumericInput({ value, onCommit, disabled, min, max, 
 		onChange: (event) => setText(event.currentTarget.value),
 		onBlur: finish,
 		onKeyDown: (event) => {
+			if (event.nativeEvent?.isComposing) return;
 			if (event.key === 'Enter') {
 				event.preventDefault();
 				event.currentTarget.blur();

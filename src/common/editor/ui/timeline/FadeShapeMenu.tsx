@@ -3,6 +3,8 @@
 import { createPortal } from 'react-dom';
 import { ContextMenu } from '@soundscaper/design-system/ContextMenu';
 import { ContextMenuItem } from '@soundscaper/design-system/ContextMenuItem';
+import { isContextMenuKey } from './context-menu-keyboard.ts';
+import type { ContextMenuKeyboardEvent } from './context-menu-keyboard.ts';
 
 export interface FadeShapeMenuPosition {
 	readonly x: number;
@@ -33,8 +35,8 @@ export function keyboardFadeShapeMenuPosition(target: HTMLElement): FadeShapeMen
 	return { target, x: bounds.left, y: bounds.bottom };
 }
 
-export function isFadeShapeMenuKey(event: Readonly<{ key: string; shiftKey: boolean }>): boolean {
-	return event.key === 'ContextMenu' || (event.key === 'F10' && event.shiftKey);
+export function isFadeShapeMenuKey(event: ContextMenuKeyboardEvent): boolean {
+	return isContextMenuKey(event);
 }
 
 /** Share the editor's context-menu behavior without clipping the menu to a clip or track. */
@@ -52,7 +54,7 @@ export function FadeShapeMenu<Id extends keyof typeof PRESET_LABELS>({
 		onPointerDown={event => event.stopPropagation()}
 		onClick={event => event.stopPropagation()}
 		onDoubleClick={event => event.stopPropagation()}
-		onKeyDown={event => event.stopPropagation()}
+		onKeyDown={event => { if (!event.ctrlKey && !event.metaKey && !event.altKey) event.stopPropagation(); }}
 		onContextMenu={event => { event.preventDefault(); event.stopPropagation(); }}>
 		<ContextMenu isOpen x={position.x} y={position.y} onClose={onClose}
 			className="audio-editor-fade-shape-menu">

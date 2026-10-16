@@ -318,6 +318,10 @@ export class FramescaperNativeServicesControllerV3 {
 		return this.#requireLifecycle().externalDisplays();
 	}
 
+	externalDisplaySessionIdentity(): object | null {
+		return this.#requireLifecycle().externalDisplaySessionIdentity();
+	}
+
 	setExternalDisplay(value: unknown): Promise<FramescaperNativeExternalDisplayProjection> {
 		this.#assertOpen();
 		const request = framescaperNativeExternalDisplayRequest(value);

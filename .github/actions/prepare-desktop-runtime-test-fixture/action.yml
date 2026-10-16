@@ -1,0 +1,33 @@
+name: Fresh authenticated desktop test runtime
+description: Compile once for this workflow and preserve compilation coverage for the shard union.
+inputs:
+  coverage-prefix:
+    description: Coverage artifact prefix consumed by this workflow's union job.
+    default: coverage-shard-
+runs:
+  using: composite
+  steps:
+    - name: Compile the revision-bound desktop test runtime
+      shell: bash
+      run: node scripts/prepare-node-desktop-runtime-artifact.mjs
+      env:
+        NODE_V8_COVERAGE: ${{ github.workspace }}/coverage/v8-desktop-fixture
+        NODE_OPTIONS: --max-old-space-size=8192
+    - name: Compact fresh compilation coverage
+      shell: bash
+      run: node scripts/compact-v8-coverage.mjs coverage/v8-desktop-fixture coverage/shards/desktop-runtime-fixture.json
+    - name: Upload the fresh private-copy input
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      with:
+        name: node-desktop-runtime-fixture-${{ github.sha }}
+        path: .wrangler/node-desktop-runtime-fixture/
+        include-hidden-files: true
+        if-no-files-found: error
+        retention-days: 1
+    - name: Upload compilation coverage to the union
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      with:
+        name: ${{ inputs.coverage-prefix }}desktop-runtime-fixture
+        path: coverage/shards/desktop-runtime-fixture.json
+        if-no-files-found: error
+        retention-days: 1

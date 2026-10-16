@@ -10,6 +10,7 @@
 
 import type { SoundscaperNativeServicesBridge } from './soundscaper-native-services-bridge.ts';
 import { soundscaperNativeServicesStoreFor } from './soundscaper-native-services-bridge.ts';
+import { pendingNativePluginParameterWrites } from './native-plugin-parameter-write-drain.ts';
 import {
 	EMPTY_SOUNDSCAPER_NATIVE_SERVICES_DIALOG_STATE,
 	reduceSoundscaperNativeServicesDialog,
@@ -40,6 +41,15 @@ export function createSoundscaperNativeServicesDialogRuntime(
 		action: SoundscaperNativeServicesDialogAction,
 	): Promise<SoundscaperNativeServicesDialogState> => {
 		const execute = async (): Promise<SoundscaperNativeServicesDialogState> => {
+			const writes = 'instanceId' in action ? pendingNativePluginParameterWrites(action.instanceId) : null;
+			if (writes) {
+				try { await writes; }
+				catch (cause) {
+					publish(reduceSoundscaperNativeServicesDialog(state, { type: 'failed', action,
+						message: cause instanceof Error ? cause.message : String(cause) }));
+					return state;
+				}
+			}
 			publish(reduceSoundscaperNativeServicesDialog(state, { type: 'begin', action }));
 			const event = await runSoundscaperNativeServicesAction(bridge, action);
 			publish(reduceSoundscaperNativeServicesDialog(state, event));

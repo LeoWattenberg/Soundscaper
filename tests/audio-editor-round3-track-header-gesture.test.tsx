@@ -35,10 +35,10 @@ for (const parameter of ['gain', 'pan'] as const) test(`track header ${parameter
 			onTabOut={() => undefined} onShiftTabOut={() => undefined} onNavigateVertical={() => undefined} />));
 		const control = dom.one(parameter === 'gain' ? '.slider__input' : '.knob');
 		if (parameter === 'gain') {
-			await act(async () => { reactProps(control).onPointerDown({}); });
+			await act(async () => { reactProps(control).onPointerDown({ pointerId: 7, button: 0, isPrimary: true, preventDefault() {} }); });
 			for (const value of ['70', '60', '50']) await act(async () => { reactProps(control).onChange({ target: { value } }); });
 			assert.deepEqual(published, []); assert.equal(previewed.length, 3); assert.deepEqual(committed, []);
-			await act(async () => { reactProps(control).onPointerUp({}); });
+			await act(async () => { reactProps(control).onPointerUp({ pointerId: 7 }); });
 		} else {
 			await act(async () => { reactProps(control).onKeyDown({ key: 'ArrowRight', preventDefault() {}, stopPropagation() {} }); });
 			assert.deepEqual(published, []); assert.equal(previewed.length, 1); assert.deepEqual(committed, []);

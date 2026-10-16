@@ -19,6 +19,7 @@ import {
 	type FramescaperImageCommandTimelineImage,
 } from './editor-project-timeline-image-image-command.ts';
 import { framescaperProjectNativeMediaFoundationShapeTimelineImage } from './editor-project-timeline-image-foundation.ts';
+import { conformRestoredSequenceVisualClips } from './editor-sequence-visual-rate-conformance.ts';
 import { prepareTimelineImageMoveCommand } from './editor-timeline-image-move-command.ts';
 import { prepareTimelineVisualMoveCommand } from './editor-timeline-visual-move-command.ts';
 import { prepareTimelineImageRemoveCommand } from './editor-timeline-image-remove-command.ts';
@@ -26,6 +27,8 @@ import { prepareTimelineImageSplitCommand } from './editor-timeline-image-split-
 import { prepareTimelineImageTrimCommand } from './editor-timeline-image-trim-command.ts';
 import { prepareTimelineGeneratorTrimCommand } from './editor-timeline-generator-trim-command.ts';
 import { prepareTimelineGeneratorSplitCommand } from './editor-timeline-generator-split-command.ts';
+import { prepareTimelineNativeInsertCommand } from './editor-timeline-native-insert-command.ts';
+import { prepareTimelineNativeOverwriteCommand } from './editor-timeline-native-overwrite-command.ts';
 import {
 	validateFramescaperProjectTimelineImage,
 	type FramescaperProjectTimelineImage,
@@ -60,7 +63,8 @@ export function applyFramescaperProjectCommandTimelineImage(
 	validateFramescaperProjectTimelineImage(profile, projectValue);
 	const prior = projectValue as FramescaperProjectTimelineImage;
 	const split = prepareTimelineGeneratorSplitCommand(prior,
-		prepareTimelineImageSplitCommand(prior, snapshotFramescaperProjectCommandTimelineImage(commandValue)));
+		prepareTimelineImageSplitCommand(prior, prepareTimelineNativeInsertCommand(prior,
+			prepareTimelineNativeOverwriteCommand(prior, snapshotFramescaperProjectCommandTimelineImage(commandValue)))));
 	const command = prepareTimelineGeneratorTrimCommand(prior, prepareTimelineVisualMoveCommand(prior,
 		prepareTimelineImageRemoveCommand(prior, prepareTimelineImageMoveCommand(prior, prepareTimelineImageTrimCommand(prior, split)))));
 	const draft = applyBody(profile, prior, command, options);
@@ -161,7 +165,9 @@ function applyInherited(
 	) as unknown as Record<string, unknown>;
 	return restoreImages(
 		applied,
-		images,
+		{ ...images,
+			timelineClips: conformRestoredSequenceVisualClips(record(project, 'project'), applied, images.timelineClips),
+			binClips: conformRestoredSequenceVisualClips(record(project, 'project'), applied, images.binClips) },
 		selection.selectedClipIds ?? images.selectedClipIds,
 	);
 }

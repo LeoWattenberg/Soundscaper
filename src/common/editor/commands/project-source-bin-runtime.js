@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { createEnvelopeValueEvaluator } from '../automation.js';
+import { setProjectRecordingNotes } from '../recording-notes.ts';
 import { processSourceAudio } from './source-process-audio-runtime.ts';
 import {
 	assertFrame,
@@ -18,8 +19,11 @@ import {
 } from '../project-schema-version.ts';
 import { scaleSampleFrame } from '../timeline-time.ts';
 import { clipLoopTransformFields } from '../audio-clip-loop.ts';
+import { projectBinReplacementWarp } from '../project-bin-replacement-warp.ts';
+import { createProjectBinContractionEvaluator } from '../project-bin-replacement-contractions.ts';
 import { isNativeProjectBinVideo, projectBinVideoReplacementRange } from '../project-bin-video-replacement.ts';
 import { resolveRuntimeClipProjection } from '../runtime-clip-projection.ts';
+import { collectTakeGroupSourceIds } from '../take-group-source-references.ts';
 import {
 	collectRelatedClipIds,
 	removeClips,
@@ -95,12 +99,16 @@ function setSelection(project, command) {
 }
 
 function setLoop(project, command) {
-	if (!command.enabled) {
+	if (!command.enabled && command.startFrame === 0 && command.endFrame === 0) {
+		project.loop = { enabled: false, startFrame: 0, endFrame: 0 };
+		return;
+	}
+	if (!command.enabled && command.startFrame === undefined && command.endFrame === undefined) {
 		project.loop = { ...project.loop, enabled: false };
 		return;
 	}
 	const range = normalizeFrameRange(command.startFrame, command.endFrame, 'loop');
-	project.loop = { enabled: true, startFrame: range.startFrame, endFrame: range.endFrame };
+	project.loop = { enabled: Boolean(command.enabled), startFrame: range.startFrame, endFrame: range.endFrame };
 }
 
 function setSnap(project, command) {
@@ -290,8 +298,9 @@ function removeProjectBinSourceFromProject(project, clipId) {
 	);
 	if (timelineIds.length) removeClips(project, timelineIds);
 	projectBin.clips = projectBin.clips.filter((candidate) => !sourceIds.has(candidate.sourceId));
+	const takeSourceIds = collectTakeGroupSourceIds(project);
 	for (const sourceId of sourceIds) {
-		const inUse = [...project.clips, ...projectBin.clips].some((candidate) => candidate.sourceId === sourceId);
+		const inUse = takeSourceIds.has(sourceId) || [...project.clips, ...projectBin.clips].some((candidate) => candidate.sourceId === sourceId);
 		if (!inUse) project.sources = project.sources.filter((source) => source.id !== sourceId);
 	}
 }
@@ -360,7 +369,7 @@ function replaceProjectBinMedia(project, command) {
 					title: targetTitle, color: targetColor, groupId: null, avLinkId: null, binItemId: clip.binItemId,
 				})];
 			}
-			return [normalizeClipForProject(project, {
+			return [normalizeReplacementClip(project, clip, {
 				...template,
 				...clip,
 				id: clip.id,
@@ -398,11 +407,10 @@ function replaceProjectBinMedia(project, command) {
 			if (!Array.isArray(track.clipIds)) continue;
 			const contractions = removedDurationsByTrack.get(track.id) || [];
 			if (!contractions.length) continue;
+			const contractionAt = createProjectBinContractionEvaluator(contractions);
 			for (const clipId of track.clipIds) {
 				const clip = requireClip(project, clipId);
-				const shift = contractions.reduce((sum, entry) => (
-					clip.timelineStartFrame >= entry.endFrame ? sum + entry.frames : sum
-				), 0);
+				const shift = contractionAt(clip.timelineStartFrame);
 				if (shift > 0) replaceClip(project, normalizeClipForProject(project, {
 					...clip,
 					timelineStartFrame: Math.max(0, clip.timelineStartFrame - shift),
@@ -413,8 +421,9 @@ function replaceProjectBinMedia(project, command) {
 		}
 	}
 
+	const takeSourceIds = collectTakeGroupSourceIds(project);
 	for (const { oldSource } of replacementBySourceId.values()) {
-		const inUse = [...project.clips, ...projectBin.clips].some((clip) => clip.sourceId === oldSource.id);
+		const inUse = takeSourceIds.has(oldSource.id) || [...project.clips, ...projectBin.clips].some((clip) => clip.sourceId === oldSource.id);
 		if (!inUse) project.sources = project.sources.filter((source) => source.id !== oldSource.id);
 	}
 }
@@ -453,7 +462,7 @@ function remapReplacementClip(project, clip, oldSource, newSource) {
 	));
 	const sourceDurationFrames = Math.min(requestedSourceDuration, newSource.frameCount - sourceStartFrame);
 	const durationFrames = Math.max(1, Math.round(clip.durationFrames * sourceDurationFrames / requestedSourceDuration));
-	return normalizeClipForProject(project, {
+	return normalizeReplacementClip(project, clip, {
 		...clip,
 		...clipLoopTransformFields(clip, { durationFrames }),
 		sourceId: newSource.id,
@@ -470,6 +479,11 @@ function remapReplacementClip(project, clip, oldSource, newSource) {
 		),
 		id: clip.id,
 	});
+}
+
+function normalizeReplacementClip(project, original, replacement) {
+	const clip = normalizeClipForProject(project, { ...replacement, warpMap: null });
+	return normalizeClipForProject(project, { ...clip, ...projectBinReplacementWarp(original, clip) });
 }
 
 function recordReplacementContraction(project, clip, frames, contractionsByTrack) {
@@ -499,6 +513,7 @@ export function createProjectSourceBinRuntimeHandlers(dispatchChild) {
 			project.title = String(command.title || '').trim();
 			if (!project.title) throw new RangeError('A project title is required.');
 		},
+		'project/recording-notes-set': setProjectRecordingNotes,
 		'selection/set': setSelection,
 		'loop/set': setLoop,
 		'snap/set': setSnap,

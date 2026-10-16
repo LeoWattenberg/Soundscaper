@@ -101,9 +101,10 @@ test('source editor marker edits preserve the exact source sample independently 
 	assert.equal(warpPointsOf(fixture.present()).length, 2);
 });
 
-test('quantize routes exact zero, one, and intermediate strengths after ensuring identity', async () => {
+test('quantize routes exact zero, one, and intermediate strengths after explicit identity creation', async () => {
 	for (const strength of [0, { num: 1, den: 2 }, 1] as const) {
 		const fixture = compositionFixture();
+		fixture.service.createIdentityMapSelected();
 		await fixture.service.quantizeSelected({
 			grid: { origin: 0, interval: 25 },
 			strength,
@@ -122,6 +123,7 @@ test('quantize routes exact zero, one, and intermediate strengths after ensuring
 
 test('bounded groove application and clear are concretely reachable on the selected clip', async () => {
 	const fixture = compositionFixture();
+	fixture.service.createIdentityMapSelected();
 	await fixture.service.applyGrooveSelected({
 		grid: { origin: 0, interval: 25 },
 		strength: 1,
@@ -206,8 +208,9 @@ test('replacement-project analysis owns processing when clip ids collide', async
 		await assert.rejects(origin, /superseded|changed/iu);
 		assert.deepEqual(fixture.processing, settledProcessing);
 		assert.deepEqual(fixture.commands.map(({ type }) => type), [
-			'audio-warp/set', 'audio-warp/quantize',
+			'audio-warp/set',
 		]);
+		assert.ok(warpPointsOf(fixture.present()).length > 2);
 	} finally {
 		firstGate.resolve();
 		secondGate.resolve();

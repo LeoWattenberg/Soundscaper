@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { isProjectAudioFallbackIntegrityError } from '../../../../project-fallback-integrity-audio.ts'; import { setLocalizedStatus } from '../../../../../i18n/presentation-message.ts';
+import { hasProductionMixerProjectAuthority } from '../../../../project-schema-version.ts';
 import type { LoudnessNormalizationDecision } from '../../../../loudness-normalization.ts';
 import type { DirectCompressedDestination } from '../direct/direct-compressed-export.ts';
 import type { DirectPcmDestination } from '../direct/direct-pcm-export.ts';
@@ -20,6 +21,7 @@ interface ExportRenderSnapshot {
 }
 
 interface ExportRenderPlan extends RenderedAudioEncodingPlan {
+	readonly mode?: string;
 	/** Present when this delivery is a mastering sequence rather than one range. */
 	readonly masteringSequence?: MasteringSequenceDeliveryPlan;
 	readonly range: Readonly<{
@@ -139,10 +141,13 @@ export async function renderAndEncodeAudioExport(
 		assertDirectCurrent = () => undefined,
 		progressRange = { start: 0, end: 1 },
 	} = options;
+	const projectedStem = plan.mode === 'stems' && hasProductionMixerProjectAuthority(snapshot);
 	const renderTarget = {
-		trackId: requestedRenderTarget.trackId,
+		// The stem already isolates programme output and retains detector bus inputs.
+		// A second track filter would disconnect those inputs from the graph.
+		trackId: projectedStem ? null : requestedRenderTarget.trackId,
 		includeMaster: requestedRenderTarget.includeMaster,
-		respectMuteSolo: requestedRenderTarget.respectMuteSolo,
+		respectMuteSolo: projectedStem ? true : requestedRenderTarget.respectMuteSolo,
 	};
 	const { copy, setStatus, throwIfAborted } = encodingRuntime;
 	throwIfAborted(signal);

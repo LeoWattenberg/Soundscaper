@@ -4,6 +4,7 @@ import { publishedCopyFor } from '../../shared/presentation-localization.ts';
 import { createAddSourceCommand, createAddTrackCommand } from '../../../commands/factories.ts';
 import { hasProjectBinMediaAuthority } from '../../../project-schema-version.ts';
 import type { AudioEditorClipboardTrack, AudioEditorCommand } from '../../../commands/protocol.ts';
+import { clipboardPasteTrackType, planClipboardPasteTargets } from '../../../clipboard-paste-targets.ts';
 import { missingClipboardSourcesForPaste } from './clipboard-source-identity.ts';
 import type { ClipboardEditProject, ClipboardEditMediaTrack, ClipboardEditTrack, ClipboardEditSource } from './clipboard-edit-service.ts';
 
@@ -17,37 +18,7 @@ export function prepareClipboardPasteTrackPlan(project: ClipboardEditProject, se
 			? { type: 'source/add', source: structuredClone(source) } as AudioEditorCommand
 			: createAddSourceCommand(source));
 	let addedTrackCount = 0;
-	const usedTrackIds = new Set<string>();
 	const selected = findMediaTrack(project, selectedTrackId);
-	const laneGroups = groupClipboardLanes(clipboardTracks);
-
-	const targetMatches = (
-		target: ClipboardEditMediaTrack | null,
-		clipboardTrack: AudioEditorClipboardTrack,
-	): target is ClipboardEditMediaTrack => Boolean(
-		target
-		&& target.type === clipboardTrackType(clipboardTrack)
-		&& !usedTrackIds.has(target.id)
-	);
-	const assignTarget = (clipboardTrack: AudioEditorClipboardTrack, target: ClipboardEditMediaTrack) => {
-		trackMap[clipboardTrack.sourceTrackId] = target.id;
-		usedTrackIds.add(target.id);
-	};
-	const findTargetLanePair = (
-		candidate: ClipboardEditMediaTrack | null,
-	): readonly [ClipboardEditMediaTrack, ClipboardEditMediaTrack] | null => {
-		if (!candidate?.laneGroupId) return null;
-		const grouped = project.tracks
-			.filter(isClipboardMediaTrack)
-			.filter((track) => track.laneGroupId === candidate.laneGroupId);
-		if (
-			grouped.length !== 2
-			|| grouped[0]?.type !== 'video'
-			|| grouped[1]?.type !== 'audio'
-			|| grouped.some((track) => usedTrackIds.has(track.id))
-		) return null;
-		return [grouped[0], grouped[1]];
-	};
 	/**
 	 * A synthesized paste track joins the folder of the track the paste is
 	 * anchored to: the selected track's parent, else the surviving source
@@ -72,7 +43,7 @@ export function prepareClipboardPasteTrackPlan(project: ClipboardEditProject, se
 		clipboardTrack: AudioEditorClipboardTrack,
 		laneGroupId: string | null = null,
 	): ClipboardEditMediaTrack => {
-		const type = clipboardTrackType(clipboardTrack);
+		const type = clipboardPasteTrackType(clipboardTrack);
 		if (type === 'video' && !hasProjectBinMediaAuthority(project)) {
 			throw new RangeError('Video clipboard tracks require an AudioEditorProjectV4 project.');
 		}
@@ -92,42 +63,11 @@ export function prepareClipboardPasteTrackPlan(project: ClipboardEditProject, se
 		return { id: trackId, type, name: clipboardTrack.sourceTrackName, laneGroupId, clipIds: [] };
 	};
 
-	for (const clipboardTrack of clipboardTracks) {
-		if (trackMap[clipboardTrack.sourceTrackId]) continue;
-		const grouped = clipboardTrack.sourceLaneGroupId
-			? laneGroups.get(clipboardTrack.sourceLaneGroupId)
-			: null;
-		const videoClipboardTrack = grouped?.find((track) => clipboardTrackType(track) === 'video');
-		const audioClipboardTrack = grouped?.find((track) => clipboardTrackType(track) === 'audio');
-		if (grouped?.length === 2 && videoClipboardTrack && audioClipboardTrack) {
-			const existingVideo = findMediaTrack(project, videoClipboardTrack.sourceTrackId);
-			const existingAudio = findMediaTrack(project, audioClipboardTrack.sourceTrackId);
-			let targetPair = findTargetLanePair(selected);
-			if (!targetPair && (
-				targetMatches(existingVideo, videoClipboardTrack)
-				&& targetMatches(existingAudio, audioClipboardTrack)
-				&& existingVideo.laneGroupId
-				&& existingVideo.laneGroupId === existingAudio.laneGroupId
-			)) targetPair = [existingVideo, existingAudio];
-			if (!targetPair) {
-				const laneGroupId = createId('media-lanes');
-				targetPair = [
-					createTargetTrack(videoClipboardTrack, laneGroupId),
-					createTargetTrack(audioClipboardTrack, laneGroupId),
-				];
-			}
-			assignTarget(videoClipboardTrack, targetPair[0]);
-			assignTarget(audioClipboardTrack, targetPair[1]);
-			continue;
+	for (const group of planClipboardPasteTargets(project.tracks, selected?.id ?? null, clipboardTracks)) {
+		const laneGroupId = group.length === 2 && !group[0]?.target ? createId('media-lanes') : null;
+		for (const { clipboardTrack, target } of group) {
+			trackMap[clipboardTrack.sourceTrackId] = (target ?? createTargetTrack(clipboardTrack, laneGroupId)).id;
 		}
-
-		const anchorIndex = selected ? project.tracks.indexOf(selected) : -1;
-		let target = anchorIndex < 0 ? null : project.tracks.slice(anchorIndex)
-			.filter(isClipboardMediaTrack).find((track) => targetMatches(track, clipboardTrack)) ?? null;
-		if (!target) target = findMediaTrack(project, clipboardTrack.sourceTrackId);
-		if (!targetMatches(target, clipboardTrack)) target = null;
-		if (!target) target = createTargetTrack(clipboardTrack);
-		assignTarget(clipboardTrack, target);
 	}
 	return { commands, trackMap };
 }
@@ -142,23 +82,4 @@ function findMediaTrack(
 ): ClipboardEditMediaTrack | null {
 	const track = project.tracks.find((candidate) => candidate.id === trackId);
 	return track && isClipboardMediaTrack(track) ? track : null;
-}
-
-function clipboardTrackType(track: AudioEditorClipboardTrack): 'audio' | 'video' {
-	if (track.sourceTrackType === 'video') return 'video';
-	if (track.sourceTrackType === 'audio') return 'audio';
-	return track.clips[0]?.kind === 'video' ? 'video' : 'audio';
-}
-
-function groupClipboardLanes(
-	tracks: readonly AudioEditorClipboardTrack[],
-): ReadonlyMap<string, readonly AudioEditorClipboardTrack[]> {
-	const laneGroups = new Map<string, AudioEditorClipboardTrack[]>();
-	for (const track of tracks) {
-		if (!track.sourceLaneGroupId) continue;
-		const grouped = laneGroups.get(track.sourceLaneGroupId) ?? [];
-		grouped.push(track);
-		laneGroups.set(track.sourceLaneGroupId, grouped);
-	}
-	return laneGroups;
 }

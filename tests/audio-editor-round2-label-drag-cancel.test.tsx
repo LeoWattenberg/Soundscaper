@@ -62,11 +62,11 @@ test('label Escape restores the draft, suppresses continued mouse motion and per
 		assert.equal(style.left, 'calc(12px + var(--timeline-render-origin-x, 0px))');
 		await move(80);
 		assert.equal(style.left, 'calc(12px + var(--timeline-render-origin-x, 0px))');
-		await act(async () => dispatch(listeners.get('mouseup') ?? [], new Event('mouseup')));
+		await act(async () => dispatch(listeners.get('mouseup') ?? [], Object.assign(new Event('mouseup'), { button: 0 })));
 		assert.deepEqual(changes, []);
 		await begin();
 		await move(60);
-		await act(async () => dispatch(listeners.get('mouseup') ?? [], new Event('mouseup')));
+		await act(async () => dispatch(listeners.get('mouseup') ?? [], Object.assign(new Event('mouseup'), { button: 0 })));
 		assert.deepEqual(changes, [{ startFrame: 19_200, endFrame: 19_200 }]);
 	} finally {
 		await act(async () => root.unmount());

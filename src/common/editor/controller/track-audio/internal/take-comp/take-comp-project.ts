@@ -9,6 +9,7 @@ export interface TakeCompProject extends Readonly<Record<string, unknown>> {
 	readonly sources: readonly Readonly<{
 		readonly id?: unknown;
 		readonly name?: unknown;
+		readonly channelCount?: unknown;
 		readonly provenance?: SourceProvenanceV1;
 	}>[];
 	readonly tracks: readonly Readonly<{ readonly id: string; readonly locked?: boolean }>[];

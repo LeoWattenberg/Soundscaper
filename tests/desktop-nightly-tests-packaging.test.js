@@ -192,7 +192,7 @@ test('manual nightly-with-tests target selection preserves all targets and selec
 	const all = selectDesktopNightlyTestTargets('all');
 	assert.deepEqual(all, [
 		{ runner: 'windows-2025', platform: 'win', arch: 'x64', node_arch: 'x64' },
-		{ runner: 'windows-11-arm', platform: 'win', arch: 'arm64', node_arch: 'x64' },
+		{ runner: 'windows-11-arm', platform: 'win', arch: 'arm64', node_arch: 'arm64' },
 		{ runner: 'macos-15', platform: 'mac', arch: 'arm64', node_arch: 'arm64' },
 		{ runner: 'ubuntu-22.04', platform: 'linux', arch: 'x64', node_arch: 'x64' },
 		{ runner: 'ubuntu-24.04-arm', platform: 'linux', arch: 'arm64', node_arch: 'arm64' },
@@ -233,7 +233,7 @@ test('desktop test artifacts build on main pushes and manual target selections w
 	assert.ok(testGuard.startsWith('if: >-'));
 	assert.doesNotMatch(testGuard, /github\.event_name|workflow_run/u);
 	assert.doesNotMatch(testGuard, /inputs\.artifact_variant/u);
-	assert.match(testJob, /needs: nightly-test-targets/u);
+	assert.match(testJob, /needs: \[nightly-test-targets, browser-sites\]/u);
 	assert.match(testGuard, /needs\.nightly-test-targets\.result == 'success'/u);
 	// The package still names the selected commit while reusing an older runtime handoff.
 	const sourceRevision = String.raw`\$\{\{ github\.sha \}\}`;
@@ -261,18 +261,26 @@ test('desktop test artifacts build on main pushes and manual target selections w
 	assert.doesNotMatch(testJob, /- runner:/u);
 	assert.match(testJob, /node scripts\/desktop-nightly-tests-prepare\.mjs/u);
 	assert.match(testJob, /node scripts\/desktop-nightly-tests-products\.mjs/u);
-	assert.match(testJob, /npm run build:browser:framescaper/u);
-	assert.match(testJob, /npm run prepare:browser:products/u);
-	assert.match(testJob, /npm run pretest:browser:dual-origin/u);
+	const browserStart = workflow.indexOf('\n  browser-sites:');
+	assert.ok(browserStart > targetsStart && browserStart < testStart);
+	const browserJob = workflow.slice(browserStart, testStart);
+	assert.match(browserJob, /npm run build:browser:framescaper/u);
+	assert.match(browserJob, /npm run prepare:browser:products/u);
+	assert.match(browserJob, /npm run pretest:browser:dual-origin/u);
 	assert.ok(
-		testJob.indexOf('npm run build:browser:framescaper')
-			< testJob.indexOf('npm run prepare:browser:products')
-			&& testJob.indexOf('npm run prepare:browser:products')
-				< testJob.indexOf('npm run pretest:browser:dual-origin')
-			&& testJob.indexOf('npm run pretest:browser:dual-origin')
-				< testJob.indexOf('node scripts/desktop-nightly-tests-prepare.mjs'),
-		'the ordinary and reciprocal verified sites must be ready before the test runner stages them',
+		browserJob.indexOf('npm run build:browser:framescaper')
+			< browserJob.indexOf('npm run prepare:browser:products')
+			&& browserJob.indexOf('npm run prepare:browser:products')
+				< browserJob.indexOf('npm run pretest:browser:dual-origin')
+			&& browserJob.indexOf('npm run pretest:browser:dual-origin')
+				< browserJob.indexOf('node scripts/verify-nightly-browser-sites.mjs'),
+		'the producer must authenticate the ordinary and reciprocal sites before publishing them',
 	);
+	assert.match(testJob, /needs\.browser-sites\.result == 'success'/u);
+	assert.match(testJob, /name: nightly-browser-sites-\$\{\{ github\.sha \}\}/u);
+	assert.ok(testJob.indexOf('node scripts/verify-nightly-browser-sites.mjs')
+		< testJob.indexOf('node scripts/desktop-nightly-tests-prepare.mjs'),
+	'the downloaded sites must authenticate before the test runner stages them');
 	assert.ok(
 		testJob.indexOf('node scripts/desktop-nightly-tests-products.mjs')
 			< testJob.indexOf('node scripts/desktop-nightly-tests-prepare.mjs'),

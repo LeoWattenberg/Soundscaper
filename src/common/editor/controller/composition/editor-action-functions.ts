@@ -51,6 +51,7 @@ export interface EditorActionFunctions {
 	readonly beginRackEffectGesture: ReturnType<typeof createEffectsComposition>['rack']['beginRackEffectGesture'];
 	readonly beginVideoEffectGesture: ReturnType<typeof createClipVideoComposition>['videoEffect']['beginVideoEffectGesture'];
 	readonly bypassVideoClipEffect: ReturnType<typeof createClipVideoComposition>['videoEffect']['bypassVideoClipEffect'];
+	readonly cancelSelectedAudacityEffect: ReturnType<typeof createEffectsComposition>['execution']['cancelSelectedAudacityEffect'];
 	readonly cancelAudacityEffectPreview: ReturnType<typeof createEffectsComposition>['controls']['cancelAudacityEffectPreview'];
 	readonly cancelEffectMacro: ReturnType<typeof createEffectsComposition>['macro']['cancelEffectMacro'];
 	readonly cancelNyquistEvaluation: ReturnType<typeof createEffectsComposition>['nyquistHost']['cancelNyquistEvaluation'];
@@ -112,6 +113,7 @@ export interface EditorActionFunctions {
 	readonly listProjects: ReturnType<typeof createProjectAdminService>['listProjects'];
 	readonly makeStereoTrack: ReturnType<typeof createTrackAudioComposition>['makeStereoTrack'];
 	readonly materializeFreesoundUploadClip: ReturnType<typeof createTrackAudioComposition>['materializeFreesoundUploadClip'];
+	readonly publishBlenderTracks: ReturnType<typeof createTrackAudioComposition>['export']['publishBlenderTracks'];
 	readonly mixAndRenderTracks: ReturnType<typeof createTrackAudioComposition>['mixAndRenderTracks'];
 	readonly moveClips: ReturnType<typeof createClipVideoComposition>['clipTransform']['moveClips'];
 	readonly moveClipsToNewTrack: ReturnType<typeof createClipVideoComposition>['clipTransform']['moveClipsToNewTrack'];

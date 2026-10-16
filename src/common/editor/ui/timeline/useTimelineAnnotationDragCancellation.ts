@@ -1,10 +1,12 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { useEffect, type RefObject } from 'react';
+import { useCallback, useEffect, useLayoutEffect, type RefObject } from 'react';
 
 interface CapturedAnnotationDrag {
 	readonly pointerId: number;
 	readonly target: HTMLElement;
+	readonly idSet: ReadonlySet<string>;
+	readonly ranges: ReadonlyMap<string, Readonly<{ start: number; end: number }>>;
 }
 
 /** Annotation moves and edge resizes publish only after their own pointer session finishes. */
@@ -12,20 +14,35 @@ export function useTimelineAnnotationDragCancellation(
 	layerRef: RefObject<HTMLElement | null>,
 	dragRef: RefObject<CapturedAnnotationDrag | null>,
 	clearPreview: () => void,
+	annotations: readonly Readonly<{ readonly id: string; readonly timelineStartFrame: number; readonly timelineEndFrame: number }>[],
 ) {
+	const cancelDrag = useCallback(() => {
+		const drag = dragRef.current;
+		if (!drag) return;
+		dragRef.current = null;
+		clearPreview();
+		if (drag.target.hasPointerCapture?.(drag.pointerId)) drag.target.releasePointerCapture(drag.pointerId);
+	}, [clearPreview, dragRef]);
+	useLayoutEffect(() => {
+		const drag = dragRef.current;
+		if (!drag) return;
+		const liveRanges = new Map(annotations.map(annotation => [annotation.id, annotation]));
+		if ([...drag.idSet].some(id => {
+			const live = liveRanges.get(id), expected = drag.ranges.get(id);
+			return !live || !expected || live.timelineStartFrame !== expected.start || live.timelineEndFrame !== expected.end;
+		})) cancelDrag();
+	}, [annotations, cancelDrag, dragRef]);
 	useEffect(() => {
 		const owner = layerRef.current?.ownerDocument.defaultView;
 		if (!owner) return;
 		const cancel = (event: KeyboardEvent) => {
 			const drag = dragRef.current;
 			if (event.key !== 'Escape' || !drag) return;
-			dragRef.current = null;
-			clearPreview();
-			if (drag.target.hasPointerCapture?.(drag.pointerId)) drag.target.releasePointerCapture(drag.pointerId);
+			cancelDrag();
 			event.preventDefault();
 			event.stopPropagation();
 		};
 		owner.addEventListener('keydown', cancel, true);
 		return () => owner.removeEventListener('keydown', cancel, true);
-	}, [clearPreview, dragRef, layerRef]);
+	}, [cancelDrag, dragRef, layerRef]);
 }

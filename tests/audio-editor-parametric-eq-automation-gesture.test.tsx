@@ -59,7 +59,7 @@ test('an automated EQ axis preserves and commits the other dragged axis', async 
 		}));
 		handle = fixture.dom.one('.audio-editor-parametric-eq__handle');
 		await act(async () => reactProps(handle).onPointerMove?.({
-			clientX: 500, clientY: 40, shiftKey: false,
+			pointerId: 2, clientX: 500, clientY: 40, shiftKey: false,
 			altKey: false, ctrlKey: false, metaKey: false,
 			currentTarget: handle,
 		}));

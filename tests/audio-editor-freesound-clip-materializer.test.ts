@@ -38,6 +38,7 @@ test('Freesound clip projection replaces production routing and automation with 
 		...projectFixture(),
 		schemaFamily: 'soundscaper' as const,
 		schemaVersion: 1,
+		trackFolders: [],
 		masterChannels: 6,
 		automationLanes: [{ id: 'master-gain', address: { kind: 'strip', strip: { kind: 'master' } } }],
 		mixer: createDefaultMixerGraphV21([
@@ -122,6 +123,7 @@ test('Project Bin audio clips are projected onto one dry audio track before rend
 		...base,
 		schemaFamily: 'soundscaper' as const,
 		schemaVersion: 1,
+		trackFolders: [],
 		automationLanes: [],
 		projectBin: { clips: [binClip] },
 		mixer: createDefaultMixerGraphV21([

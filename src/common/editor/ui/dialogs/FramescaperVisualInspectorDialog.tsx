@@ -17,6 +17,8 @@ import {
 } from '../framescaper-visual-inspector-model.ts';
 import { runAwaitedAudioEditorOperation } from '../workspace/audio-editor-workspace-runner.ts';
 import type { VideoGeneratorDocumentV1 } from '../../video-visual-model-v24.ts';
+import { completeVisualInspectorNumberDraft, type VisualInspectorNumberDrafts,
+	type VisualInspectorNumberField } from './visual-inspector-number-draft.ts';
 
 interface Props {
 	readonly controller: Readonly<{ readonly actions: Readonly<{
@@ -40,16 +42,24 @@ export default function FramescaperVisualInspectorDialog({
 		project, selectedClipId,
 	}), [project, selectedClipId]);
 	const [draft, setDraft] = useState<FramescaperVisualInspectorDraft>(() => draftFor(model));
+	const [numberDrafts, setNumberDrafts] = useState<VisualInspectorNumberDrafts>({});
 	const [pending, setPending] = useState(false);
 	const [status, setStatus] = usePresentationFeedback(copy, FRAMESCAPER_VISUAL_INSPECTOR_ADDITIONAL_COPY, 'framescaperVisualInspector');
 	const [error, setError] = usePresentationFeedback(copy, FRAMESCAPER_VISUAL_INSPECTOR_ADDITIONAL_COPY, 'framescaperVisualInspector');
 	useEffect(() => {
 		setDraft(draftFor(model));
+		setNumberDrafts({});
 		setStatus('');
 		setError('');
 	}, [model, setError, setStatus]);
 	const blocked = pending || editingBlocked || readOnly || model.clipId === null;
+	const sourceBlocked = blocked || !model.generatorEditable;
 	const formId = 'framescaper-visual-inspector-form';
+	const updateNumber = (field: VisualInspectorNumberField, value: string): void => {
+		setNumberDrafts(current => ({ ...current, [field]: value }));
+		if (field !== 'opacity') setDraft(current => ({ ...current, presetId: null }));
+		setError('');
+	};
 	const updateGenerator = (changes: Readonly<Record<string, unknown>>): void => {
 		setDraft((current) => current.generator === null ? current : {
 			...current, presetId: null,
@@ -63,7 +73,11 @@ export default function FramescaperVisualInspectorDialog({
 		if (blocked || model.clipId === null) return;
 		let command: unknown;
 		try {
-			command = createFramescaperVisualInspectorCommand(project, model.clipId, draft);
+			const numericDraft = completeVisualInspectorNumberDraft(draft, numberDrafts);
+			const generator = numericDraft.generator;
+			const completedDraft = generator === null ? numericDraft
+				: { ...numericDraft, generator: completeGeneratorDraft(generator) };
+			command = createFramescaperVisualInspectorCommand(project, model.clipId, completedDraft);
 		} catch (cause) {
 			setError(feedbackFailure(cause));
 			return;
@@ -99,14 +113,15 @@ export default function FramescaperVisualInspectorDialog({
 			{model.clipId === null ? <p role="status">{label(copy, 'visualInspectorSelection',
 				FRAMESCAPER_VISUAL_INSPECTOR_ADDITIONAL_COPY.visualInspectorSelection)}</p> : <>
 				<p data-visual-inspector-kind>{model.kind}</p>
-					<GeneratorFields generator={draft.generator} audioSources={model.audioSources} disabled={blocked} copy={copy}
-						onChange={updateGenerator} />
+					<GeneratorFields generator={draft.generator} audioSources={model.audioSources} disabled={sourceBlocked} copy={copy}
+						numberDrafts={numberDrafts} onNumber={updateNumber} onChange={updateGenerator} />
 				{model.presets.length > 0 && <label>
 					<span>{label(copy, 'visualPreset', FRAMESCAPER_VISUAL_INSPECTOR_ADDITIONAL_COPY.visualPreset)}</span>
-					<select data-visual-inspector-preset value={draft.presetId ?? ''} disabled={blocked}
+					<select data-visual-inspector-preset value={draft.presetId ?? ''} disabled={sourceBlocked}
 						onChange={(event) => {
 							const selectedId = event.currentTarget.value;
 							const preset = model.presets.find(({ id }) => id === selectedId);
+							setNumberDrafts(({ opacity }) => opacity === undefined ? {} : { opacity });
 							setDraft((current) => ({ ...current,
 								presetId: preset?.id ?? null,
 								generator: preset?.generator ?? current.generator,
@@ -119,11 +134,8 @@ export default function FramescaperVisualInspectorDialog({
 				<label>
 					<span>{label(copy, 'opacity', FRAMESCAPER_VISUAL_INSPECTOR_ADDITIONAL_COPY.opacity)}</span>
 					<input data-visual-inspector-opacity type="number" min="0" max="1" step="0.01"
-						value={draft.opacity} disabled={blocked}
-						onChange={(event) => {
-							const opacity = event.currentTarget.valueAsNumber;
-							setDraft((current) => ({ ...current, opacity }));
-						}} />
+						value={numberDrafts.opacity ?? String(draft.opacity)} disabled={blocked}
+						onChange={(event) => updateNumber('opacity', event.currentTarget.value)} />
 				</label>
 				<label>
 					<span>{label(copy, 'blendMode', FRAMESCAPER_VISUAL_INSPECTOR_ADDITIONAL_COPY.blendMode)}</span>
@@ -169,6 +181,8 @@ function GeneratorFields(props: Readonly<{
 		readonly audioSources: readonly FramescaperVisualInspectorAudioSource[];
 		readonly disabled: boolean;
 		readonly copy: Readonly<Record<string, string>>;
+		readonly numberDrafts: VisualInspectorNumberDrafts;
+		readonly onNumber: (field: VisualInspectorNumberField, value: string) => void;
 		readonly onChange: (changes: Readonly<Record<string, unknown>>) => void;
 	}>) {
 		const generator = props.generator;
@@ -195,13 +209,13 @@ function GeneratorFields(props: Readonly<{
 			</label>
 			<label><span>{label(props.copy, 'noiseGrainSize', FRAMESCAPER_VISUAL_INSPECTOR_ADDITIONAL_COPY.noiseGrainSize)}</span>
 				<input data-visual-inspector-noise-grain-size type="number" min="1" max="64" step="1"
-					value={generator.grainSize}
-					onChange={(event) => props.onChange({ grainSize: event.currentTarget.valueAsNumber })} />
+					value={props.numberDrafts.grainSize ?? String(generator.grainSize)}
+					onChange={(event) => props.onNumber('grainSize', event.currentTarget.value)} />
 			</label>
 			<label><span>{label(props.copy, 'noiseSeed', FRAMESCAPER_VISUAL_INSPECTOR_ADDITIONAL_COPY.noiseSeed)}</span>
 				<input data-visual-inspector-noise-seed type="number" min="0" max="4294967295" step="1"
-					value={generator.seed}
-					onChange={(event) => props.onChange({ seed: event.currentTarget.valueAsNumber })} />
+					value={props.numberDrafts.seed ?? String(generator.seed)}
+					onChange={(event) => props.onNumber('seed', event.currentTarget.value)} />
 			</label>
 		</fieldset>;
 		if (generator.kind === 'sound-visualizer') {
@@ -218,8 +232,8 @@ function GeneratorFields(props: Readonly<{
 			</label>
 			<label><span>{label(props.copy, 'visualizerWindow', FRAMESCAPER_VISUAL_INSPECTOR_ADDITIONAL_COPY.visualizerWindow)}</span>
 				<input data-visual-inspector-visualizer-window type="number" min="0.01" max="10" step="0.01"
-					value={generator.windowSeconds}
-					onChange={(event) => props.onChange({ windowSeconds: event.currentTarget.valueAsNumber })} />
+					value={props.numberDrafts.windowSeconds ?? String(generator.windowSeconds)}
+					onChange={(event) => props.onNumber('windowSeconds', event.currentTarget.value)} />
 			</label>
 			<label><span>{label(props.copy, 'visualizerForeground', FRAMESCAPER_VISUAL_INSPECTOR_ADDITIONAL_COPY.visualizerForeground)}</span>
 				<input data-visual-inspector-visualizer-foreground value={generator.foregroundColor}
@@ -260,7 +274,8 @@ function GeneratorFields(props: Readonly<{
 			<label><span>{label(props.copy, 'rgbaColor', FRAMESCAPER_VISUAL_INSPECTOR_ADDITIONAL_COPY.rgbaColor)}</span><input data-visual-inspector-color value={generator.color}
 				pattern="#[0-9a-f]{8}" onChange={(event) => props.onChange({ color: event.currentTarget.value })} /></label>
 			<label><span>{label(props.copy, 'fontSize', FRAMESCAPER_VISUAL_INSPECTOR_ADDITIONAL_COPY.fontSize)}</span><input data-visual-inspector-font-size type="number" min="1" max="4096"
-				value={generator.fontSize} onChange={(event) => props.onChange({ fontSize: event.currentTarget.valueAsNumber })} /></label>
+				value={props.numberDrafts.fontSize ?? String(generator.fontSize)}
+				onChange={(event) => props.onNumber('fontSize', event.currentTarget.value)} /></label>
 		</fieldset>;
 		if (generator.kind === 'solid') return <label><span>{label(props.copy, 'rgbaColor', FRAMESCAPER_VISUAL_INSPECTOR_ADDITIONAL_COPY.rgbaColor)}</span>
 			<input data-visual-inspector-color value={generator.color} pattern="#[0-9a-f]{8}"
@@ -283,6 +298,25 @@ function draftFor(model: ReturnType<typeof createFramescaperVisualInspectorModel
 		maskWidth: model.maskWidth,
 		presetId: null,
 	};
+}
+
+/** Complete native text fields at Apply while preserving their unfinished drafts. */
+function completeGeneratorDraft(generator: VideoGeneratorDocumentV1): VideoGeneratorDocumentV1 {
+	switch (generator.kind) {
+		case 'title':
+		case 'text':
+			return { ...generator, text: generator.text.normalize('NFC'), color: generator.color.toLowerCase() };
+		case 'solid':
+			return { ...generator, color: generator.color.toLowerCase() };
+		case 'shape':
+			return { ...generator, fillColor: generator.fillColor?.toLowerCase() ?? null,
+				strokeColor: generator.strokeColor?.toLowerCase() ?? null };
+		case 'sound-visualizer':
+			return { ...generator, foregroundColor: generator.foregroundColor.toLowerCase(),
+				backgroundColor: generator.backgroundColor.toLowerCase() };
+		default:
+			return generator;
+	}
 }
 
 function label(copy: Readonly<Record<string, string>>, key: string, fallback: string): string {

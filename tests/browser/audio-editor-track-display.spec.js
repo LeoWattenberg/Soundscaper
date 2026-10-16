@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { capturePassingScreenshot } from './helpers/passing-screenshots.js';
 import { createWavFixture, expect, test, toneA } from './audio-editor-test-fixtures.js';
 import {
 	bootEditor, chooseCommandAction, chooseDropdown, clipByName,
@@ -70,7 +71,7 @@ test('frequency views retain neutral clip bodies across skins, themes, and clip 
 				if (theme === 'dark') expect(Math.max(...rgb)).toBeLessThan(80);
 				else expect(Math.min(...rgb)).toBeGreaterThan(200);
 			}
-			await page.screenshot({ path: testInfo.outputPath(`frequency-${skin}-${theme}.png`) });
+			await capturePassingScreenshot(page, { path: testInfo.outputPath(`frequency-${skin}-${theme}.png`) });
 		}
 	}
 	expect(errors).toEqual([]);
@@ -182,18 +183,24 @@ test('Track display owns all six default views and persists the choice', async (
 });
 
 test('Waveform preferences share RMS with View and persist ruler and half-wave defaults', async ({ page }) => {
+	test.setTimeout(120_000);
 	await page.setViewportSize({ width: 1440, height: 1000 });
 	let editor = await bootEditor(page, '/embed/en/');
 	await importFiles(editor, [toneA]);
 	const clip = clipByName(editor, toneA.name);
 	const track = clip.locator('xpath=ancestor::div[@data-track-row]');
 	const waveform = clip.locator('canvas.clip-body__waveform');
+	await expect(waveform).toHaveAttribute('data-waveform-renderer', 'audacity');
+	await expect(waveform).not.toHaveAttribute('data-waveform-pending');
+	const beforeRulerZoom = await waveform.evaluate(waveformChecksum);
 	await track.locator('[data-track-ruler]').click({ button: 'right', position: { x: 20, y: 70 } });
 	const rulerMenu = page.locator('.audio-editor-ruler-flyout');
 	await rulerMenu.getByRole('button', { name: 'Zoom in', exact: true }).click();
 	await expect(track.locator('[data-track-ruler]')).toHaveAttribute('data-ruler-zoom', '1');
 	await page.keyboard.press('Escape');
 	await expect(rulerMenu).toBeHidden();
+	// The ruler updates before its animation-frame canvas redraw.
+	await expect.poll(() => waveform.evaluate(waveformChecksum)).not.toBe(beforeRulerZoom);
 	const withoutRms = await waveform.evaluate(waveformChecksum);
 	let preferences = await openTrackDisplayPreferences(page, editor);
 	await expect(preferences.getByRole('heading', { name: '3-band waveform', exact: true })).toBeVisible();

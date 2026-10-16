@@ -24,6 +24,7 @@ import type { VideoKeyframeOfflineRgbaRenderer } from './video-keyframe-offline-
  * runs cannot describe different things.
  */
 export interface VideoKeyframeOfflineWebCodecsDecision {
+	readonly hardwareAcceleration?: 'prefer-hardware';
 	readonly codec: string;
 	readonly bitrate: number;
 	readonly rgbaColorSpace?: VideoWebCodecsRgbaColorSpace;
@@ -128,6 +129,7 @@ function webCodecsEncode(decision: VideoKeyframeOfflineWebCodecsDecision) {
 		codec: decision.codec,
 		bitrate: decision.bitrate,
 		...(rgbaColorSpace === undefined ? {} : { rgbaColorSpace }),
+		...(decision.hardwareAcceleration ? { hardwareAcceleration: decision.hardwareAcceleration } : {}),
 		encoderClass,
 		videoFrameClass,
 	});

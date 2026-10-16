@@ -79,6 +79,7 @@ export function StereoChannelDivider({
 		stopPointerEvent(event);
 	};
 	const resizeFromKeyboard = (event: KeyboardEvent<HTMLDivElement>) => {
+		if (event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey) return;
 		let nextRatio: number;
 		switch (event.key) {
 		case 'ArrowUp': nextRatio = ratio - 0.05; break;
@@ -123,6 +124,7 @@ export function StereoChannelDivider({
 					transform: 'translateY(-2px)',
 					cursor: 'ns-resize',
 					pointerEvents: 'auto',
+					touchAction: 'none',
 					background: 'transparent',
 				}}
 				onPointerDown={(event) => {
@@ -134,6 +136,9 @@ export function StereoChannelDivider({
 				}}
 				onPointerMove={(event) => {
 					if (pointerIdRef.current !== event.pointerId) return;
+					if (event.pointerType === 'mouse' && event.button === 0 && (event.buttons & 1) === 0) {
+						finishPointer(event); return;
+					}
 					previewPointer(event);
 					stopPointerEvent(event);
 				}}

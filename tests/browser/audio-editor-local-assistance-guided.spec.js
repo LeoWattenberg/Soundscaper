@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { installDesktopSpeedWarmupManifest } from './helpers/desktop-speed-warmup-fixture.js';
 import { openAssistanceTask } from './helpers/assistance-task-menu.js';
 import { expect, test } from './audio-editor-test-fixtures.js';
 import {
@@ -300,6 +301,7 @@ async function storedShotAnnotations(page, projectId) {
 }
 
 async function installLocalAssistanceFixture(page) {
+	await installDesktopSpeedWarmupManifest(page);
 	await page.addInitScript((cutFixture) => {
 		const state = {
 			installed: false,

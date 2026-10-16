@@ -13,6 +13,12 @@ import { scaleSampleFrame } from '../../../timeline-time.ts';
 import { loadSourceProvenanceDerivation } from '../../../source-provenance-derivation-loader.ts';
 import { resampledClipCommands } from './clip-resample-service.ts';
 import { trackReplacementPlacement } from './track-replacement-placement.ts';
+import { stereoTrackRenderRange } from './stereo-track-render-range.ts';
+import { splitStereoSourceChannels } from './split-stereo-source-channels.ts';
+import { assertStereoSplitRoutingRepresentable } from './stereo-split-routing-admission.ts';
+import { admChannelTransformCommands } from './adm-channel-transforms.ts';
+import { resampledClipSelectionCommands } from './resampled-clip-selection.ts';
+import { isStandaloneMonoAudioTrack } from '../../../mono-track-pair-admission.ts';
 import { copyDerivedTrackStripAutomation } from '../../../derived-track-strip-automation.ts';
 import { copyDerivedTrackEffectAutomation } from '../../../derived-track-effect-automation.ts';
 import type { DerivedSourceService } from './derived-audio/derived-source-service.ts';
@@ -157,6 +163,7 @@ export function createTrackTransformService(
 				const commands: AudioEditorCommand[] = derived.map(({ source }) => createAddSourceCommand(source));
 				for (const clip of clips) addResampledClipCommands(commands, track, clip, replacements, sampleRate);
 				assertOwned(ownership);
+				commands.push(...resampledClipSelectionCommands(dependencies.getProject().selection, clips.map(clip => clip.id)));
 				dependencies.commit({ type: 'batch', commands }, { selectTrackId: track.id });
 				setLocalizedStatus(dependencies.setStatus, dependencies.copy, "done", undefined, 'success');
 				return track.id;
@@ -223,6 +230,7 @@ export function createTrackTransformService(
 		if (dependencies.editingBlocked()) return null;
 		const project = dependencies.getProject();
 		const track = requireStereoTrack(project, trackId);
+		assertStereoSplitRoutingRepresentable(project, track.id, dependencies.copy);
 		const trackIndex = project.tracks.findIndex((candidate) => candidate.id === track.id);
 		const clips = trackClips(project, track);
 		const sources = dependencies.derivedSources.uniqueClipSources(clips);
@@ -237,13 +245,14 @@ export function createTrackTransformService(
 				for (const source of sources) {
 					const channels = await dependencies.derivedSources.sourceChannelsForEdit(source);
 					assertOwned(ownership);
+					const [leftChannel, rightChannel] = splitStereoSourceChannels(channels);
 					const left = await dependencies.derivedSources.persistDerivedSource(
-						source, [channels[0]!], `${source.name} — ${publishedCopyFor(dependencies.copy).leftChannel}`, 'left-source',
+						source, [leftChannel], `${source.name} — ${publishedCopyFor(dependencies.copy).leftChannel}`, 'left-source',
 					);
 					derived.push(left);
 					assertOwned(ownership);
 					const right = await dependencies.derivedSources.persistDerivedSource(
-						source, [channels[1] || channels[0]!], `${source.name} — ${publishedCopyFor(dependencies.copy).rightChannel}`, 'right-source',
+						source, [rightChannel], `${source.name} — ${publishedCopyFor(dependencies.copy).rightChannel}`, 'right-source',
 					);
 					derived.push(right);
 					assertOwned(ownership);
@@ -289,6 +298,9 @@ export function createTrackTransformService(
 					...copyDerivedTrackEffectAutomation(project, track.id, rightTrackId, rightEffectIds, dependencies.createId),
 				];
 				for (const clip of clips) addSplitClipCommands(commands, track, rightTrackId, clip, sourcePairs);
+				commands.push(...admChannelTransformCommands(project, [{
+					trackId: track.id, sourceChannel: 1, targetTrackId: rightTrackId, targetChannel: 0,
+				}]));
 				assertOwned(ownership);
 				const command = preserveProductionTrackRouting(project, { type: 'batch', commands }, [
 					{ sourceTrackId: track.id, targetTrackId: track.id },
@@ -312,7 +324,7 @@ export function createTrackTransformService(
 		if (dependencies.editingBlocked()) return null;
 		const project = dependencies.getProject();
 		const track = requireMonoTrack(project, trackId);
-		if (track.laneGroupId != null) throw createLocalizedError(Error, dependencies.copy, dependencies.copy.compatibleMonoTrackRequired ? 'compatibleMonoTrackRequired' : dependencies.copy.monoTrackRequired ? 'monoTrackRequired' : 'audioTrackRequired');
+		if (!isStandaloneMonoAudioTrack(track, dependencies.audioTrackChannelCount(project, track))) throw createLocalizedError(Error, dependencies.copy, dependencies.copy.compatibleMonoTrackRequired ? 'compatibleMonoTrackRequired' : dependencies.copy.monoTrackRequired ? 'monoTrackRequired' : 'audioTrackRequired');
 		const trackIndex = project.tracks.findIndex((candidate) => candidate.id === track.id);
 		const partner = findMonoPartner(project, track, trackIndex, partnerTrackId);
 		if (!partner) throw createLocalizedError(Error, dependencies.copy, dependencies.copy.compatibleMonoTrackRequired ? 'compatibleMonoTrackRequired' : dependencies.copy.monoTrackRequired ? 'monoTrackRequired' : 'audioTrackRequired');
@@ -320,8 +332,8 @@ export function createTrackTransformService(
 		const clips = [...(track.clipIds ?? []), ...(partner.clipIds ?? [])]
 			.map((clipId) => findControllerClip(project, clipId))
 			.filter((clip): clip is ControllerClip => Boolean(clip));
-		const startFrame = clips.length ? Math.min(...clips.map((clip) => clip.timelineStartFrame)) : 0;
-		const endFrame = clips.length ? Math.max(...clips.map((clip) => clip.timelineStartFrame + clip.durationFrames)) : 0;
+		const { startFrame, endFrame } = stereoTrackRenderRange([track, partner], clips, dependencies.projectSampleRate(),
+			Array.isArray(project.automationLanes) ? project.automationLanes : []);
 		if (endFrame <= startFrame) return dependencies.commit({ type: 'batch', commands: [
 			{ type: 'track/update', trackId: track.id, changes: { pan: 0 } },
 			{ type: 'track/remove', trackId: partner.id },
@@ -382,6 +394,9 @@ export function createTrackTransformService(
 						sourceDurationFrames: frameCount,
 						durationFrames: frameCount,
 					}),
+					...admChannelTransformCommands(project, [{
+						trackId: partner.id, sourceChannel: 0, targetTrackId: track.id, targetChannel: 1,
+					}]),
 				];
 				const command = preserveProductionTrackRouting(project, { type: 'batch', commands }, [
 					{ sourceTrackId: track.id, targetTrackId: track.id },
@@ -461,11 +476,14 @@ export function createTrackTransformService(
 		replacements: ReadonlyMap<string, DerivedSourceRecord>,
 		sampleRate: number,
 	): void {
-		const originalSource = findControllerSource(dependencies.getProject(), clip.sourceId);
+		const project = dependencies.getProject();
+		const originalSource = findControllerSource(project, clip.sourceId);
 		const replacement = replacements.get(clip.sourceId);
 		if (!originalSource || !replacement) return;
+		const linkedVideo = clip.avLinkId ? project.clips.find(candidate =>
+			candidate.kind === 'video' && candidate.avLinkId === clip.avLinkId) ?? null : null;
 		commands.push(...resampledClipCommands(
-			track.id, clip, originalSource, replacement.source, sampleRate,
+			track.id, clip, originalSource, replacement.source, sampleRate, linkedVideo,
 		));
 	}
 
@@ -512,9 +530,7 @@ export function createTrackTransformService(
 	): candidate is ControllerTrack {
 		return candidate !== null
 			&& candidate.id !== track.id
-			&& candidate.type === 'audio'
-			&& candidate.laneGroupId == null
-			&& dependencies.audioTrackChannelCount(project, candidate) === 1;
+			&& isStandaloneMonoAudioTrack(candidate, dependencies.audioTrackChannelCount(project, candidate));
 	}
 }
 

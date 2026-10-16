@@ -11,6 +11,7 @@ import {
 	desktopExportWavPackCompressionLevels,
 } from './desktop-export-codec-model.ts';
 import { getMediaExportFormat } from '../media-export.js';
+import { browserDedicatedAudioEncodeBitRates } from '../browser-dedicated-audio-profiles.ts';
 
 interface DialogOption {
 	readonly value: string;
@@ -41,9 +42,9 @@ const MP3_VARIABLE_RANGES = Object.freeze([
 ]);
 
 const BROWSER_BIT_RATES: Readonly<Record<string, readonly number[]>> = Object.freeze({
-	mp3: Object.freeze([32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320]),
-	opus: Object.freeze([64, 96, 128, 160, 192, 256]),
-	mp2: Object.freeze([128, 160, 192, 224, 256, 320, 384]),
+	mp3: browserDedicatedAudioEncodeBitRates('mp3'),
+	opus: browserDedicatedAudioEncodeBitRates('opus'),
+	mp2: browserDedicatedAudioEncodeBitRates('mp2'),
 	'aac-m4a': Object.freeze([96, 128, 160, 192, 256, 320]),
 });
 const BROWSER_DEDICATED_FORMATS = new Set([
@@ -51,7 +52,6 @@ const BROWSER_DEDICATED_FORMATS = new Set([
 ]);
 const BROWSER_CODEC_FORMATS = new Set([...BROWSER_DEDICATED_FORMATS, 'aac-m4a']);
 const BROWSER_STEREO_FORMATS = new Set(['mp3', 'ogg-vorbis', 'opus', 'mp2']);
-const EMPTY_METADATA: Readonly<Record<string, unknown>> = Object.freeze({});
 const COMMON_SAMPLE_RATES = Object.freeze([
 	8_000, 16_000, 22_050, 32_000, 44_100, 48_000, 88_200, 96_000, 192_000, 384_000,
 ]);
@@ -79,8 +79,8 @@ export function exportDialogBitRateOptions(
 	let rates = desktop
 		? desktopExportBitRates(format, sampleRate, channelCount)
 		: BROWSER_BIT_RATES[String(format)] ?? [];
-	if (!desktop && String(format) === 'mp2' && Number(channelCount) === 1) {
-		rates = rates.filter((rate) => rate <= 192);
+	if (!desktop && String(format) === 'mp2') {
+		rates = browserDedicatedAudioEncodeBitRates('mp2', channelCount);
 	}
 	if (String(format) === 'mp3') {
 		const minimum = mp3MinimumBitrate(sampleRate, channelCount);
@@ -203,7 +203,7 @@ export function exportDialogSampleRateSuggestions(
 export function exportDialogSampleFormats(format: unknown, desktop: boolean): readonly string[] {
 	if (desktop && String(format) === 'flac') return desktopExportFlacSampleFormats();
 	if (!desktop && String(format) === 'flac') return Object.freeze(['int24']);
-	if (!desktop && String(format) === 'wavpack') return Object.freeze(['float32']);
+	if (String(format) === 'wavpack') return Object.freeze(['float32']);
 	const descriptor = getMediaExportFormat(String(format)) as Readonly<{ sampleFormats?: readonly string[] }>;
 	return Object.freeze([...(descriptor.sampleFormats ?? [])]);
 }
@@ -273,8 +273,13 @@ export function normalizeExportDialogAudioSettings(
 	if (['clips', 'chapters', 'stems'].includes(String(settings.mode)) && (settings.binaural === true || settings.loudnessNormalization)) {
 		settings = Object.freeze({ ...settings, binaural: false, loudnessNormalization: '' });
 	}
-	if (desktop) return settings;
 	const format = String(settings.format ?? '');
+	// Both current WavPack providers deliver float32. Retire old integer preset
+	// choices before they can quantize or dither the PCM for a float container.
+	if (format === 'wavpack' && (settings.sampleFormat !== 'float32' || settings.dither !== 'none')) {
+		settings = Object.freeze({ ...settings, sampleFormat: 'float32', dither: 'none' });
+	}
+	if (desktop) return settings;
 	if (!BROWSER_CODEC_FORMATS.has(format)) return settings;
 	const patch: Record<string, unknown> = {};
 	setChanged(patch, settings, 'sampleRate', constrainExportDialogSampleRate(settings.sampleRate, format, false));
@@ -333,9 +338,9 @@ export function normalizeExportDialogAudioSettings(
 	return Object.keys(patch).length > 0 ? Object.freeze({ ...settings, ...patch }) : settings;
 }
 
-/** Dedicated browser payloads currently do not write tags; AAC may retain them. */
+/** All offered audio containers have a metadata writer. */
 export function exportDialogMetadataAvailable(format: unknown, desktop: boolean): boolean {
-	return desktop || !BROWSER_DEDICATED_FORMATS.has(String(format));
+	return desktop || String(format) !== 'custom-ffmpeg';
 }
 
 export function exportDialogMetadata(
@@ -343,7 +348,7 @@ export function exportDialogMetadata(
 	desktop: boolean,
 	metadata: Readonly<Record<string, unknown>>,
 ): Readonly<Record<string, unknown>> {
-	return exportDialogMetadataAvailable(format, desktop) ? metadata : EMPTY_METADATA;
+	return exportDialogMetadataAvailable(format, desktop) ? metadata : Object.freeze({});
 }
 
 function exactSampleRates(format: unknown, desktop: boolean): readonly number[] {

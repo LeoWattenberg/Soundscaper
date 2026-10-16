@@ -2,6 +2,7 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { createMenuActionFixture } from './helpers/application-menu-fixture.ts';
 
 import {
 	resolveEditingActionAvailability,
@@ -339,13 +340,7 @@ function selectionApplicationMenus(
 	value: ReturnType<typeof project>,
 	executeEdit: (action: string) => void,
 ): readonly SelectionMenuItem[] {
-	const actions = new Proxy({ executeEdit }, {
-		get(target, property, receiver) {
-			return Reflect.has(target, property)
-				? Reflect.get(target, property, receiver)
-				: () => undefined;
-		},
-	});
+	const actions = createMenuActionFixture({ executeEdit });
 	const copy = new Proxy({}, { get: (_target, property) => String(property) });
 	return createApplicationMenus({
 		productId: 'soundscaper',

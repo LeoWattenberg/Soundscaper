@@ -1,11 +1,20 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 #include "professional_host_api.h"
+#include "ara_clip_data.h"
 
 #include <algorithm>
 #include <cstring>
 
-struct soundscaper_pro_plugin_instance { int selected; const char *window; double parameter; };
+struct soundscaper_pro_plugin_instance {
+	int selected;
+	const char *window;
+	double parameter;
+	soundscaper::AraClipData source;
+	bool bound = false;
+	soundscaper_pro_plugin_instance(int choice, const char *handle, double value)
+		: selected(choice), window(handle), parameter(value) {}
+};
 struct soundscaper_pro_audio_session {};
 
 static void text(char *output, size_t length, const char *value) {
@@ -91,6 +100,35 @@ extern "C" soundscaper_pro_status soundscaper_pro_plugin_open_vendor_window(
 }
 extern "C" void soundscaper_pro_plugin_close_vendor_window(soundscaper_pro_plugin_instance *instance) {
 	if (instance != nullptr) instance->window = nullptr;
+}
+extern "C" uint32_t soundscaper_pro_plugin_ara_supported(soundscaper_pro_plugin_instance *instance) { return instance == nullptr ? 0u : 1u; }
+extern "C" soundscaper_pro_status soundscaper_pro_plugin_ara_configure(
+	soundscaper_pro_plugin_instance *instance, const soundscaper_pro_ara_clip *clip) {
+	return instance == nullptr || clip == nullptr ? SOUNDSCAPER_PRO_PLUGIN_MALFORMED : instance->source.configure(*clip);
+}
+extern "C" soundscaper_pro_status soundscaper_pro_plugin_ara_write(
+	soundscaper_pro_plugin_instance *instance, uint32_t start, const float *const *planes, uint32_t channels, uint32_t frames) {
+	return instance == nullptr || instance->bound ? SOUNDSCAPER_PRO_MODE_REFUSED : instance->source.write(start, planes, channels, frames);
+}
+extern "C" soundscaper_pro_status soundscaper_pro_plugin_ara_bind(soundscaper_pro_plugin_instance *instance) {
+	if (instance == nullptr || instance->bound || !instance->source.ready()) return SOUNDSCAPER_PRO_MODE_REFUSED;
+	instance->bound = true; return SOUNDSCAPER_PRO_OK;
+}
+extern "C" soundscaper_pro_status soundscaper_pro_plugin_ara_render(
+	soundscaper_pro_plugin_instance *instance, uint32_t start, float **planes, uint32_t channels, uint32_t frames) {
+	if (instance == nullptr || !instance->bound || channels != instance->source.channelCount) return SOUNDSCAPER_PRO_FORMAT_REFUSED;
+	if (!instance->source.read(start, frames, reinterpret_cast<void *const *>(planes), false)) return SOUNDSCAPER_PRO_FORMAT_REFUSED;
+	for (uint32_t channel = 0u; channel < channels; ++channel)
+		for (uint32_t frame = 0u; frame < frames; ++frame) planes[channel][frame] *= 2.0F;
+	return SOUNDSCAPER_PRO_OK;
+}
+extern "C" soundscaper_pro_status soundscaper_pro_plugin_ara_save(
+	soundscaper_pro_plugin_instance *instance, uint8_t *bytes, size_t capacity, size_t *written) {
+	return soundscaper_pro_plugin_save_state(instance, bytes, capacity, written);
+}
+extern "C" soundscaper_pro_status soundscaper_pro_plugin_ara_load(
+	soundscaper_pro_plugin_instance *instance, const uint8_t *bytes, size_t length) {
+	return soundscaper_pro_plugin_load_state(instance, bytes, length);
 }
 extern "C" void soundscaper_pro_plugin_close(soundscaper_pro_plugin_instance *instance) { delete instance; }
 namespace soundscaper { void shutdownJuceMessageDispatcher() {} }

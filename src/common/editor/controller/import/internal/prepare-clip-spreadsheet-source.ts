@@ -4,6 +4,7 @@ import type { ClipSpreadsheetInsertSource } from '../../../clip-spreadsheet-inse
 import type { AudioEditorCommand, CommandObject } from '../../../commands/protocol.ts';
 import { createProjectImportService } from './project-import-service.ts';
 import type { ProjectImportRuntime } from './project-import-runtime.ts';
+import { resolveMediaImportVideoRoute } from './media-import-video-route.ts';
 
 export interface ClipSpreadsheetSourcePreparationOptions {
 	readonly signal: AbortSignal;
@@ -19,7 +20,7 @@ export function createClipSpreadsheetSourcePreparer(
 ) {
 	return async (file: File, options: ClipSpreadsheetSourcePreparationOptions): Promise<ClipSpreadsheetInsertSource> => {
 		options.signal.throwIfAborted();
-		if (runtime.isLegacyAupFile(file) || runtime.isAudioEditorVideoFile(file)) {
+		if (runtime.isLegacyAupFile(file)) {
 			throw new RangeError('Spreadsheet rows can import only audio files.');
 		}
 		const project = runtime.getProject();
@@ -29,6 +30,9 @@ export function createClipSpreadsheetSourcePreparer(
 			options.signal.throwIfAborted();
 			if (runtime.getProject() !== project) throw new Error('The project changed during audio source preparation.');
 		};
+		if (await resolveMediaImportVideoRoute(file, runtime.isAudioEditorVideoFile(file), options.signal, assertCurrent)) {
+			throw new RangeError('Spreadsheet rows can import only audio files.');
+		}
 		const rejectDocumentMutation = (): never => {
 			throw new Error('Document changes are unavailable during audio source preparation.');
 		};

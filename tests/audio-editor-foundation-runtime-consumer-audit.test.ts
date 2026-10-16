@@ -300,7 +300,7 @@ test('clip selection navigation owns its projected timing boundary', () => {
 		surface: 'navigation',
 		file: 'src/common/editor/controller/track-audio/internal/clip-selection-navigation-service.ts',
 		entryPoint: 'projectedAudioClips',
-		inputIdentifier: 'project',
+		inputIdentifier: 'navigationProject',
 		projectedIdentifier: 'projection',
 		boundary: 'resolveRuntimeProjectProjection',
 		evidence: 'Clip-boundary and adjacent-clip navigation collect audio candidates only after resolving musical and sequence-backed clip timing at the owned service boundary.',

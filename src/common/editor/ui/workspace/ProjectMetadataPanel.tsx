@@ -9,6 +9,8 @@ import { createBextMetadataEditorValue } from '../bext-metadata-editor-model.ts'
 import { lazyEditorModule } from '../../../offline/lazy-module.tsx';
 import { freesoundAttributionCopy } from '../../../i18n/freesound-attribution-copy.js';
 import { MetadataEditorField } from './LabelManagerRows.jsx';
+import Id3MetadataFields from '../Id3MetadataFields.tsx';
+import { id3ProjectFieldValue, isId3ProjectTag, updateId3ProjectField } from '../../id3-descriptive-fields.ts';
 
 const ProjectAttributionTab = lazyEditorModule(() => import('./ProjectAttributionTab.tsx'));
 
@@ -59,6 +61,7 @@ export function ProjectMetadataPanel({
 			<MetadataEditorTabs
 				activeTab={activeTab}
 				showBext
+				showId3
 				showSequence={Boolean(sequenceEditor)}
 				showAdm
 				showAttribution
@@ -73,7 +76,7 @@ export function ProjectMetadataPanel({
 					: activeTab === 'adm'
 						? copy.metadataAdmTab
 						: activeTab === 'attribution' ? attributionTabLabel
-							: activeTab === 'sequence' ? copy.sequenceTiming : copy.metadataGeneralTab}
+							: activeTab === 'sequence' ? copy.sequenceTiming : activeTab === 'id3' ? 'ID3' : copy.metadataGeneralTab}
 				data-metadata-tab={activeTab}
 			>
 				{activeTab === 'general' ? (
@@ -83,13 +86,13 @@ export function ProjectMetadataPanel({
 								key={key}
 								name={key}
 								label={label}
-								value={String(metadata[key] || '')}
+								value={id3ProjectFieldValue(metadata, key)}
 								multiline={key === 'comments'}
 								disabled={disabled}
-								onCommit={(value: string) => onUpdate({ [key]: value })}
+								onCommit={(value: string) => onUpdate(updateId3ProjectField(metadata, key, value))}
 							/>
 						))}
-						{Object.entries(tags).map(([key, value]) => (
+						{Object.entries(tags).filter(([key]) => !isId3ProjectTag(key)).map(([key, value]) => (
 							<MetadataEditorField
 								key={key}
 								name={`tag-${key}`}
@@ -102,6 +105,9 @@ export function ProjectMetadataPanel({
 							/>
 						))}
 					</div>
+				) : activeTab === 'id3' ? (
+					<Id3MetadataFields key={String(project?.id ?? '')} metadata={metadata} copy={copy} locale={locale}
+						disabled={disabled} onUpdate={onUpdate} />
 				) : activeTab === 'sequence' ? (
 					sequenceEditor
 				) : activeTab === 'bext' ? (

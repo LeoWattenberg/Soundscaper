@@ -55,6 +55,7 @@ const typedProjectEffectTailFrames = projectEffectTailFrames as (
 	options?: Readonly<{
 		trackId?: unknown;
 		includeMaster?: boolean;
+		respectMuteSolo?: boolean;
 		maximumSeconds?: number;
 	}>,
 ) => number;
@@ -204,7 +205,7 @@ export async function renderExactAudioWarpToSink(
 	// Gain, pan, mute, envelopes, and clip fades are absolute-time schedules,
 	// so replaying earlier PCM would add cost without restoring state.
 	const preRollFrames = 0;
-	const tailFrames = exactTailFrames(engine, options.includeTail, options.trackId, options.includeMaster);
+	const tailFrames = exactTailFrames(engine, options.includeTail, options.trackId, options.includeMaster, options.respectMuteSolo);
 	const graphLatencyFrames = exactGraphLatencyFrames(
 		engine,
 		options.trackId,
@@ -331,6 +332,7 @@ function exactTailFrames(
 	includeTail: unknown,
 	trackId: unknown,
 	includeMaster: unknown,
+	respectMuteSolo: unknown,
 ): number {
 	if (!engine.project || !includeTail) return 0;
 	if (typeof includeTail === 'number' && Number.isFinite(includeTail)) {
@@ -339,6 +341,7 @@ function exactTailFrames(
 	return typedProjectEffectTailFrames(engine.project, {
 		trackId: trackId == null ? null : String(trackId),
 		includeMaster: includeMaster !== false,
+		respectMuteSolo: respectMuteSolo !== false,
 		maximumSeconds: MAX_EFFECT_TAIL_SECONDS,
 	});
 }

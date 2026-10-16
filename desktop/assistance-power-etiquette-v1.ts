@@ -167,7 +167,7 @@ export async function awaitAssistancePowerAdmission(
 
 /**
  * Drops one assistance helper process to background scheduling priority so its
- * CPU-only inference yields to the editor. Failure is never fatal: an operating
+ * CPU work yields to the editor. Failure is never fatal: an operating
  * system that refuses the change simply keeps the inherited priority.
  */
 export function applyAssistanceBackgroundPriority(

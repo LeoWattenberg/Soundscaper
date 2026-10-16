@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import { readDesktopPreloadSource } from './helpers/desktop-preload-source.mjs';
 import test from 'node:test';
 import vm from 'node:vm';
 
@@ -91,13 +91,13 @@ test('sandbox preload exposes only the versioned narrow bridge', async () => {
 	const ipcRenderer = {
 		invoke: (channel, value) => {
 			calls.push({ method: 'invoke', channel, value });
-			return Promise.resolve(null);
+			return Promise.resolve(channel === 'soundscaper:v1:save:release-target' ? true : null);
 		},
 		send: (channel, value) => calls.push({ method: 'send', channel, value }),
 		on: () => {},
 		removeListener: () => {},
 	};
-	const source = await readFile(new URL('../desktop/preload.mjs', import.meta.url), 'utf8');
+	const source = await readDesktopPreloadSource();
 	vm.runInNewContext(source, {
 		ArrayBuffer,
 		Object,
@@ -121,21 +121,21 @@ test('sandbox preload exposes only the versioned narrow bridge', async () => {
 	const bridge = exposed.get('scapeDesktop');
 	const baseFields = [
 		'captureExternalMedia', 'resolveExternalMedia', 'prepareOriginalOverwrite', 'releaseOriginalFile',
-		'abortWrite', 'applyNativeTierControl', 'awaitVideoSourceProbe', 'beginDesktopVideoCodecOperation', 'beginVideoSourceProbe', 'beginWrite', 'bindNativeAudioSession', 'calibrateNativeAudioSession',
+		'abortWrite', 'applyNativeTierControl', 'ara', 'awaitVideoSourceProbe', 'beginDesktopVideoCodecOperation', 'beginVideoSourceProbe', 'beginWrite', 'bindNativeAudioSession', 'calibrateNativeAudioSession',
 			'cancelAssistanceModelInstall', 'cancelDesktopAudioCodecOperation', 'cancelDesktopVideoCodecOperation', 'cancelNativeVampAnalyzer', 'cancelVideoSourceProbe',
 		'checkForUpdates', 'chooseExternalFfmpeg', 'chooseFiles', 'chooseLinkedAudioOriginal', 'chooseLinkedVideoOriginal', 'chooseSaveTarget', 'chooseSesxMediaFolder', 'clearExternalFfmpeg', 'clearNativePluginQuarantine', 'closeDesktopVideoCodecInput', 'closeNativeAudioSession', 'closeNativePluginInstance', 'closeNativePluginVendorUi',
 			'configureNativeVampAnalyzer', 'deleteDesktopVideoCodecOperation', 'describeNativeAudioBackend', 'editText', 'executeDesktopVideoCodecOperation', 'finishNativeVampAnalyzer', 'finishWrite',
-		'getDesktopAudioCodecCapabilities', 'getDesktopVideoExportCapabilities', 'getEnvironment', 'getExternalFfmpegStatus', 'installAssistanceModel', 'installExternalFfmpeg', 'installPreseededAssistanceModel', 'instantiateNativePlugin', 'listAssistanceModelNotices', 'listAssistanceModels', 'listNativePlugins', 'listNativeVampAnalyzers', 'loadLinkedAudioOriginal', 'loadLinkedVideoOriginal', 'localAssistance', 'nativeAudioHelperAvailability', 'nativeAudioSessionStatus', 'nativePluginAvailability', 'nativeServices', 'onAssistanceInstallProgress', 'onCloseRequested',
+		'getDesktopAudioCodecCapabilities', 'getDesktopVideoExportCapabilities', 'getEnvironment', 'getExternalFfmpegStatus', 'installAssistanceModel', 'installExternalFfmpeg', 'installPreseededAssistanceModel', 'instantiateNativePlugin', 'listAssistanceModelNotices', 'listAssistanceModels', 'listNativePlugins', 'listNativeVampAnalyzers', 'loadLinkedAudioOriginal', 'loadLinkedVideoOriginal', 'localAssistance', 'nativeAudioHelperAvailability', 'nativeAudioSessionStatus', 'nativePluginAvailability', 'nativePluginScanProgress', 'nativeServices', 'onAssistanceInstallProgress', 'onCloseRequested',
 		'onMenuCommand', 'onOpenProject', 'onWindowStateChanged', 'openExternal', 'openNativeAudioSession', 'openNativePluginVendorUi', 'patchFinalPrefix', 'persistNativePluginState', 'probeHelperAvailability', 'pushNativeVampAnalyzerPcm', 'readDesktopVideoCodecOutput', 'readNativeTierControls',
-		'reconcileAssistanceModels', 'reconcileLinkedOriginals', 'reconcileLinkedVideoOriginals', 'releaseLinkedOriginal', 'releaseLinkedVideoOriginal', 'releaseRead', 'releaseSesxSession', 'relocateAssistanceModels', 'removeAssistanceModel', 'reportNativeAudioSessionLoss', 'reportNativeAudioSessionTransfer', 'rescanExternalFfmpeg', 'resolveSesxMedia', 'respondToClose', 'restoreNativePluginState', 'runNativePluginOffline', 'scanNativePlugins', 'selectNativePluginInstallation',
+		'reconcileAssistanceModels', 'reconcileLinkedOriginals', 'reconcileLinkedVideoOriginals', 'releaseLinkedOriginal', 'releaseLinkedVideoOriginal', 'releaseRead', 'releaseSaveTarget', 'releaseSesxSession', 'relocateAssistanceModels', 'removeAssistanceModel', 'reportNativeAudioSessionLoss', 'reportNativeAudioSessionTransfer', 'rescanExternalFfmpeg', 'resolveSesxMedia', 'respondToClose', 'restoreNativePluginState', 'runNativePluginOffline', 'scanNativePlugins', 'selectNativePluginInstallation',
 		'collectAssistanceModelGarbage', 'runDesktopAudioCodecOperation', 'runDesktopAudioCodecStreamCommand', 'runWindowAction', 'setLocale', 'setNativeAudioHelperEnabled', 'setNativePluginBypassed', 'setNativePluginConsent', 'setNativePluginInstallationAllowed', 'signalReady', 'startNativeVampAnalyzer', 'statDesktopVideoCodecOutput', 'writeChunk', 'writeDesktopVideoCodecInput',
 		].sort();
 	const mcpFields = ['readMcpStatus', 'startMcp', 'stopMcp', 'onMcpRequest', 'respondMcpRequest'];
-	const freesoundFields = ['openFreesoundAuthorization'];
-	assert.deepEqual(Object.keys(bridge.v1).sort(), [...baseFields, 'persistentDelivery', ...mcpFields, ...freesoundFields].sort());
+	const freesoundFields = ['openFreesoundAuthorization', 'openAudiocomAuthorization', 'openAudiocomLink'];
+	assert.deepEqual(Object.keys(bridge.v1).sort(), [...baseFields, 'blender', 'persistentDelivery', ...mcpFields, ...freesoundFields].sort());
 	const framescaperBridge = exposed.get('framescaperDesktop');
 	assert.deepEqual(Object.keys(framescaperBridge.v1).sort(), [...baseFields, 'projectLibrary'].sort());
-	for (const name of [...mcpFields, ...freesoundFields]) assert.equal(Object.hasOwn(framescaperBridge.v1, name), false);
+	for (const name of ['blender', ...mcpFields, ...freesoundFields]) assert.equal(Object.hasOwn(framescaperBridge.v1, name), false);
 	assert.equal(Object.hasOwn(framescaperBridge.v1, 'persistentDelivery'), false);
 	assert.equal(Object.hasOwn(framescaperBridge.v1, 'v12'), false);
 	assert.equal(Object.isFrozen(framescaperBridge.v1.projectLibrary), true);
@@ -167,4 +167,16 @@ test('sandbox preload exposes only the versioned narrow bridge', async () => {
 	await bridge.v1.openFreesoundAuthorization(authorizeUrl);
 	assert.deepEqual(calls[6], { method: 'invoke', channel: 'soundscaper:v1:freesound:authorize', value: authorizeUrl });
 	assert.throws(() => bridge.v1.openFreesoundAuthorization('https://evil.example/'), /authorization URL/u);
+	assert.equal(await bridge.v1.releaseSaveTarget('b'.repeat(48)), true);
+	assert.deepEqual(calls[7], { method: 'invoke', channel: 'soundscaper:v1:save:release-target', value: 'b'.repeat(48) });
+	assert.throws(() => bridge.v1.releaseSaveTarget('invalid'), /Invalid opaque identifier/u);
+	assert.equal(calls.length, 8, 'invalid targets remain inside the preload');
+	const audiocomAuthorizeUrl = 'https://api.audio.com/auth/authorize?client_id=x&response_type=code&state=y&scope=public&code_challenge=' + 'a'.repeat(43) + '&code_challenge_method=S256&redirect_uri=https%3A%2F%2Fsoundscaper.org%2Fapi%2Faudiocom%2Foauth%2Fcallback';
+	await bridge.v1.openAudiocomAuthorization(audiocomAuthorizeUrl);
+	assert.deepEqual(calls[8], { method: 'invoke', channel: 'soundscaper:v1:audiocom:authorize', value: audiocomAuthorizeUrl });
+	assert.throws(() => bridge.v1.openAudiocomAuthorization('https://evil.example/'), /authorization URL/u);
+	assert.equal(calls.length, 9, 'untrusted authorization URLs remain inside the preload');
+	await bridge.v1.openAudiocomLink('https://audio.com/user/audio/field-take');
+	assert.deepEqual(calls[9], { method: 'invoke', channel: 'soundscaper:v1:audiocom:link', value: 'https://audio.com/user/audio/field-take' });
+	assert.throws(() => bridge.v1.openAudiocomLink('https://evil.example/'), /audio.com link/u);
 });

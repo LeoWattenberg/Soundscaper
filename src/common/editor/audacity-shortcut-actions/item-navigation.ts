@@ -8,6 +8,7 @@ import {
 } from '../audacity-action-runtime-helpers.ts';
 import { clipTrimSourceFrameCount } from '../controller/clip-video/clip-trim-source-frame-count.ts';
 import { itemNavigationMoveFrame } from './item-navigation-geometry.ts';
+import { visibleNavigationTracks } from '../audacity-visible-navigation-tracks.ts';
 import { prepareLabelTrackMoveFocus } from './label-track-move-focus.ts';
 import type { AudioEditorCommand, CommandObject } from '../commands/protocol.ts';
 import type {
@@ -36,6 +37,7 @@ interface ItemNavigationSnapshot {
 	readonly selectedClipId?: string | null;
 	readonly selectedTrackId?: string | null;
 	readonly timeline?: Readonly<{ readonly pixelsPerSecond?: unknown }>;
+	readonly trackFolders?: Parameters<typeof visibleNavigationTracks>[1];
 }
 
 interface ItemNavigationController {
@@ -46,7 +48,7 @@ interface ItemNavigationController {
 	}> | null;
 	readonly actions: {
 		readonly clip: {
-			move(clipId: string, trackId: string, timelineStartFrame: number): unknown;
+			move(clipId: string, trackId: string, timelineStartFrame: number, options?: Readonly<{ preserveTime: true }>): unknown;
 			trim(clipId: string, changes: Readonly<Record<string, number>>, options?: Readonly<{ minimumDurationFrames?: number }>): unknown;
 		};
 		readonly edit: {
@@ -155,19 +157,23 @@ function moveClip(
 	deltaFrames: number,
 	trackDelta: number,
 ): unknown {
-	const currentTrackIndex = project.tracks.findIndex((track) => track.clipIds?.includes(clip.id));
-	const currentTrack = project.tracks[currentTrackIndex];
+	const tracks = visibleNavigationTracks(project.tracks, controller.getSnapshot().trackFolders);
+	const currentTrackIndex = tracks.findIndex((track) => track.clipIds?.includes(clip.id));
+	const currentTrack = tracks[currentTrackIndex];
 	if (!currentTrack || currentTrack.type === 'label') return null;
 	let targetTrackIndex = currentTrackIndex;
 	if (trackDelta) {
-		const targetType = typeof clip.kind === 'string' ? clip.kind : currentTrack.type;
+		const targetType = clip.kind === 'image' || clip.kind === 'still' || clip.kind === 'generator'
+			? 'video' : typeof clip.kind === 'string' ? clip.kind : currentTrack.type;
 		do targetTrackIndex += Math.sign(trackDelta);
-		while (project.tracks[targetTrackIndex] && project.tracks[targetTrackIndex]?.type !== targetType);
+		while (tracks[targetTrackIndex] && tracks[targetTrackIndex]?.type !== targetType);
 	}
-	const targetTrack = project.tracks[targetTrackIndex];
+	const targetTrack = tracks[targetTrackIndex];
 	if (!targetTrack || targetTrack.type === 'label') return null;
+	const startFrame = itemNavigationMoveFrame(project, clip, deltaFrames);
+	if (trackDelta) return controller.actions.clip.move(clip.id, targetTrack.id, startFrame, { preserveTime: true });
 	return controller.actions.clip.move(
-		clip.id, targetTrack.id, itemNavigationMoveFrame(project, clip, deltaFrames),
+		clip.id, targetTrack.id, startFrame,
 	);
 }
 
@@ -272,10 +278,11 @@ function moveLabelTrack(
 	focus: FocusedLabelValue,
 	direction: number,
 ): unknown {
-	let targetIndex = project.tracks.findIndex((track) => track.id === focus.trackId);
+	const tracks = visibleNavigationTracks(project.tracks, controller.getSnapshot().trackFolders);
+	let targetIndex = tracks.findIndex((track) => track.id === focus.trackId);
 	do targetIndex += Math.sign(direction);
-	while (project.tracks[targetIndex] && project.tracks[targetIndex]?.type !== 'label');
-	const target = project.tracks[targetIndex];
+	while (tracks[targetIndex] && tracks[targetIndex]?.type !== 'label');
+	const target = tracks[targetIndex];
 	if (!target) return null;
 	const restoreFocus = prepareLabelTrackMoveFocus(focus.trackId, focus.labelId, target.id);
 	const result = controller.actions.edit.commit({

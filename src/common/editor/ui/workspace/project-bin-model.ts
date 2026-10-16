@@ -1,5 +1,6 @@
 import { readClipLoop } from '../../audio-clip-loop.ts';
 import { projectBinLoopRanges } from './project-bin-loop-ranges.ts';
+import { projectBinWarpRanges } from './project-bin-warp-ranges.ts';
 
 type ProjectBinCopy = Record<string, string | undefined>;
 
@@ -26,6 +27,7 @@ interface ProjectBinClip {
 	stretchToTempo?: boolean;
 	trimEndFrames?: number;
 	trimStartFrames?: number;
+	warpMap?: unknown;
 }
 
 interface ProjectBinSource {
@@ -157,9 +159,10 @@ export function projectBinWaveformPath(
 	clip: ProjectBinClip,
 	width = 160,
 	height = 44,
+	project?: unknown,
 ): string {
 	if (!visual) return '';
-	const ranges = projectBinPeakRanges(visual, clip, width);
+	const ranges = projectBinPeakRanges(visual, clip, width, project);
 	if (!ranges.length) return '';
 	const middle = height / 2;
 	const amplitude = Math.max(1, middle - 3);
@@ -175,12 +178,16 @@ export function projectBinPeakRanges(
 	visual: ProjectBinVisual,
 	clip: ProjectBinClip,
 	maximumColumns: number,
+	project?: unknown,
 ): ProjectBinRange[] {
 	const loop = readClipLoop(clip);
 	if (loop && Number.isSafeInteger(clip.durationFrames) && Number(clip.durationFrames) > 0) {
-		const period = projectBinPeakRanges(visual, { ...clip, opaqueExtensions: undefined }, maximumColumns);
+		const period = projectBinPeakRanges(visual, { ...clip, opaqueExtensions: undefined }, maximumColumns, project);
 		return projectBinLoopRanges(period, loop, Number(clip.durationFrames), maximumColumns);
 	}
+	if (clip.warpMap != null) return projectBinWarpRanges(project, clip, maximumColumns,
+		(sourceStartFrame, sourceDurationFrames) => projectBinPeakRanges(visual,
+			{ ...clip, warpMap: null, sourceStartFrame, sourceDurationFrames }, 1));
 	const sourceStartFrame = Math.max(0, Number(clip.sourceStartFrame) || 0);
 	const sourceDurationFrames = Math.max(1, Number(clip.sourceDurationFrames || clip.durationFrames) || 1);
 	const levels = visual.peaks?.levels || [];

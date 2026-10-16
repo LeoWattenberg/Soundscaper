@@ -52,8 +52,10 @@ interface ActiveFreesoundPreview {
 	readonly soundId: number;
 	readonly audio: HTMLAudioElement;
 	playing: boolean;
+	playRequest: number;
 	metadataLoaded: boolean;
 	pendingSeekSeconds: number | null;
+	outputReady: Promise<void>;
 }
 
 interface FreesoundPanelContainerProps {
@@ -106,8 +108,9 @@ export function FreesoundPanelContainer({
 		confirmFileSizeWarning,
 		authenticated: () => account.getSnapshot().auth.status === 'connected',
 		authenticatedRequest: async (path, init) => {
+			const requestAccount = account.getSnapshot().auth;
 			const response = await transport.request(path, init);
-			if (response.status === 401) account.expireAuthentication();
+			if (response.status === 401 && account.getSnapshot().auth === requestAccount) account.expireAuthentication();
 			return response;
 		},
 	});
@@ -121,6 +124,13 @@ export function FreesoundPanelContainer({
 	const searchSequence = useRef(0);
 	const searchAbort = useRef<AbortController | null>(null);
 	const preview = useRef<ActiveFreesoundPreview | null>(null);
+	const preferredOutput = dataRecord(snapshot.audioDevices)?.preferredOutputDeviceId;
+	const outputDeviceId = typeof preferredOutput === 'string' && !preferredOutput.startsWith('native:') ? preferredOutput : '';
+	const playbackGain = Math.max(0, Math.min(1, Number(dataRecord(snapshot.audioDevices)?.playbackGain ?? 1)));
+
+	useEffect(() => {
+		if (preview.current) preview.current.audio.volume = playbackGain;
+	}, [playbackGain]);
 
 	useEffect(() => { void account.initialize(); }, [account]);
 
@@ -134,6 +144,25 @@ export function FreesoundPanelContainer({
 		}
 		setState((current) => ({ ...current, previewingSoundId: null, previewPaused: false, previewPositionSeconds: 0 }));
 	}, []);
+	const routePreviewOutput = useCallback((active: ActiveFreesoundPreview, deviceId: string) => {
+		if (typeof active.audio.setSinkId !== 'function') return;
+		active.outputReady = active.outputReady.then(async () => {
+			if (preview.current === active && active.audio.sinkId !== deviceId) await active.audio.setSinkId(deviceId);
+		});
+		void active.outputReady.catch(() => { if (preview.current === active) stopPreview(); });
+	}, [stopPreview]);
+	useEffect(() => {
+		if (preview.current) routePreviewOutput(preview.current, outputDeviceId);
+	}, [outputDeviceId, routePreviewOutput]);
+
+	const playPreview = useCallback((active: ActiveFreesoundPreview) => {
+		const request = ++active.playRequest;
+		void active.outputReady.then(() => {
+			if (preview.current === active && active.playRequest === request) return active.audio.play();
+		}).catch(() => {
+			if (preview.current === active && active.playRequest === request) stopPreview();
+		});
+	}, [stopPreview]);
 
 	useEffect(() => {
 		if (!panelActive) stopPreview();
@@ -186,10 +215,13 @@ export function FreesoundPanelContainer({
 		if (!panelActive || typeof Audio !== 'function') return;
 		stopPreview();
 		const audio = new Audio(freesoundPreviewUrl(soundId));
+		audio.volume = playbackGain;
 		const active: ActiveFreesoundPreview = {
-			soundId, audio, playing: true, metadataLoaded: false, pendingSeekSeconds: null,
+			soundId, audio, playing: true, playRequest: 0, metadataLoaded: false, pendingSeekSeconds: null,
+			outputReady: Promise.resolve(),
 		};
 		preview.current = active;
+		routePreviewOutput(active, outputDeviceId);
 		const finish = () => { if (preview.current === active) stopPreview(); };
 		audio.preload = 'metadata';
 		audio.addEventListener('loadedmetadata', () => {
@@ -209,13 +241,14 @@ export function FreesoundPanelContainer({
 		if (seekSeconds > 0) seekPreviewTime(active, seekSeconds);
 		setState((current) => ({ ...current, previewingSoundId: soundId, previewPaused: false,
 			previewPositionSeconds: seekSeconds }));
-		void audio.play().catch(finish);
-	}, [panelActive, stopPreview]);
+		playPreview(active);
+	}, [panelActive, playbackGain, playPreview, routePreviewOutput, outputDeviceId, stopPreview]);
 
 	const pausePreview = useCallback(() => {
 		const active = preview.current;
 		if (!active) return;
 		active.playing = false;
+		active.playRequest += 1;
 		active.audio.pause();
 		setState((current) => ({ ...current, previewPaused: true }));
 	}, []);
@@ -225,8 +258,8 @@ export function FreesoundPanelContainer({
 		if (!panelActive || !active) return;
 		active.playing = true;
 		setState((current) => ({ ...current, previewPaused: false }));
-		void active.audio.play().catch(() => { if (preview.current === active) stopPreview(); });
-	}, [panelActive, stopPreview]);
+		playPreview(active);
+	}, [panelActive, playPreview]);
 
 	const seekPreview = useCallback((soundId: number, seconds: number) => {
 		if (!panelActive || typeof Audio !== 'function') return;
@@ -240,8 +273,8 @@ export function FreesoundPanelContainer({
 		if (active.playing) return;
 		active.playing = true;
 		setState((current) => ({ ...current, previewPaused: false }));
-		void active.audio.play().catch(() => { if (preview.current === active) stopPreview(); });
-	}, [panelActive, startPreview, stopPreview]);
+		playPreview(active);
+	}, [panelActive, playPreview, startPreview]);
 
 	const executeImport = useCallback((request: FreesoundImportRequest) => {
 		setPendingSoundId(request.soundId);

@@ -21,6 +21,8 @@ import {
 } from './timeline-tool-precedence.ts';
 import { commitTimelineTrimPointer } from './trim-pointer-routing.ts';
 import { timelineSelectionDragTrackIds } from './track-selection-scope.ts';
+import { previewTimelineSelectionBoundaryEdit } from './selection-pointer-edit.ts';
+import { setTimelineSelectionPointerCursor } from './selection-pointer-target.ts';
 
 export function useTimelinePointerFinish({
 	controller,
@@ -62,7 +64,8 @@ export function useTimelinePointerFinish({
 
 	const finishPointerSession = useCallback((event, cancelled = false) => {
 		const session = pointerSession.current;
-		if ((session?.kind === 'fade' || session?.kind === 'fade-shape' || session?.kind === 'crossfade-shape')
+		if (session?.pointerId !== undefined && session.pointerId !== event.pointerId) return;
+		if ((session?.kind === 'fade' || session?.kind === 'fade-shape' || session?.kind === 'crossfade-shape' || session?.kind === 'selection-resize')
 			&& event.pointerId !== session.pointerId) return;
 		pointerMoveFlushRef?.current?.(cancelled);
 		pointerSession.current = null;
@@ -73,8 +76,10 @@ export function useTimelinePointerFinish({
 		setTrackResizePreview(null);
 		setSelectionPreview(null);
 		setBoundarySnapGuideFrames([]);
+		setTimelineSelectionPointerCursor(scrollRef?.current, null);
 		if (session?.kind === 'track-resize') {
-			if (!cancelled && !pinchSession.current && project && session.height !== session.originalHeight) {
+			if (!cancelled && !pinchSession.current && project?.tracks.some(track => track.id === session.trackId)
+				&& session.height !== session.originalHeight) {
 				run(() => controller.actions.timeline.resizeTrackHeight(
 					session.trackId,
 					session.height,
@@ -98,6 +103,17 @@ export function useTimelinePointerFinish({
 			return;
 		}
 		if (!session || cancelled || pinchSession.current || !project) return;
+		if (session.kind === 'selection-resize') {
+			const { selection } = previewTimelineSelectionBoundaryEdit({
+				session, project, rawFrame: frameAtClientX(event.clientX, session.lane),
+				currentTrackId: session.lane.dataset.trackId ?? null, pixelsPerSecond, sampleRate,
+			});
+			run(() => controller.actions.timeline.adjustSelection(selection.startFrame, selection.endFrame, {
+				...(session.trackIds ? { trackIds: session.trackIds } : {}),
+				...(session.frequencyRange ? { frequencyRange: session.frequencyRange } : {}),
+			}, { snap: false }));
+			return;
+		}
 		if (session.kind === 'fade') {
 			const clip = project.clips.find(item => item.id === session.clipId);
 			const field = fadeField(session.edge);
@@ -198,7 +214,7 @@ export function useTimelinePointerFinish({
 		}
 		if (session.kind === 'move' && isOverOutputDock(event.clientX, event.clientY)) return;
 		if (session.kind === 'sample-pencil') {
-			if (session.points.length) run(() => controller.actions.sampleEdit.pencil({
+			if (session.points.length && project.clips.some(clip => clip.id === session.clipId)) run(() => controller.actions.sampleEdit.pencil({
 				clipId: session.clipId,
 				channel: session.channel,
 				points: session.points,
@@ -336,6 +352,7 @@ export function useTimelinePointerFinish({
 		setClipDragPreview(null);
 		setSelectionPreview(null);
 		setBoundarySnapGuideFrames([]);
+		setTimelineSelectionPointerCursor(scrollRef?.current, null);
 		setLoopPreview(null);
 		setTrackResizePreview(null);
 		setProjectBinDropActive(false);
@@ -348,6 +365,12 @@ export function useTimelinePointerFinish({
 			finishTouch(event);
 			finishPointerSession(event);
 		};
+		const finishPrimaryMouse = (event) => {
+			// With another button held, primary release is a pointermove.
+			if (event.pointerType === 'mouse' && event.button === 0 && (event.buttons & 1) === 0) {
+				finishOutsideTimeline(event);
+			}
+		};
 		const cancelOutsideTimeline = (event) => {
 			const session = pointerSession.current;
 			if (!session) return;
@@ -358,16 +381,18 @@ export function useTimelinePointerFinish({
 		};
 		const cancelLostFadeCapture = (event) => {
 			const session = pointerSession.current;
-			if ((session?.kind === 'fade' || session?.kind === 'fade-shape' || session?.kind === 'crossfade-shape')
+			if ((session?.kind === 'fade' || session?.kind === 'fade-shape' || session?.kind === 'crossfade-shape' || session?.kind === 'selection-resize')
 				&& event.pointerId === session.pointerId) {
 				finishPointerSession(event, true);
 			}
 		};
 		globalThis.addEventListener('pointerup', finishOutsideTimeline, true);
+		globalThis.addEventListener('pointermove', finishPrimaryMouse, true);
 		globalThis.addEventListener('pointercancel', cancelOutsideTimeline, true);
 		globalThis.addEventListener('lostpointercapture', cancelLostFadeCapture, true);
 		return () => {
 			globalThis.removeEventListener('pointerup', finishOutsideTimeline, true);
+			globalThis.removeEventListener('pointermove', finishPrimaryMouse, true);
 			globalThis.removeEventListener('pointercancel', cancelOutsideTimeline, true);
 			globalThis.removeEventListener('lostpointercapture', cancelLostFadeCapture, true);
 		};
@@ -403,6 +428,14 @@ export function useTimelinePointerFinish({
 		globalThis.addEventListener('keydown', cancelWithEscape, true);
 		return () => globalThis.removeEventListener('keydown', cancelWithEscape, true);
 	}, [cancelPointerSession, pointerSession, setBoundarySnapGuideFrames, setClipDragPreview, setSelectionPreview]);
+
+	useEffect(() => {
+		const session = pointerSession.current;
+		if ((session?.kind === 'sample-pencil' && !project?.clips.some(clip => clip.id === session.clipId))
+			|| (session?.kind === 'track-resize' && !project?.tracks.some(track => track.id === session.trackId))) {
+			cancelPointerSession();
+		}
+	}, [cancelPointerSession, pointerSession, project]);
 
 	return { finishPointerSession, finishTouch, cancelPointerSession };
 }

@@ -75,6 +75,7 @@ export type ScheduledParameterBinding =
 		params: readonly Readonly<{
 			param: AudioParam;
 			transformValue: (value: number) => number;
+			transformLinearRamp?: ScheduledParameterLinearRampTransform;
 		}>[];
 	}>
 	| Readonly<{ kind: 'message'; receive: ScheduledParameterMessageReceiver }>;
@@ -82,7 +83,11 @@ export type ScheduledParameterBinding =
 export interface ScheduledParameterTargetOptions {
 	readonly latencyFrames?: number;
 	readonly transformValue?: (value: number) => number;
+	readonly transformLinearRamp?: ScheduledParameterLinearRampTransform;
 }
+
+export type ScheduledParameterLinearRampTransform = (start: number, end: number, tolerance: number,
+	append: (nativeValue: number, progress: number) => void) => void;
 
 export interface ScheduledParameterTarget {
 	readonly descriptor: ParameterDescriptor;
@@ -180,13 +185,20 @@ class RegisteredScheduledParameterTarget implements ScheduledParameterTarget {
 		}
 		let scheduledThroughTime = scheduleStart;
 		const { contextStartTime, fromFrame, framesPerSecond } = prepareScheduledParameterAudioParamWindowTiming(options);
+		let previous: Readonly<{ value: number; time: number }> | null = null;
 		for (const event of events) {
 			const time = contextStartTime + (latencySeconds + (event.frame - fromFrame) / framesPerSecond);
-			for (const { param, transformValue } of bindings) {
+			for (const { param, transformValue, transformLinearRamp } of bindings) {
 				const value = finiteNumber(transformValue(event.value), 'transformed parameter value');
+				const from = previous;
 				if (event.kind === 'set') param.setValueAtTime(value, time);
+				else if (transformLinearRamp && from && time > from.time) transformLinearRamp(
+					from.value, event.value, this.descriptor.automationTolerance,
+					(nativeValue, progress) => param.linearRampToValueAtTime(nativeValue, from.time + (time - from.time) * progress),
+				);
 				else param.linearRampToValueAtTime(value, time);
 			}
+			previous = { value: event.value, time };
 			scheduledThroughTime = time;
 		}
 		this.#scheduledThroughTime = scheduledThroughTime;
@@ -213,11 +225,12 @@ export class ScheduledParameterRegistry {
 		assertAudioParam(param);
 		const transformValue = options.transformValue ?? identity;
 		if (typeof transformValue !== 'function') throw new TypeError('A parameter value transform must be a function.');
+		if (options.transformLinearRamp !== undefined && typeof options.transformLinearRamp !== 'function') throw new TypeError('A parameter ramp transform must be a function.');
 		return this.#register(
 			descriptor,
 			Object.freeze({
 				kind: 'audio-param',
-				params: Object.freeze([Object.freeze({ param, transformValue })]),
+				params: Object.freeze([Object.freeze({ param, transformValue, transformLinearRamp: options.transformLinearRamp })]),
 			}),
 			options,
 		);

@@ -32,6 +32,7 @@ export interface FramescaperTimelineImagePublicationControllerTimelineImage {
 	readonly project: FramescaperProjectTimelineImage | null;
 	readonly actions: Readonly<{
 		readonly project: Readonly<{
+			flush(): PromiseLike<unknown> | unknown;
 			openById(projectId: string, options?: Readonly<{
 				readonly adoptSessionRevision?: boolean;
 			}>): PromiseLike<unknown> | unknown;
@@ -64,7 +65,8 @@ export function createFramescaperTimelineImageCurrentProjectPublicationTimelineI
 		|| typeof dependencies.executeCommand !== 'function'
 		|| typeof dependencies.publishIfCurrent !== 'function'
 		|| typeof dependencies.session?.captureProjectHistory !== 'function'
-		|| typeof dependencies.controller?.actions?.project?.openById !== 'function') {
+		|| typeof dependencies.controller?.actions?.project?.openById !== 'function'
+		|| typeof dependencies.controller?.actions?.project?.flush !== 'function') {
 		throw new TypeError('Timeline image publication requires exact controller, session, runtime, and storage ports.');
 	}
 	const now = dependencies.now ?? (() => new Date());
@@ -82,10 +84,19 @@ export function createFramescaperTimelineImageCurrentProjectPublicationTimelineI
 		if (!sameProject(capture.history.present, expected)) {
 			throw stale('The active Framescaper history changed before image publication.');
 		}
+		await dependencies.controller.actions.project.flush();
+		dependencies.session.assertProjectHistoryToken(expected.id, capture.token);
+		if (!sameProject(dependencies.controller.project, expected)) {
+			throw stale('The active Framescaper project changed while its image import base was saved.');
+		}
+		const observed = now();
+		const observedTime = observed instanceof Date ? observed.getTime() : Date.parse(observed);
+		// A saved Undo revision may share the current millisecond or precede a clock adjustment.
+		const publicationTime = new Date(Math.max(observedTime, Date.parse(String(expected.updatedAt)) + 1)).toISOString();
 		const nextHistory = dependencies.executeCommand(
 			capture.history,
 			request.command,
-			{ now: now() },
+			{ now: publicationTime },
 		);
 		dependencies.session.assertProjectHistoryToken(expected.id, capture.token);
 		if (!sameProject(dependencies.controller.project, expected)) {
@@ -141,23 +152,33 @@ export interface FramescaperTimelineImageHdrAdoptionCurrentV1 {
 	readonly retirementFailure?: unknown;
 }
 
+/** HDR callers prepare and save their base through the joined preparation port. */
+export interface FramescaperTimelineImageHdrCurrentProjectPublicationDependenciesV1 extends Omit<
+	FramescaperTimelineImageCurrentProjectPublicationDependenciesTimelineImage, 'controller'
+> {
+	readonly controller: Readonly<{
+		readonly project: FramescaperTimelineImagePublicationControllerTimelineImage['project'];
+		readonly actions: Readonly<{ readonly project: Pick<FramescaperTimelineImagePublicationControllerTimelineImage['actions']['project'], 'openById'> }>;
+	}>;
+}
+
 /** Current HDR adoption keeps the exact native CAS acknowledgement even when
  * the local history/cancellation changes immediately afterward. A committed
  * body is never rolled back because presentation could not adopt its project. */
 export function createFramescaperTimelineImageHdrCurrentProjectPublicationV1(
-	dependencies: FramescaperTimelineImageCurrentProjectPublicationDependenciesTimelineImage,
+	dependencies: FramescaperTimelineImageHdrCurrentProjectPublicationDependenciesV1,
 ): Readonly<{ publish(request: FramescaperTimelineImageHdrAdoptionRequestCurrentV1): Promise<Readonly<FramescaperTimelineImageHdrAdoptionCurrentV1>> }> {
 	const captured = hdrRecord(dependencies, 'Frame HDR adoption dependencies', ['controller', 'session', 'executeCommand', 'publishIfCurrent', 'now'],
 		['controller', 'session', 'executeCommand', 'publishIfCurrent']);
 	const session = hdrField(captured, 'session', 'Frame HDR adoption dependencies') as FramescaperTimelineImagePublicationSessionTimelineImage;
-	const controller = hdrField(captured, 'controller', 'Frame HDR adoption dependencies') as FramescaperTimelineImagePublicationControllerTimelineImage;
+	const controller = hdrField(captured, 'controller', 'Frame HDR adoption dependencies') as FramescaperTimelineImageHdrCurrentProjectPublicationDependenciesV1['controller'];
 	const capture = pin<FramescaperTimelineImagePublicationSessionTimelineImage['captureProjectHistory']>(session, 'captureProjectHistory');
 	const assert = pin<FramescaperTimelineImagePublicationSessionTimelineImage['assertProjectHistoryToken']>(session, 'assertProjectHistoryToken');
 	const update = pin<FramescaperTimelineImagePublicationSessionTimelineImage['updateProjectHistory']>(session, 'updateProjectHistory');
 	const saved = pin<FramescaperTimelineImagePublicationSessionTimelineImage['markProjectSaved']>(session, 'markProjectSaved');
 	const open = pin<FramescaperTimelineImagePublicationControllerTimelineImage['actions']['project']['openById']>(controller.actions.project, 'openById');
-	const execute = pin<FramescaperTimelineImageCurrentProjectPublicationDependenciesTimelineImage['executeCommand']>(dependencies, 'executeCommand');
-	const publish = pin<FramescaperTimelineImageCurrentProjectPublicationDependenciesTimelineImage['publishIfCurrent']>(dependencies, 'publishIfCurrent');
+	const execute = pin<FramescaperTimelineImageHdrCurrentProjectPublicationDependenciesV1['executeCommand']>(dependencies, 'executeCommand');
+	const publish = pin<FramescaperTimelineImageHdrCurrentProjectPublicationDependenciesV1['publishIfCurrent']>(dependencies, 'publishIfCurrent');
 	const now = Object.hasOwn(captured, 'now') ? pin<() => Date | string>(dependencies, 'now') : () => new Date();
 	return Object.freeze({ async publish(value: FramescaperTimelineImageHdrAdoptionRequestCurrentV1) {
 		const ownSignal = Object.getOwnPropertyDescriptor(value, 'signal');

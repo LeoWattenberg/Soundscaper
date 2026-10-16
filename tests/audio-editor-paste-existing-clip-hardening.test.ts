@@ -163,7 +163,12 @@ test('cross-rate fades and envelopes fall back while gain and reversal remain jo
 	const fixture = request(command, project);
 	await commitPasteIntoExistingClipCommand(fixture.input);
 	assert.notEqual(fixture.commits[0], command);
-	assert.deepEqual(Array.from(fixture.persisted[0]?.channels?.[0] ?? []), [1, 2, 4, 4, 4.5, 4.5, 3, 4]);
+	const samples = fixture.persisted[0]?.channels?.[0];
+	assert.ok(samples);
+	// Native-rate joins use the engine's bandlimited conversion rather than held indices.
+	const expected = [1, 2, 4.029713154, 4.25, 4.470286846, 4.470286846, 3, 4];
+	assert.equal(samples.length, expected.length);
+	for (const [frame, value] of expected.entries()) assert.ok(Math.abs(samples[frame]! - value) < 1e-6);
 });
 
 test('grouped descriptors and trimmed destinations remain separate clips', async () => {

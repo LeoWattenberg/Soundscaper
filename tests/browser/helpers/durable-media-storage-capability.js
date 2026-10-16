@@ -4,9 +4,15 @@ export const DURABLE_MEDIA_STORAGE_REQUIRED =
 	'This browser environment exposes neither OPFS nor working IndexedDB Blob storage, '
 	+ 'so it cannot persist an imported A/V source.';
 
-/** Probes the two durable binary backends used by imported browser media. */
-export async function hasDurableMediaStorageCapability(runtime = globalThis) {
-	if (typeof runtime.navigator?.storage?.getDirectory === 'function') {
+/**
+ * Probe normal media storage or the exact IndexedDB-only PNG Freeze backend.
+ * Keep this function self-contained: browser callers serialize it with page.evaluate.
+ * @param {typeof globalThis | 'indexeddb-only'} runtimeOrMode
+ */
+export async function hasDurableMediaStorageCapability(runtimeOrMode = globalThis) {
+	const indexedDbOnly = runtimeOrMode === 'indexeddb-only';
+	const runtime = indexedDbOnly ? globalThis : runtimeOrMode;
+	if (!indexedDbOnly && typeof runtime.navigator?.storage?.getDirectory === 'function') {
 		try {
 			await runtime.navigator.storage.getDirectory();
 			return true;

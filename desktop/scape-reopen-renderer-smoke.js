@@ -70,12 +70,16 @@ export async function runScapeReopenRendererSmoke(scope, plan) {
 	const assertCleanUi = () => {
 		const alerts = document.querySelectorAll('[role="alert"], [role="alertdialog"]');
 		const dialogs = document.querySelectorAll('[role="dialog"], [role="alertdialog"]');
-		if (alerts.length || dialogs.length) {
-			const exposed = [...alerts, ...dialogs].slice(0, 3).map((element) => (
+		// Startup plugin scan notifications must clear before the UI is clean.
+		const unexpectedAlerts = [...alerts].filter((element) => element.getAttribute?.('role') !== 'alert'
+			|| !element.closest?.('[data-editor-toast^="native-plugin-scan-"] .toast--info, [data-editor-toast^="native-plugin-scan-"] .toast--success'));
+		if (unexpectedAlerts.length || dialogs.length) {
+			const exposed = [...unexpectedAlerts, ...dialogs].slice(0, 3).map((element) => (
 				`${element.getAttribute?.('role') ?? 'dialog'}: ${String(element.getAttribute?.('aria-label') || element.textContent || '').replace(/\s+/gu, ' ').trim().slice(0, 120)}`
 			));
 			throw new Error(`Packaged Scape persisted-reopen UI exposed an alert or dialog (${exposed.join('; ')})`);
 		}
+		return alerts.length === 0;
 	};
 	const nextAnimationFrame = () => new Promise((resolve) => scope.requestAnimationFrame(resolve));
 	const provePlayback = async (root) => {
@@ -114,7 +118,7 @@ export async function runScapeReopenRendererSmoke(scope, plan) {
 		let stopping = false;
 		for (let frame = 0; frame < 512; frame += 1) {
 			await nextAnimationFrame();
-			assertCleanUi();
+			if (!assertCleanUi()) continue;
 			if (stopping) {
 				const restored = root.querySelectorAll(playSelector);
 				const paused = root.querySelectorAll(pauseSelector);
@@ -173,9 +177,9 @@ export async function runScapeReopenRendererSmoke(scope, plan) {
 			await delay(25);
 			continue;
 		}
-		assertCleanUi();
+		const cleanUi = assertCleanUi();
 		const roots = document.querySelectorAll('[data-audio-editor][data-audio-editor-bound="true"]');
-		if (roots.length === 1) {
+		if (cleanUi && roots.length === 1) {
 			const root = roots[0];
 			const escape = scope.CSS?.escape;
 			if (typeof escape !== 'function') {

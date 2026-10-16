@@ -16,7 +16,6 @@ import type {
 	VideoKeyframeRgbaFrameProducer,
 } from './video-keyframe-encoder-stream.ts';
 import { normalizeVideoDeliveryQuality } from './video-delivery-quality.ts';
-import { admitVideoKeyframeWebCodecsEncode } from './video-keyframe-webcodecs-execution.ts';
 import {
 	assertVideoKeyframeExportFrameSource,
 	type VideoKeyframeExportFrame,
@@ -29,6 +28,7 @@ import type {
 } from './video-keyframe-ffmpeg-operation.ts';
 import { VIDEO_KEYFRAME_AUDIO_MAXIMUM_BYTES, VIDEO_KEYFRAME_DESKTOP_MAXIMUM_FILE_BYTES } from './video-keyframe-audio-input.ts';
 import { VIDEO_KEYFRAME_VIDEO_MAXIMUM_OUTPUT_BYTES } from './video-keyframe-video-output.ts';
+import { validateVideoKeyframeWebCodecsDecision } from './video-keyframe-webcodecs-decision.ts';
 import type {
 	VideoKeyframeVideoEncoderDependencies,
 	VideoKeyframeVideoEncoderRequest,
@@ -99,9 +99,9 @@ export function normalizeRequest(value: VideoKeyframeVideoEncoderRequest, deskto
 	const signal = optionalSignal(record, 'signal');
 	const assertCurrent = optionalFunction(record, 'assertCurrent');
 	const confirmFileSizeWarning = optionalFunction(record, 'confirmFileSizeWarning');
-	const statedWebCodecs = Object.hasOwn(record, 'webCodecs')
-		? data(record, 'webCodecs', 'video keyframe video encoder request') : undefined;
-	const webCodecs = statedWebCodecs === undefined ? undefined : admitVideoKeyframeWebCodecsEncode(statedWebCodecs);
+	const webCodecs = Object.hasOwn(record, 'webCodecs')
+		? validateVideoKeyframeWebCodecsDecision(data(record, 'webCodecs', 'video keyframe video encoder request'))
+		: undefined;
 	const result: Record<string, unknown> = {
 		desktopExternalFfmpeg,
 		frameSource,

@@ -16,6 +16,10 @@ import type { ProjectFileExtension } from '../../../project-file-extensions.ts';
 import type { ProjectFlushOptions } from './project-save-service.ts';
 import type { ScapeReplaceWriteAuthority } from '../../scape-import-transaction.ts';
 import type { ExternalAudioDecoder, ExternalMediaResolver } from '../../scape-external-media.ts';
+import type { DawprojectImportRoutingContext } from '../../dawproject-import-structure.ts';
+import type { InterchangeProductProjection } from '../../interchange-multicamera-delivery.ts';
+import type { SampleBlockReference } from '../../storage/sample-block-source.ts';
+import type { AudacitySampleBlockStoragePlan } from '../../aup4-import-block-storage.ts';
 
 export type NativeAwaitable<Value> = PromiseLike<Value> | Value;
 export type NativeSaveState = 'dirty' | 'saved' | 'saving' | string;
@@ -123,6 +127,9 @@ export interface NativeSourceWriter {
 }
 
 export interface NativeProjectStore {
+	writeSampleBlockSource?(sourceId: string, baseSourceId: string,
+		channels: readonly (readonly SampleBlockReference[])[],
+		metadata: Readonly<Record<string, unknown>>): PromiseLike<unknown> | unknown;
 	loadProject?(projectId: string, options?: Readonly<{ signal?: AbortSignal }>): NativeAwaitable<unknown>;
 	estimateStorage(): Promise<Readonly<Partial<NativeStorageEstimate>>>;
 	beginSourceWrite(sourceId: string, metadata: Readonly<{
@@ -251,6 +258,7 @@ export interface Aup4DecodedSource {
 }
 
 export interface Aup4DecodedProject {
+	readonly sampleBlockStorage?: AudacitySampleBlockStoragePlan;
 	readonly project: unknown;
 	readonly sources: readonly Aup4DecodedSource[];
 	readonly warnings?: readonly string[];
@@ -293,7 +301,7 @@ export interface Aup4SnapshotResult extends Readonly<Record<string, unknown>> {
 
 export interface NativeAup4Client {
 	planImport?(projectId: string, options: Readonly<{
-		title: string; signal: AbortSignal; onProgress: (progress: NativeProgress) => void;
+		title: string; signal: AbortSignal; onProgress: (progress: NativeProgress) => void; preserveSampleBlocks?: boolean;
 	}>): Promise<Aup4DecodedProject>;
 	readSourceChunks?(projectId: string, sourceId: string, options: Readonly<{
 		signal: AbortSignal;
@@ -353,6 +361,7 @@ export interface NativeAudioBuffer {
 }
 
 export interface NativeProjectServiceRuntime {
+	readonly projectForRuntimeConsumers?: InterchangeProductProjection;
 	readonly confirmFileSizeWarning?: FileSizeWarningConfirmation;
 	readonly lifetime: Pick<EditorControllerLifetime, 'assertActive' | 'startTask'>;
 	readonly projectGeneration: Pick<EditorProjectGeneration, 'capture' | 'assertCurrent'>;
@@ -414,7 +423,7 @@ export interface NativeProjectServiceRuntime {
 	readonly createAup4Client: (options: Readonly<Record<string, unknown>>) => NativeAup4Client;
 	readonly initialAup4Client?: NativeAup4Client | null;
 	readonly aup4Options?: Readonly<Record<string, unknown>>;
-	readonly adaptAudacityProject?: (value: unknown) => NativeAwaitable<NativeProjectDocument>;
+	readonly adaptAudacityProject?: (value: unknown, context?: DawprojectImportRoutingContext) => NativeAwaitable<NativeProjectDocument>;
 	readonly prepareAudacityProjectExport?: (
 		project: NativeProjectDocument,
 	) => NativeAwaitable<NativeProjectDocument>;
@@ -449,7 +458,7 @@ export interface NativeProjectServiceRuntime {
 	) => Promise<ScapeExportResult>;
 	readonly decodeExternalAudio?: ExternalAudioDecoder;
 	readonly copyFutureScapeArchive: (
-		input: Blob,
+		input: ScapeProjectInput,
 		write: (bytes: Uint8Array) => void | PromiseLike<void>,
 		options: Readonly<{ signal: AbortSignal }>,
 	) => Promise<Readonly<{ byteLength: number; schemaVersion: number }>>;

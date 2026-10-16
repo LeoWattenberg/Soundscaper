@@ -1,15 +1,13 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import type { VideoCaptionInterchangeFormatV1 } from '../video-caption-interchange-contract-v27.ts';
+import { decodeLabelInputText } from '../label-input-text.ts';
+import { withFramescaperSidecarFile, type FramescaperSidecarFileReader } from './framescaper-sidecar-file.ts';
 
-export interface FramescaperCaptionFileService {
+export interface FramescaperCaptionFileService extends FramescaperSidecarFileReader {
 	readonly isDesktop?: boolean;
 	chooseFiles?(request: Readonly<{ readonly purpose: 'labels' | 'lut'; readonly multiple: false }> ):
 		PromiseLike<readonly unknown[]> | readonly unknown[];
-	openReadDescriptor?(
-		descriptor: unknown,
-		options?: Readonly<{ readonly signal?: AbortSignal }>,
-	): PromiseLike<unknown> | unknown;
 	saveFile?(request: Readonly<{
 		readonly purpose: 'interchange';
 		readonly suggestedName: string;
@@ -26,7 +24,6 @@ export interface FramescaperCaptionSidecarFile {
 }
 
 const MAXIMUM_CAPTION_SIDECAR_BYTES = 16 * 1024 * 1024;
-const UTF8 = new TextDecoder('utf-8', { fatal: true });
 
 const FORMATS = Object.freeze({
 	srt: Object.freeze({ extension: 'srt', mimeType: 'application/x-subrip;charset=utf-8' }),
@@ -51,7 +48,7 @@ export async function openFramescaperCaptionSidecarFile(input: Readonly<{
 	readonly signal?: AbortSignal;
 }>): Promise<FramescaperCaptionSidecarFile | null> {
 	throwIfAborted(input.signal);
-	let body: unknown = input.file;
+	const body: unknown = input.file;
 	if (body === undefined || body === null) {
 		const service = input.fileService;
 		if (!service?.isDesktop) return null;
@@ -62,10 +59,8 @@ export async function openFramescaperCaptionSidecarFile(input: Readonly<{
 		throwIfAborted(input.signal);
 		const descriptor = descriptors[0];
 		if (descriptor === undefined) return null;
-		if (typeof service.openReadDescriptor !== 'function') {
-			throw new Error('Desktop caption file reading is unavailable.');
-		}
-		body = await service.openReadDescriptor(descriptor, input.signal ? { signal: input.signal } : {});
+		return withFramescaperSidecarFile(service, descriptor, input.signal, async (file) =>
+			await openFramescaperCaptionSidecarFile({ file, ...(input.signal ? { signal: input.signal } : {}) }));
 	}
 	throwIfAborted(input.signal);
 	if (!(body instanceof Blob)) throw new TypeError('The selected caption sidecar is not a pathless file body.');
@@ -76,7 +71,7 @@ export async function openFramescaperCaptionSidecarFile(input: Readonly<{
 	const format = captionSidecarFormatForFileName(fileName);
 	let text: string;
 	try {
-		text = UTF8.decode(await body.arrayBuffer());
+		text = decodeLabelInputText(await body.arrayBuffer(), format === 'srt');
 	} catch (error) {
 		throwIfAborted(input.signal);
 		throw new TypeError('The caption sidecar must be strict UTF-8.', { cause: error });

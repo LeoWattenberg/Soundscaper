@@ -45,6 +45,12 @@ export function createWorkspaceSelectionViewMenuPorts(dependencies: WorkspaceMen
 			selectCursorToTrackEnd: () => run(() => controller.actions.timeline.selectCursorToTrackEnd()),
 			selectTrackStartToEnd: () => run(() => controller.actions.timeline.selectTrackStartToEnd()),
 			zeroCross: () => run(() => controller.actions.timeline.zeroCross()),
+			extendSelectionLeft: () => run(() => controller.actions.timeline.extendSelectionLeft()),
+			extendSelectionRight: () => run(() => controller.actions.timeline.extendSelectionRight()),
+			contractSelectionLeft: () => run(() => controller.actions.timeline.contractSelectionLeft()),
+			contractSelectionRight: () => run(() => controller.actions.timeline.contractSelectionRight()),
+			extendSelectionToProjectStart: () => run(() => controller.actions.timeline.extendSelectionToProjectStart()),
+			extendSelectionToProjectEnd: () => run(() => controller.actions.timeline.extendSelectionToProjectEnd()),
 		}),
 		viewMenu: Object.freeze({
 			setTimelineView: (view: Parameters<Actions['timeline']['setView']>[0]) => run(() => controller.actions.timeline.setView(view)),

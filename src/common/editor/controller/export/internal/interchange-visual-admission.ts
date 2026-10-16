@@ -11,18 +11,20 @@ export interface InterchangeVisualOmission {
 }
 
 /** Keep unsupported visual owners out of the audio/video projection without losing their report inventory. */
-export function admitInterchangeVisualProject(project: DataRecord): Readonly<{
+export function admitInterchangeVisualProject(project: DataRecord, original: DataRecord = project): Readonly<{
 	project: DataRecord;
 	omissions: readonly InterchangeVisualOmission[];
 }> {
 	const clips = records(project.clips);
 	const bin = isRecord(project.projectBin) ? project.projectBin : null;
 	const binClips = records(bin?.clips);
-	const unsupported = [...clips, ...binClips].filter(isUnsupportedVisual);
+	const originalClips = records(original.clips);
+	const originalBin = isRecord(original.projectBin) ? original.projectBin : null;
+	const unsupported = [...originalClips, ...records(originalBin?.clips)].filter(isUnsupportedVisual);
 	if (!unsupported.length) return { project, omissions: [] };
 	const omittedIds = new Set(unsupported.map(clip => String(clip.id)));
-	const sources = new Map(records(project.sources).map(source => [String(source.id), source]));
-	const omissions = clips.filter(isUnsupportedVisual).map(clip => Object.freeze({
+	const sources = new Map(records(original.sources).map(source => [String(source.id), source]));
+	const omissions = originalClips.filter(isUnsupportedVisual).map(clip => Object.freeze({
 		id: String(clip.id), kind: String(clip.kind),
 		title: String(clip.title ?? sources.get(String(clip.sourceId))?.name ?? clip.id),
 	}));

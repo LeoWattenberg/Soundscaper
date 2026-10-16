@@ -112,7 +112,10 @@ export function createDeliveryBatch(
 			const presetOptions = { ...resolveDeliveryPresetPlanOptions(preset) };
 			// A saved mix target cannot normalize stems independently; the batch's
 			// chosen output has the same meaning as the export dialog's choice.
-			if (mode === 'stems') delete presetOptions.loudnessNormalization;
+			if (mode === 'stems') {
+				delete presetOptions.loudnessNormalization;
+				delete presetOptions.embedLabelChapters;
+			}
 			members.push(Object.freeze({
 				memberId: createMemberId(members.length),
 				label: `${resolved.label} — ${preset.label}`,

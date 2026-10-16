@@ -11,7 +11,7 @@ export async function embedBrowserAudioChapters(
 	sampleRate: number,
 	maximumOutputBytes: number,
 ): Promise<Blob> {
-	if (!settings.embeddedChapters?.length) return blob;
+	if (!settings.embeddedChapters?.length && !Object.keys(settings.metadata ?? {}).length) return blob;
 	const assertCurrent = (): void => {
 		settings.signal?.throwIfAborted();
 		settings.assertCurrent?.();
@@ -20,7 +20,9 @@ export async function embedBrowserAudioChapters(
 	const { embedAudioChapters } = await import('./audio-embedded-chapter-container.ts');
 	const { isFileBackedAudioExport, registerFileBackedExport } = await import('./file-backed-audio-export.ts');
 	assertCurrent();
-	const result = await embedAudioChapters(blob, format, settings.embeddedChapters, sampleRate, settings.signal);
+	const result = settings.embeddedChapters?.length
+		? await embedAudioChapters(blob, format, settings.embeddedChapters, sampleRate, settings.signal, settings.metadata)
+		: await (await import('./audio-container-metadata.ts')).embedAudioFileMetadata(blob, format, settings.metadata, settings.signal);
 	assertCurrent();
 	await confirmFileSizeWarning(result.size, maximumOutputBytes, 'Compressed audio export', { ...settings, assertCurrent });
 	assertCurrent();

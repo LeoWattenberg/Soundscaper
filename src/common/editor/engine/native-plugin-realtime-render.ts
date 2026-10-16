@@ -41,7 +41,7 @@ export async function renderNativePluginRealtimePcmIfRequired(
 	const fromFrame = clampFrame(options.startFrame ?? 0, 0, host.durationFrames);
 	const toFrame = clampFrame(options.endFrame ?? host.durationFrames, fromFrame, host.durationFrames);
 	const tailFrames = Math.round(resolveRenderTailSeconds(project, options.includeTail ?? false, {
-		trackId: options.trackId, includeMaster: options.includeMaster,
+		trackId: options.trackId, includeMaster: options.includeMaster, respectMuteSolo: options.respectMuteSolo,
 	}) * host.sampleRate);
 	const outputSampleRate = positiveInteger(options.sampleRate, host.sampleRate);
 	const outputFrames = options.outputFrames == null

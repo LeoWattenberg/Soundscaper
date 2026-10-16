@@ -155,8 +155,14 @@ export function createNyquistHostService(runtime: NyquistHostServiceRuntime) {
 		const frequencyRange = selection?.frequencyRange;
 		const startFrame = target?.startFrame ?? selection?.startFrame ?? runtime.getPositionFrames();
 		const endFrame = target?.endFrame ?? selection?.endFrame ?? startFrame;
+		const tempoFrame = target?.sourceClipId
+			? nyquistLabelTimelineRange(persistedProject, { sourceTarget: target, baseFrame: 0,
+				start: 0, end: (endFrame - startFrame) / sampleRate })[0]
+			: startFrame;
 		const track = target?.track ?? null;
-		const clips = track?.clipIds
+		const clips = target?.sourceId && target.sourceFrameCount
+			? [[0, target.sourceFrameCount / sampleRate] as const]
+			: track?.clipIds
 			?.map((clipId) => project.clips.find((clip) => clip.id === clipId) ?? null)
 			.filter(isPresent)
 			.map((clip) => [
@@ -166,10 +172,12 @@ export function createNyquistHostService(runtime: NyquistHostServiceRuntime) {
 		const stats = nyquistChannelStats([...channels]);
 		const lowHz = Number(frequencyRange?.minimumFrequency);
 		const highHz = Number(frequencyRange?.maximumFrequency);
-		const selectedTrackIndices = targets.map((candidate) => {
+		const selectedTrackIndices = [...new Set(targets.map((candidate) => {
 			const projectIndex = project.tracks.findIndex((projectTrack) => projectTrack.id === (candidate?.sourceTrackId ?? candidate?.track.id));
 			return projectIndex >= 0 ? projectIndex + 1 : null;
-		}).filter(isInteger);
+		}).filter(isInteger))];
+		const projectTrackIndex = project.tracks.findIndex(candidate => candidate.id === (target?.sourceTrackId ?? track?.id));
+		const selectedTrackIndex = selectedTrackIndices.indexOf(projectTrackIndex + 1);
 		const selectionProperties: Record<string, unknown> & {
 			START: number;
 			END: number;
@@ -195,7 +203,7 @@ export function createNyquistHostService(runtime: NyquistHostServiceRuntime) {
 			PROJECT: {
 				NAME: project.title || '',
 				RATE: projectRate,
-				TEMPO: projectTempo(project, startFrame, sampleRate),
+				TEMPO: projectTempo(project, tempoFrame, projectRate),
 				TRACKS: project.tracks.length,
 				WAVETRACKS: project.tracks.filter((candidate) => candidate.type === 'audio').length,
 				LABELTRACKS: project.tracks.filter((candidate) => candidate.type === 'label').length,
@@ -203,7 +211,7 @@ export function createNyquistHostService(runtime: NyquistHostServiceRuntime) {
 			},
 			SELECTION: selectionProperties,
 			TRACK: {
-				INDEX: index + 1,
+				INDEX: selectedTrackIndex >= 0 ? selectedTrackIndex + 1 : index + 1,
 				NAME: track?.name || String(request.name || ''),
 				CLIPS: trackClips,
 				INCLIPS: trackClips,

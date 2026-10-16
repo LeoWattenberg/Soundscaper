@@ -364,7 +364,7 @@ test('Freesound gestures submit current criteria and expose the minimal drag tra
 		};
 		await act(async () => reactProps(button('Next')).onClick());
 		assert.deepEqual(calls.shift(), ['search', {
-			query: 'ocean waves', license: 'cc0', sort: 'downloads', page: 3,
+			query: FREESOUND_STATE.query, license: 'cc0', sort: 'downloads', page: 3,
 		}]);
 		await act(async () => reactProps(previewButton('Play preview: Rain in pines.wav')).onClick());
 		await act(async () => reactProps(previewButton('Pause preview: Distant storm.flac')).onClick());

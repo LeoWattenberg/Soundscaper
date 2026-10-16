@@ -56,6 +56,7 @@ export default function WaveformPreferencesPage({
 		run(() => controller.actions.preferences.update({ waveformVisualization: draft }));
 	};
 	const handleDraftKey = (event: KeyboardEvent<HTMLInputElement>) => {
+		if (event.nativeEvent?.isComposing) return;
 		if (event.key === 'Escape' && (lowMid !== String(saved.lowMidCrossoverHz)
 			|| midHigh !== String(saved.midHighCrossoverHz))) {
 			event.preventDefault();

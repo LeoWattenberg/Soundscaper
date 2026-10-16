@@ -18,7 +18,12 @@ export function classicFilterCoefficients(settings, nyquist) {
 }
 
 function createBiquads(order) { return Array.from({ length: Math.floor((order + 1) / 2) }, () => ({ b0: 1, b1: 0, b2: 0, a1: 0, a2: 0 })); }
-function normalizedCutoff(nyquist, cutoff) { return Math.min(cutoff / nyquist, 0.9999); }
+function normalizedCutoff(nyquist, cutoff) {
+	const normalized = cutoff / nyquist;
+	// Every supported cutoff below Nyquist has a finite bilinear transform.
+	// Keep the historical fallback only for inputs outside that domain.
+	return normalized >= 1 ? 0.9999 : normalized;
+}
 
 function butterworthCoefficients(order, nyquist, cutoff, subtype) {
 	const sections = createBiquads(order);

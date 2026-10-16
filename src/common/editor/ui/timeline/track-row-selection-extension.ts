@@ -1,9 +1,11 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { audacityTrackRangeSelection } from '../../audacity-track-selection.ts';
+import { resolveSelectionRange } from '../../selection-range.ts';
 
 interface Project {
 	readonly tracks: readonly { readonly id: string }[];
+	readonly clips: readonly Readonly<{ readonly id: string; readonly timelineStartFrame?: number; readonly durationFrames?: number }>[];
 	readonly selection?: Readonly<{
 		readonly startFrame: number;
 		readonly endFrame: number;
@@ -14,7 +16,7 @@ interface Project {
 interface Controller {
 	getSnapshot(): Readonly<{ project: Project | null }>;
 	readonly actions: Readonly<{ timeline: Readonly<{
-		setSelection(start: number, end: number, details: Readonly<{ trackIds: readonly string[] }>): unknown;
+		adjustSelection(start: number, end: number, details: Readonly<{ trackIds: readonly string[] }>, options: Readonly<{ snap: false }>): unknown;
 	}> }>;
 }
 
@@ -23,12 +25,12 @@ export function extendTrackRowSelection(controller: Controller, anchorTrackId: s
 	const project = controller.getSnapshot().project;
 	const target = project?.tracks[targetIndex];
 	if (!project || !target) return null;
-	const selection = project.selection;
+	const selection = resolveSelectionRange(project) ?? project.selection;
 	const selectedTrackIds = selection?.trackIds?.length ? selection.trackIds : [anchorTrackId];
 	const trackIds = audacityTrackRangeSelection({
 		trackIds: project.tracks.map(track => track.id),
 		focusedTrackId: target.id,
 		selectedTrackIds,
 	});
-	return controller.actions.timeline.setSelection(selection?.startFrame ?? 0, selection?.endFrame ?? 0, { trackIds });
+	return controller.actions.timeline.adjustSelection(selection?.startFrame ?? 0, selection?.endFrame ?? 0, { trackIds }, { snap: false });
 }

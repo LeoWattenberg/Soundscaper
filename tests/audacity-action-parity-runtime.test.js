@@ -181,6 +181,8 @@ test('critical functional manifest surfaces have semantic menu registry entries'
 		'skip-to-selection-start', 'skip-to-selection-end',
 		'select-left-of-playback-position', 'select-right-of-playback-position',
 		'select-track-start-to-cursor', 'select-cursor-to-track-end', 'select-track-start-to-end',
+		'track-view-item-extend-left', 'track-view-item-extend-right',
+		'track-view-item-reduce-left', 'track-view-item-reduce-right', 'sel-start', 'sel-end',
 		'toggle-loop-region', 'clear-loop-region', 'set-loop-region-to-selection', 'set-loop-region-in-out',
 		'toggle-rms-in-waveform', 'record-on-new-track', 'action://record/pause',
 		'action://record/lead-in-recording', 'set-up-timed-recording',

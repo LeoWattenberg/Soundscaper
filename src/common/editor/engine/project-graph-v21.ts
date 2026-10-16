@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { connectSurroundMonitoring } from '../surround-monitoring.ts';
-import { resolveTerminalChannelWidths } from '../terminal-channel-widths.ts';
+import { resolveTerminalChannelWidths, stereoStripPanAvailable } from '../terminal-channel-widths.ts';
 import { createAdmProgrammeRouter } from './adm-programme-routing.ts';
 import { normalizeAutomationLaneV21 } from '../automation-lane-v21.ts';
 import { stripParameterDescriptor } from '../effect-parameter-descriptors.ts';
@@ -159,7 +159,6 @@ export function buildProjectGraphV21(
 		? admMetadata.mode
 		: null;
 	const admProgrammeRouter = createAdmProgrammeRouter(context, nodes, admMetadata, masterInput);
-	const preservesAdmChannels = admMode === 'authored' || admMode === 'passthrough';
 	const outputInputs = new Map(graph.outputs.map((output) => [output.id, addNode(nodes, context.createGain())]));
 	const sidechainInputs = createSidechainInputs(context, nodes, graph);
 	const soloActive = createProjectSoloGainResolverV21(graph, tracks, respectMuteSolo);
@@ -207,7 +206,7 @@ export function buildProjectGraphV21(
 			else sendGainParams.set(strip.id, scheduledGain);
 		}
 		let postWidth = strip.width;
-		if (includeTrackPan && !preservesAdmChannels && strip.width <= 2
+		if (includeTrackPan && stereoStripPanAvailable(strip.width, admMode)
 			&& typeof context.createStereoPanner === 'function') {
 			const panner = addNode(nodes, context.createStereoPanner());
 			setParam(panner.pan, clamp(strip.pan, -1, 1), context.currentTime);

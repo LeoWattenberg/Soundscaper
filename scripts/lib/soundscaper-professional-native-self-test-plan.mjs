@@ -31,6 +31,7 @@ const LINUX_SYSTEM_RUNTIME_PATH =
 	'desktop/soundscaper-professional-linux-system-runtime.ts';
 const COMMON_AUTHORITY_SOURCE_PATHS = Object.freeze([
 	DRIVER_PATH,
+	'scripts/lib/soundscaper-ara-native-canary.mjs',
 	DELIVERY_FILESYSTEM_DRIVER_PATH,
 	PACKAGED_AUTHORITY_PATH,
 	TEST_RUNTIME_AUTHORITY_PATH,
@@ -155,6 +156,8 @@ function selfTestAuthoritySourcePaths(target) {
 		...COMMON_AUTHORITY_SOURCE_PATHS,
 		LINUX_SYSTEM_LIBRARIES_PATH,
 		LINUX_SYSTEM_RUNTIME_PATH,
+		// The build receipt also binds the x64 tool bootstrap and its immutable pin.
+		...(target === 'linux-x64' ? ['scripts/ci-install-professional-cmake.sh'] : []),
 	]) : COMMON_AUTHORITY_SOURCE_PATHS;
 }
 

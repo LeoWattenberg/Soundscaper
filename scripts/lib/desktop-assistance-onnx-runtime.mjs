@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-/** Reproducible CPU-only extraction of the exact upstream ONNX Runtime closure. */
+/** Reproducible extraction of the upstream ONNX Runtime CPU and GPU closure. */
 
 import { createHash, randomUUID } from 'node:crypto';
 import { createReadStream } from 'node:fs';
@@ -9,17 +9,28 @@ import {
 } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, isAbsolute, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { extract } from 'tar';
 
 import pinnedPayloads from '../../config/assistance-onnx-runtime-payloads.json' with { type: 'json' };
+import { prepareDesktopAssistanceOnnxWebGpuBinding } from './desktop-assistance-onnx-webgpu-binding.mjs';
 
 const TARGETS = Object.freeze(['mac-arm64', 'linux-x64', 'linux-arm64', 'win-x64', 'win-arm64']);
+// Every native target builds the reviewed WebGPU plugin bridge and isolated
+// adapter probe; macOS also retains the pinned core's CoreML provider.
+const PROVIDERS = Object.freeze({
+	'mac-arm64': ['coreml', 'webgpu', 'cpu'],
+	'linux-x64': ['webgpu', 'cpu'],
+	'linux-arm64': ['webgpu', 'cpu'],
+	'win-x64': ['webgpu', 'cpu'],
+	'win-arm64': ['webgpu', 'cpu'],
+});
 const PREFIX = 'assistance/onnxruntime-node/1.29.0';
 const ENTRYPOINT = 'node_modules/onnxruntime-node/dist/index.js';
 const MAXIMUM_SOURCE_BYTES = 256 * 1024 * 1024;
 const SHA256 = /^[a-f\d]{64}$/u;
 
-export function createDesktopAssistanceOnnxManifest(targetId, payloads = pinnedPayloads) {
+function runtimeFiles(targetId, payloads) {
 	validatePayloads(payloads);
 	assertTarget(targetId);
 	const files = payloads.sources.flatMap((source) => source.kind === 'file'
@@ -32,6 +43,17 @@ export function createDesktopAssistanceOnnxManifest(targetId, payloads = pinnedP
 		|| new Set(files.map(({ path }) => path)).size !== files.length) {
 		throw new TypeError('The ONNX Runtime closure has missing or repeated entrypoints.');
 	}
+	return files;
+}
+
+export function createDesktopAssistanceOnnxManifest(targetId, payloads = pinnedPayloads, { builtFiles } = {}) {
+	const baseFiles = runtimeFiles(targetId, payloads);
+	const files = builtFiles ?? baseFiles;
+	for (const file of files) validateFile(file);
+	if (!files.some(({ path }) => path === ENTRYPOINT)
+		|| new Set(files.map(({ path }) => path)).size !== files.length) {
+		throw new TypeError('The ONNX Runtime closure has missing or repeated entrypoints.');
+	}
 	return {
 		schemaVersion: 1,
 		familyId: 'onnxruntime-node',
@@ -39,11 +61,12 @@ export function createDesktopAssistanceOnnxManifest(targetId, payloads = pinnedP
 		source: { url: pinnedPayloads.sources[0].url, revision: '1.29.0' },
 		executionProvider: 'cpu',
 		runtimePrefix: PREFIX,
-		targets: TARGETS.map((id) => id === targetId ? {
+		targets: TARGETS.map((id) => id === targetId && builtFiles ? {
 			id, status: 'authenticated', entrypoint: ENTRYPOINT, files,
+			executionProviders: [...PROVIDERS[id]],
 		} : {
 			id, status: 'package-generated',
-			packageBehavior: `The ${id} ONNX Runtime payload is generated and verified by its own target package build.`,
+			packageBehavior: `The ${id} WebGPU plugin, isolated adapter probe and Node-API bridge are built and authenticated by the native target package build.`,
 		}),
 	};
 }
@@ -55,8 +78,10 @@ export async function stageDesktopAssistanceOnnxRuntime({
 	cacheRoot = join(tmpdir(), 'soundscaper-assistance-runtime-cache'),
 	fetchImpl = globalThis.fetch,
 	payloads = pinnedPayloads,
+	repositoryRoot = fileURLToPath(new URL('../../', import.meta.url)),
+	buildWebGpu = prepareDesktopAssistanceOnnxWebGpuBinding,
 }) {
-	const manifest = createDesktopAssistanceOnnxManifest(targetId, payloads);
+	let files = runtimeFiles(targetId, payloads);
 	const root = absoluteRoot(outputRoot, 'runtime output');
 	const cache = absoluteRoot(cacheRoot, 'runtime source cache');
 	if (typeof fetchImpl !== 'function') throw new TypeError('The runtime source fetcher is invalid.');
@@ -77,8 +102,35 @@ export async function stageDesktopAssistanceOnnxRuntime({
 				await extractPackage(source, selectedFiles(source, targetId), archivePath, temporary);
 			}
 		}
+		await verifyInventory(temporary, files);
+		let nativeBuild;
+		{
+			const [targetOs, architecture] = targetId.split('-');
+			const nativeOs = { mac: 'darwin', linux: 'linux', win: 'win32' }[targetOs];
+			const nativePrefix = `node_modules/onnxruntime-node/bin/napi-v6/${nativeOs}/${architecture}`;
+			const nativeRoot = join(temporary, nativePrefix);
+			await mkdir(nativeRoot, { recursive: true });
+			nativeBuild = await buildWebGpu({ targetId, repositoryRoot, outputRoot: nativeRoot, cacheRoot: cache, fetchImpl });
+			const pluginName = targetOs === 'win' ? 'onnxruntime_providers_webgpu.dll'
+				: `libonnxruntime_providers_webgpu.${targetOs === 'mac' ? 'dylib' : 'so'}`;
+			const probeName = `onnx-webgpu-device-probe${targetOs === 'win' ? '.exe' : ''}`;
+			if (!Array.isArray(nativeBuild?.files) || nativeBuild.files.length > 32
+				|| nativeBuild.provenance?.targetId !== targetId
+				|| [pluginName, 'onnxruntime_binding.node', probeName, 'ONNX-WebGPU-LICENSE', 'onnx-webgpu-build-provenance.json']
+					.some((path) => !nativeBuild.files.some((file) => file.path === path))) {
+				throw new Error('The ONNX WebGPU build receipt is missing its authenticated closure.');
+			}
+			const combined = new Map(files.map((file) => [file.path, file]));
+			for (const file of nativeBuild.files) {
+				validateFile(file);
+				const path = `${nativePrefix}/${file.path}`;
+				combined.set(path, { ...file, path, executable: file.executable === true });
+			}
+			files = [...combined.values()].sort((left, right) => left.path.localeCompare(right.path, 'en'));
+			await verifyInventory(temporary, files);
+		}
+		const manifest = createDesktopAssistanceOnnxManifest(targetId, payloads, { builtFiles: files });
 		const target = manifest.targets.find(({ id }) => id === targetId);
-		await verifyInventory(temporary, target.files);
 		const destination = join(parent, targetId);
 		await rm(destination, { recursive: true, force: true });
 		await rename(temporary, destination);
@@ -91,6 +143,7 @@ export async function stageDesktopAssistanceOnnxRuntime({
 				fileCount: target.files.length,
 				byteLength: target.files.reduce((total, { byteLength }) => total + byteLength, 0),
 				sourceSha256: payloads.sources.map(({ id, sha256 }) => ({ id, sha256 })),
+				...(nativeBuild ? { nativeBuild: nativeBuild.provenance } : {}),
 			},
 		};
 	} finally {

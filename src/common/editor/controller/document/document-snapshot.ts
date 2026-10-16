@@ -17,6 +17,8 @@ import type { TakeCyclePendingOpenRecovery } from '../recording/take-cycle-captu
 import type { FramescaperCaptureSessionSnapshot } from '../capture/framescaper-capture-session-types.ts';
 import type { FramescaperWebVcrUiSnapshot } from '../capture/framescaper-web-vcr-controller-types.ts';
 import { inheritTrackFolderMediaStateProjectionV12 } from '../../track-folder-media-runtime.ts';
+import { rememberDeliveryReportOrigin } from '../../delivery-report-origin.ts';
+import { hasLockedClipboardPasteTarget } from '../../clipboard-paste-targets.ts';
 
 const VIDEO_PREVIEW_PROJECTS = new WeakMap<object, object>();
 const PUBLISHED_PROJECTS = new WeakMap<object, object>();
@@ -159,6 +161,7 @@ export interface EditorDocumentSnapshotState {
 	readonly exportProgress: number;
 	readonly exportOutput: unknown;
 	readonly effectClipboard: unknown;
+	readonly readSourceSelectionFrames?: (() => number | null) | null;
 	readonly audacityEffectType: string;
 	readonly audacityControlTrackId: string | null;
 	readonly audacityNoiseProfile: unknown;
@@ -218,6 +221,7 @@ export function createEditorDocumentSnapshot<Project extends SnapshotProject>(
 ) {
 	const { state } = runtime;
 	const currentProject = runtime.getCurrentProject();
+	if (currentProject) rememberDeliveryReportOrigin(state.deliveryReport, currentProject.title);
 	const currentTabMetadata = currentProject
 		? runtime.getCurrentTabMetadata(currentProject.id)
 		: {};
@@ -276,7 +280,7 @@ export function createEditorDocumentSnapshot<Project extends SnapshotProject>(
 		projectActivationPending: state.projectActivationPending,
 		importing: state.importing,
 		recordingStarting: state.recordingStarting,
-		recordingScheduling: state.timedRecordingPreparing,
+		recordingScheduling: state.timedRecordingPreparing || state.timedRecordingCancelling,
 		scheduledRecording: state.timedRecording
 			? Object.freeze({
 				startTimeMs: state.timedRecording.startTimeMs,
@@ -335,6 +339,7 @@ export function createEditorDocumentSnapshot<Project extends SnapshotProject>(
 			canUndo: Boolean(history && runtime.canUndo(history)),
 			canRedo: Boolean(history && runtime.canRedo(history)),
 			hasClipboard: Boolean(state.clipboard),
+			pasteTargetLocked: hasLockedClipboardPasteTarget(currentProject, state.clipboard, state.selectedTrackId),
 			undoEntries: Object.freeze((history?.undoStack || []).slice(-20).reverse()
 				.map(runtime.historyEntrySummary)),
 			redoEntries: Object.freeze((history?.redoStack || []).slice(-20).reverse()
@@ -380,6 +385,7 @@ export function createEditorDocumentSnapshot<Project extends SnapshotProject>(
 		lastAnalysisRequest: state.lastAnalysisRequest ?? null,
 		export: Object.freeze({ progress: state.exportProgress, output: state.exportOutput }),
 		effects: Object.freeze({
+			sourceSelectionFrames: currentProject ? state.readSourceSelectionFrames?.() ?? null : null,
 			rackTypes: Object.freeze(runtime.getRackEffectTypes()),
 			videoTypes: Object.freeze(runtime.getVideoEffectTypes()),
 			hasStackClipboard: state.effectClipboard !== null,

@@ -118,13 +118,13 @@ export function ClipFadeOverlays({ rootRef, clips, selectedIds, startFrame, endF
 					onClick={event => { event.stopPropagation(); }}
 					onDoubleClick={event => { event.stopPropagation(); }}
 					onKeyDown={event => {
+						if (event.ctrlKey || event.metaKey || event.altKey) return;
 						if (event.key === 'Tab' && handleTabIndex < 0) {
 							event.stopPropagation();
 							event.preventDefault();
 							moveFadeFocus(target, event.currentTarget, event.shiftKey, clip.id, onTabOut);
 							return;
 						}
-						if (event.ctrlKey || event.metaKey || event.altKey) return;
 						const next = fadeDurationAtKey(event.key, event.shiftKey, value, sampleRate, clip.durationFrames);
 						if (next === null) return;
 						event.stopPropagation();
@@ -156,6 +156,7 @@ export function ClipFadeOverlays({ rootRef, clips, selectedIds, startFrame, endF
 					onClick={event => { event.stopPropagation(); }}
 					onDoubleClick={event => { event.stopPropagation(); }}
 					onKeyDown={event => {
+						if (event.ctrlKey || event.metaKey || event.altKey) return;
 						if (isFadeShapeMenuKey(event) && !blocked) {
 							event.stopPropagation();
 							event.preventDefault();
@@ -168,7 +169,6 @@ export function ClipFadeOverlays({ rootRef, clips, selectedIds, startFrame, endF
 							moveFadeFocus(target, event.currentTarget, event.shiftKey, clip.id, onTabOut);
 							return;
 						}
-						if (event.ctrlKey || event.metaKey || event.altKey) return;
 						const next = fadeShapeAtKey(event.key, event.shiftKey, value);
 						if (next === null) return;
 						event.stopPropagation();

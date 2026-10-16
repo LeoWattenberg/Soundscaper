@@ -415,7 +415,6 @@ test('controller runs specialized analysis reports and snaps selections to zero 
 	controller.actions.timeline.setSelection(10_000, 11_000);
 	await controller.actions.timeline.zeroCross();
 	assert.deepEqual(controller.getSnapshot().selection, {
-		startFrame: 10_002, endFrame: 10_998,
-		trackIds: [], clipIds: [], annotationIds: [], frequencyRange: null,
+		startFrame: 10_002, endFrame: 10_998, trackIds: [], clipIds: [], annotationIds: [], frequencyRange: null,
 	});
 });

@@ -19,9 +19,9 @@
  * until the user rescans that location explicitly, so a hostile folder cannot
  * crash the scanner in a loop merely by being scanned again.
  *
- * Like every other native surface this one is off by default and degrades
- * rather than fails: disabled, unconsented, quarantined, unbuilt, or crashed,
- * it answers with a typed status and the Web Core editor is untouched.
+ * Discovery respects the saved scanning switch and folder choices. Disabled,
+ * unconsented, quarantined, unbuilt, or crashed, it answers with a typed status
+ * and the Web Core editor is untouched.
  */
 
 import { HELPER_PLUGIN_FORMATS, type HelperPluginFormat } from './helper-job-grant.ts';

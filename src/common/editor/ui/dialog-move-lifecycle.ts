@@ -21,8 +21,8 @@ export function retainDialogMoveLifecycle(
 		window.removeEventListener('mousemove', move);
 		window.removeEventListener('mouseup', finish);
 	};
-	const finish = () => {
-		if (!active) return;
+	const finish = (event: MouseEvent) => {
+		if (!active || event.button !== 0) return;
 		release();
 		callbacks.finish();
 	};

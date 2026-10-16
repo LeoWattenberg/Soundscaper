@@ -14,6 +14,7 @@ import AudioEditorTimeCodeInput, {
 import { createAudioWarpDialogModel } from '../audio-warp-dialog-model.ts';
 import { useOwnedDialogOperation } from '../useOwnedDialogOperation.ts';
 import { useOperationFocusRecovery } from '../useOperationFocusRecovery.ts';
+import EditorMusicalTimeCodeProvider from '../EditorMusicalTimeCodeProvider.tsx';
 
 interface AudioWarpDialogActions {
 	view(): Readonly<{
@@ -57,6 +58,10 @@ export default function AudioWarpDialog({
 	const runtime = controller.actions.audioWarp.view();
 	const projectIdValue = dataRecord(snapshot.project)?.id;
 	const sampleRate = audioEditorProjectSampleRate(snapshot.project);
+	const gridClock = useMemo(() => ({
+		getSnapshot: () => snapshot,
+		subscribe: () => () => undefined,
+	}), [snapshot]);
 	const projectId = typeof projectIdValue === 'string' ? projectIdValue : null;
 	const [status, setStatus] = usePresentationFeedback(copy);
 	const [error, setError] = usePresentationFeedback(copy);
@@ -186,10 +191,12 @@ export default function AudioWarpDialog({
 
 			<fieldset disabled={disabled}>
 				<legend>{copy.audioWarpQuantization}</legend>
-				<div className="audio-editor-audio-warp__grid-fields">
-					<NumberField label={copy.audioWarpGridOrigin} value={gridOrigin} sampleRate={sampleRate} onChange={setGridOrigin} />
-					<NumberField label={copy.audioWarpGridInterval} value={gridInterval} sampleRate={sampleRate} minimum={1} onChange={setGridInterval} />
-				</div>
+				<EditorMusicalTimeCodeProvider controller={gridClock} originFrame={model.gridSampleOrigin}>
+					<div className="audio-editor-audio-warp__grid-fields">
+						<NumberField label={copy.audioWarpGridOrigin} value={gridOrigin} sampleRate={sampleRate} onChange={setGridOrigin} />
+						<NumberField label={copy.audioWarpGridInterval} value={gridInterval} sampleRate={sampleRate} minimum={1} onChange={setGridInterval} />
+					</div>
+				</EditorMusicalTimeCodeProvider>
 				<StrengthField
 					label={copy.audioWarpStrength}
 					value={strengthPercent}

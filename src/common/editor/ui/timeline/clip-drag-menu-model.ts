@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 interface ClipDragMenuItem {
+	readonly id?: string;
 	readonly label: string;
 	readonly shortcut?: string;
 	readonly disabled?: boolean;
@@ -26,18 +27,21 @@ export function createClipDragMenuItems(input: ClipDragMenuInput): readonly Clip
 	const source = input.project.tracks.find((track) => track.clipIds?.includes(clip?.id ?? ''));
 	if (!clip || !source?.clipIds) return [];
 	const destinations = input.project.tracks.filter((track) => (
-		track.id !== source.id && track.type === (clip.kind === 'image' ? 'video' : clip.kind) && Array.isArray(track.clipIds)
+		track.id !== source.id && track.type === (['image', 'still', 'generator'].includes(clip.kind) ? 'video' : clip.kind) && Array.isArray(track.clipIds)
 	));
 	return [{
+		id: 'clip-select-track-clips',
 		label: input.copy.selectTrackClips,
 		shortcut: 'Shift+drag',
 		disabled: input.blocked,
 		onClick: () => input.select(source.clipIds ?? [], source.id),
 	}, {
+		id: 'clip-move-preserve-time',
 		label: input.copy.moveClipPreserveTime,
 		shortcut: 'Ctrl+drag',
 		disabled: input.blocked || destinations.length === 0,
 		items: destinations.map((track) => ({
+			id: `clip-move-preserve-time-${encodeURIComponent(track.id)}`,
 			label: track.name,
 			disabled: input.blocked,
 			onClick: () => input.move(clip.id, track.id),

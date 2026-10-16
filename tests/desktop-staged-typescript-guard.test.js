@@ -47,6 +47,13 @@ test('the staged desktop tree carries no TypeScript specifier and resolves every
 	});
 
 	const stagedFiles = await listFilesRecursively(applicationDesktopRoot);
+	assert.equal(await readFile(join(applicationDesktopRoot, 'blender/soundscaper_blender.py'), 'utf8'),
+		await readFile(join(ROOT, 'desktop/blender/soundscaper_blender.py'), 'utf8'),
+		'the desktop package must carry the installable Blender receiver');
+	for (const file of ['desktop/blender-ipc.js', 'desktop/blender-export-store.js',
+		'desktop/blender-live-server.js', 'src/common/editor/blender-contract.js']) {
+		assert.ok(stagedRuntime.files.includes(file), `the desktop Blender host requires ${file}`);
+	}
 	await assertRuntimeReachability({
 		productId: 'soundscaper', applicationDesktopRoot, runtimeRoot, stagedRuntime,
 	});

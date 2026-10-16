@@ -147,7 +147,7 @@ test('security matrix covers the production threat-model surfaces without promot
 		'native-plugin-hosting': 'partial',
 		'long-job-cancellation': 'partial',
 		'runtime-supply-chain': 'partial',
-		'freesound-proxy-boundary': 'partial',
+		'freesound-proxy-boundary': 'partial', 'audiocom-proxy-boundary': 'partial',
 	};
 	assert.deepEqual(
 		Object.fromEntries(matrix.risks.map((risk) => [risk.id, risk.status])),
@@ -200,7 +200,7 @@ test('native plug-in surfaces are conditional for testing and portable archive c
 	assert.deepEqual(helperProcesses.currentControls.map(({ id }) => id), [
 		'pathless-probe-helper-bridge',
 		'helper-contract-v1-wire-validation',
-		'supervised-helper-lifecycle',
+		'authenticated-local-assistance-gpu-execution', 'supervised-helper-lifecycle',
 		'verified-helper-engine-payload',
 		'verified-native-helper-payload-selection',
 		'native-helper-real-process-proof',

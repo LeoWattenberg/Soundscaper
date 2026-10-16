@@ -295,8 +295,8 @@ function configureDefensiveDatabase(sqlite, database) {
 }
 
 async function planImport(args, context) {
-	const [{ Aup4WorkerImportSession }, { readAup4ImportSamples }] = await Promise.all([
-		import('./aup4-worker-import-session.ts'), import('./aup4-import-sample-reader.ts'),
+	const [{ Aup4WorkerImportSession }, { readAup4ImportSamples }, { planAudacitySampleBlockStorage }] = await Promise.all([
+		import('./aup4-worker-import-session.ts'), import('./aup4-import-sample-reader.ts'), import('./aup4-import-block-storage.ts'),
 	]);
 	const entry = requireProject(args.projectId);
 	const validation = validateAudacityProjectDatabase(entry.database, WORKER_VALIDATION_OPTIONS);
@@ -306,10 +306,12 @@ async function planImport(args, context) {
 		throw operationError('Audio must be read through the import stream.', 'INVALID_IMPORT_READ');
 	}, { projectId: entry.projectId, title: args.title, sourceGeneration: entry.sourceGeneration, planAudio: true });
 	context.checkCancelled();
-	entry.importSession = new Aup4WorkerImportSession(decoded.sources,
+	const sampleBlockStorage = args.preserveSampleBlocks === true
+		? planAudacitySampleBlockStorage(decoded.sources, `${entry.projectId}-sample-blocks`) : null;
+	entry.importSession = new Aup4WorkerImportSession(sampleBlockStorage?.backingSources ?? decoded.sources,
 		(block, offset, frames) => readAup4ImportSamples(entry.database, block, offset, frames));
 	const portable = portableValidation(validation, entry);
-	return { ...decoded, sources: [], validation: portable,
+	return { ...decoded, sources: [], ...(sampleBlockStorage ? { sampleBlockStorage } : {}), validation: portable,
 		compatibilityReport: mergeCompatibilityReports(portable.compatibilityReport, decoded.compatibilityReport) };
 }
 

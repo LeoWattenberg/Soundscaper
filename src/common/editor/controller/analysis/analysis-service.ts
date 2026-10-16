@@ -60,6 +60,7 @@ interface ContrastSelection {
 	readonly startFrame: number;
 	readonly endFrame: number;
 	readonly rmsDb: number;
+	readonly rmsAmplitude?: number;
 	readonly scope: string;
 }
 
@@ -73,6 +74,7 @@ interface AnalysisRequestSnapshot {
 
 export type AnalysisRepeatRequest = Readonly<
 	| { readonly type: 'levels'; readonly scope: string }
+	| { readonly type: 'loudness'; readonly scope: 'master' }
 	| { readonly type: 'spectrum' | 'clipping'; readonly scope: string; readonly options: Readonly<Record<string, unknown>> }
 	| { readonly type: 'contrast'; readonly role: string; readonly scope: string; readonly options: Readonly<Record<string, unknown>> }
 >;
@@ -147,6 +149,7 @@ export function createAudioAnalysisService(dependencies: AnalysisDependencies) {
 	function repeatLast(): Promise<unknown> {
 		const request = dependencies.state.lastAnalysisRequest;
 		if (!request) return Promise.resolve(null);
+		if (request.type === 'loudness') return measureLoudness();
 		if (request.type === 'levels') return run(request.scope);
 		if (request.type === 'contrast') return captureContrast(request.role, request.scope, request.options);
 		return runSpecialized(request.type, request.scope, request.options);
@@ -159,7 +162,7 @@ export function createAudioAnalysisService(dependencies: AnalysisDependencies) {
 		const projectToken = dependencies.captureProject();
 		const task = begin('analysisRendering');
 		const key = [
-			'audio-editor-analysis-v2',
+			'audio-editor-analysis-v4',
 			request.projectId,
 			request.revision,
 			request.scope,
@@ -225,6 +228,9 @@ export function createAudioAnalysisService(dependencies: AnalysisDependencies) {
 				return cached.report;
 			}
 			const { channels, sampleRate } = await renderChannels(request, task, projectToken);
+			if (type === 'spectrum' && (channels[0]?.length ?? 0) < Number(reportOptions.size)) {
+				throw createLocalizedError(RangeError, copy, 'spectrumSelectionTooShort', { samples: Number(reportOptions.size) });
+			}
 			const visuals = dependencies.createVisuals(channels, sampleRate);
 			const abort = new AbortController();
 			const signal = AbortSignal.any([task.signal, abort.signal]);
@@ -276,22 +282,24 @@ export function createAudioAnalysisService(dependencies: AnalysisDependencies) {
 			const request = captureRequest(project, scope, selection, dependencies.getSelectedTrackId());
 			const { channels, sampleRate, result } = await renderAndAnalyze(request, task, projectToken);
 			const rmsDb = Number(result.rmsDbfs);
+			const rawRms = result.rmsAmplitude;
+			const amplitude = typeof rawRms === 'number' && Number.isFinite(rawRms) && rawRms >= 0 ? { rmsAmplitude: rawRms } : {};
 			const selections = {
 				...dependencies.getContrastSelections(),
-				[role]: Object.freeze({ ...selection, rmsDb, scope }),
+				[role]: Object.freeze({ ...selection, rmsDb, ...amplitude, scope }),
 			};
 			dependencies.setContrastSelections(selections);
 			const foreground = selections.foreground;
 			const background = selections.background;
 			const minimumDifferenceDb = Number(options.minimumDifferenceDb ?? 20);
-			const differenceDb = foreground && background ? foreground.rmsDb - background.rmsDb : null;
+			const differenceDb = foreground && background ? contrastDifferenceDb(foreground, background) : null;
 			const report = Object.freeze({
 				type: 'contrast',
 				foreground,
 				background,
 				minimumDifferenceDb,
 				differenceDb,
-				passes: Number.isFinite(differenceDb) ? Number(differenceDb) >= minimumDifferenceDb : null,
+				passes: differenceDb === null || Number.isNaN(differenceDb) ? null : differenceDb >= minimumDifferenceDb,
 			});
 			const roleLabel = { key: role === 'foreground' ? 'contrastForegroundRole' : 'contrastBackgroundRole' };
 			complete(task, () => {
@@ -337,7 +345,11 @@ export function createAudioAnalysisService(dependencies: AnalysisDependencies) {
 			assertCurrent(task, projectToken, request);
 			if (identity && loudnessCache?.generation.deref() === identity.generation && loudnessCache.key === identity.key) {
 				const report = structuredClone(loudnessCache.report);
-				complete(task, () => { dependencies.state.deliveryReport = report; setLocalizedStatus(dependencies.setStatus, copy, 'loudnessMeasured', undefined, 'success'); });
+				complete(task, () => {
+					dependencies.state.deliveryReport = report;
+					remember({ type: 'loudness', scope: 'master' });
+					setLocalizedStatus(dependencies.setStatus, copy, 'loudnessMeasured', undefined, 'success');
+				});
 				return report;
 			}
 			const rendered = await dependencies.renderAudio('master', range, task.signal);
@@ -366,6 +378,7 @@ export function createAudioAnalysisService(dependencies: AnalysisDependencies) {
 			}
 			complete(task, () => {
 				dependencies.state.deliveryReport = report;
+				remember({ type: 'loudness', scope: 'master' });
 				setLocalizedStatus(dependencies.setStatus, copy, "loudnessMeasured", undefined, 'success');
 			});
 			return report;
@@ -504,4 +517,11 @@ function readStoredAnalysis(value: unknown): StoredAnalysis | null {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
 	return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function contrastDifferenceDb(foreground: ContrastSelection, background: ContrastSelection): number {
+	if (foreground.rmsAmplitude === 0 && background.rmsAmplitude === 0) return 0;
+	const decibels = (selection: ContrastSelection) => selection.rmsAmplitude === undefined
+		? selection.rmsDb : 20 * Math.log10(selection.rmsAmplitude);
+	return decibels(foreground) - decibels(background);
 }

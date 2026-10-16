@@ -3,6 +3,7 @@
 import { formatPresentationMessage } from '../../../i18n/presentation-message.ts'; import { timelineAnnotationNavigationMessage } from './timeline-annotation-presentation.ts'; import React, { useEffect, useRef } from 'react';
 
 import { AUDIO_EDITOR_TIMELINE_ANNOTATION_COLORS } from '../../timeline-annotation.ts';
+import { resolveSelectionRange } from '../../selection-range.ts';
 import AudioEditorTimeCodeInput from '../AudioEditorTimeCodeInput.tsx';
 import { useTimelineAnnotationInteractions } from './useTimelineAnnotationInteractions.js';
 
@@ -64,6 +65,7 @@ export function TimelineAnnotationPanel({
 		);
 	};
 	const expandedId = editingId ?? model.focusedId;
+	const regionSelection = resolveSelectionRange(project) ?? project.selection;
 	useEffect(() => {
 		if (!editingId) return;
 		renameRef.current?.focus();
@@ -83,7 +85,7 @@ export function TimelineAnnotationPanel({
 					</button>
 					<button
 						type="button"
-						disabled={blocked || !(project.selection?.endFrame > project.selection?.startFrame)}
+						disabled={blocked || !(regionSelection?.endFrame > regionSelection?.startFrame)}
 						onClick={() => createAnnotation('region', focusCreated)}
 					>{copy.addTimelineRegion}</button>
 					<button type="button" disabled={!model.rows.length} onClick={() => navigate(-1)}>

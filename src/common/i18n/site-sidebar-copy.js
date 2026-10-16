@@ -11,6 +11,7 @@ const SITE_SIDEBAR_COPY_ENTRIES = Object.freeze([
 	['sidebarSettings', 'Settings', 'Einstellungen'],
 	['audioEditorLink', 'Audio editor', 'Audio-Editor'],
 	['joinUsLink', 'Join us', 'Mach mit'],
+	['downloadLink', 'Download', 'Herunterladen'],
 	['legalLink', 'Privacy policy', 'Datenschutzerklärung'],
 	['reportIssueLink', 'Report an issue', 'Ein Problem melden'],
 	['githubProjectLink', 'GitHub project', 'GitHub-Projekt'],

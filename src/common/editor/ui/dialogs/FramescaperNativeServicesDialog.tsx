@@ -210,9 +210,11 @@ function QueuePanel({ copy, snapshot, busy, perform, projectActions }: Readonly<
 }>) {
 	const queue = snapshot.services.queue;
 	if (queue.length === 0) return <p>{copy.noQueueJobs}</p>;
+	const pending = queue.filter(reorderable);
+	const pendingIndex = (job: FramescaperNativeQueueProjection) => pending.indexOf(job);
 	const runtimeUsable = snapshot.services.runtimeAvailable && snapshot.services.nativeMediaEnabled;
 	return <ol aria-label={copy.backgroundJobs}>
-		{queue.map((job, index) => <li key={job.jobId} data-native-queue-job={job.jobId}>
+		{queue.map((job) => <li key={job.jobId} data-native-queue-job={job.jobId}>
 			<p><strong>{job.relativeDestination}</strong></p>
 			<p>{`${copy.queueState}: ${job.state}`}</p>
 			{job.progress !== null && <p>{`${copy.queueProgress}: ${String(Math.round(job.progress * 100))}%`}</p>}
@@ -232,13 +234,13 @@ function QueuePanel({ copy, snapshot, busy, perform, projectActions }: Readonly<
 				))}
 				<Button
 					variant="secondary"
-					disabled={busy || !runtimeUsable || index === 0 || !reorderable(job)}
-					onClick={() => perform({ type: 'queue-reorder', jobId: job.jobId, index: index - 1 })}
+					disabled={busy || !runtimeUsable || pendingIndex(job) <= 0}
+					onClick={() => perform({ type: 'queue-reorder', jobId: job.jobId, index: pendingIndex(job) - 1 })}
 				>{copy.queueMoveEarlier}</Button>
 				<Button
 					variant="secondary"
-					disabled={busy || !runtimeUsable || index === queue.length - 1 || !reorderable(job)}
-					onClick={() => perform({ type: 'queue-reorder', jobId: job.jobId, index: index + 1 })}
+					disabled={busy || !runtimeUsable || pendingIndex(job) < 0 || pendingIndex(job) === pending.length - 1}
+					onClick={() => perform({ type: 'queue-reorder', jobId: job.jobId, index: pendingIndex(job) + 1 })}
 				>{copy.queueMoveLater}</Button>
 			</div>
 		</li>)}

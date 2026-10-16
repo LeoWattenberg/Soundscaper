@@ -18,7 +18,7 @@ import {
 	validateDesktopPackageInstalledLayout,
 	validateDesktopPackageSpecificResources,
 } from './desktop-package-format-layout.mjs';
-import { assertProfessionalNativeBuiltClosure } from './desktop-package-professional-closure.mjs';
+import { assertDesktopProfessionalNativePayloadClosure } from './desktop-package-professional-closure.mjs';
 import {
 	assertDesktopProfessionalNativeNoticeClosure,
 } from './soundscaper-professional-native-notices.mjs';
@@ -263,28 +263,9 @@ async function assertRuntimePayloadClosure(runtime, files, dependencies, resourc
 	assertDesktopPackageOsAudioCodecClosure({
 		runtime, target: nativeTarget, requireFile, expectedByPrefix,
 	});
-	const professional = runtime.soundscaperProfessionalNative;
-	if (runtime.productId === 'soundscaper') {
-		if (!plainRecord(professional) || professional.target !== nativeTarget
-			|| !plainRecord(professional.payloadManifest)) {
-			throw new Error('The desktop runtime manifest has no professional native payload authority.');
-		}
-		const professionalPrefix = `runtime/native/soundscaper-professional-host/${nativeTarget}/`;
-		const professionalManifestPath = `${professionalPrefix}soundscaper-professional-native-payload-manifest.json`;
-		requireFile(professionalManifestPath, professional.payloadManifest,
-			'professional native payload manifest', professionalPrefix);
-		if (professional.status === 'built') {
-			requireFile(`${professionalPrefix}${professional.payload?.name}`, professional.payload,
-				'professional native payload', professionalPrefix);
-			assertProfessionalNativeBuiltClosure({
-				professional, target: nativeTarget, prefix: professionalPrefix, requireFile,
-			});
-		} else if (professional.status !== 'ci-generated' || professional.payload !== null || professional.blockedBy !== null) {
-			throw new Error('The desktop runtime manifest has invalid professional native target state.');
-		}
-	} else if (professional !== null && professional !== undefined) {
-		throw new Error('The Framescaper runtime manifest carries Soundscaper professional native authority.');
-	}
+	const professional = assertDesktopProfessionalNativePayloadClosure({
+		runtime, target: nativeTarget, requireFile,
+	});
 	assertDesktopProfessionalNativeNoticeClosure({
 		runtime, professional, target: nativeTarget, requireFile, expectedByPrefix,
 	}, dependencies.professionalNativeNoticeAuthorities);

@@ -102,7 +102,8 @@ test('a successful remove reports after its own group leaves the project', async
 	try {
 		await act(async () => root.render(renderDialog(populatedProject)));
 		await act(async () => {
-			void reactProps(buttonWithText(dom.container, ENGLISH_COPY.takeCompRemoveGroup)).onClick({});
+			const control = buttonWithText(dom.container, ENGLISH_COPY.takeCompRemoveGroup);
+			void reactProps(control).onClick({ currentTarget: control });
 			await Promise.resolve();
 		});
 		await act(async () => root.render(renderDialog({ ...populatedProject, takeGroups: [] })));

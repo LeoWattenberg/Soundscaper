@@ -15,6 +15,19 @@ import type { FoundationTimeConversionSite } from './foundation-time-conversion-
  */
 export const FOUNDATION_TIME_CONVERSION_PRODUCT_SITES: readonly FoundationTimeConversionSite[] = deepFreezeAuditSites([
 	{
+		id: 'framescaper-native-bin-overwrite-span',
+		file: 'src/framescaper/editor-timeline-native-overwrite-command.ts',
+		behavior: 'Project Bin Overwrite resolves its conformed sample boundaries to nearest sequence frames only on receiving native picture lanes. Surviving native windows convert back to nearest sample points for the existing exact source-phase trim rules; uncovered lanes keep their authored timing.',
+		conversions: [{ helper: 'sampleFrameToVideoFrame', policies: ['point'] },
+			{ helper: 'videoFrameToSampleFrame', policies: ['point'] }],
+	},
+	{
+		id: 'framescaper-native-bin-insert-span',
+		file: 'src/framescaper/editor-timeline-native-insert-command.ts',
+		behavior: 'Project Bin Insert resolves each already conformed sample boundary to the nearest frame of the native picture leaf\'s sequence, opens that exact frame span, and delegates source-phase and presentation splitting before shifting the right survivor. Overwrite leaves untargeted native lanes unchanged.',
+		conversions: [{ helper: 'sampleFrameToVideoFrame', policies: ['point'] }],
+	},
+	{
 		id: 'framescaper-generated-visual-move-placement',
 		file: 'src/framescaper/editor-timeline-visual-move-command.ts',
 		behavior: 'Ordinary generator and still moves resolve the requested project sample position once to the nearest destination sequence frame, retaining their authored extent, source clock and exact owner through the existing visual mutation command.',
@@ -73,6 +86,16 @@ export const FOUNDATION_TIME_CONVERSION_PRODUCT_SITES: readonly FoundationTimeCo
 		file: 'src/framescaper/editor-session-clipboard-v11-controller.ts',
 		behavior: 'V11 finishing paste places a visual clip on the same terms as V13: the paste anchor and the clipboard-rescaled offset start and end each resolve to the nearest sequence frame at the destination rate, and the placed span is held to at least one frame.',
 		conversions: [{ helper: 'sampleFrameToVideoFrame', policies: ['point'] }],
+	},
+	{
+		id: 'framescaper-visual-paste-collision-span',
+		file: 'src/framescaper/editor-session-clipboard-visual-collisions.ts',
+		behavior: 'Native visual overwrite and ripple paste use the inherited video collision clock: clipboard duration scales to the nearest destination sample count, then the paste anchor and duration each round to the nearest sequence frame, preserving survivor source windows outside that span. Image survivor boundaries return to nearest sample points for the owning image-trim clock, which retains animated source ticks independently of ripple placement.',
+		conversions: [
+			{ helper: 'scaleSampleFrame', policies: ['point'] },
+			{ helper: 'sampleFrameToVideoFrame', policies: ['point'] },
+			{ helper: 'videoFrameToSampleFrame', policies: ['point'] },
+		],
 	},
 	{
 		id: 'framescaper-native-image-sequence-import',

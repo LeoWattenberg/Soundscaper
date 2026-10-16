@@ -7,7 +7,7 @@ import { createRoot } from 'react-dom/client';
 import { useAudioTrackRowNavigation } from '../src/common/editor/ui/timeline/useAudioTrackRowNavigation.js';
 import { snapAudioEditorFrameWithProject } from '../src/common/editor/snap-grid.js';
 import { installReactTestDom } from './helpers/react-test-dom.ts';
-import { keyboardClipMoveFrame } from '../src/common/editor/ui/timeline/keyboard-clip-move.ts';
+import { keyboardClipMoveFrame } from '../src/common/editor/keyboard-clip-move.ts';
 
 test('snapped keyboard moves respect off-grid direction, rational video lines and the project start', () => {
 	const seconds = { sampleRate: 48_000, snap: { enabled: true, unit: 'seconds' } };

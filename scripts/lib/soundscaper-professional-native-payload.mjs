@@ -105,9 +105,10 @@ export async function verifySoundscaperProfessionalNativePayload({
 	return release;
 }
 
-export function professionalNativePayloadStageSummary(release) {
+export function professionalNativePayloadStageSummary(release, { pluginOnly = false } = {}) {
 	assertRelease(release);
 	return Object.freeze({
+		...(pluginOnly ? { hostingScope: 'audio-plugin-host' } : {}),
 		target: release.target.id,
 		targetSource: release.targetSource,
 		status: release.target.status,
@@ -120,15 +121,15 @@ export function professionalNativePayloadStageSummary(release) {
 		toolchainIdentity: release.target.toolchainIdentity,
 		buildAuthority: release.buildAuthority === null ? null
 			: deepFreeze(structuredClone(release.buildAuthority)),
-		payload: release.payload === null ? null : Object.freeze({
+		payload: pluginOnly || release.payload === null ? null : Object.freeze({
 			name: release.payload.name,
 			byteLength: release.payload.byteLength,
 			sha256: release.payload.sha256,
 		}),
 		buildResult: summaryArtifact(release.buildResult),
-		osAudioCodec: summaryArtifact(release.osAudioCodec),
+		osAudioCodec: pluginOnly ? null : summaryArtifact(release.osAudioCodec),
 		pluginPeer: summaryArtifact(release.pluginPeer),
-		deliveryFilesystem: summaryArtifact(release.deliveryFilesystem),
+		deliveryFilesystem: pluginOnly ? null : summaryArtifact(release.deliveryFilesystem),
 		isolation: release.isolation === null ? null : Object.freeze({
 			launcher: summaryArtifact(release.isolation.launcher),
 			sandboxProfile: summaryArtifact(release.isolation.sandboxProfile),
@@ -158,14 +159,14 @@ export function assertSoundscaperProfessionalNativePackageInputs(release) {
 	});
 }
 
-export async function stageVerifiedSoundscaperProfessionalNativePayload({ release, outputRoot }) {
+export async function stageVerifiedSoundscaperProfessionalNativePayload({ release, outputRoot, pluginOnly = false }) {
 	assertRelease(release);
 	const manifestBytes = Buffer.from(release.manifestBytes);
-	const payload = release.payload === null ? null
+	const payload = pluginOnly || release.payload === null ? null
 		: { ...release.payload, bytes: Buffer.from(release.payload.bytes) };
 	const nativeArtifacts = release.payload === null ? [] : [
-		release.buildResult, ...(release.osAudioCodec === null ? [] : [release.osAudioCodec]),
-		release.pluginPeer, release.deliveryFilesystem, release.isolation.launcher,
+		release.buildResult, ...(pluginOnly || release.osAudioCodec === null ? [] : [release.osAudioCodec]),
+		release.pluginPeer, ...(pluginOnly ? [] : [release.deliveryFilesystem]), release.isolation.launcher,
 		release.isolation.sandboxProfile,
 		release.isolation.brokerPolicy, ...release.isolation.runtimeClosure,
 	];
@@ -179,22 +180,22 @@ export async function stageVerifiedSoundscaperProfessionalNativePayload({ releas
 		}
 		return temporary;
 	});
-	return professionalNativePayloadStageSummary(release);
+	return professionalNativePayloadStageSummary(release, { pluginOnly });
 }
 
 export async function verifyStagedSoundscaperProfessionalNativePayload({
-	release, outputRoot, stageManifestPath = null,
+	release, outputRoot, stageManifestPath = null, pluginOnly = false,
 }) {
 	assertRelease(release);
 	const entries = await collectStagedFiles(resolve(outputRoot));
 	const expected = [release.manifest.staging.manifestName,
-		...(release.payload ? [release.payload.name] : []),
+		...(!pluginOnly && release.payload ? [release.payload.name] : []),
 		...(release.payload ? [
 			relativeTargetPath(release, release.buildResult.path),
-			...(release.osAudioCodec === null ? []
+			...(pluginOnly || release.osAudioCodec === null ? []
 				: [relativeTargetPath(release, release.osAudioCodec.path)]),
 			relativeTargetPath(release, release.pluginPeer.path),
-			relativeTargetPath(release, release.deliveryFilesystem.path),
+			...(pluginOnly ? [] : [relativeTargetPath(release, release.deliveryFilesystem.path)]),
 			relativeTargetPath(release, release.isolation.launcher.path),
 			relativeTargetPath(release, release.isolation.sandboxProfile.path),
 			relativeTargetPath(release, release.isolation.brokerPolicy.path),
@@ -208,11 +209,13 @@ export async function verifyStagedSoundscaperProfessionalNativePayload({
 	assert(manifestBytes.equals(release.manifestBytes),
 		'The staged professional native payload manifest does not match the verified policy manifest.');
 	if (release.payload) {
-		const bytes = await regularFile(resolve(outputRoot, release.payload.name), 'staged professional native payload');
-		verifyBytes(bytes, release.payload, 'staged professional native payload');
-		for (const artifact of [release.pluginPeer, release.deliveryFilesystem,
+		if (!pluginOnly) {
+			const bytes = await regularFile(resolve(outputRoot, release.payload.name), 'staged professional native payload');
+			verifyBytes(bytes, release.payload, 'staged professional native payload');
+		}
+		for (const artifact of [release.pluginPeer, ...(pluginOnly ? [] : [release.deliveryFilesystem]),
 			release.isolation.launcher,
-			release.buildResult, ...(release.osAudioCodec === null ? [] : [release.osAudioCodec]),
+			release.buildResult, ...(pluginOnly || release.osAudioCodec === null ? [] : [release.osAudioCodec]),
 			release.isolation.sandboxProfile, release.isolation.brokerPolicy, ...release.isolation.runtimeClosure]) {
 			verifyBytes(await regularFile(resolve(outputRoot, relativeTargetPath(release, artifact.path)),
 				'staged professional native artifact'), artifact, 'staged professional native artifact');
@@ -221,10 +224,10 @@ export async function verifyStagedSoundscaperProfessionalNativePayload({
 	if (stageManifestPath !== null) {
 		const stage = parse(await regularFile(stageManifestPath, 'desktop stage manifest'), 'desktop stage manifest');
 		assert(JSON.stringify(stage.soundscaperProfessionalNative)
-			=== JSON.stringify(professionalNativePayloadStageSummary(release)),
+			=== JSON.stringify(professionalNativePayloadStageSummary(release, { pluginOnly })),
 		'The desktop stage manifest does not retain the professional native payload summary.');
 	}
-	return professionalNativePayloadStageSummary(release);
+	return professionalNativePayloadStageSummary(release, { pluginOnly });
 }
 
 function validateManifest(value, sourceRegister) {
@@ -282,7 +285,7 @@ function validateManifest(value, sourceRegister) {
 }
 
 function validSourceAuthentication(value, target, sourceRegister) {
-	const ids = ['electron-node-api-headers', 'juce', 'clap', 'vst3-sdk', 'vamp-plugin-sdk',
+	const ids = ['electron-node-api-headers', 'juce', 'clap', 'vst3-sdk', 'vamp-plugin-sdk', 'ara-api', 'ara-library',
 		...(target.startsWith('win-') ? ['asio-sdk'] : []),
 		...(target.startsWith('linux-') ? ['ladspa-sdk', 'lv2'] : [])];
 	return value?.schemaVersion === 1 && value.status === 'authenticated'

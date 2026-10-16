@@ -2,6 +2,7 @@
 
 import { scaleBextTimeReference } from '../../../broadcast-wave-project.ts';
 import { cartMetadataAtImportOrigin } from '../../../cart-import-origin.ts';
+import { ixmlAtImportOrigin } from '../../../ixml-delivery-timing.ts';
 import { isNeutralAdmSignalPath } from '../../../adm-passthrough-project.ts';
 import { normalizeAdmProjectMetadata } from '../../../adm-project-metadata.ts';
 import { promoteImportedBextOrigin } from './bext-import-promotion.ts';
@@ -16,6 +17,15 @@ export function prepareImportedWavMetadata(options: Readonly<Record<string, any>
 	const sourceAdm = descriptor?.adm || null;
 	const warnings = Array.isArray(descriptor?.metadataWarnings) ? [...descriptor.metadataWarnings] : [];
 	const extensions = (resolvedImportOptions: Readonly<Record<string, unknown>>) => {
+		let projectIxml: ReturnType<typeof ixmlAtImportOrigin> | null = null;
+		if (project.metadata?.ixml == null && sourceIxml) {
+			try {
+				projectIxml = ixmlAtImportOrigin(sourceIxml, descriptor.sampleRate, projectSampleRate,
+					resolvedImportOptions.destination === 'timeline' ? Number(resolvedImportOptions.timelineStartFrame) : 0);
+			} catch {
+				warnings.push(warning('ixml-sync-point-conversion', 'The iXML sync points cannot be represented at the project sample rate and import position. Source metadata was retained.'));
+			}
+		}
 		let projectCart: ReturnType<typeof cartMetadataAtImportOrigin> | null = null;
 		if (project.metadata?.cart == null && sourceCart) {
 			try {
@@ -27,7 +37,7 @@ export function prepareImportedWavMetadata(options: Readonly<Record<string, any>
 			}
 		}
 		return {
-			projectIxml: project.metadata?.ixml == null ? sourceIxml : null,
+			projectIxml,
 			projectCart,
 			projectAdmCandidate: shouldPromoteAdm(project, descriptor, resolvedImportOptions, sourceAdm, projectSampleRate, warnings)
 				? sourceAdm

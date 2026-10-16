@@ -2,6 +2,7 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { createMenuActionFixture } from './helpers/application-menu-fixture.ts';
 import React, { act } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 
@@ -47,7 +48,7 @@ test('project and AUP4 compatibility reports have no permanent menu entry', () =
 				showArmControls: false, selectionActive: false, selectedClip: null,
 				durationFrames: 0, effectsPanelOpen: false, projectBinEffectivelyOpen: false,
 				uiFlags: {}, actionRuntime: null,
-				actions: new Proxy({}, { get: () => () => undefined }),
+				actions: createMenuActionFixture(),
 			});
 			assert.doesNotMatch(JSON.stringify(menus), /"(?:project-compatibility-report|aup4-compatibility-report|audacity-projects)"/u);
 		}

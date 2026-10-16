@@ -120,7 +120,8 @@ test('track processor is preferred and emits bounded planar chunks in the actual
 	assert.deepEqual(harness.construction(), { track: recorder.track, maxBufferSize: 32 });
 	const data = audioData(130);
 	harness.reader.push(data);
-	await waitFor(() => chunks.length === 2, 'both recorded chunks');
+	await waitFor(() => data.closeCalls === 1, 'the bounded native frame to be copied');
+	await recorder.stop();
 	assert.deepEqual(chunks.map((chunk) => ({ frameStart: chunk.frameStart, frames: chunk.frames })), [
 		{ frameStart: 0, frames: 128 },
 		{ frameStart: 128, frames: 2 },
@@ -149,7 +150,7 @@ test('processor pause excludes samples while preserving monotonic input frame ga
 	recorder.start();
 	const before = audioData(2);
 	harness.reader.push(before);
-	await waitFor(() => chunks.length === 1, 'the first recorded chunk');
+	await waitFor(() => before.closeCalls === 1, 'the first native frame to be copied');
 	assert.equal(recorder.pause(), true);
 	const paused = audioData(3);
 	harness.reader.push(paused);
@@ -157,7 +158,8 @@ test('processor pause excludes samples while preserving monotonic input frame ga
 	assert.equal(recorder.resume(), true);
 	const after = audioData(2);
 	harness.reader.push(after);
-	await waitFor(() => chunks.length === 2, 'the chunk recorded after resuming');
+	await waitFor(() => after.closeCalls === 1, 'the resumed native frame to be copied');
+	await recorder.stop();
 	assert.deepEqual(chunks.map(({ frameStart, frames }) => ({ frameStart, frames })), [
 		{ frameStart: 0, frames: 2 },
 		{ frameStart: 5, frames: 2 },
@@ -188,8 +190,8 @@ test('processor bounds and serializes pending writes, surfacing fatal backpressu
 		onError: (error) => { errors.push(error); },
 	});
 	recorder.start();
-	const first = audioData(2);
-	const second = audioData(2);
+	const first = audioData(4096);
+	const second = audioData(4096);
 	harness.reader.push(first);
 	harness.reader.push(second);
 	await waitFor(() => errors.length === 1, 'the reported recorder failure');
@@ -235,7 +237,7 @@ test('asynchronous PCM sink failures stop processor reads and report exactly onc
 		onError: (error) => { errors.push(error); },
 	});
 	recorder.start();
-	const data = audioData(2);
+	const data = audioData(4096);
 	harness.reader.push(data);
 	await waitFor(() => recorder.state === 'failed', 'the recorder to reach its failed state');
 	assert.deepEqual(errors, [failure]);

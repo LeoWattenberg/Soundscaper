@@ -128,10 +128,9 @@ test.describe('Framescaper frame-canonical uniform rate-stretch qualification', 
 		for (const edge of ['left', 'right']) await expect(getMenuItem(lockedBoundaries, LABELS[edge])).toBeDisabled();
 		await page.keyboard.press('Escape');
 		await page.keyboard.press('Escape');
-		await dragStretchHandle(page, editor, locked, active, 'right', rightTarget, async () => {
-			await expect(editor.locator('[data-rate-stretch-guide]')).toHaveCount(0);
-			await expect(editor.locator('[data-rate-stretch-preview]')).toHaveCount(0);
-		});
+		await expect(editor.locator(`[data-clip-id="${active.id}"] .clip-display__handle`)).toHaveCount(0);
+		await expect(editor.locator('[data-rate-stretch-guide]')).toHaveCount(0);
+		await expect(editor.locator('[data-rate-stretch-preview]')).toHaveCount(0);
 		await expectPersistedTimeline(page, projectId, locked);
 
 		await page.goto('/de/');

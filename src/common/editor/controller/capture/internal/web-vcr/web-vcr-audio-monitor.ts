@@ -36,6 +36,7 @@ export interface WebVcrAudioMonitor {
 export function createWebVcrAudioMonitor(options: Readonly<{
 	readonly track: CloneableAudioTrack;
 	readonly context: WebVcrMonitorAudioContext;
+	readonly monitorDestination?: unknown;
 	readonly createStream: (tracks: readonly BrowserCaptureTrack[]) => BrowserCaptureStream;
 	readonly muted?: boolean;
 }>): Readonly<WebVcrAudioMonitor> {
@@ -52,7 +53,7 @@ export function createWebVcrAudioMonitor(options: Readonly<{
 		gain = options.context.createGain();
 		gain.gain.value = muted ? 0 : 1;
 		source.connect(gain);
-		gain.connect(options.context.destination);
+		gain.connect(options.monitorDestination ?? options.context.destination);
 	} catch (error) {
 		releaseMonitorOwnership(clone, source, gain);
 		throw error;

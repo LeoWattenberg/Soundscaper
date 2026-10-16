@@ -104,11 +104,13 @@ export function createProjectAttributionReport(
 	const sequenceById = new Map(sequenceContexts.map((sequence) => [sequence.id, sequence]));
 	const sequencesByTrack = indexSequencesByTrack(sequenceContexts);
 	const trackByClip = indexTracksByClip(tracks);
+	const multicameraSources = activeMulticameraSources(project.multicameraGroups);
 	const sourceReports = new Map<string, MutableSourceReport>();
 
 	for (const clip of clips) {
 		const clipId = requiredString(clip.id, 'timeline clip ID');
-		const sourceId = requiredString(clip.sourceId, 'timeline clip source ID');
+		const sourceId = multicameraSources.get(clipId)
+			?? requiredString(clip.sourceId, 'timeline clip source ID');
 		const source = sources.get(sourceId);
 		if (!source) throw new ReferenceError('Timeline clip ' + clipId + ' references missing source ' + sourceId + '.');
 		const track = trackByClip.get(clipId);
@@ -143,6 +145,22 @@ export function createProjectAttributionReport(
 	const result = ordered.map(([sourceId, entry]) => finishSource(sourceId, entry))
 		.filter((entry): entry is ProjectAttributionSource => entry !== null);
 	return Object.freeze({ sampleRate, sources: Object.freeze(result) });
+}
+
+/** A camera output retains its group clock while the active member owns its picture credit. */
+function activeMulticameraSources(value: unknown): ReadonlyMap<string, string> {
+	const sources = new Map<string, string>();
+	if (value == null) return sources;
+	for (const [index, group] of records(value, 'project.multicameraGroups').entries()) {
+		const name = 'project.multicameraGroups[' + String(index) + ']';
+		const outputId = requiredString(group.outputClipId, name + '.outputClipId');
+		const memberId = requiredString(group.activeMemberId, name + '.activeMemberId');
+		const member = uniqueRecords(group.members, name + '.members').get(memberId);
+		if (!member) throw new ReferenceError(name + ' references missing active member ' + memberId + '.');
+		if (sources.has(outputId)) throw new RangeError('Multicamera output ' + outputId + ' belongs to multiple groups.');
+		sources.set(outputId, requiredString(member.sourceId, name + ' active member source ID'));
+	}
+	return sources;
 }
 
 function appendProjectBinUses(

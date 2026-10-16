@@ -3,7 +3,7 @@ import { clipHasLoopRepeats, normalizeInactiveClipLoop } from '../../audio-clip-
 import { routeClipFocusTrimKeyboard } from './clip-focus-trim-keyboard-routing.ts';
 import { useTrackRowFocusNavigation } from './useTrackRowFocusNavigation.js';
 import { extendTrackRowSelection } from './track-row-selection-extension.ts';
-import { keyboardClipMoveFrame } from './keyboard-clip-move.ts';
+import { keyboardClipMoveFrame } from '../../keyboard-clip-move.ts';
 
 export function useAudioTrackRowNavigation({
 	controller,

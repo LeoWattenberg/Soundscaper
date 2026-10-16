@@ -10,6 +10,7 @@ import createApplicationMenus from '../application-menus.js';
 import { createDesktopHostMenuItems } from '../desktop-host-menu.ts';
 import { createVideoTrimApplicationMenuActions } from './video-trim-application-menu-actions.ts';
 import { createParallelStackMenuRuntime } from './parallel-stack-menu-runtime.ts';
+import { createBlenderWorkspaceMenuPort } from './blender-workspace-menu.ts';
 import {
 	createProductWorkspaceApplicationMenuRuntime,
 	useProductNativeServicesMenuRefresh,
@@ -120,6 +121,7 @@ export function createWorkspaceApplicationMenus({
 			locale,
 		copy,
 		desktopHost,
+		blender: createBlenderWorkspaceMenuPort({ controller, productId, fileService, copy, run }),
 		desktopOriginalOverwrite: fileService.isDesktop === true ? {
 			originalFile: () => controller?.actions?.export?.originalFile?.() ?? null,
 			available: () => controller?.actions?.export?.overwriteOriginalAvailable?.() === true,
@@ -157,8 +159,12 @@ export function createWorkspaceApplicationMenus({
 				framescaperNativeServices: framescaperRuntime.framescaperNativeServices,
 				soundscaperWorkflow,
 				soundscaperNativeServices,
+				araClipEditing: fileService.isDesktop === true && controller?.araClipEditing ? {
+					open: () => run(() => import('./AraClipEditorSurface.tsx').then(({ openAraClipEditorSurface }) =>
+						openAraClipEditorSurface({ controller, copy }))),
+				} : null,
 				parallelStackProcessing: createParallelStackMenuRuntime({
-					productId, desktop: fileService.isDesktop === true, controller, run,
+					productId, controller, run,
 					recording: Boolean(snapshot.recording || snapshot.recordingScheduling || snapshot.scheduledRecording),
 				}),
 				executeMulticameraCommand: (command) => run(() => {
@@ -369,7 +375,11 @@ export function createWorkspaceApplicationMenus({
 					openSurface('nyquist');
 				},
 				openAnalysis: (mode = 'levels') => openSurface(`offline-analysis-${mode}`),
-				openRepeatAnalyzer: () => openSurface('offline-analysis-repeat'),
+				openRepeatAnalyzer: () => snapshot.lastAnalysisRequest?.type === 'loudness'
+					? run(async () => {
+						const report = await controller.actions.analysis.repeatLast();
+						if (report) setDialog('delivery-report');
+					}) : openSurface('offline-analysis-repeat'),
 				measureLoudness: () => run(async () => {
 					const report = await controller.actions.analysis.measureLoudness();
 					if (report) setDialog('delivery-report');

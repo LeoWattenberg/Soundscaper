@@ -1,5 +1,7 @@
 patches/**/*.patch text eol=lf
 /.gitattributes text eol=lf
+/LICENSE text eol=lf
+/LICENSES/GPL-3.0.txt text eol=lf
 /LICENSES/Playwright-winldd-MIT.txt text eol=lf
 /THIRD_PARTY_LICENSES.md text eol=lf
 /config/ffmpeg-runtime-manifest.json text eol=lf
@@ -29,6 +31,7 @@ patches/**/*.patch text eol=lf
 /scripts/build-os-audio-codec-host.mjs text eol=lf
 /scripts/lib/os-audio-codec-host-build.mjs text eol=lf
 /scripts/self-test-soundscaper-professional-native-runtime.mjs text eol=lf
+/scripts/lib/soundscaper-ara-native-canary.mjs text eol=lf
 /scripts/self-test-soundscaper-delivery-fs.mjs text eol=lf
 /scripts/lib/soundscaper-professional-packaged-app-authority.mjs text eol=lf
 /scripts/lib/soundscaper-professional-native-containment-probes.mjs text eol=lf
@@ -59,3 +62,18 @@ patches/**/*.patch text eol=lf
 /scripts/kokoro-g2p/notices/** -text
 /scripts/models/** text eol=lf
 /config/milestone-7-model-*.json text eol=lf
+
+# Local AI native recipes pin raw source bytes across Windows and Unix checkouts.
+/native/assistance-sherpa-gpu/** text eol=lf
+/native/assistance-onnx-webgpu-node-api/** text eol=lf
+/native/assistance-kokoro-g2p-gpu/** text eol=lf
+/desktop/assistance-kokoro-g2p-helper.py text eol=lf
+/desktop/assistance_kokoro_g2p_gpu.py text eol=lf
+/scripts/kokoro-g2p/build.mjs text eol=lf
+/scripts/lib/desktop-kokoro-g2p-gpu.mjs text eol=lf
+/scripts/lib/desktop-assistance-onnx-native-closure.mjs text eol=lf
+/config/assistance-kokoro-g2p-gpu-build.json text eol=lf
+/config/assistance-onnx-runtime-payloads.json text eol=lf
+/config/assistance-onnx-webgpu-plugin.json text eol=lf
+/config/assistance-onnx-node-api-build.json text eol=lf
+/config/assistance-sherpa-gpu-build.json text eol=lf

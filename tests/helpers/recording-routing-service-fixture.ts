@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { createRecordingRoutingService } from '../../src/common/editor/controller/recording/internal/recording-routing-service.ts';
+import { EditorControllerLifetime } from '../../src/common/editor/controller/shared/lifecycle.ts';
 import type {
 	RecordingPreferencePatch,
 	RecordingRoutingCapturePool,
@@ -27,6 +28,7 @@ type FixtureState = Mutable<Omit<RecordingRoutingState, 'preferences'>> & Readon
 }>;
 
 interface FixtureOptions {
+	readonly lifetime?: EditorControllerLifetime;
 	readonly project?: TestProject | null;
 	readonly loadSetting?: (key: string, fallback: unknown) => Promise<unknown>;
 	readonly normalizeRouting?: (
@@ -40,6 +42,7 @@ interface FixtureOptions {
 }
 
 export function createFixture(options: FixtureOptions = {}) {
+	const lifetime = options.lifetime ?? new EditorControllerLifetime();
 	const project = options.project === undefined
 		? { id: 'project', tracks: [{ id: 'track' }] }
 		: options.project;
@@ -106,6 +109,7 @@ export function createFixture(options: FixtureOptions = {}) {
 		},
 	};
 	const runtime = {
+		lifetime,
 		AUDIO_DEVICE_PREFERENCES_SETTING_KEY: 'audio-devices',
 		RECORDING_CHANNEL_COUNT_MAXIMUM: 32,
 		RECORDING_DEFAULT_DEVICE_ID: 'default',
@@ -166,6 +170,7 @@ export function createFixture(options: FixtureOptions = {}) {
 		},
 	} satisfies RecordingRoutingServiceRuntime<TestProject, unknown>;
 	return {
+		lifetime,
 		service: createRecordingRoutingService(runtime),
 		assignedTrackIds,
 		state,

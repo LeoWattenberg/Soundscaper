@@ -12,12 +12,15 @@ import {
 import { clamp } from './track-row-helpers.jsx';
 import { moveSpectralBandCenter, spectralBandCenter, snapSpectralCenterToPeak } from './spectral-center-gesture.ts';
 import { useSpectralBandCancellation } from './useSpectralBandCancellation.ts';
+import { spectralChannelBands } from './spectral-channel-geometry.ts';
 
 export function SpectralSelectionOverlay({
 	selection,
 	track,
 	displayMode,
 	trackHeight,
+	channelCount = 1,
+	channelHeightRatio = 0.5,
 	windowWidth,
 	overscanStartFrame,
 	pixelsPerSecond,
@@ -40,9 +43,11 @@ export function SpectralSelectionOverlay({
 	);
 	const scale = normalizeSpectrogramScale(track.spectrogram?.scale);
 	const { top: clipBodyTop, height: clipBodyHeight } = audioEditorClipBodyGeometry(trackHeight);
-	const spectralHeight = displayMode === 'multiview'
+	const totalSpectralHeight = displayMode === 'multiview'
 		? Math.max(1, Math.floor(clipBodyHeight / 2))
 		: Math.max(1, clipBodyHeight);
+	const channels = spectralChannelBands(totalSpectralHeight, channelCount, channelHeightRatio);
+	const spectralHeight = channels[0].height;
 
 	useEffect(() => {
 		if (dragRef.current) return;
@@ -65,7 +70,7 @@ export function SpectralSelectionOverlay({
 		event.stopPropagation();
 	};
 	const beginDrag = (kind, event) => {
-		if (disabled) return;
+		if (disabled || event.button !== 0 || event.isPrimary === false || dragRef.current) return;
 		stopClick(event);
 		dragRef.current = {
 			kind,
@@ -119,7 +124,7 @@ export function SpectralSelectionOverlay({
 		publish(previewRef.current);
 	};
 	const adjustTime = (edge, event) => {
-		if (disabled) return;
+		if (disabled || event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey) return;
 		let requested = null;
 		const amount = event.shiftKey ? Math.max(1, Math.round(sampleRate / 10)) : 1;
 		if (event.key === 'ArrowLeft' || event.key === 'ArrowDown') requested = preview[`${edge}Frame`] - amount;
@@ -138,7 +143,7 @@ export function SpectralSelectionOverlay({
 		});
 	};
 	const adjustFrequency = (edge, event) => {
-		if (disabled) return;
+		if (disabled || event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey) return;
 		let requested = null;
 		const amount = event.shiftKey ? 100 : 10;
 		const name = edge === 'minimum' ? 'minimumFrequency' : 'maximumFrequency';
@@ -187,7 +192,10 @@ export function SpectralSelectionOverlay({
 		onPointerCancel: (event) => endDrag(event, true),
 	});
 
-	return (
+	return <>
+		{channels.slice(1).map(channel => <div key={channel.top} className="audio-editor-spectral-selection" aria-hidden="true"
+			style={{ left, top: clipBodyTop + channel.top + (1 - highFraction) * channel.height,
+				width: Math.max(2, right - left), height: Math.max(2, (highFraction - lowFraction) * channel.height) }} />)}
 		<div
 			ref={surfaceRef}
 			className="audio-editor-spectral-selection"
@@ -255,5 +263,5 @@ export function SpectralSelectionOverlay({
 				onKeyDown={(event) => adjustFrequency('minimum', event)}
 			/>
 		</div>
-	);
+	</>;
 }

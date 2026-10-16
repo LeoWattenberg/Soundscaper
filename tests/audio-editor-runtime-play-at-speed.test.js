@@ -83,12 +83,15 @@ test('play at speed couples naive interpolation to project-time transport timing
 	assert.equal(context.bufferSources[0].playbackRate.value, 2);
 	assert.deepEqual(context.bufferSources[0].started, [0, 0, 1]);
 	context.currentTime = 0.25;
+	assert.equal(engine.getPositionFrames(), 24_000 - 288 * 2);
+	// The native compressor delays wall-clock audio by 6 ms at either speed.
+	context.currentTime += .006;
 	assert.equal(engine.getPositionFrames(), 24_000);
 
 	engine.seek(12_000);
 	assert.equal(context.bufferSources[1].playbackRate.value, 2);
-	assert.deepEqual(context.bufferSources[1].started, [0.25, 0.25, 0.75]);
-	context.currentTime = 0.5;
+	assert.deepEqual(context.bufferSources[1].started, [.256, 0.25, 0.75]);
+	context.currentTime = .512;
 	assert.equal(engine.getPositionFrames(), 36_000);
 	engine.stop();
 	await engine.dispose();
