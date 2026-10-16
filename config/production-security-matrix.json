@@ -11301,7 +11301,7 @@
 				},
 				{
 					"id": "authenticated-local-assistance-gpu-execution",
-					"summary": "Authenticated target manifests bind a GPU option and portable CPU fallback for all 22 catalog models across all five desktop targets. Sherpa and ONNX Runtime use CoreML or native WebGPU on macOS ARM64 and native WebGPU on Windows/Linux x64 and ARM64. Sherpa is source-built on every target against the pinned ONNX Runtime 1.29.0 core and reviewed WebGPU plugin; generic ONNX Linux ARM64 rebuilds its Node-API binding to register that plugin. Exact generated native files, source pins, MIT licenses, third-party notices, and provenance enter each authenticated closure. Pronunciation preprocessing in Kokoro G2P does not load its neural synthesis model. Whisper and Qwen use embedded Metal on macOS ARM64 or separate Vulkan GPU executables on Windows/Linux. Each Vulkan companion and its portable CPU executable share an authenticated archive; the CPU executable does not link Vulkan. System Vulkan loaders and compatible graphics drivers remain host dependencies outside archive authentication. Digest-pinned Vulkan Headers/Loader, shaderc, glslang, SPIRV Headers and Tools build embedded shaders with provenance and notices. Existing menu-invoked operations prefer authenticated GPU providers before CPU fallback for native initialization or execution failure. Cancellation, authentication failures, invalid inputs, invalid outputs, and cleanup failures remain terminal. Legacy CPU archives remain compatible; new builds cannot omit GPU support. CUDA and DirectML are not packaged. Publication, usable devices, driver compatibility, and performance need separate evidence; source, fixture, and build checks do not establish them.",
+					"summary": "Authenticated target manifests bind a GPU option and portable CPU fallback for all 22 catalog models across all five desktop targets. Sherpa and ONNX Runtime use CoreML or native WebGPU on macOS ARM64 and native WebGPU on Windows/Linux x64 and ARM64. Sherpa is source-built on every target against the pinned ONNX Runtime 1.29.0 core and reviewed WebGPU plugin; generic ONNX rebuilds its Node-API binding on all five targets to register that plugin. An authenticated isolated device probe contains WebGPU initialization failures before resident registration. Exact generated native files, source pins, MIT licenses, third-party notices, and provenance enter each authenticated closure. Kokoro G2P also gives its learned English Tok2Vec/tagger models a GPU option: a sealed ORT WebGPU GEMM shim preserves the exact weights, tokenizer, lexical features, and remaining CPU operators. Its isolated probe, same-process-architecture core/plugin libraries, source pins, and notices join the authenticated G2P closure. Windows ARM64 retains the existing x64 frozen-helper emulation. Imported CPU PyTorch does not execute a learned network with model=False; speech synthesis remains in the separate accelerated ONNX worker. Whisper and Qwen use embedded Metal on macOS ARM64 or separate Vulkan GPU executables on Windows/Linux. Each Vulkan companion and its portable CPU executable share an authenticated archive; the CPU executable does not link Vulkan. System Vulkan loaders and compatible graphics drivers remain host dependencies outside archive authentication. Digest-pinned Vulkan Headers/Loader, shaderc, glslang, SPIRV Headers and Tools build embedded shaders with provenance and notices. Existing menu-invoked operations prefer authenticated GPU providers before CPU fallback for native initialization or execution failure. Cancellation, authentication failures, invalid inputs, invalid outputs, and cleanup failures remain terminal. Legacy CPU archives remain compatible; new builds cannot omit GPU support. CUDA and DirectML are not packaged. Publication, usable devices, driver compatibility, and performance need separate evidence; source, fixture, and build checks do not establish them.",
 					"evidence": [
 						{
 							"kind": "implementation",
@@ -11374,6 +11374,30 @@
 						{
 							"kind": "test",
 							"path": "tests/desktop-assistance-all-model-gpu-capabilities.test.ts"
+						},
+						{
+							"kind": "implementation",
+							"path": "desktop/assistance_kokoro_g2p_gpu.py"
+						},
+						{
+							"kind": "implementation",
+							"path": "native/assistance-kokoro-g2p-gpu/ort-gemm.cc"
+						},
+						{
+							"kind": "implementation",
+							"path": "scripts/lib/desktop-kokoro-g2p-gpu.mjs"
+						},
+						{
+							"kind": "document",
+							"path": "config/assistance-kokoro-g2p-gpu-build.json"
+						},
+						{
+							"kind": "test",
+							"path": "tests/desktop-kokoro-g2p-gpu.test.js"
+						},
+						{
+							"kind": "test",
+							"path": "tests/python/test_kokoro_g2p_gpu.py"
 						}
 					],
 					"policyAuthority": "family-v1-active"

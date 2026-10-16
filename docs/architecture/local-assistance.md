@@ -30,7 +30,7 @@ identities rather than filesystem or module paths.
 | ONNX Runtime | Alignment, enhancement, separation, tagging, beats, accurate shots, detection, saliency, OCR, text/image embeddings, and Kokoro speech synthesis |
 | whisper.cpp | Multilingual Whisper recognition through a fixed-argument, no-shell CLI |
 | llama.cpp | Optional Qwen editorial generation with grammar-constrained JSON |
-| Kokoro offline G2P | Frozen, authenticated pronunciation preprocessing for local text-to-speech |
+| Kokoro offline G2P | Pronunciation preprocessing, including GPU-capable learned English Tok2Vec/tagger inference |
 | External FFmpeg | Model-free fast shot detection through the separately admitted `scdet` command and live canary |
 
 Target packages generate and authenticate Sherpa ONNX 1.13.5, ONNX
@@ -38,14 +38,15 @@ Runtime 1.29.0, whisper.cpp v1.9.3, and llama.cpp b10509 closures for the five
 maintained desktop targets: macOS ARM64, Linux x64 and ARM64, and Windows x64
 and ARM64. Every newly built neural runtime provides a GPU option and portable
 CPU fallback. All 22 catalog models use one of these four neural runtime families;
-the separate Kokoro G2P helper supplies pronunciation preprocessing. New runtime
-archives authenticate the available providers per target:
+the separate Kokoro G2P helper also accelerates its learned English POS models.
+New runtime archives authenticate the available providers per target:
 
 | Engine | macOS ARM64 | Windows x64 / ARM64 | Linux x64 | Linux ARM64 |
 | --- | --- | --- | --- | --- |
 | ONNX Runtime | CoreML, native WebGPU | Native WebGPU | Native WebGPU | Native WebGPU |
 | whisper.cpp / llama.cpp | Embedded Metal | Vulkan | Vulkan | Vulkan |
 | Sherpa ONNX | CoreML, native WebGPU | Native WebGPU | Native WebGPU | Native WebGPU |
+| Kokoro G2P learned English models | Native WebGPU | Native WebGPU | Native WebGPU | Native WebGPU |
 
 Existing menu-invoked assistance operations prefer the installed archive's
 authenticated GPU providers, then CPU. Native WebGPU runs inside the desktop
@@ -65,12 +66,25 @@ DirectML and CUDA are not packaged.
 Sherpa is rebuilt from pinned source on every target against the reviewed ONNX
 Runtime 1.29.0 core and WebGPU plugin. Its recognizer, VAD, segmentation, and
 speaker-embedding sessions receive the same authenticated provider selection.
-The generic ONNX Linux ARM64 archive rebuilds its Node-API binding to register
-that plugin; other generic ONNX targets retain upstream GPU bindings. The plugin
-binary, MIT license, third-party notices, build recipes, and generated native
-files are part of each affected authenticated closure. GPU construction or
+Generic ONNX archives rebuild their Node-API binding on all five targets to
+register that plugin, retaining CoreML on macOS. An isolated executable probes
+the authenticated plugin before resident WebGPU initialization; device selection
+checks that plugin's library identity. The plugin binary, MIT license, third-party
+notices, build recipes, and generated native files are part of each affected
+authenticated closure. GPU construction or
 inference failure releases supported native resources before trying the next
 provider; CPU retries preserve the selected inputs and model.
+
+The English pronunciation path keeps the exact spaCy Tok2Vec/tagger weights,
+features, tokenizer, and Misaki rules. Its Thinc matrix products use a small
+C-ABI shim with native ORT WebGPU, while remaining operators retain the existing
+CPU implementation. The shim, isolated device probe, ORT core/plugin, notices,
+and source provenance are sealed inside the G2P archive. Windows ARM64's frozen
+Python helper uses the existing x64 process emulation, so its in-process GPU
+libraries also use x64. Dictionary-based pronunciation paths retain their
+existing behavior. The imported CPU PyTorch package does not execute a learned
+model because Kokoro's G2P pipeline uses `model=False`; neural speech synthesis
+runs separately through ONNX Runtime.
 
 Vulkan builds use digest-pinned Vulkan Headers/Loader and a host shader compiler
 built from pinned shaderc, glslang, SPIRV Headers, and SPIRV Tools sources. The

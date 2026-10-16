@@ -20,7 +20,7 @@ Preparation fails when an engine cannot be built or authenticated.
 ## Build prerequisites
 
 Use the repository's Node.js 26.5.0 and npm 12.0.1. Install dependencies with
-`npm ci`. Building Sherpa, the ONNX Linux ARM64 binding, whisper.cpp, and
+`npm ci`. Building Sherpa, the ONNX and G2P GPU bindings, whisper.cpp, and
 llama.cpp also requires CMake, Python 3, and a C/C++ compiler:
 
 - Linux: `build-essential`, `cmake` (3.22.1 or later), `pkg-config`, and
@@ -63,11 +63,11 @@ The shared ONNX Runtime 1.29.0 core comes from the exact npm archives and file
 hashes in `config/assistance-onnx-runtime-payloads.json`. The WebGPU plugin and
 its C API headers are pinned in `config/assistance-onnx-webgpu-plugin.json`.
 Packaging authenticates the reviewed plugin binary, MIT license, and complete
-third-party notices. The generic ONNX Linux ARM64 archive also rebuilds the
-Node-API binding from the locked source and patches in
-`config/assistance-onnx-node-api-build.json` to register that plugin; the stable
-ORT core is reused. Other generic ONNX targets retain their upstream GPU
-bindings. No npm lifecycle install script runs. Windows includes the pinned
+third-party notices. All five generic ONNX archives rebuild the Node-API binding from the locked
+source and patches in `config/assistance-onnx-node-api-build.json` to register
+that plugin; the stable ORT core is reused and macOS retains CoreML support.
+An authenticated device probe isolates WebGPU initialization failures before
+the resident worker loads the GPU backend. No npm lifecycle install script runs. Windows includes the pinned
 DXC shader compiler libraries and their upstream notices. DirectML and CUDA
 are not packaged.
 
@@ -122,11 +122,20 @@ archives it, and records its exact target file inventory in
 Installing Kokoro through Model Manager fetches both ONNX Runtime and G2P;
 first use fetches either missing runtime for preseeded weights. The production
 worker verifies the G2P inventory before each subprocess invocation. End users
-do not install Python. G2P performs pronunciation preprocessing without loading
-the Kokoro neural model; actual speech synthesis uses the accelerated ONNX
-engine. The packaged nightly nine-language text-to-WAV case
-establishes whether that target build performs speech
-generation; a recipe alone is not a passing inference result.
+do not install Python. Its English pronunciation path includes learned spaCy
+Tok2Vec/tagger models. Their original weights, tokenization, lexical features,
+and Misaki rules are unchanged: a Thinc numeric backend offloads matrix
+products through the authenticated ORT WebGPU shim in
+`config/assistance-kokoro-g2p-gpu-build.json`, with CPU fallback. The G2P archive
+seals that shim, its isolated device probe, the reviewed ORT core/plugin, and
+upstream notices under `_internal/scape-gpu/`. Windows ARM64 retains its x64
+frozen Python helper and uses matching x64 GPU libraries in that process.
+Other language paths use the existing dictionary/rule frontends. The imported
+CPU PyTorch dependency does not run the Kokoro synthesis model because G2P
+uses `model=False`; actual speech synthesis uses the accelerated ONNX engine.
+The packaged nightly nine-language text-to-WAV case establishes whether that
+target build performs speech generation; a recipe alone is not a passing
+inference result.
 
 ## Package integrity
 

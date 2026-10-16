@@ -125,7 +125,13 @@
 				"config/assistance-onnx-runtime-payloads.json",
 				"native/assistance-onnx-webgpu-node-api/CMakeLists.txt",
 				"native/assistance-onnx-webgpu-node-api/webgpu_plugin_provider.cc",
-				"native/assistance-onnx-webgpu-node-api/webgpu_plugin_provider.h"
+				"native/assistance-onnx-webgpu-node-api/webgpu_plugin_provider.h",
+				"scripts/kokoro-g2p/build.mjs",
+				"scripts/lib/desktop-kokoro-g2p-gpu.mjs",
+				"config/assistance-kokoro-g2p-gpu-build.json",
+				"desktop/assistance_kokoro_g2p_gpu.py",
+				"native/assistance-kokoro-g2p-gpu/CMakeLists.txt",
+				"native/assistance-kokoro-g2p-gpu/ort-gemm.cc"
 			]
 		},
 		{

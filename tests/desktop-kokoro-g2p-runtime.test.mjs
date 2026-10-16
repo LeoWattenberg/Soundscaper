@@ -341,3 +341,17 @@ test('legacy package skips G2P only while receipt, ASAR config, and runtime are 
 		await rm(root, { recursive: true, force: true });
 	}
 });
+
+test('G2P bundle inventory explicitly marks its nested GPU probe executable', async () => {
+	await fixture(async ({ bundleRoot, runtimeRoot }) => {
+		const relative = '_internal/scape-gpu/onnx-webgpu-device-probe';
+		await mkdir(join(bundleRoot, '_internal/scape-gpu'), { recursive: true });
+		await writeFile(join(bundleRoot, relative), '#!/bin/sh\nexit 0\n', { mode: 0o644 });
+		const { manifest } = await stageDesktopKokoroG2pRuntime({ targetId: 'linux-x64', bundleRoot, runtimeRoot });
+		assert.equal(manifest.files.find(({ path }) => path === relative)?.executable, true);
+		assert.equal(manifest.files.find(({ path }) => path === 'kokoro-g2p')?.executable, true);
+		const foreign = manifest.files.find(({ path }) => path === 'data/lexicon.txt');
+		foreign.executable = true;
+		assert.throws(() => validateDesktopKokoroG2pManifest(manifest, 'linux-x64'), /file path or digest/iu);
+	});
+});

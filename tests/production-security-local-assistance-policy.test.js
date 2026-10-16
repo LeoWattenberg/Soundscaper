@@ -157,7 +157,9 @@ test('all-model GPU policy records authenticated providers, CPU fallback, legacy
 	assertOrderedClaim(control.summary,
 		/GPU option.*CPU fallback.*all 22 catalog models.*all five desktop targets.*Sherpa and ONNX Runtime.*CoreML.*WebGPU.*Windows\/Linux x64 and ARM64/isu);
 	assertOrderedClaim(control.summary,
-		/Sherpa is source-built.*pinned ONNX Runtime 1\.29\.0 core.*WebGPU plugin.*Linux ARM64 rebuilds its Node-API binding.*Exact generated native files.*MIT licenses.*third-party notices/isu);
+		/Sherpa is source-built.*pinned ONNX Runtime 1\.29\.0 core.*WebGPU plugin.*ONNX rebuilds its Node-API binding on all five targets.*Exact generated native files.*MIT licenses.*third-party notices/isu);
+	assertOrderedClaim(control.summary,
+		/Kokoro G2P.*learned English Tok2Vec\/tagger.*GPU option.*GEMM shim.*exact weights.*tokenizer.*lexical features.*authenticated G2P closure.*Windows ARM64.*x64 frozen-helper.*CPU PyTorch does not execute a learned network with model=False/isu);
 	assertOrderedClaim(control.summary,
 		/existing menu-invoked operations.*authenticated GPU providers.*CPU fallback.*Cancellation.*authentication failures.*invalid inputs.*invalid outputs.*cleanup failures.*terminal/isu);
 	assertOrderedClaim(control.summary,
@@ -172,5 +174,9 @@ test('all-model GPU policy records authenticated providers, CPU fallback, legacy
 		'config/assistance-onnx-webgpu-plugin.json',
 		'tests/desktop-assistance-sherpa-gpu-adapters.test.ts',
 		'tests/desktop-assistance-all-model-gpu-capabilities.test.ts',
+		'desktop/assistance_kokoro_g2p_gpu.py',
+		'native/assistance-kokoro-g2p-gpu/ort-gemm.cc',
+		'config/assistance-kokoro-g2p-gpu-build.json',
+		'tests/desktop-kokoro-g2p-gpu.test.js',
 	]) assert.ok(control.evidence.some((item) => item.path === path), path);
 });

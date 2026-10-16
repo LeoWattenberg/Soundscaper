@@ -50,6 +50,31 @@ class KokoroG2PHelperTests(unittest.TestCase):
         self.assertEqual(" ".join(pieces), text.strip())
         self.assertEqual(chunks, ["ola"] * len(pieces))
 
+    def test_english_gpu_initialization_precedes_learned_model_load_and_cleanup_precedes_result(self):
+        events = []
+        native = types.SimpleNamespace(close=lambda: events.append("close"))
+        def install():
+            events.append("gpu")
+            return native
+        class Pipeline:
+            def __init__(self, **_):
+                events.append("model")
+            def __call__(self, text, **_):
+                events.append("phonemes")
+                yield types.SimpleNamespace(phonemes="hɛloʊ")
+        modules = {
+            "spacy": types.SimpleNamespace(util=types.SimpleNamespace(is_package=lambda _: True)),
+            "assistance_kokoro_g2p_gpu": types.SimpleNamespace(install_gpu_ops=install),
+            "kokoro": types.SimpleNamespace(KPipeline=Pipeline),
+        }
+        with patch.dict(sys.modules, modules):
+            self.assertEqual(helper.phonemize("a", "af_heart", "Hello"), ["hɛloʊ"])
+        self.assertEqual(events, ["gpu", "model", "phonemes", "close"])
+        native.close = lambda: (_ for _ in ()).throw(RuntimeError("cleanup failed"))
+        with patch.dict(sys.modules, modules):
+            with self.assertRaisesRegex(RuntimeError, "cleanup failed"):
+                helper.phonemize("a", "af_heart", "Hello")
+
     def test_japanese_uses_the_bundled_dictionary_before_pipeline_construction(self):
         with tempfile.TemporaryDirectory() as directory:
             dictionary = Path(directory)

@@ -17,27 +17,27 @@
 				{
 					"id": "mac-arm64",
 					"status": "package-generated",
-					"packageBehavior": "The macOS ARM64 package generates and verifies the exact ONNX Runtime closure with CoreML and native WebGPU, portable CPU fallback, upstream notices, and SHA-256 authentication of every file."
+					"packageBehavior": "The macOS ARM64 package rebuilds the pinned Node-API binding against the reviewed ONNX Runtime 1.29.0 core and WebGPU plugin, authenticates the isolated device probe, all generated files and notices, and retains portable CPU fallback. CoreML remains available."
 				},
 				{
 					"id": "linux-x64",
 					"status": "package-generated",
-					"packageBehavior": "The Linux x64 package generates and verifies the exact ONNX Runtime closure with native WebGPU, portable CPU fallback, upstream notices, and SHA-256 authentication of every file."
+					"packageBehavior": "The Linux x64 package rebuilds the pinned Node-API binding against the reviewed ONNX Runtime 1.29.0 core and WebGPU plugin, authenticates the isolated device probe, all generated files and notices, and retains portable CPU fallback."
 				},
 				{
 					"id": "linux-arm64",
 					"status": "package-generated",
-					"packageBehavior": "The Linux ARM64 package rebuilds the pinned Node-API binding against the reviewed ONNX Runtime 1.29.0 core and WebGPU plugin, authenticates all generated files and notices, and retains portable CPU fallback."
+					"packageBehavior": "The Linux ARM64 package rebuilds the pinned Node-API binding against the reviewed ONNX Runtime 1.29.0 core and WebGPU plugin, authenticates the isolated device probe, all generated files and notices, and retains portable CPU fallback."
 				},
 				{
 					"id": "win-x64",
 					"status": "package-generated",
-					"packageBehavior": "The Windows x64 package generates and verifies the exact ONNX Runtime closure with native WebGPU, portable CPU fallback, upstream notices, and SHA-256 authentication of every file."
+					"packageBehavior": "The Windows x64 package rebuilds the pinned Node-API binding against the reviewed ONNX Runtime 1.29.0 core and WebGPU plugin, authenticates the isolated device probe, all generated files and notices, and retains portable CPU fallback."
 				},
 				{
 					"id": "win-arm64",
 					"status": "package-generated",
-					"packageBehavior": "The Windows ARM64 package generates and verifies the exact ONNX Runtime closure with native WebGPU, portable CPU fallback, upstream notices, and SHA-256 authentication of every file."
+					"packageBehavior": "The Windows ARM64 package rebuilds the pinned Node-API binding against the reviewed ONNX Runtime 1.29.0 core and WebGPU plugin, authenticates the isolated device probe, all generated files and notices, and retains portable CPU fallback."
 				}
 			]
 		},
@@ -148,7 +148,7 @@
 			},
 			"payloadStatus": "package-generated",
 			"payloadManifestSha256": null,
-			"packageBehavior": "Every target package authenticates the reviewed ONNX Runtime core and GPU closure with portable CPU fallback. Linux ARM64 rebuilds its pinned Node-API binding to register the reviewed WebGPU plugin; all target inventories, source pins, generated provenance, licenses, and third-party notices are verified before publication."
+			"packageBehavior": "Every target package authenticates the reviewed ONNX Runtime core and GPU closure with portable CPU fallback. All five targets rebuild the pinned Node-API binding to register the reviewed WebGPU plugin and isolated device probe; all target inventories, source pins, generated provenance, licenses, and third-party notices are verified before publication."
 		},
 		{
 			"schemaVersion": 1,

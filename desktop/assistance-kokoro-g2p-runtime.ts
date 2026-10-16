@@ -37,6 +37,7 @@ interface PinnedFile {
 	readonly path: string;
 	readonly byteLength: number;
 	readonly sha256: string;
+	readonly executable?: true;
 }
 
 interface Manifest {
@@ -216,7 +217,8 @@ function reviewManifest(bytes: Uint8Array, targetId: string): Manifest {
 	let totalBytes = 0;
 	let previous = '';
 	const files = root.files.map((entry) => {
-		const file = record(entry, ['path', 'byteLength', 'sha256'], 'file pin');
+		const file = record(entry, ['path', 'byteLength', 'sha256',
+			...(entry && typeof entry === 'object' && Object.hasOwn(entry, 'executable') ? ['executable'] : [])], 'file pin');
 		const path = payloadPath(file.path);
 		if (previous !== '' && previous.localeCompare(path, 'en') >= 0
 			|| !Number.isSafeInteger(file.byteLength)
@@ -224,12 +226,17 @@ function reviewManifest(bytes: Uint8Array, targetId: string): Manifest {
 			|| typeof file.sha256 !== 'string' || !SHA256.test(file.sha256)) {
 			throw new TypeError('The offline Kokoro G2P file pin is invalid or unsorted.');
 		}
+		if (Object.hasOwn(file, 'executable') && (file.executable !== true
+			|| path !== executable && !/^_internal\/scape-gpu\/onnx-webgpu-device-probe(?:\.exe)?$/u.test(path))) {
+			throw new TypeError('The offline Kokoro G2P executable file pin is invalid.');
+		}
 		previous = path;
 		totalBytes += Number(file.byteLength);
 		if (totalBytes > MAXIMUM_CLOSURE_BYTES) {
 			throw new RangeError('The offline Kokoro G2P file closure exceeds its byte bound.');
 		}
-		return Object.freeze({ path, byteLength: Number(file.byteLength), sha256: file.sha256 });
+		return Object.freeze({ path, byteLength: Number(file.byteLength), sha256: file.sha256,
+			...(file.executable === true ? { executable: true as const } : {}) });
 	});
 	if (!files.some((file) => file.path === executable)) {
 		throw new TypeError('The offline Kokoro G2P executable is absent from its closure.');
@@ -257,6 +264,7 @@ async function authenticateClosure(
 	}
 	if (process.platform !== 'win32') {
 		await access(resolve(directory, manifest.executable), constants.X_OK);
+		for (const file of manifest.files) if (file.executable) await access(resolve(directory, file.path), constants.X_OK);
 	}
 	signal?.throwIfAborted();
 }
