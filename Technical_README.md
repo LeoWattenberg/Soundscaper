@@ -194,13 +194,15 @@ the web `dist/` untouched. Packaging writes ignored artifacts to
 
 Pushing a product-owned beta or release-candidate tag declared by
 `config/product-release-lines.json` (for example,
-`soundscaper-v1.0.0-rc.1`) runs unit, reproducibility, browser, and native
+`soundscaper-v1.0.0-rc.1`) runs unit, reproducibility, and native
 packaging checks for that product. The same workflow runs the two-product CI
 suite nightly from the default branch at 02:17 UTC and can be started manually
 from **Desktop preview and nightly**. Each selected product is prepared,
 packaged, and smoke-tested in separate jobs for every supported
 OS/architecture. Each packaging job uploads its verified installers to the
 Actions run for 14 days; these are CI artifacts, not a public release channel.
+Browser tests and combined Node/Chromium coverage run in **Quality**; the
+desktop workflow tests Electron packages and does not run browser suites.
 Publish changed AI runtime archives with **Update AI assets** before running
 desktop packaging; package workflows verify the published bytes without uploading.
 

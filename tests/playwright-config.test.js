@@ -21,7 +21,6 @@ const SITE_WORKFLOWS = new Map([
 		browserShardCount: 8,
 		firefoxShardCount: 6,
 	}],
-	['desktop-preview.yml', { staticJobs: ['quality'], buildJob: 'quality', gate: 'needs: quality', browserShardCount: 8, firefoxShardCount: 6 }],
 ]);
 
 test('Playwright allows CI to pass when a retry succeeds', async () => {
@@ -168,7 +167,7 @@ test('the dual-origin Playwright harness serves two reciprocal built Pages sites
 });
 
 test('each site-verifying workflow runs the dual-origin proof exactly once', async () => {
-	for (const workflowName of ['quality.yml', 'desktop-preview.yml']) {
+	for (const workflowName of SITE_WORKFLOWS.keys()) {
 		const workflow = await readFile(new URL(`../.github/workflows/${workflowName}`, import.meta.url), 'utf8');
 		const browserJob = extractJob(workflow, 'browser');
 		assert.equal(
@@ -202,15 +201,12 @@ test('each site-verifying workflow publishes and consumes a verified Framescaper
 	}
 });
 
-test('desktop verification isolates browser engines and tests packages with every engine', async () => {
+test('desktop verification gates Electron packaging on static checks and Node tests', async () => {
 	const workflow = await readFile(new URL('../.github/workflows/desktop-preview.yml', import.meta.url), 'utf8');
-	assertBrowserCoverage(workflow, 'desktop', SITE_WORKFLOWS.get('desktop-preview.yml'));
 	for (const jobName of ['package', 'soundscaper-project-library-lease-matrix']) {
-		// Packaging waits on the sharded Node suite and the merged coverage gate too:
-		// a package built off unverified source is worse than no package.
 		const needs = jobName === 'package'
-			? /needs: \[quality, tests, coverage, browser, firefox, publish-assistance-runtime-handoff, professional-native-build, milestone-5-native-audit-source\]/u
-			: /needs: \[quality, tests, coverage, browser, firefox\]/u;
+			? /needs: \[quality, tests, publish-assistance-runtime-handoff, professional-native-build, milestone-5-native-audit-source\]/u
+			: /needs: \[quality, tests\]/u;
 		assert.match(extractJob(workflow, jobName), needs);
 	}
 	assert.doesNotMatch(workflow, /^ {2}project-library-handoff:/mu);

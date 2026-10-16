@@ -6,7 +6,7 @@ import test from 'node:test';
 import { extractJob, readWorkflow } from './helpers/workflow-jobs.js';
 
 test('desktop fixture producers and test jobs verify restored installed trees before their consumers', async () => {
-	for (const [workflow, jobs] of [['quality.yml', ['build', 'tests']], ['desktop-preview.yml', ['tests', 'browser', 'firefox']], ['soundscaper-stable-1.yml', ['tests', 'browser']]]) {
+	for (const [workflow, jobs] of [['quality.yml', ['build', 'tests']], ['desktop-preview.yml', ['tests']], ['soundscaper-stable-1.yml', ['tests', 'browser']]]) {
 		for (const name of jobs) assert.match(extractJob(await readWorkflow(workflow), name), /uses: \.\/\.github\/actions\/verified-node-dependencies/u);
 	}
 	const action = await readFile(new URL('../.github/actions/verified-node-dependencies/action.yml', import.meta.url), 'utf8');
@@ -19,7 +19,7 @@ test('desktop fixture producers and test jobs verify restored installed trees be
 });
 
 test('Firefox shards reuse verified engine bytes while preserving host dependencies and the live audio clock proof', async () => {
-	for (const workflow of ['quality.yml', 'desktop-preview.yml']) {
+	for (const workflow of ['quality.yml']) {
 		const job = extractJob(await readWorkflow(workflow), 'firefox');
 		assert.match(job, /uses: \.\/\.github\/actions\/verified-firefox/u);
 		assert.match(job, /ci-firefox-pulseaudio\.sh/u);
