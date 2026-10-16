@@ -78,16 +78,19 @@ curves and wheels. The recorded local software-GPU corpus qualifies these paths
 and their numerical fallback. Authenticated cube-LUT GPU stages also pass their
 recorded local software-GPU and Firefox corpus. Native geometry also passes that
 local corpus: legacy geometry stays first and authored
-geometry retains its effect position and natural output descriptor. A stack
-needing optics, spatial stages, masks or repairs
+geometry retains its effect position and natural output descriptor. The four
+manual optics GPU kinds also pass the recorded local software-GPU and Firefox
+corpus, with mandatory accepted GPU positives and distinct exact-CPU
+numerical-refusal witnesses.
+A stack needing spatial stages, masks or repairs
 takes the entire existing CPU route, as do unsupported GPU numeric, capability
 or working-set profiles. Stages are never silently omitted. GPU stages store
 linear RGBA32F and return scoped Float32 readback checked against the normative
 CPU operation before delivery. Exact unchanged-component rules can select CPU
 even when a rounded identity curve differs by only a few ULPs. This streaming
 check also costs CPU work and makes no speed claim. Pointwise stacks use the
-streamed scalar reference; geometry stacks use up to two maximum-extent CPU
-reference planes, with Float32 stores after each color/LUT/geometry stage and
+streamed scalar reference; geometry/optics stacks use up to two maximum-extent CPU
+reference planes, with Float32 stores after each native stage and
 exact normative output alpha. Canonical Before and the
 final display, proof and histogram boundaries retain their existing policies.
 Complete GPU stack coverage, broader native conformance and hosted CI parity
@@ -119,6 +122,22 @@ the final consumer. Metadata admits at most 257 passes, including legacy geometr
 The preferred phase charges the full physical source, capture, two maximum-size
 textures, final readback, both reference planes, LUT resources and presentation;
 the distinct parser and fallback phases keep the same 768-MiB ceiling.
+
+Private kinds10–13 bind native lens, CA, defringe and optical-vignette CPU plans
+to the incoming same-extent descriptor. Lens/CA retain signed displacement
+fractions and zero-extend individual outside taps; they do not use geometry's
+crop-edge clamp. Lens normalizes premultiplied RGBA by unrounded alpha. CA instead
+normalizes each corrected channel's own supported alpha, while Green, reference
+alpha and raw-zero-controlled channels copy exactly. Raw activity flags remain
+independent of rounded coefficients. Defringe uses continuous encoded opponent
+differences over positive-alpha logical neighbors, retaining exact zero-weight,
+unchanged-channel and alpha-zero bypasses. Optical vignette multiplies linear
+light by an incoming-aperture gain and keeps exact zero/gain-one/hidden bypasses.
+The existing two-plane reference supplies normative output without a provenance
+image or false unique ancestry after reconstruction. Exact-alpha coefficient
+rounding and tiny CA support can select whole CPU; dyadic fractional-alpha lens
+positives complement the retained non-dyadic precision-refusal witness. The
+source, default CPU renderer and saved recipes remain unchanged.
 
 The shared execution order is:
 

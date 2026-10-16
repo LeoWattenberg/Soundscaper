@@ -9,6 +9,7 @@ import { photoDevelopMenuLabel } from '../../src/common/i18n/lightscaper-develop
 import { photoDevelopSettingsCopy } from '../../src/common/i18n/lightscaper-develop-settings-copy.ts';
 import { photoDevelopPreviewRendererCopy } from '../../src/common/i18n/lightscaper-develop-preview-renderer-copy.ts';
 import { hdrMergeBrowserFixtureCurrentV1 } from './helpers/lightscaper-hdr-merge-current-fixture.ts';
+import { editLightscaperDevelopNumberCurrentV1 } from './helpers/lightscaper-develop-numeric-keyboard-current.ts';
 import { compileNativeImageHandoffScript } from './helpers/lightscaper-image-handoff-native-fixture.js';
 import { resolveBrowserProductTestUrl } from './helpers/browser-product-test-url.js';
 import { expect, test } from './helpers/browser-coverage-fixture.js';
@@ -54,7 +55,7 @@ for (const locale of ['en', 'de']) test(`${locale}: real RAW and immutable cube 
 		await dialog.getByLabel(words.shared.videoEffectCubeLutImport, { exact: true }).setInputFiles({ name: 'Native signed HDR.cube', mimeType: 'text/plain', buffer: CUBE });
 		await painted(LUT); await add('tone-ladder-v1');
 		const exposure = named(dialog, 'spinbutton', `${words.shared.videoEffectExactValue}: ${words.shared.videoEffectParamExposure}`);
-		await exposure.fill('1'); await exposure.press('Enter'); await expect(exposure).toHaveValue('1'); await painted(AFTER);
+		await editLightscaperDevelopNumberCurrentV1(exposure, '1'); await expect(exposure).toHaveValue('1'); await painted(AFTER);
 		expect((await observation()).attempts).toBe(0); expect(await custody()).toEqual(initial);
 		const lut = await lutCustody(); expect(lut.reference).toEqual(REFERENCE); expect(lut.bytes).toEqual([...CUBE]);
 		await observe('stop');

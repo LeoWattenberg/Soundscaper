@@ -63,6 +63,18 @@ legitimately select the complete CPU route on a small rounding difference.
 The CPU mapper's own coordinate drift can likewise require CPU for an integer
 geometry request. Reference planes, changing texture extents, LUT resources and
 presentation all enter the existing 768-MiB phase plan; no bound is widened.
+The private optics program serves the same incoming native aperture in proxy
+and Full and passes the recorded local software-GPU and Firefox corpus.
+Lens/CA retain stable signed displacement and per-tap transparent support,
+rather than geometry's replicated
+crop edges. CA copies Green/alpha/raw-zero channels while reconstructing active
+R/B; defringe preserves exact bypass bits around its continuous opponent-difference
+neighborhood, and optical vignette applies direct linear gain. Both resolutions
+use the existing two-plane reference and exact computed-alpha rule. The retained
+non-dyadic lens alpha-refusal witness and qualified dyadic accepted corpus
+describe finite precision, not universal Float32 equivalence. Source validation
+yields before oracle allocation; native source bytes/samples and custody remain
+unchanged.
 CPU remains the default, unsupported complete stacks use CPU, and the renderer
 preference resets on reopening. The choice does not change saved settings,
 history, exports or Original custody. Complete GPU stack coverage and native

@@ -17,6 +17,10 @@ Authenticated cube-LUT stages use the same native path; their recorded local
 software-GPU and Firefox corpus now passes.
 Natural-extent geometry uses the same ordered path and passes the recorded local
 software-GPU and Firefox corpus, including English/German RAW menu workflows.
+The native optics program now implements manual lens distortion, chromatic
+aberration, defringe and optical vignette. The recorded local software-GPU and
+Firefox corpus qualifies their accepted GPU paths and separate exact-CPU
+numerical refusals alongside color, LUT and geometry stages.
 
 ## Shared execution and fallback
 
@@ -25,7 +29,7 @@ mask overlay, resource authorities, geometry and processing limits before source
 samples. The broker uses the existing native CPU engine as its whole-recipe
 fallback. An unfinished stage never disappears from a GPU result.
 
-At present, active spatial and optical effects, local masks,
+At present, active spatial effects, local masks,
 repairs or a selected mask overlay select the complete CPU render.
 Encoded byte sources also retain their existing CPU process and
 per-stage byte quantization. They are not implicitly promoted into the native
@@ -62,7 +66,8 @@ continuous sign-symmetric extended-sRGB coordinates and return to linear RGB
 without a byte lookup or encoded working plane. Curves share the CPU's authored
 knots and parametric Q16 gain definition; master and channel compose before the
 stage store. Distinct curve knots that collapse in Float32 uniforms or nonfinite
-uniform slopes select CPU. Straight alpha remains exact, and hidden RGB retains
+uniform slopes select CPU. Color/LUT stages copy straight alpha exactly;
+resampling must match the CPU's computed output alpha exactly. Hidden RGB retains
 the CPU process's semantics. Final display, proofing and histogram generation
 retain their existing owners.
 
@@ -168,14 +173,69 @@ Private Double LUT tables stay alive through the complete reference comparison,
 then retire before final consumer delivery. Readback is never repaired with CPU
 samples. These checks preserve the same Original, recipe and resource authority.
 
+## Native manual optics
+
+Four private prepared kinds bind each admitted incoming descriptor to the
+existing CPU plan: 10 lens distortion, 11 chromatic
+aberration, 12 defringe and 13 optical vignette. Each keeps that same aperture and
+extent; preceding geometry changes the aperture used by later optics. Effects
+stay in authored order and store Float32 after each stage. Captured uniforms
+retain separate raw activity flags and enabled state, so rounding a coefficient
+to zero never silently turns an active filter into a source copy.
+
+Lens distortion and CA use signed radial displacement, with integer offsets and
+directly retained fractional magnitudes. This avoids losing a small shift when
+adding it to an absolute pixel coordinate. Their four taps use per-tap transparent
+zero-extension outside the incoming image, unlike geometry's crop-edge clamp.
+Lens filters premultiplied linear RGBA, divides by unrounded alpha and clears
+RGBA when output alpha rounds to zero. Only a raw-neutral or disabled lens copies
+the source unchanged. An active zero-derived coefficient can still clear hidden
+RGB through filtering.
+
+CA reconstructs each active R/B channel using its own supported, unrounded alpha
+sum. Green, reference alpha and raw-zero-controlled channels retain exact native
+bits. Reconstructed channels can contain supported neighbor color even at a
+reference alpha-zero pixel. Tiny inward shifts can create diagonal support below
+`1e-48` that Double reconstruction normalizes to a visible value; Float32 loss of
+that support must select the exact whole-CPU result, never a coefficient floor.
+
+Defringe evaluates continuous odd-sRGB values on the immutable incoming plane.
+Its clamped 3×3 neighborhood excludes the logical center but retains clamped
+aliases, and only positive-alpha neighbors contribute. Alpha-weighted opponent
+differences are accumulated before normalization, preserving flat neutrality.
+Alpha-zero centers, zero correction weight and individually unchanged encoded
+channels bypass conversion and retain source bits. Output alpha is copied;
+changed RGB returns to linear without clipping. Optical vignette instead applies
+a direct positive linear `exp2` gain in the incoming aperture. Its alpha-zero,
+gain-one and zero-component branches retain exact bits; native overflow refuses.
+
+The same two-plane CPU reference executes the existing native optics writers,
+including lens/CA sampling and defringe neighborhoods. It keeps per-stage Float32
+stores and exact normative output alpha. There is no provenance image: active
+lens reconstruction invalidates a same-pixel RGB witness; CA invalidates only
+its corrected channels, and coupled color/LUT stages and active defringe
+propagate that invalidation.
+Later operations never invent a unique Original ancestry for reconstructed color.
+Finite-source validation and reference work yield to cancellation, and all
+reference storage retires before consumer delivery.
+
+Stable displacement removes coordinate cancellation but cannot recover an
+authored Double coefficient from one rounded Float32 uniform. The non-dyadic
+3×1 inward lens witness retains its one-ULP output-alpha mismatch as a required
+numerical refusal with exact CPU output. The qualified positive corpus uses
+coefficient `±5/32`, edge displacement `±1/16`, and fractional alpha/transparent
+support with exactly representable weights. These are distinct proofs; neither
+changes the CPU model, exact-alpha guard, other precision rules or source custody.
+
 ## Working set and retirement
 
 The Current preview working ceiling remains 768 MiB. Admission charges the full
 physical borrowed backing, including padding outside a valid source view.
 Native GPU execution overlaps that backing with one Float32 host capture, two
 maximum-extent RGBA32F textures and one final-extent Float32 readback. Geometry
-recipes additionally reserve two maximum-extent CPU reference planes. Pointwise
-recipes retain the streamed comparison and allocate no reference image plane.
+or optics recipes additionally reserve two maximum-extent CPU reference planes.
+Color/LUT-only pointwise recipes retain the streamed comparison and allocate no
+reference image plane.
 Presentation planning also reserves
 a full RGBA8 conversion plus a bounded fitted presentation allowance beside the
 live native working set. Histogram and display conversions can run sequentially;
@@ -247,28 +307,32 @@ jobs using the existing digest-pinned Playwright 1.62.1 container. Both authenti
 the downloaded Lightscaper build and source maps before running the project;
 their coverage dependencies make a failed GPU job block distribution.
 
-The dedicated configuration names eight exact Lightscaper native/menu specs.
-The English/German software-GPU UI workflows collect built-site coverage.
+The dedicated configuration names ten exact Lightscaper native/menu specs.
+Recorded local qualification passes all 86 software-Chromium cases and all 86
+Firefox compatibility cases, including ten English/German UI profiles. The
+software-GPU UI workflows collect built-site coverage.
 Both jobs require compaction and upload of the distinct
 `coverage-shard-browser-chromium-lightscaper-gpu` artifact into the existing
 coverage union. Lower-level realtime cases retain their explicit coverage
-opt-out. Local qualification passed all 62 software-GPU cases across eight specs,
-including eight coverage-enabled English/German menu workflows, and all 62 Firefox
-compatibility cases. Compaction retained 116 scripts and maps with exact pins
-for 21 processing, presentation and UI source owners. Mandatory positive software-GPU
-literals prove accepted native color/LUT/geometry delivery; numerical-refusal witnesses
+opt-out. Compaction retained 116 scripts and 116 source maps with exact pins
+for 23 processing, presentation and UI source owners. Mandatory positive software-GPU
+literals prove accepted native color/LUT/geometry/optics delivery; numerical-refusal witnesses
 require exact whole-CPU output. The all-color RAW workflow retains its explicit
 precision-refusal witness, while the RAW LUT workflow proves accepted LUT preview
 with unchanged Original and resource custody. Observed GL work alone does not
 prove accepted GPU delivery. Mounted numeric regressions also preserve rapid
 crop/rotation/flip edits through Save, refuse replaced or disabled controls and
-clear rejected edits on Escape. The selected Lightscaper Node run passed 295
-cases in 47 files. These local results do not establish hosted CI success or a
-coverage-floor pass; no local floor tightening is claimed.
+clear rejected edits on Escape. The five browser UI specs confirm field focus
+before select-all and enter numeric values with a separate locator action for
+each key. Observed bulk and rapid insertion
+could omit native input/key events and did not prove an authored edit. The
+selected Lightscaper Node run passed 508 cases in 67 files, and full repository
+lint passed.
+These local results do not establish hosted CI success or a coverage-floor pass;
+no local floor tightening is claimed.
 
-The recorded local color/LUT/geometry software-GPU and Firefox corpus passed.
 Hosted CI execution remains pending; a configured gate
-is not a hosted success. All spatial and optical families, complete mask graphs
+is not a hosted success. Spatial families, complete mask graphs
 and overlay projection, Original-space
 Clone and genuine screened-Poisson Heal still need GPU implementations and
 combined conformance. Until each is qualified, its recipe keeps the complete

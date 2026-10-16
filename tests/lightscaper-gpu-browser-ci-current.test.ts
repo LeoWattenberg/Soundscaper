@@ -15,7 +15,8 @@ const JOB = 'browser-lightscaper-gpu';
 const SPECS = ['lightscaper-native-gpu-current.spec.js', 'lightscaper-develop-gpu-preview-current.spec.js',
 	'lightscaper-native-gpu-colors-current.spec.js', 'lightscaper-develop-gpu-colors-current.spec.js',
 	'lightscaper-native-gpu-lut-current.spec.js', 'lightscaper-develop-gpu-lut-current.spec.js',
-	'lightscaper-native-gpu-geometry-current.spec.js', 'lightscaper-develop-gpu-geometry-current.spec.js'];
+	'lightscaper-native-gpu-geometry-current.spec.js', 'lightscaper-develop-gpu-geometry-current.spec.js',
+	'lightscaper-native-gpu-optics-current.spec.js', 'lightscaper-develop-gpu-optics-current.spec.js'];
 const IMAGE = 'mcr.microsoft.com/playwright:v1.62.1-noble@sha256:dcc5531e97840b9b5e794f2814476b21571c5124a3fca2267d73041f56e7580e';
 const ACTIONS = new Map([
 	['actions/checkout', 'de0fac2e4500dabe0009e67214ff5f5447ce83dd'],
@@ -25,7 +26,7 @@ const ACTIONS = new Map([
 	['actions/upload-artifact', '043fb46d1a93c77aae656e7c1c64a875d1fc6a0a'],
 ]);
 
-test('Lightscaper software GPU project owns exactly color, LUT and natural geometry conformance with one verified photo server', async () => {
+test('Lightscaper software GPU project owns exactly color, LUT, geometry and manual optics conformance with one verified photo server', async () => {
 	const previous = { port: process.env.PLAYWRIGHT_LIGHTSCAPER_PORT, origins: process.env.SCAPE_PLAYWRIGHT_PRODUCT_ORIGINS };
 	process.env.PLAYWRIGHT_LIGHTSCAPER_PORT = '4380';
 	try {

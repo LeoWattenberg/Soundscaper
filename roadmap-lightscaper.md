@@ -991,19 +991,37 @@ there.
   textures, final readback, reference planes, LUT resources and presentation,
   plus distinct parser/fallback phases, retain the 768-MiB ceiling. Double LUT
   tables stay scoped through validation and retire before consumer delivery.
+  Four private same-aperture optics kinds pass the recorded local software-GPU
+  and Firefox corpus: lens distortion, CA, defringe and optical vignette.
+  Lens/CA use stable signed displacement and per-tap zero-extension; lens computes
+  filtered alpha, while CA reconstructs active channels and copies Green/alpha
+  and raw-zero controls exactly. Raw activity survives rounded coefficients.
+  Defringe uses continuous alpha-weighted opponent differences and exact bypasses;
+  optical vignette applies incoming-aperture linear gain. They retain authored
+  order, per-stage Float32 and the existing two-plane CPU reference, without a
+  provenance image or invented unique ancestry after reconstruction. Source
+  validation yields before oracle allocation; source custody and the complete
+  physical 768-MiB phase ceiling remain unchanged. The non-dyadic lens one-ULP
+  alpha witness remains a required exact-CPU refusal; dyadic fractional-alpha
+  positives and tiny CA support refusal have separate recorded proofs.
   Numerical, capability or capacity refusal retains the whole CPU
   recipe. This correctness check also costs CPU work and makes no acceleration
-  claim. Optics, spatial stages, complete masks/brush
+  claim. Spatial stages, complete masks/brush
   and true Clone/Heal GPU execution remain unfinished, alongside combined
   conformance and the L7/L8/L9 exit gates. The configured digest-pinned Chromium
   software-GPU baseline retains its Quality/Desktop Preview coverage
-  dependencies. Local qualification passed all 62 software-GPU cases across its
-  eight exact native/menu specs and all 62 Firefox compatibility cases, including
-  eight coverage-enabled English/German workflows. Compaction retained 116
-  scripts/maps and exact pins for 21 processing, presentation and UI owners;
-  295 selected Lightscaper Node cases passed in 47 files. Rapid numeric handoffs
+  dependencies. The configuration names ten exact specs. Recorded local
+  qualification passed all 86 software-Chromium cases and all 86 Firefox
+  compatibility cases, including ten coverage-enabled English/German UI
+  profiles. Compaction retained 116 scripts and 116 source maps with exact pins
+  for 23 processing, presentation and UI owners; 508 selected Lightscaper Node
+  cases passed in 67 files. Rapid numeric handoffs
   preserve crop, rotation and flip through Save, with stale/disabled edits and
-  invalid-value cancellation covered. Positive color/LUT/geometry delivery and exact
+  invalid-value cancellation covered. The browser UI workflows confirm focus
+  before select-all and use real sequential keyboard edits after bulk insertion
+  was observed to change DOM
+  values without an input event; that test correction is not a product UI fix.
+  Positive color/LUT/geometry/optics delivery and exact
   whole-CPU precision fallback are independently witnessed. GPU fallback can
   re-read SHA-bound LUT bytes through the same pinned resource method after
   resource retirement, while the Original remains captured once. Authentication,

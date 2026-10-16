@@ -57,6 +57,9 @@ Original backing: native proxy input, private Float32 capture, two maximum-exten
 RGBA32F targets, final-extent Float32 readback and the existing full/fitted
 presentation allowance. GPU geometry passes the recorded local software-GPU and
 Firefox corpus; its preferred phase also charges two maximum-extent CPU reference planes.
+The four native optics kinds use that same reference allowance and pass the
+recorded local software-GPU and Firefox corpus; they do not raise the 768-MiB
+phase ceiling.
 Active extended color or LUT passes add a 4096-byte uniform-staging reserve;
 pointwise streamed CPU conformance checking allocates no expected-result image plane. Capability
 probing has a separate fixed reserve. If that phase cannot fit but
@@ -90,6 +93,20 @@ alpha; Double LUT authority remains live through comparison, then retires before
 the consumer. CPU mapper drift, coordinate precision or memory can select the
 complete CPU recipe without changing saved parameters or precision guards.
 
+Private lens/CA/defringe/optical-vignette stages retain their incoming proxy
+aperture and authored order, including changes made by earlier geometry. Lens
+and CA keep stable signed-displacement fractions with individual outside taps
+transparent. Lens computes filtered alpha; CA reconstructs only active channels
+and copies Green, reference alpha and raw-zero controls exactly. Defringe's
+continuous alpha-weighted opponent differences retain flat/zero-weight/hidden
+bypasses; vignette multiplies linear light directly with exact gain-one/zero
+branches. Raw activity does not collapse with Float32 coefficients. Whole-plane
+validation uses existing CPU writers without a provenance image or unique source
+claim for reconstructed channels, and its source scan yields before allocation.
+Non-dyadic exact-alpha loss and tiny CA diagonal support require truthful CPU
+fallback; dyadic fractional-alpha lens positives qualify a separate accepted
+GPU corpus. The proxy source is never reopened, replaced or modified by this choice.
+
 Native promotion starts at the fitted proxy extent; each adjustment uses its
 admitted natural proxy stage extent. No full-Original Float32 capture is
 allocated merely to construct a smaller proxy. Each scoped
@@ -113,10 +130,10 @@ also cover complete admission before pixel reflection, padded backing limits,
 native precision, normalized Clone approximation, unchanged full donor output,
 resource retirement, proxy/full dispatch and revision changes during held native
 retirement. Encoded-byte proxies retain the byte renderer's acceptance of
-disabled known families; native admission stays strict. The selected Lightscaper
-regression set passes 3,106 cases across 357 files. Four English/German Chromium
-and Firefox menu cases pass using actual RAW decoding and an independent native
-word oracle. RAW timing observations remain separate from the existing
+disabled known families; native admission stays strict. The original proxy
+qualification passed 3,106 selected Lightscaper cases across 357 files and four
+English/German Chromium and Firefox menu cases using actual RAW decoding and an
+independent native word oracle. RAW timing observations remain separate from the existing
 PNG-workload latency register; browser case timeouts are not latency budgets.
 
 This changes no native runtime bytes, source pins or assistance runtime closure.

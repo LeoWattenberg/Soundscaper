@@ -9,6 +9,7 @@ import { photoDevelopMenuLabel } from '../../src/common/i18n/lightscaper-develop
 import { photoDevelopSettingsCopy } from '../../src/common/i18n/lightscaper-develop-settings-copy.ts';
 import { photoDevelopPreviewRendererCopy } from '../../src/common/i18n/lightscaper-develop-preview-renderer-copy.ts';
 import { hdrMergeBrowserFixtureCurrentV1 } from './helpers/lightscaper-hdr-merge-current-fixture.ts';
+import { editLightscaperDevelopNumberCurrentV1 } from './helpers/lightscaper-develop-numeric-keyboard-current.ts';
 import { compileNativeImageHandoffScript } from './helpers/lightscaper-image-handoff-native-fixture.js';
 import { resolveBrowserProductTestUrl } from './helpers/browser-product-test-url.js';
 import { expect, test } from './helpers/browser-coverage-fixture.js';
@@ -49,7 +50,7 @@ for (const locale of ['en', 'de']) test(`${locale}: RAW crop/rotation menus pres
 		await painted(32, 32, expected.before); await named(dialog, 'combobox', words.choose).selectOption('develop-geometry-v1'); await keyboard(named(dialog, 'button', words.add));
 		for (const [key, value] of [['CropWidth', '0.5'], ['CropHeight', '0.25'], ['CropX', '0.5'], ['CropY', '0.5'], ['GeometryRotation', '90']]) {
 			const control = named(dialog, 'spinbutton', `${words.shared.videoEffectExactValue}: ${words.shared[`videoEffectParam${key}`]}`);
-			await control.fill(value); await control.press('Enter'); await expect(control).toHaveValue(value);
+			await editLightscaperDevelopNumberCurrentV1(control, value); await expect(control).toHaveValue(value);
 		}
 		await named(dialog, 'combobox', `${words.shared.videoEffectExactValue}: ${words.shared.videoEffectParamFlipHorizontal}`).selectOption('1');
 		await painted(8, 16, expected.after); expect((await observation()).attempts).toBe(0); expect(await custody()).toEqual(initial);

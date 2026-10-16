@@ -8,7 +8,11 @@ import { photoDevelopCopy } from '../../src/common/i18n/lightscaper-develop-copy
 import { photoDevelopMenuLabel } from '../../src/common/i18n/lightscaper-develop-menu-copy.ts';
 import { photoDevelopSettingsCopy } from '../../src/common/i18n/lightscaper-develop-settings-copy.ts';
 import { photoDevelopPreviewRendererCopy } from '../../src/common/i18n/lightscaper-develop-preview-renderer-copy.ts';
+import { withImageDevelopLinearCurrentV1 } from '../../src/common/editor/imaging/image-develop-linear-current-v1.ts';
+import { defaultImageDevelopStateV2 } from '../../src/common/editor/imaging/image-develop-state-v2.ts';
+import { PHOTO_DEVELOP_LINEAR_LIMITS_V1 } from '../../src/common/editor/photo-library-develop-linear-port-v1.ts';
 import { hdrMergeBrowserFixtureCurrentV1 } from './helpers/lightscaper-hdr-merge-current-fixture.ts';
+import { editLightscaperDevelopNumberCurrentV1 } from './helpers/lightscaper-develop-numeric-keyboard-current.ts';
 import { compileNativeImageHandoffScript } from './helpers/lightscaper-image-handoff-native-fixture.js';
 import { resolveBrowserProductTestUrl } from './helpers/browser-product-test-url.js';
 import { expect, test } from './helpers/browser-coverage-fixture.js';
@@ -25,15 +29,15 @@ test.beforeAll(async () => {
 	expect(program.assets).toEqual([]);
 });
 
-// Actual Current Photo UI integration for the admitted WB/tone subset. Other
-// native GPU families remain open; one unsupported optical stage proves that
+// Actual Current Photo UI integration for admitted native WB/tone. One
+// active unsupported spatial stage proves that
 // this choice falls back for the whole authored stack rather than omitting it.
 for (const locale of ['en', 'de']) test(`${locale}: opt-in GPU Develop preview executes real native globals and keeps renderer choice outside saved RAW recipes`, async ({ page, browserName }) => {
 	expect(['chromium', 'firefox']).toContain(browserName); test.setTimeout(240_000);
 	const copy = bundledLightscaperEditorCopyForLocale(locale), words = photoDevelopCopy(locale), settings = photoDevelopSettingsCopy(locale, 'current3'), renderer = photoDevelopPreviewRendererCopy(locale);
 	const source = fixture.sources[0], original = Buffer.from(source.bytes), words16 = fixture.words[0], errors = [], workerUrls = [];
 	const beforePixels = display(words16.map((n, at) => at % 4 === 3 ? 1 : n / 65535));
-	const native = developWords(words16), expectedBits = floatBits(native), expectedPixels = display(native), opticalPixels = display(optical(native));
+	const native = developWords(words16), expectedBits = floatBits(native), expectedPixels = display(native), texturePixels = display(await texture(native));
 	expect(native.some((n, at) => at % 4 === 0 && n > .5)).toBe(true);
 	page.on('pageerror', error => { errors.push(error.message); });
 	page.on('worker', worker => { if (new URL(worker.url()).pathname.includes('libraw-worker-v1')) workerUrls.push(worker.url()); });
@@ -73,29 +77,29 @@ for (const locale of ['en', 'de']) test(`${locale}: opt-in GPU Develop preview e
 		assertNativeAfter(await observation()); await observe('reset');
 		await resolution('proxy'); await painted(expectedPixels); await expect(named(dialog, 'region', words.imageViewport)).toHaveCount(0);
 		assertNativeAfter(await observation()); expect(await custody()).toEqual(saved);
-		// This family has no native GPU implementation in this packet. A real
-		// staged optical correction still appears in After through whole CPU
+		// Texture still has no native GPU implementation. A real
+		// active spatial correction appears in After through whole CPU
 		// fallback; any native Before copy is not counted as After execution.
-		await add('optical-vignette-v1'); await number('videoEffectOpticalVignetteAmount', '100'); await painted(opticalPixels);
-		await observe('reset'); await resolution('full'); await painted(opticalPixels);
+		await add('texture-v1'); await number('videoEffectTextureAmount', '25'); await painted(texturePixels);
+		await observe('reset'); await resolution('full'); await painted(texturePixels);
 		const fallback = await observation(); expect(fallback.readbacks.filter(read => read.passes.some(pass => pass.kind === 1 || pass.kind === 2))).toEqual([]); retired(fallback);
-		expect(await custody()).toEqual(saved); await keyboard(named(dialog, 'button', words.save)); await expect(named(dialog, 'button', words.save)).toBeDisabled(); await painted(opticalPixels);
-		const savedOptical = await custody(); originalUnchanged(savedOptical); expect(savedOptical.photo.revision).toBe(initial.photo.revision + 2);
-		expect(active(savedOptical.photo).develop.effects.slice(0, 2)).toEqual(savedRecipe.effects);
-		expect(active(savedOptical.photo).develop.effects[2]).toMatchObject({ type: 'optical-vignette-v1', enabled: true, params: { amount: 100 } });
-		expect({ ...active(savedOptical.photo).develop, effects: savedRecipe.effects }).toEqual(savedRecipe);
+		expect(await custody()).toEqual(saved); await keyboard(named(dialog, 'button', words.save)); await expect(named(dialog, 'button', words.save)).toBeDisabled(); await painted(texturePixels);
+		const savedSpatial = await custody(); originalUnchanged(savedSpatial); expect(savedSpatial.photo.revision).toBe(initial.photo.revision + 2);
+		expect(active(savedSpatial.photo).develop.effects.slice(0, 2)).toEqual(savedRecipe.effects);
+		expect(active(savedSpatial.photo).develop.effects[2]).toMatchObject({ type: 'texture-v1', enabled: true, params: { amount: 25 } });
+		expect({ ...active(savedSpatial.photo).develop, effects: savedRecipe.effects }).toEqual(savedRecipe);
 		await openRenderer(); choice = named(page, 'dialog', renderer.title); await expect(named(choice, 'combobox', renderer.renderer)).toHaveValue('gpu-preferred');
-		await keyboard(named(choice, 'button', renderer.close).last()); await expect(choice).toHaveCount(0); await painted(opticalPixels); expect(await custody()).toEqual(savedOptical);
-		await close(); await observe('stop'); await page.reload(); await expect(app).toBeVisible(); await library(); expect(await custody()).toEqual(savedOptical);
-		await observe('start'); await keyboard(card); await photoAction(photoDevelopMenuLabel(locale), true); await painted(opticalPixels);
+		await keyboard(named(choice, 'button', renderer.close).last()); await expect(choice).toHaveCount(0); await painted(texturePixels); expect(await custody()).toEqual(savedSpatial);
+		await close(); await observe('stop'); await page.reload(); await expect(app).toBeVisible(); await library(); expect(await custody()).toEqual(savedSpatial);
+		await observe('start'); await keyboard(card); await photoAction(photoDevelopMenuLabel(locale), true); await painted(texturePixels);
 		await openRenderer(); choice = named(page, 'dialog', renderer.title); await expect(named(choice, 'combobox', renderer.renderer)).toHaveValue('cpu');
-		await keyboard(named(choice, 'button', renderer.close).last()); await expect(choice).toHaveCount(0); await painted(opticalPixels);
-		const reopened = await observation(); expect(reopened.attempts).toBe(0); expect(reopened.readbacks).toEqual([]); expect(await custody()).toEqual(savedOptical);
+		await keyboard(named(choice, 'button', renderer.close).last()); await expect(choice).toHaveCount(0); await painted(texturePixels);
+		const reopened = await observation(); expect(reopened.attempts).toBe(0); expect(reopened.readbacks).toEqual([]); expect(await custody()).toEqual(savedSpatial);
 		await close(); expect(errors).toEqual([]); expect(workerUrls.length).toBeGreaterThan(0);
 		for (const url of workerUrls) { expect(new URL(url).origin).toBe(new URL(page.url()).origin); expect(new URL(url).pathname).toMatch(/\/assets\/libraw-worker-v1-[^/]+\.js$/u); }
 
 		async function add(type) { await named(dialog, 'combobox', words.choose).selectOption(type); await keyboard(named(dialog, 'button', words.add)); }
-		async function number(key, value) { const input = named(dialog, 'spinbutton', `${words.shared.videoEffectExactValue}: ${words.shared[key]}`); await input.fill(value); await input.press('Enter'); await expect(input).toHaveValue(value); }
+		async function number(key, value) { const input = named(dialog, 'spinbutton', `${words.shared.videoEffectExactValue}: ${words.shared[key]}`); await editLightscaperDevelopNumberCurrentV1(input, value); await expect(input).toHaveValue(value); }
 		async function painted(expected) {
 			await expect(preview).toHaveAttribute('data-state', 'ready'); await expect.poll(() => plane(named(dialog, 'img', words.before))).toEqual([32, 32, ...beforePixels]);
 			await expect.poll(() => plane(named(dialog, 'img', words.after))).toEqual([32, 32, ...expected]); await expect(dialog.getByRole('alert')).toHaveCount(0);
@@ -141,11 +145,17 @@ function developWords(words) { return words.map((sample, at) => {
 	if (at % 4 === 3) return 1;
 	const captured = Math.fround(sample / 65535), balanced = Math.fround(captured * [2, 1, .5][at % 4]); return Math.fround(balanced * .5);
 }); }
-function optical(values) { return values.map((value, at) => {
-	if (at % 4 === 3) return value; const pixel = Math.floor(at / 4), x = pixel % 32, y = Math.floor(pixel / 32);
-	const radius = ((2 * x + 1 - 32) ** 2 + (2 * y + 1 - 32) ** 2) / (32 ** 2 + 32 ** 2);
-	return Math.fround(value * 2 ** (2 * radius));
-}); }
+async function texture(values) {
+	// Start with the independently computed, per-stage-rounded WB/tone
+	// values above. Only the existing CPU Texture stage supplies this spatial
+	// reference; no application renderer or browser observer is substituted.
+	const pixels = Float32Array.from(values), frame = { descriptor: { schemaVersion: 1, width: 32, height: 32,
+		sampleFormat: 'float32', primaries: 'srgb', transfer: 'linear' }, pixels };
+	try { return await withImageDevelopLinearCurrentV1({ frame, develop: { ...defaultImageDevelopStateV2(), effects: [
+		{ id: 'texture-reference', type: 'texture-v1', enabled: true, params: { amount: 25 } },
+	] } }, output => [...output.pixels], PHOTO_DEVELOP_LINEAR_LIMITS_V1); }
+	finally { pixels.fill(0); }
+}
 function display(values) { return values.map((value, at) => { if (at % 4 === 3) return 255;
 	const n = Math.max(0, Math.min(1, value)); return Math.round(255 * (n <= .0031308 ? n * 12.92 : 1.055 * n ** (1 / 2.4) - .055)); }); }
 function floatBits(values) { return [...new Uint32Array(Float32Array.from(values).buffer)]; }

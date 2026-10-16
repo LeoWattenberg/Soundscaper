@@ -10,6 +10,7 @@ import { photoDevelopSettingsCopy } from '../../src/common/i18n/lightscaper-deve
 import { photoDevelopPreviewRendererCopy } from '../../src/common/i18n/lightscaper-develop-preview-renderer-copy.ts';
 import { videoEffectDefinitionV2 } from '../../src/common/editor/video-effects-v2.ts';
 import { hdrMergeBrowserFixtureCurrentV1 } from './helpers/lightscaper-hdr-merge-current-fixture.ts';
+import { editLightscaperDevelopNumberCurrentV1 } from './helpers/lightscaper-develop-numeric-keyboard-current.ts';
 import { compileNativeImageHandoffScript } from './helpers/lightscaper-image-handoff-native-fixture.js';
 import { resolveBrowserProductTestUrl } from './helpers/browser-product-test-url.js';
 import { expect, test } from './helpers/browser-coverage-fixture.js';
@@ -95,7 +96,7 @@ for (const locale of ['en', 'de']) test(`${locale}: real RAW all-color Develop e
 		expect(errors).toEqual([]); expect(workers.length).toBeGreaterThan(0);
 		for (const url of workers) { expect(new URL(url).origin).toBe(new URL(page.url()).origin); expect(new URL(url).pathname).toMatch(/\/assets\/libraw-worker-v1-[^/]+\.js$/u); }
 
-		async function number(scope, label, value) { const input = named(scope, 'spinbutton', label); await input.fill(value); await input.press('Enter'); await expect(input).toHaveValue(value); }
+		async function number(scope, label, value) { const input = named(scope, 'spinbutton', label); await editLightscaperDevelopNumberCurrentV1(input, value); await expect(input).toHaveValue(value); }
 		async function painted(after, exact = qualification.backend === 'cpu') {
 			await expect(preview).toHaveAttribute('data-state', 'ready');
 			await expect.poll(() => plane(named(dialog, 'img', words.before))).toEqual([32, 32, ...before.display]);
