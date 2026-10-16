@@ -121,8 +121,16 @@ a computed value rounding back to the Original does not establish ancestry.
 Coupled grain/protected dark post-crop stages propagate prior channel
 invalidation, while copies and independent fog/vignette branches retain but
 never restore it. The existing two-plane native reference and full physical
-768-MiB plan cover these paths. Masks, overlay projection and Clone/Heal still
-select the complete CPU renderer.
+768-MiB plan cover these paths. Current masks and selected overlays now have
+native execution. E67 wires genuine Clone/Heal into the same proxy path, with
+recorded local large-image, menu and combined software-GPU/Firefox qualification.
+Hosted CI and the complete milestone exits remain open. The repair prefix uses
+the actual fitted proxy grid, as the unchanged CPU process does; Full inspection
+still uses Original pixels. One stable source capture/upload supplies immutable
+donors and paired boundary context for every spot. Three reusable image banks
+and serial GPU halo storage are phase-admitted; unchanged Float64 CPU repair
+replay remains within the same two oracle planes. Numerical, capability and
+working-set refusals retain the whole CPU recipe, without reopening Original.
 <!-- E65_INPUT_DELIVERY_CORRECTION -->
 E65 preview status now belongs to the accepted request interaction: a changed
 recipe, resolution, temporary policy or source owner shows pending immediately,

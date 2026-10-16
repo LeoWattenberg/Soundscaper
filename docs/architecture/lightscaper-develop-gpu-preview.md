@@ -21,13 +21,29 @@ The native optics program now implements manual lens distortion, chromatic
 aberration, defringe and optical vignette. The recorded local software-GPU and
 Firefox corpus qualifies their accepted GPU paths and separate exact-CPU
 numerical refusals alongside color, LUT and geometry stages.
-E65 adds all seven existing native spatial families to the same optional
-renderer. Local qualification passes 575 selected Node cases in 74 files,
+E65 added all seven existing native spatial families to the same optional
+renderer. Its recorded local baseline passes 575 selected Node cases in 74 files,
 121 software-Chromium cases and 121 Firefox compatibility cases. The separate
 unprofiled English/German PNG proxy burst workflow passes both cases. Twelve
 coverage-enabled UI profiles compact to 116 scripts and 116 source maps with
 27 exact-current-SHA mapped source owners and positive containing-script ranges.
-Hosted CI and complete GPU stack qualification remain open.
+Hosted CI and complete GPU stack qualification remain open. E66 subsequently
+added native local masks, authenticated brush coverage and selected overlay
+projection. E67 now wires the existing Original-space Clone and genuine
+screened-Poisson Heal prefix into the same opt-in renderer. Its finite local
+component, broker, large-image, menu and combined-regression corpus now passes on software Chromium and Firefox.
+
+<!-- E67_VERIFIED_LOCAL_QUALIFICATION -->
+The expanded local closure passes 717 selected Lightscaper Node cases in 90
+files, 151 strict TypeScript roots, full and changed-file lint, architecture
+checks and all three product builds. Its 24-spec browser corpus passes all 214
+software-Chromium cases and all 214 Firefox cases in one complete run, without
+skips or retries. Sixteen successful English/German Chromium UI profiles compact
+to 122 scripts and 122 source maps. All 56 mapped source owners match their
+current SHA-256 and have positive ranges in their containing compiled scripts.
+This is source/map and containing-script evidence, not per-owner branch or GLSL
+coverage. No coverage floor was tightened; hosted CI and the full roadmap exits
+remain open. The earlier E65 totals identify their predecessor closure.
 
 ## Shared execution and fallback
 
@@ -36,9 +52,10 @@ mask overlay, resource authorities, geometry and processing limits before source
 samples. The broker uses the existing native CPU engine as its whole-recipe
 fallback. An unfinished stage never disappears from a GPU result.
 
-Current local masks and selected overlays enter the native GPU path alongside
-color, LUT, geometry, optics and spatial stages. Clone/Heal repairs select the
-complete CPU render.
+Current local masks, selected overlays and Original-space Clone/Heal enter
+the native GPU path alongside color, LUT, geometry, optics and spatial stages.
+The existing Repair spots and Preview rendering menus remain the opt-in entry
+points; no additional always-visible controls or saved renderer setting is added.
 Encoded byte sources also retain their existing CPU process and
 per-stage byte quantization. They are not implicitly promoted into the native
 Float32 process to obtain GPU execution.
@@ -98,6 +115,51 @@ generation; switching policy joins the retired presentation before replacement.
 RAW source-mode authentication and generated HDR Original authentication remain
 upstream of this choice. Presentation caches do not become Develop input.
 
+## Original-space Clone and screened-Poisson Heal
+
+The repair prefix runs before legacy geometry and every authored adjustment or
+mask checkpoint. The synchronous stable Float32 source capture is uploaded
+once to an immutable Original texture O. Two distinct destination banks carry
+ordered, overlapping spot results, while every donor and Heal boundary still
+samples O. After the complete prefix retires its programs and halo storage, the
+result becomes logical bank zero by swapping handles and extent metadata. The
+same three image textures can then serve adjustment candidates and mask blends;
+there is no additional image-sized Original, prefix readback or CPU patch upload.
+
+Clone uses the existing premultiplied four-tap donor definition, transparent
+outside taps and continuous spot feather/opacity. It preserves destination
+alpha and hidden RGB when the destination alpha or effective weight is zero.
+Heal constructs real donor, membership, paired boundary sums, delta, right-hand
+side and solution textures. Its screened-Poisson profile keeps lambda one and
+exactly 64 Jacobi draws per nonempty valid Heal domain. Donor and boundary values never read a
+previous spot's destination; only final RGB composition follows authored order.
+The existing 512-by-512 maximum halo, work and spot ceilings remain unchanged.
+
+A rounded GPU boundary-weight loss is a numerical refusal, not proof that the
+CPU domain is invalid. After complete attempt retirement the unchanged CPU
+writer distinguishes a valid tiny positive boundary from a genuine nonempty
+domain without paired Original boundary context. The latter still raises its
+semantic RangeError before any consumer. Zero-member Heal remains a valid copy.
+
+Final proof replays the unchanged Float64 CPU repair writer before the exact
+ordered geometry, effects and mask graph. Each committed image stage still
+stores Float32. No GPU intermediate or rounded texture supplies the CPU oracle.
+Active repairs do not claim Original-coordinate coincidence ancestry for later
+reconstructed channels. Exact normative output alpha, zero/tiny rules and the
+eight-ULP ordinary-RGB limit are unchanged. Float32 donor arithmetic, reduction
+order or Jacobi precision can legitimately require whole CPU processing; neither
+readback patching nor an approximate Heal substitute is admitted.
+
+<!-- E67_VERIFIED_REPAIR_NATIVE_MENU_QUALIFICATION -->
+The targeted native fixtures cover nontrivial coupled Heal, ordered overlap,
+Clone alpha, repaired-input range masks, legacy crop with selected gradient,
+and boundary-underflow versus true-invalid-domain classification. Both engines
+also pass the 2048-by-2048 image with a nonempty 512-by-512 Heal domain followed by a radius-64 mask, plus the English/German RAW menu workflow.
+The large case receives the actual native readback under the unchanged working
+limits, with three reused image banks, nine serial halo textures and at most
+two simultaneous CPU oracle planes. Native draw observations alone are not an accepted-backend receipt; positive broker
+fixtures must receive the real native readback with backend `webgl2`.
+
 ## Native samples and capability
 
 The shared host accepts native linear sRGB/BT.709 UNORM16 or Float32 frames.
@@ -107,8 +169,9 @@ before the first asynchronous context-loading boundary; later caller mutation
 cannot replace the admitted frame. Proxy mode first samples the existing
 same-format native proxy grid, then evaluates the unchanged recipe on that grid.
 
-The optional context owner uses two RGBA32F textures with nearest sampling and
-integer `texelFetch`. Each authored operation writes a Float32 stage. White
+The optional context owner uses two RGBA32F textures for ordinary unmasked
+recipes and three for masked candidates or a repair prefix, with nearest
+sampling and integer `texelFetch`. Each authored operation writes a Float32 stage. White
 balance, tone and wheels operate in native linear RGB. Tone uses the stable
 affine contrast form and clamps only its regional smooth weights; wheels use
 signed lift, gain and gamma. Chroma, black-and-white, HSL and curves use
@@ -333,9 +396,17 @@ No readback repair, tolerance relaxation or acceleration claim is made.
 
 The Current preview working ceiling remains 768 MiB. Admission charges the full
 physical borrowed backing, including padding outside a valid source view.
-Native GPU execution overlaps that backing with one Float32 host capture, two
-maximum-extent RGBA32F textures and one final-extent Float32 readback. Geometry,
-optics or spatial recipes additionally reserve two maximum-extent CPU reference planes.
+Native GPU execution overlaps that backing with one Float32 host capture,
+two maximum-extent RGBA32F textures (three when required by masks or repairs)
+and one final-extent Float32 readback. Geometry, optics, spatial, masks or repair
+recipes additionally reserve two maximum-extent CPU reference planes. A repair
+prefix retains the same three maximum-extent image banks through proof and
+presentation. Its serial GPU halo uses eight RGBA32F banks and one R8UI membership
+bank, 129 bytes per halo cell. Those programs and halos complete clearing and
+retire before later masks, final readback and CPU replay. The disjoint CPU repair
+prefix uses the unchanged 105 bytes per halo cell of Float64/byte scratch plus
+4096 bytes, then retires scratch and the replaced oracle plane before authored
+replay. No third CPU oracle image or combined GPU-halo/CPU-scratch phase is added.
 Color/LUT-only pointwise recipes retain the streamed comparison and allocate no
 reference image plane.
 Presentation planning also reserves
@@ -499,12 +570,12 @@ E64 compaction totals remain predecessor evidence.
 
 <!-- E65_PENDING_HOSTED_CI -->
 Hosted CI execution remains pending; a configured gate is not a hosted success.
-Complete mask graphs, brush coverage and overlay projection, Original-space
-Clone and genuine
-screened-Poisson Heal still need GPU implementations and combined conformance.
-Those recipes retain the complete CPU route. Full-stack GPU parity, native
-desktop services, the broader L7/L8/L9 exit gates and final inter-slice QA remain
-open.
+Masks, authenticated brushes and selected overlays have a native implementation.
+E67 Original-space Clone and genuine screened-Poisson Heal pass the recorded
+local large-image, menu, combined-regression and mapped-source qualification.
+Every numerical, capability or capacity refusal retains the complete CPU route.
+Full-stack GPU parity, native desktop services, the broader L7/L8/L9 exit gates
+and final inter-slice QA remain open.
 
 This work changes no assistance engine or native decoder runtime closure.
 No manual **Update AI assets** run is required.

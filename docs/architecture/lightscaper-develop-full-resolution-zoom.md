@@ -109,8 +109,16 @@ pins with positive containing-script ranges. This is not per-line GLSL coverage
 or a coverage-floor pass, and no floor tightening is claimed. Hosted CI remains
 pending;
 earlier color/LUT/geometry/optics results above are the E64 baseline. No speed
-claim follows from CPU-validated GPU correctness. Complete masks/overlay
-projection and Original-space Clone/Heal still use the complete CPU route.
+claim follows from CPU-validated GPU correctness. The E65 totals are predecessor
+evidence. Current masks and selected overlays now execute natively. E67 wires
+Original-space Clone and genuine lambda-one, 64-Jacobi screened-Poisson Heal
+before geometry/adjustments in both Fit and Full. The local large-image, menu
+and combined software-GPU/Firefox corpus passes. Hosted CI and the complete
+milestone exits remain open. Fit keeps the existing proxy-grid repair semantics; Full keeps the Original grid. One stable source upload and immutable
+donor/boundary texture feed ordered destination banks, later reused for masks.
+GPU halo storage retires before unchanged Float64 CPU replay inside the same
+two-plane oracle owner. Complete CPU fallback and the fixed 768-MiB phase limit
+remain in force; output is never patched with CPU repair pixels.
 
 CPU remains the default, unsupported complete stacks use CPU, and the renderer
 preference resets on reopening. The choice does not change saved settings,

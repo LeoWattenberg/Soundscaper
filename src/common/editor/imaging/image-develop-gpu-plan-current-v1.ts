@@ -19,16 +19,17 @@ export function prepareImageDevelopGpuPlanCurrentV1(metadata: Metadata, physical
 	const maskPipeline = preparePixelFrameWebGl2MaskPlanCurrentV1(metadata), passes = maskPipeline.passes;
 	const unmaskedPipeline = planPixelFrameWebGl2PipelineCurrentV1(metadata.descriptor, passes);
 	if (unmaskedPipeline.maximumFrameBytes !== maskPipeline.maximumFrameBytes) throw new RangeError('GPU authored/pixel pipeline extents differ.');
-	const hasPlaneReference = unmaskedPipeline.hasPlaneReference || maskPipeline.executedCheckpoints.length > 0;
-	const pipeline = Object.freeze({ ...unmaskedPipeline, hasPlaneReference, imageTextureCount: maskPipeline.imageTextureCount,
-		textureBytes: maskPipeline.maximumFrameBytes * maskPipeline.imageTextureCount,
-		referenceBytes: hasPlaneReference ? maskPipeline.maximumFrameBytes * 2 : 0 });
 	// The mask branch has one complete private phase authority. Original
 	// unmasked callers retain the previous planner and pixel execution path.
-	const masked = Boolean(metadata.masks.plan.bindings.length || metadata.masks.references.length || overlay || maskPipeline.selectedExecutionIndex !== undefined);
+	const masked = Boolean(metadata.repairs || metadata.masks.plan.bindings.length || metadata.masks.references.length || overlay || maskPipeline.selectedExecutionIndex !== undefined);
 	const maskContext = masked ? preparePixelFrameWebGl2MaskContextCurrentV1(maskPipeline) : undefined;
 	const maskOverlay = maskPipeline.selectedExecutionIndex === undefined ? undefined : preparePixelFrameWebGl2MaskOverlayCurrentV1(maskPipeline);
 	const maskPhase = maskContext ? prepareImageDevelopGpuMaskPhasePlanCurrentV1(maskPipeline, maskContext, maskOverlay, physicalBytes) : undefined;
+	const hasPlaneReference = Boolean(maskPhase?.repairPrefix) || unmaskedPipeline.hasPlaneReference || maskPipeline.executedCheckpoints.length > 0;
+	const imageTextureCount = maskPhase?.imageTextureCount ?? maskPipeline.imageTextureCount;
+	const pipeline = Object.freeze({ ...unmaskedPipeline, hasPlaneReference, imageTextureCount,
+		textureBytes: maskPipeline.maximumFrameBytes * imageTextureCount,
+		referenceBytes: hasPlaneReference ? maskPipeline.maximumFrameBytes * 2 : 0 });
 	const workingPlanComplete = maskPhase?.workingPlanComplete ?? (maskPipeline.graphAdmissionComplete && metadata.masks.references.length === 0 && !overlay);
 	const luts = planPixelFrameWebGl2LutsCurrentV1(passes.filter(isPixelFrameWebGl2LutCurrentV1));
 	const uniformBytes = passes.some(pass => pass.kind > 2) ? PIXEL_FRAME_WEBGL2_COLOR_SCRATCH_BYTES_CURRENT_V1 : 0;
@@ -43,7 +44,7 @@ export function prepareImageDevelopGpuPlanCurrentV1(metadata: Metadata, physical
 		physicalBytes + floatBytes + pipeline.readbackBytes + presentationBytes,
 		physicalBytes + floatBytes + luts.capturePeakBytes,
 		physicalBytes + floatBytes + luts.oracleBytes + luts.textureBytes + 1024);
-	const unsupported = Boolean(!workingPlanComplete || metadata.repairs || (maskPhase !== undefined && !maskPhase.supported) || (overlay && maskPipeline.selectedExecutionIndex === undefined)
+	const unsupported = Boolean(!workingPlanComplete || (maskPhase !== undefined && !maskPhase.supported) || (overlay && maskPipeline.selectedExecutionIndex === undefined)
 		|| metadata.stages.some(stage => stage.kind !== 'noop' && stage.kind !== 'color' && stage.kind !== 'lut' && stage.kind !== 'geometry'
 			&& stage.kind !== 'lens-distortion' && stage.kind !== 'chromatic-aberration' && stage.kind !== 'defringe' && stage.kind !== 'optical-vignette' && stage.kind !== 'spatial'));
 	return Object.freeze({ passes: pipeline.passes, pipeline, maskPipeline, workingPlanComplete, luts, uniformBytes, floatBytes, presentationBytes, resourceBytes,

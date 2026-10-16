@@ -11,7 +11,7 @@ import { EAGER_CHUNK_GROUPS, resolveRelativeModule, staticRelativeDependencies }
 const ROOT = fileURLToPath(new URL('../', import.meta.url));
 const IMAGING = ROOT + 'src/common/editor/imaging/';
 const NATIVE = 'editor-native-image-develop', GPU = 'editor-image-develop-gpu';
-const HOSTS = ['image-develop-gpu-current-v1.ts', 'pixel-frame-webgl2-current-v1.ts', 'pixel-frame-webgl2-global-current-v1.ts',
+const HOSTS = ['pixel-frame-webgl2-repair-current-v1.ts', 'image-develop-gpu-current-v1.ts', 'pixel-frame-webgl2-current-v1.ts', 'pixel-frame-webgl2-global-current-v1.ts',
 	'pixel-frame-webgl2-color-current-v1.ts', 'linear-curve-metadata-current-v1.ts', 'image-develop-gpu-plan-current-v1.ts',
 	'pixel-frame-webgl2-pass-current-v1.ts', 'pixel-frame-webgl2-lut-current-v1.ts', 'linear-cube-lut-sampling-current-v1.ts',
 	'pixel-frame-webgl2-geometry-current-v1.ts', 'pixel-frame-webgl2-pipeline-current-v1.ts', 'pixel-frame-webgl2-optics-current-v1.ts',
@@ -21,7 +21,9 @@ const HOSTS = ['image-develop-gpu-current-v1.ts', 'pixel-frame-webgl2-current-v1
 	'pixel-frame-webgl2-mask-overlay-plan-current-v1.ts', 'image-develop-gpu-mask-phase-plan-current-v1.ts',
 	'pixel-frame-webgl2-masked-host-current-v1.ts', 'image-develop-linear-mask-blend-current-v1.ts'];
 const CONTEXT = 'pixel-frame-webgl2-context-current-v1.ts';
-const EXECUTION = [CONTEXT, 'pixel-frame-webgl2-numeric-current-v1.ts', 'pixel-frame-webgl2-chroma-glsl-current-v1.ts',
+const EXECUTION = [CONTEXT, 'pixel-frame-webgl2-repair-prefix-current-v1.ts',
+	'pixel-frame-webgl2-repair-execution-current-v1.ts', 'pixel-frame-webgl2-repair-reference-current-v1.ts', 'pixel-frame-webgl2-repair-context-current-v1.ts',
+	'pixel-frame-webgl2-repair-glsl-current-v1.ts', 'pixel-frame-webgl2-heal-glsl-current-v1.ts', 'pixel-frame-webgl2-numeric-current-v1.ts', 'pixel-frame-webgl2-chroma-glsl-current-v1.ts',
 	'pixel-frame-webgl2-curves-glsl-current-v1.ts', 'pixel-frame-webgl2-color-glsl-current-v1.ts', 'pixel-frame-webgl2-lut-glsl-current-v1.ts',
 	'pixel-frame-webgl2-geometry-glsl-current-v1.ts', 'pixel-frame-webgl2-reference-current-v1.ts', 'pixel-frame-webgl2-optics-glsl-current-v1.ts',
 	'pixel-frame-webgl2-spatial-glsl-current-v1.ts', 'pixel-frame-webgl2-spatial-neighborhood-glsl-current-v1.ts', 'pixel-frame-webgl2-spatial-lattice-glsl-current-v1.ts',
@@ -69,7 +71,7 @@ test('native host defers actual context initialization until after its synchrono
 	assert.ok(!dependencies.includes('./' + CONTEXT), 'A normal native Develop load must not acquire the executable GL owner.');
 	assert.match(host, /import\(["']\.\/pixel-frame-webgl2-context-current-v1\.ts["']\)/u);
 	assert.ok(host.indexOf('Float32Array.prototype.set.call') < host.indexOf(`import("./${CONTEXT}")`), 'Source capture must precede the optional GL loading await.');
-	assert.ok(staticRelativeDependencies(source(IMAGING + HOSTS[0]!)).includes('./pixel-frame-webgl2-current-v1.ts'));
+	assert.ok(staticRelativeDependencies(source(IMAGING + 'image-develop-gpu-current-v1.ts')).includes('./pixel-frame-webgl2-current-v1.ts'));
 });
 
 test('the optional GPU execution closure has no static product/UI back edge or nested context impostor', () => {

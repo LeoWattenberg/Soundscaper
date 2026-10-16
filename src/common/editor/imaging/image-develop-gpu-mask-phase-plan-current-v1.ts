@@ -7,6 +7,7 @@ import { pixelFrameWebGl2MaskReceiptWorkingBytesCurrentV1 } from './pixel-frame-
 import { planPixelFrameWebGl2PipelineCurrentV1 } from './pixel-frame-webgl2-pipeline-current-v1.ts';
 import { planPixelFrameWebGl2LutsCurrentV1, isPixelFrameWebGl2LutCurrentV1 } from './pixel-frame-webgl2-lut-current-v1.ts';
 import { PIXEL_FRAME_WEBGL2_COLOR_SCRATCH_BYTES_CURRENT_V1 } from './pixel-frame-webgl2-color-current-v1.ts';
+import { preparePixelFrameWebGl2RepairCurrentV1, type PreparedPixelFrameWebGl2RepairCurrentV1 } from './pixel-frame-webgl2-repair-current-v1.ts';
 
 const COMPONENT = 64 * 1024 * 1024, TOTAL = 768 * 1024 * 1024;
 const HAS = Set.prototype.has;
@@ -21,6 +22,11 @@ interface Prepared {
 	readonly workingPlanComplete: true;
 	readonly contextPlan: unknown;
 	readonly overlayPlan: unknown;
+	readonly repairPrefix: Readonly<PreparedPixelFrameWebGl2RepairCurrentV1> | undefined;
+	readonly imageTextureCount: 2 | 3;
+	readonly repairGpuHaloBytes: number;
+	readonly repairCpuScratchBytes: number;
+	readonly repairStateBytes: number;
 	readonly phases: readonly Readonly<ImageDevelopGpuMaskPhaseCurrentV1>[];
 	readonly physicalSourceBytes: number;
 	readonly floatCaptureBytes: number;
@@ -47,6 +53,9 @@ interface Prepared {
 	readonly eligible: boolean;
 }
 const PLANS = new WeakMap<object, Readonly<Prepared>>();
+// A physical rebase retains the exact prefix prepared from this original
+// private scalar metadata. Public repair-shaped objects grant no authority.
+const REPAIRS = new WeakMap<object, Readonly<PreparedPixelFrameWebGl2RepairCurrentV1>>();
 function sum(...values: readonly number[]): number {
 	let result = 0;
 	for (const value of values) {
@@ -63,6 +72,11 @@ export function prepareImageDevelopGpuMaskPhasePlanCurrentV1(checkpointValue: un
 	overlayValue?: unknown, physicalBytes?: number): Readonly<Prepared> {
 	const checkpoints = readPixelFrameWebGl2MaskCheckpointPlanCurrentV1(checkpointValue);
 	const context = readPixelFrameWebGl2MaskContextCurrentV1(contextValue), metadata = checkpoints.metadata;
+	let repairPrefix = REPAIRS.get(metadata);
+	if (metadata.repairs && !repairPrefix) {
+		repairPrefix = preparePixelFrameWebGl2RepairCurrentV1(metadata.repairs.repairs, metadata.descriptor);
+		REPAIRS.set(metadata, repairPrefix);
+	}
 	if (context.checkpointPlan !== checkpoints) throw new TypeError('GPU phase context must own the same checkpoint schedule.');
 	const selected = checkpoints.selectedExecutionIndex;
 	const overlay = overlayValue === undefined ? undefined : readPixelFrameWebGl2MaskOverlayCurrentV1(overlayValue);
@@ -74,9 +88,15 @@ export function prepareImageDevelopGpuMaskPhasePlanCurrentV1(checkpointValue: un
 	const logicalBytes = metadata.sourcePlan.byteLength, physical = physicalBytes ?? logicalBytes;
 	if (!Number.isSafeInteger(physical) || physical < logicalBytes) throw new RangeError('GPU phase requires the actual full physical source backing.');
 	const floatCapture = metadata.descriptor.width * metadata.descriptor.height * 16, maximumFrame = checkpoints.maximumFrameBytes;
-	const imageTextures = maximumFrame * checkpoints.imageTextureCount, readback = metadata.finalDescriptor.width * metadata.finalDescriptor.height * 16;
+	// O+A/B are distinct until the complete prefix joins. The same three bank
+	// handles are then reused, conservatively charged at maximum suffix extent
+	// through reference and presentation, including repair-only recipes.
+	const imageTextureCount = repairPrefix ? 3 : checkpoints.imageTextureCount;
+	const imageTextures = maximumFrame * imageTextureCount, readback = metadata.finalDescriptor.width * metadata.finalDescriptor.height * 16;
 	const pipeline = planPixelFrameWebGl2PipelineCurrentV1(metadata.descriptor, checkpoints.passes);
-	const reference = context.entries.length || pipeline.hasPlaneReference ? maximumFrame * 2 : 0;
+	const reference = repairPrefix || context.entries.length || pipeline.hasPlaneReference ? maximumFrame * 2 : 0;
+	const repairGpuHalo = repairPrefix?.gpuHaloBytes ?? 0, repairCpuScratch = repairPrefix?.scratchBytes ?? 0;
+	const repairState = repairPrefix ? 4096 : 0;
 	const luts = planPixelFrameWebGl2LutsCurrentV1(checkpoints.passes.filter(isPixelFrameWebGl2LutCurrentV1));
 	const uniforms = checkpoints.passes.some(pass => pass.kind > 2) ? PIXEL_FRAME_WEBGL2_COLOR_SCRATCH_BYTES_CURRENT_V1 : 0;
 	const receipt = context.entries.length ? pixelFrameWebGl2MaskReceiptWorkingBytesCurrentV1(checkpointValue) : 0;
@@ -104,6 +124,8 @@ export function prepareImageDevelopGpuMaskPhasePlanCurrentV1(checkpointValue: un
 	// Programs/opaque driver objects are not typed image allocations. Probe
 	// payloads retain the existing1KiB reserve plus A's separate4KiB probe.
 	phase('native-probes', sum(nativeBase, 1024), sum(retainedBrush, retainedOverlay, context.stateBytes, context.probeBytes, receipt));
+	if (repairPrefix) phase('gpu-original-repair-prefix', sum(nativeBase, repairGpuHalo, repairState),
+		sum(retainedBrush, retainedOverlay, receipt));
 	for (const entry of context.entries) {
 		const c = entry.checkpoint, index = c.executionIndex!;
 		phase('gpu-coverage-and-blend', nativeBase, sum(retainedBrush, retainedOverlay, entry.graph.graphGpuBytes, context.nativeReadbackBytes, context.stateBytes,
@@ -116,6 +138,10 @@ export function prepareImageDevelopGpuMaskPhasePlanCurrentV1(checkpointValue: un
 	const proofBase = sum(nativeBase, readback, reference);
 	phase('final-float-readback', sum(nativeBase, readback), sum(retainedBrush, receipt, retainedOverlay));
 	phase('cpu-native-replay', proofBase, sum(retainedBrush, receipt, retainedOverlay));
+	// CPU prefix scratch joins/retires before authored replay and mask graph
+	// work. GPU halo/program/status owners have already completely retired.
+	if (repairPrefix) phase('cpu-original-repair-prefix-proof', sum(proofBase, repairCpuScratch),
+		sum(retainedBrush, receipt, retainedOverlay));
 	for (const entry of context.entries) {
 		const c = entry.checkpoint;
 		phase('cpu-coverage-proof', proofBase, sum(retainedBrush, receipt, retainedOverlay, c.binding.workingBytes), c.executionIndex!);
@@ -137,8 +163,9 @@ export function prepareImageDevelopGpuMaskPhasePlanCurrentV1(checkpointValue: un
 	// .supported + full oldCPU admission + this complete phase ledger replace
 	// that SUM only once Root wires the private authority through every owner.
 	const nativeSource = metadata.sourcePlan.descriptor.sampleFormat === 'unorm16' || metadata.sourcePlan.descriptor.sampleFormat === 'float32';
-	const supported = nativeSource && !metadata.repairs && context.entries.every(entry => entry.graph.supported) && (overlay?.supported ?? true);
+	const supported = nativeSource && (repairPrefix?.supported ?? true) && context.entries.every(entry => entry.graph.supported) && (overlay?.supported ?? true);
 	const plan = Object.freeze({ checkpointPlan: checkpointValue, workingPlanComplete: true as const, contextPlan: contextValue, overlayPlan: overlayValue, phases: Object.freeze(phases),
+		repairPrefix, imageTextureCount, repairGpuHaloBytes: repairGpuHalo, repairCpuScratchBytes: repairCpuScratch, repairStateBytes: repairState,
 		physicalSourceBytes: physical, floatCaptureBytes: floatCapture, imageTextureBytes: imageTextures, referenceBytes: reference,
 		readbackBytes: readback, retainedBrushBytes: retainedBrush, brushAuthBytes: brushAuth, retainedStorageKeys,
 		receiptBytes: receipt, contextStateBytes: context.stateBytes, retainedOverlayBytes: retainedOverlay, lutCaptureBytes: luts.capturePeakBytes,

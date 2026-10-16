@@ -15,6 +15,7 @@ import { validatePixelFrameWebGl2MaskedReferenceCurrentV1, validatePixelFrameWeb
 
 import { claimPixelFrameWebGl2MaskedExecutionCurrentV1, executePixelFrameWebGl2MaskedSlotsCurrentV1, type PixelFrameWebGl2MaskedExecutionCurrentV1 } from './pixel-frame-webgl2-masked-execution-current-v1.ts';
 import { sealPixelFrameWebGl2MaskCheckpointsCurrentV1 } from './pixel-frame-webgl2-mask-checkpoint-current-v1.ts';
+import { claimPixelFrameWebGl2RepairExecutionCurrentV1, executePixelFrameWebGl2RepairExecutionCurrentV1, type PixelFrameWebGl2RepairExecutionCurrentV1 } from './pixel-frame-webgl2-repair-execution-current-v1.ts';
 
 const UNAVAILABLE = new WeakMap<object, string>();
 export class PixelFrameWebGl2UnavailableCurrentV1 extends Error {
@@ -30,10 +31,16 @@ const unavailable = (reason: string): never => { throw new PixelFrameWebGl2Unava
  * physical ledger. Probe buffers are fixed and wiped before image execution.
  * Released handles do not certify physical driver-memory erasure. */
 export async function openPixelFrameWebGl2ContextCurrentV1(frame: Readonly<LinearWorkingPixelFrameV1>, passes: readonly PreparedPixelFrameWebGl2PassCurrentV1[],
-	allocate: () => Float32Array<ArrayBuffer>, signal?: AbortSignal, resources?: Readonly<PixelFrameWebGl2LutResourcesCurrentV1>, masks?: Readonly<PixelFrameWebGl2MaskedExecutionCurrentV1>) {
+	allocate: () => Float32Array<ArrayBuffer>, signal?: AbortSignal, resources?: Readonly<PixelFrameWebGl2LutResourcesCurrentV1>, masks?: Readonly<PixelFrameWebGl2MaskedExecutionCurrentV1>, repairs?: Readonly<PixelFrameWebGl2RepairExecutionCurrentV1>) {
 	checkRepairSignalV1(signal);
 	const pipeline = planPixelFrameWebGl2PipelineCurrentV1(frame.descriptor, passes);
 	const masked = masks === undefined ? undefined : claimPixelFrameWebGl2MaskedExecutionCurrentV1(masks, pipeline.sourceDescriptor, pipeline.passes);
+	const repaired = repairs === undefined ? undefined : claimPixelFrameWebGl2RepairExecutionCurrentV1(repairs, pipeline.sourceDescriptor, pipeline.passes);
+	if (repaired && !repaired.phase.eligible) unavailable('working-set');
+	if (repaired && !repaired.repairPrefix.supported) unavailable('numeric-range');
+	if (repaired && Boolean(repaired.checkpoints.executedCheckpoints.length) !== Boolean(masked)
+		|| masked && (masked.phase.repairPrefix !== undefined) !== (repaired !== undefined)
+		|| masked && repaired && masked.phaseValue !== repaired.phaseValue) throw new TypeError('Repair and mask tokens require the same complete original recipe phase.');
 	if (masked && !masked.phase.eligible) unavailable('mask-working-set');
 	if (passes.some(pass => !pixelFrameWebGl2PassSupportedCurrentV1(pass, resources))) unavailable('numeric-range');
 	const extended = passes.some(pass => pass.kind > 2 && pass.kind < 9), hasLuts = passes.some(pass => pass.kind === 8);
@@ -127,7 +134,7 @@ export async function openPixelFrameWebGl2ContextCurrentV1(frame: Readonly<Linea
 		const spatialUniforms = spatialProgram ? { program: spatialProgram, image: uniform(spatialProgram, 'uImage'),
 			kind: uniform(spatialProgram, 'uSpatialKind'), extent: uniform(spatialProgram, 'uExtent'),
 			params0: uniform(spatialProgram, 'uParams0'), params1: uniform(spatialProgram, 'uParams1') } : undefined;
-		for (let index = 0; index < (masked?.checkpoints.imageTextureCount ?? 2); index++) {
+		for (let index = 0; index < (repaired?.phase.imageTextureCount ?? masked?.phase.imageTextureCount ?? 2); index++) {
 			const texture = native.createTexture(); if (!texture) return unavailable('execution-unavailable'); textures.push(texture);
 			native.bindTexture(native.TEXTURE_2D, texture);
 			for (const key of [native.TEXTURE_MIN_FILTER, native.TEXTURE_MAG_FILTER]) native.texParameteri(native.TEXTURE_2D, key, native.NEAREST);
@@ -231,6 +238,14 @@ export async function openPixelFrameWebGl2ContextCurrentV1(frame: Readonly<Linea
 		const { width, height } = pipeline.finalDescriptor;
 		upload(0, frame.descriptor.width, frame.descriptor.height, frame.pixels); assertCurrent();
 		let current = 0;
+		if (repaired) {
+			upload(1, frame.descriptor.width, frame.descriptor.height, null); upload(2, frame.descriptor.width, frame.descriptor.height, null); assertCurrent();
+			const bank = (index: number) => Object.freeze({ texture: textures[index]!, width: frame.descriptor.width, height: frame.descriptor.height });
+			const output = await executePixelFrameWebGl2RepairExecutionCurrentV1(repairs, native, [bank(0), bank(1), bank(2)], unavailable, signal);
+			// Normalize the logical current bank without another copy/upload/readback.
+			// O becomes reusable only after every repair/halo/program has retired.
+			if (output !== 0) { const texture = textures[0]!, extent = extents[0]; textures[0] = textures[output]!; textures[output] = texture; extents[0] = extents[output]; extents[output] = extent; }
+		}
 		if (masked) {
 			const bank = (index: number, descriptor: typeof pipeline.sourceDescriptor) => {
 				const extent = extents[index], texture = textures[index];
@@ -238,7 +253,7 @@ export async function openPixelFrameWebGl2ContextCurrentV1(frame: Readonly<Linea
 				return Object.freeze({ texture, width: extent.width, height: extent.height });
 			};
 			current = await executePixelFrameWebGl2MaskedSlotsCurrentV1(masks, {
-				gl: native, bankCount: masked.checkpoints.imageTextureCount, view: bank,
+				gl: native, bankCount: masked.phase.imageTextureCount, view: bank,
 				ensure(index, descriptor) {
 					const extent = extents[index]; if (extent?.width !== descriptor.width || extent.height !== descriptor.height) upload(index, descriptor.width, descriptor.height, null);
 					return bank(index, descriptor);
@@ -262,7 +277,7 @@ export async function openPixelFrameWebGl2ContextCurrentV1(frame: Readonly<Linea
 				draw(current, output, descriptor.width, descriptor.height, pass); current = output;
 				if (pass.kind >= 8) { await new Promise<void>(resolve => { setTimeout(resolve, 0); }); assertCurrent(); }
 			}
-			if (!passes.length) { upload(1, width, height, null); draw(0, 1, width, height); current = 1; }
+			if (!passes.length && !repaired) { upload(1, width, height, null); draw(0, 1, width, height); current = 1; }
 		}
 		const fence = native.fenceSync(native.SYNC_GPU_COMMANDS_COMPLETE, 0); if (!fence) return unavailable('execution-unavailable');
 		synchronizations.push(fence); native.flush();
@@ -278,9 +293,9 @@ export async function openPixelFrameWebGl2ContextCurrentV1(frame: Readonly<Linea
 		native.bindFramebuffer(native.FRAMEBUFFER, framebuffer); native.framebufferTexture2D(native.FRAMEBUFFER, native.COLOR_ATTACHMENT0, native.TEXTURE_2D, textures[current]!, 0);
 		const pixels = allocate(); native.readPixels(0, 0, width, height, native.RGBA, native.FLOAT, pixels); assertCurrent();
 		const equivalent = masked
-			? await validatePixelFrameWebGl2MaskedReferenceCurrentV1(frame, { descriptor: pipeline.finalDescriptor, pixels }, masked.checkpointPlan, masked.receipts, assertCurrent, resources, masked.scope, signal)
-			: pipeline.hasPlaneReference
-			? await validatePixelFrameWebGl2ReferenceCurrentV1(frame, { descriptor: pipeline.finalDescriptor, pixels }, passes, assertCurrent, resources, signal)
+			? await validatePixelFrameWebGl2MaskedReferenceCurrentV1(frame, { descriptor: pipeline.finalDescriptor, pixels }, masked.checkpointPlan, masked.receipts, assertCurrent, resources, masked.scope, signal, repaired?.phaseValue)
+			: pipeline.hasPlaneReference || repaired !== undefined
+			? await validatePixelFrameWebGl2ReferenceCurrentV1(frame, { descriptor: pipeline.finalDescriptor, pixels }, passes, assertCurrent, resources, signal, repaired?.phaseValue)
 			: await validatePixelFrameWebGl2ColorReadbackCurrentV1(frame.pixels, pixels, passes, assertCurrent, resources);
 		if (!equivalent) unavailable('numeric-range');
 		return Object.freeze({ pixels, assertCurrent, dispose });

@@ -67,11 +67,18 @@ export async function withPixelFrameWebGl2MaskedHostCurrentV1<Result>(value: unk
 		const allocate = () => { if (readback) throw new TypeError('Masked GPU readback allocation is repeated.'); return readback = owner.floats(phase.readbackBytes / 4); };
 		const open = async (scope?: Readonly<MaskRasterSourceScopeV1>, resources?: Readonly<PixelFrameWebGl2LutResourcesCurrentV1>, overlay?: Readonly<PixelFrameWebGl2MaskOverlayStorageCurrentV1>) => {
 			const native = await import('./pixel-frame-webgl2-context-current-v1.ts'); checkSource();
+			let repair: ReturnType<typeof import('./pixel-frame-webgl2-repair-execution-current-v1.ts')['preparePixelFrameWebGl2RepairExecutionCurrentV1']> | undefined;
+			if (phase.repairPrefix) {
+				const prefix = await import('./pixel-frame-webgl2-repair-execution-current-v1.ts'); checkSource();
+				// Private phase/source association is validated outside the native
+				// refusal catch. No standalone repair frontdoor or extra source copy.
+				repair = prefix.preparePixelFrameWebGl2RepairExecutionCurrentV1({ phase: phaseValue, checkCurrent: checkSource });
+			}
 			const attempt = async (receipts?: unknown) => {
 				// Token preparation/scope validation is outside the unavailable catch.
 				let token: ReturnType<typeof import('./pixel-frame-webgl2-masked-execution-current-v1.ts')['preparePixelFrameWebGl2MaskedExecutionCurrentV1']> | undefined;
 				if (receipts !== undefined) { const masked = await import('./pixel-frame-webgl2-masked-execution-current-v1.ts'); checkSource(); token = masked.preparePixelFrameWebGl2MaskedExecutionCurrentV1(receipts); }
-				try { context = await native.openPixelFrameWebGl2ContextCurrentV1(captured, checkpoints.passes, allocate, signal, resources, token); }
+				try { context = await native.openPixelFrameWebGl2ContextCurrentV1(captured, checkpoints.passes, allocate, signal, resources, token, repair); }
 				catch (error) {
 					// An opaque aborted reason can itself be a public native error. Abort
 					// still wins and must never be enrolled as a capability fallback.

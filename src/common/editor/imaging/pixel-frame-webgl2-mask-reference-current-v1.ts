@@ -16,6 +16,9 @@ import { writePixelFrameWebGl2OpticsCurrentV1 } from './pixel-frame-webgl2-optic
 import { writePixelFrameWebGl2SpatialCurrentV1 } from './pixel-frame-webgl2-spatial-current-v1.ts';
 import type { PixelFrameWebGl2LutResourcesCurrentV1 } from './pixel-frame-webgl2-lut-current-v1.ts';
 import { captureRepairSignalV1, checkRepairSignalV1, RepairTaskBudgetV1 } from './pixel-frame-repair-lifetime-v1.ts';
+import { readImageDevelopGpuMaskPhasePlanCurrentV1 } from './image-develop-gpu-mask-phase-plan-current-v1.ts';
+import { readPixelFrameWebGl2RepairCurrentV1 } from './pixel-frame-webgl2-repair-current-v1.ts';
+import { replayPixelFrameWebGl2RepairPrefixCurrentV1 } from './pixel-frame-webgl2-repair-reference-current-v1.ts';
 
 /** Runs inside the existing reference owner's owner.run(),
  * using its initial private A. It creates neither a new owner nor a third
@@ -23,12 +26,14 @@ import { captureRepairSignalV1, checkRepairSignalV1, RepairTaskBudgetV1 } from '
 export async function replayPixelFrameWebGl2MaskReferenceCurrentV1(planValue: unknown,
 	initial: Readonly<LinearWorkingPixelFrameV1>, owner: LinearDevelopOwnerV1,
 	receipts: Readonly<PixelFrameWebGl2MaskReceiptsCurrentV1>, checkValue: () => void, resources?: Readonly<PixelFrameWebGl2LutResourcesCurrentV1>,
-	maskScope?: Readonly<MaskRasterSourceScopeV1>, signalValue?: AbortSignal): Promise<Readonly<LinearWorkingPixelFrameV1>> {
+	maskScope?: Readonly<MaskRasterSourceScopeV1>, signalValue?: AbortSignal, repairPhaseValue?: unknown): Promise<Readonly<LinearWorkingPixelFrameV1>> {
 	const signal = captureRepairSignalV1(signalValue); checkRepairSignalV1(signal);
 	const plan = readPixelFrameWebGl2MaskCheckpointPlanCurrentV1(planValue);
 	if (typeof checkValue !== 'function') throw new TypeError('Mask reference requires its captured currentness check.');
 	if (initial.descriptor !== plan.sourceDescriptor || initial.pixels.length !== plan.sourceDescriptor.width * plan.sourceDescriptor.height * 4) throw new RangeError('Mask reference lost its captured initial native frame.');
-	if (plan.metadata.repairs) throw new RangeError('Repair stages remain unsupported by the complete GPU reference.');
+	const repairPhase = repairPhaseValue === undefined ? undefined : readImageDevelopGpuMaskPhasePlanCurrentV1(repairPhaseValue);
+	if (plan.metadata.repairs && (!repairPhase || repairPhase.checkpointPlan !== planValue || repairPhase.repairPrefix === undefined)) throw new RangeError('Repair replay requires the complete private original-space phase.');
+	const repairPrefix = repairPhase && readPixelFrameWebGl2RepairCurrentV1(repairPhase.repairPrefix);
 	if (maskScope !== undefined) assertMaskRasterSourceScopeV1(maskScope, plan.metadata.masks.references);
 	else if (plan.metadata.masks.references.length) throw new TypeError('Mask reference requires the complete authenticated brush scope.');
 	const check = () => { checkRepairSignalV1(signal); checkValue(); }, budget = new RepairTaskBudgetV1(check);
@@ -44,6 +49,7 @@ export async function replayPixelFrameWebGl2MaskReferenceCurrentV1(planValue: un
 		}
 	}
 	try {
+		if (repairPrefix) { current = await replayPixelFrameWebGl2RepairPrefixCurrentV1(repairPrefix, current, owner, check, signal); backing = current.pixels.buffer; }
 		for (const slot of plan.slots) {
 			check(); if (current.descriptor !== slot.incoming) throw new TypeError('Mask reference lost its exact authored incoming descriptor.');
 			const pass = slot.pass, checkpoint = slot.checkpoint; let next: Float32Array<ArrayBuffer> | undefined;

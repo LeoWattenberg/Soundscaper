@@ -85,7 +85,7 @@ export async function executePixelFrameWebGl2MaskedSlotsCurrentV1(token: unknown
 	const state = current(token); if (!state.claimed || state.started) throw new TypeError('Masked slot execution requires its single claimed context attempt.'); state.started = true;
 	const input = record(hostValue, 'native image-bank host', ['gl', 'bankCount', 'view', 'ensure', 'draw', 'wait', 'checkCurrent', 'unavailable']);
 	const gl = field(input, 'gl', 'image-bank host') as WebGL2RenderingContext, bankCount = field(input, 'bankCount', 'image-bank host');
-	if ((bankCount !== 2 && bankCount !== 3) || bankCount !== state.checkpoints.imageTextureCount) throw new TypeError('Masked context has the wrong admitted image-bank count.');
+	if ((bankCount !== 2 && bankCount !== 3) || bankCount !== state.phase.imageTextureCount) throw new TypeError('Masked context has the wrong admitted image-bank count.');
 	const methods = new Map<string, (...args: unknown[]) => unknown>();
 	for (const name of ['view', 'ensure', 'draw', 'wait', 'checkCurrent', 'unavailable']) {
 		const method = field(input, name, 'image-bank host'); if (typeof method !== 'function') throw new TypeError('Native image-bank host requires own callable methods.');

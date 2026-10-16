@@ -107,8 +107,13 @@ pins with positive containing-script ranges. This is not per-line GLSL coverage
 or a coverage-floor pass, and no floor tightening is claimed. Hosted CI remains
 pending;
 the recorded color/LUT/geometry/optics qualification above is the E64 baseline.
-A stack needing masks, overlay projection or repairs takes the entire existing
-CPU route, as do unsupported GPU numeric, capability or working-set profiles.
+The E65 totals are predecessor evidence. Current masks and selected overlays
+have since entered the native GPU path. E67 now wires Original-space Clone and
+genuine screened-Poisson Heal before legacy geometry, all adjustments and mask
+checkpoints. Its recorded local large-image, menu and combined software-GPU
+and Firefox corpus passes; hosted CI and complete milestone exits remain open.
+Unsupported GPU numeric, capability or working-set profiles take the entire
+existing CPU route.
 Stages are never silently omitted. GPU stages store
 linear RGBA32F and return scoped Float32 readback checked against the normative
 CPU operation before delivery. Exact unchanged-component rules can select CPU
@@ -116,7 +121,13 @@ even when a rounded identity curve differs by only a few ULPs. This conformance
 check also costs CPU work and makes no speed claim. Pointwise stacks use the
 streamed scalar reference; geometry/optics/spatial stacks use up to two maximum-extent CPU
 reference planes, with Float32 stores after each native stage and
-exact normative output alpha. Active spatial neighborhoods invalidate any
+exact normative output alpha. Repair replay uses the unchanged Float64 CPU
+writer inside that same two-plane owner. Serial Heal scratch is 105 bytes per
+halo cell plus 4096 bytes and retires before later authored stages. The GPU
+prefix instead uses 129 bytes per halo cell and the existing stable source/O
+plus two ordered destination banks, reused afterward for masks; there is one
+source upload and no CPU-computed repair upload. GPU halo and CPU repair scratch
+occupy disjoint phases under the same 768-MiB ceiling. Active spatial neighborhoods invalidate any
 same-index Original coincidence witness. Grain and protected dark post-crop
 vignette propagate prior cross-channel invalidation; copy and independent
 pointwise policies retain eligibility without restoring it. Alpha-zero and

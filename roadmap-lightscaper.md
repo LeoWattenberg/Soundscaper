@@ -1019,8 +1019,9 @@ there.
   This correctness check also costs CPU work and makes no acceleration claim.
   Current masks, authenticated brushes and selected overlays now share the
   native preview path with complete phase admission and verified whole-CPU
-  fallback. True Clone/Heal GPU execution remains unfinished, alongside
-  full-stack combined conformance, native desktop services,
+  fallback. Original-space Clone and screened-Poisson Heal now share that
+  native preview path and pass the recorded local software-GPU and Firefox corpus.
+  Remaining work includes full-stack conformance, native desktop services,
   final inter-slice QA and the L7/L8/L9 exit gates. The configured digest-pinned Chromium
   software-GPU baseline retains its Quality/Desktop Preview coverage
   dependencies. The E64 baseline configuration named ten exact specs. Recorded

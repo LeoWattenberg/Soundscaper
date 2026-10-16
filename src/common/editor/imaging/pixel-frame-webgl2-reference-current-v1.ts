@@ -18,6 +18,9 @@ import { replayPixelFrameWebGl2MaskReferenceCurrentV1 } from './pixel-frame-webg
 import { finishPixelFrameWebGl2MaskCheckpointsCurrentV1,
 	type PixelFrameWebGl2MaskReceiptsCurrentV1 } from './pixel-frame-webgl2-mask-checkpoint-current-v1.ts';
 import type { MaskRasterSourceScopeV1 } from './mask-raster-source-scope-v1.ts';
+import { readImageDevelopGpuMaskPhasePlanCurrentV1 } from './image-develop-gpu-mask-phase-plan-current-v1.ts';
+import { readPixelFrameWebGl2RepairCurrentV1 } from './pixel-frame-webgl2-repair-current-v1.ts';
+import { replayPixelFrameWebGl2RepairPrefixCurrentV1 } from './pixel-frame-webgl2-repair-reference-current-v1.ts';
 interface MaskContext {
 	readonly plan: unknown;
 	readonly receipts: Readonly<PixelFrameWebGl2MaskReceiptsCurrentV1>;
@@ -106,8 +109,8 @@ function borrow(value: unknown, ownedDescriptor: LinearKernelDescriptorV1) {
  * before returning either numerical outcome or an operation/cleanup failure. */
 export function validatePixelFrameWebGl2ReferenceCurrentV1(sourceValue: Readonly<LinearWorkingPixelFrameV1>,
 	resultValue: Readonly<LinearWorkingPixelFrameV1>, values: readonly unknown[], checkValue: () => void,
-	resources?: Readonly<PixelFrameWebGl2LutResourcesCurrentV1>, signalValue?: AbortSignal): Promise<boolean> {
-	return validate(sourceValue, resultValue, values, checkValue, resources, signalValue);
+	resources?: Readonly<PixelFrameWebGl2LutResourcesCurrentV1>, signalValue?: AbortSignal, repairPhaseValue?: unknown): Promise<boolean> {
+	return validate(sourceValue, resultValue, values, checkValue, resources, signalValue, undefined, repairPhaseValue);
 }
 
 /** Private plan and live scoped receipts accompany the existing whole-plane
@@ -116,18 +119,24 @@ export function validatePixelFrameWebGl2ReferenceCurrentV1(sourceValue: Readonly
 export function validatePixelFrameWebGl2MaskedReferenceCurrentV1(sourceValue: Readonly<LinearWorkingPixelFrameV1>,
 	resultValue: Readonly<LinearWorkingPixelFrameV1>, planValue: unknown, receipts: Readonly<PixelFrameWebGl2MaskReceiptsCurrentV1>,
 	checkValue: () => void, resources?: Readonly<PixelFrameWebGl2LutResourcesCurrentV1>,
-	scope?: Readonly<MaskRasterSourceScopeV1>, signalValue?: AbortSignal): Promise<boolean> {
+	scope?: Readonly<MaskRasterSourceScopeV1>, signalValue?: AbortSignal, repairPhaseValue?: unknown): Promise<boolean> {
 	checkRepairSignalV1(captureRepairSignalV1(signalValue));
 	const plan = readPixelFrameWebGl2MaskCheckpointPlanCurrentV1(planValue);
-	return validate(sourceValue, resultValue, plan.passes, checkValue, resources, signalValue, { plan: planValue, receipts, scope });
+	return validate(sourceValue, resultValue, plan.passes, checkValue, resources, signalValue, { plan: planValue, receipts, scope }, repairPhaseValue);
 }
 async function validate(sourceValue: Readonly<LinearWorkingPixelFrameV1>,
 	resultValue: Readonly<LinearWorkingPixelFrameV1>, values: readonly unknown[], checkValue: () => void,
-	resources?: Readonly<PixelFrameWebGl2LutResourcesCurrentV1>, signalValue?: AbortSignal, masks?: MaskContext): Promise<boolean> {
+	resources?: Readonly<PixelFrameWebGl2LutResourcesCurrentV1>, signalValue?: AbortSignal, masks?: MaskContext, repairPhaseValue?: unknown): Promise<boolean> {
 	const signal = captureRepairSignalV1(signalValue); checkRepairSignalV1(signal);
 	if (typeof checkValue !== 'function') throw new TypeError('Native GPU reference requires a currentness check.');
 	checkValue();
+	const repairPhase = repairPhaseValue === undefined ? undefined : readImageDevelopGpuMaskPhasePlanCurrentV1(repairPhaseValue);
+	const repairCheckpoint = repairPhase && readPixelFrameWebGl2MaskCheckpointPlanCurrentV1(repairPhase.checkpointPlan);
+	const repairPrefix = repairPhase && readPixelFrameWebGl2RepairCurrentV1(repairPhase.repairPrefix);
 	const plan = metadata(sourceValue, resultValue, values, resources);
+	if (repairCheckpoint && (!same(repairCheckpoint.sourceDescriptor, plan.source)
+		|| plan.passes.length !== repairCheckpoint.passes.length || plan.passes.some((pass, at) => pass !== repairCheckpoint.passes[at])
+		|| (masks ? repairPhase!.checkpointPlan !== masks.plan : repairCheckpoint.executedCheckpoints.length !== 0))) throw new TypeError('Repair reference lost its exact source/authored/checkpoint phase.');
 	const maskPlan = masks && readPixelFrameWebGl2MaskCheckpointPlanCurrentV1(masks.plan);
 	if (maskPlan && (!same(maskPlan.sourceDescriptor, plan.source) || !same(maskPlan.finalDescriptor, plan.result))) {
 		throw new RangeError('Mask reference differs from its captured native descriptor chain.');
@@ -141,31 +150,34 @@ async function validate(sourceValue: Readonly<LinearWorkingPixelFrameV1>,
 		if (!Number.isFinite(sample) || index % 4 === 3 && (sample < 0 || sample > 1)) throw new RangeError('Native GPU reference source requires finite RGB and unit alpha.');
 		if (validationBudget.visit()) await validationBudget.yield();
 	}
-	const owner = new LinearDevelopOwnerV1(0, plan.maximumBytes * 2), rgb = { red: 0, green: 0, blue: 0 };
+	const owner = new LinearDevelopOwnerV1(0, plan.maximumBytes * 2 + (repairPrefix?.scratchBytes ?? 0)), rgb = { red: 0, green: 0, blue: 0 };
 	try {
 		const matched = await owner.run(async () => {
 			const initial = owner.floats(plan.source.width * plan.source.height * 4), budget = new RepairTaskBudgetV1(check);
 			Reflect.apply(SET, initial, [source.pixels]);
 			let current: Readonly<LinearWorkingPixelFrameV1> = Object.freeze({ descriptor: maskPlan?.sourceDescriptor ?? plan.source, pixels: initial }), backing = initial.buffer;
 			check();
-			if (masks) current = await replayPixelFrameWebGl2MaskReferenceCurrentV1(masks.plan, current, owner, masks.receipts, check, resources, masks.scope, signal);
-			else for (const pass of plan.passes) {
-				check();
-				if ('sourceDescriptor' in pass) {
-					const next = owner.floats(pass.descriptor.width * pass.descriptor.height * 4);
+			if (masks) current = await replayPixelFrameWebGl2MaskReferenceCurrentV1(masks.plan, current, owner, masks.receipts, check, resources, masks.scope, signal, repairPhaseValue);
+			else {
+				if (repairPrefix) { current = await replayPixelFrameWebGl2RepairPrefixCurrentV1(repairPrefix, current, owner, check, signal); backing = current.pixels.buffer; }
+				for (const pass of plan.passes) {
 					check();
-					if (pass.kind === 9) await writePixelFrameWebGl2GeometryCurrentV1(pass, current, next, signal);
-					else if ('inputPolicy' in pass) await writePixelFrameWebGl2SpatialCurrentV1(pass, current, next, signal);
-					else await writePixelFrameWebGl2OpticsCurrentV1(pass, current, next, signal);
-					check();
-					owner.retire(backing); backing = next.buffer;
-					current = Object.freeze({ descriptor: pass.descriptor, pixels: next });
-				} else for (let offset = 0; offset < current.pixels.length; offset += 4) {
-					writePixelFrameWebGl2PassChannelsCurrentV1(pass, current.pixels[offset]!, current.pixels[offset + 1]!, current.pixels[offset + 2]!, rgb, resources);
-					const red = Math.fround(rgb.red), green = Math.fround(rgb.green), blue = Math.fround(rgb.blue);
-					if (!Number.isFinite(red) || !Number.isFinite(green) || !Number.isFinite(blue)) throw new RangeError('Native GPU reference exceeds finite Float32 range.');
-					current.pixels[offset] = red; current.pixels[offset + 1] = green; current.pixels[offset + 2] = blue;
-					if (budget.visit()) await budget.yield();
+					if ('sourceDescriptor' in pass) {
+						const next = owner.floats(pass.descriptor.width * pass.descriptor.height * 4);
+						check();
+						if (pass.kind === 9) await writePixelFrameWebGl2GeometryCurrentV1(pass, current, next, signal);
+						else if ('inputPolicy' in pass) await writePixelFrameWebGl2SpatialCurrentV1(pass, current, next, signal);
+						else await writePixelFrameWebGl2OpticsCurrentV1(pass, current, next, signal);
+						check();
+						owner.retire(backing); backing = next.buffer;
+						current = Object.freeze({ descriptor: pass.descriptor, pixels: next });
+					} else for (let offset = 0; offset < current.pixels.length; offset += 4) {
+						writePixelFrameWebGl2PassChannelsCurrentV1(pass, current.pixels[offset]!, current.pixels[offset + 1]!, current.pixels[offset + 2]!, rgb, resources);
+						const red = Math.fround(rgb.red), green = Math.fround(rgb.green), blue = Math.fround(rgb.blue);
+						if (!Number.isFinite(red) || !Number.isFinite(green) || !Number.isFinite(blue)) throw new RangeError('Native GPU reference exceeds finite Float32 range.');
+						current.pixels[offset] = red; current.pixels[offset + 1] = green; current.pixels[offset + 2] = blue;
+						if (budget.visit()) await budget.yield();
+					}
 				}
 			}
 			const maskMatched = masks ? finishPixelFrameWebGl2MaskCheckpointsCurrentV1(masks.receipts) : true;
@@ -173,7 +185,7 @@ async function validate(sourceValue: Readonly<LinearWorkingPixelFrameV1>,
 				if (budget.visit()) await budget.yield();
 				if (!Object.is(current.pixels[offset + 3], result.pixels[offset + 3])) return false;
 				const pixel = offset / 4; let x = pixel % plan.result.width, y = Math.floor(pixel / plan.result.width), original: number | undefined;
-				if (plan.integerAncestry && plan.hasAncestry) {
+				if (plan.integerAncestry && plan.hasAncestry && !repairPrefix?.hasActive) {
 					// Reverse the captured integer maps without a provenance plane.
 					// Count stage visits too, so long chains retain bounded yields.
 					for (let index = plan.passes.length - 1; index >= 0; index--) {
@@ -188,8 +200,8 @@ async function validate(sourceValue: Readonly<LinearWorkingPixelFrameV1>,
 				}
 				for (let channel = 0; channel < 3; channel++) {
 					const expected = current.pixels[offset + channel]!, actual = result.pixels[offset + channel]!;
-					if (plan.exactPermutation ? !Object.is(expected, actual) : !pixelFrameWebGl2ComponentEquivalentCurrentV1(expected, actual,
-						original === undefined || !plan.ancestry[channel] ? undefined : source.pixels[original + channel])) return false;
+					if (plan.exactPermutation && !repairPrefix?.hasActive ? !Object.is(expected, actual) : !pixelFrameWebGl2ComponentEquivalentCurrentV1(expected, actual,
+						original === undefined || repairPrefix?.hasActive || !plan.ancestry[channel] ? undefined : source.pixels[original + channel])) return false;
 				}
 			}
 			check(); return maskMatched;
