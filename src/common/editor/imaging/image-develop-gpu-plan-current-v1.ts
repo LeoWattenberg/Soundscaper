@@ -1,13 +1,10 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import type { prepareLinearDevelopMetadataCurrentV1 } from './image-develop-linear-metadata-current-v1.ts';
 import { CURRENT_LINEAR_WORKING_BYTES_V1 } from './image-develop-linear-metadata-current-v1.ts';
-import { preparePixelFrameWebGl2ColorsCurrentV1, PIXEL_FRAME_WEBGL2_COLOR_SCRATCH_BYTES_CURRENT_V1 } from './pixel-frame-webgl2-color-current-v1.ts';
-import { preparePixelFrameWebGl2LutCurrentV1, planPixelFrameWebGl2LutsCurrentV1, isPixelFrameWebGl2LutCurrentV1 } from './pixel-frame-webgl2-lut-current-v1.ts';
-import type { PreparedPixelFrameWebGl2PassCurrentV1 } from './pixel-frame-webgl2-pass-current-v1.ts';
-import { preparePixelFrameWebGl2GeometryCurrentV1 } from './pixel-frame-webgl2-geometry-current-v1.ts';
+import { PIXEL_FRAME_WEBGL2_COLOR_SCRATCH_BYTES_CURRENT_V1 } from './pixel-frame-webgl2-color-current-v1.ts';
+import { planPixelFrameWebGl2LutsCurrentV1, isPixelFrameWebGl2LutCurrentV1 } from './pixel-frame-webgl2-lut-current-v1.ts';
 import { planPixelFrameWebGl2PipelineCurrentV1 } from './pixel-frame-webgl2-pipeline-current-v1.ts';
-import { preparePixelFrameWebGl2OpticsCurrentV1 } from './pixel-frame-webgl2-optics-current-v1.ts';
-import { preparePixelFrameWebGl2SpatialCurrentV1 } from './pixel-frame-webgl2-spatial-current-v1.ts';
+import { preparePixelFrameWebGl2MaskPlanCurrentV1 } from './pixel-frame-webgl2-mask-plan-current-v1.ts';
 
 type Metadata = ReturnType<typeof prepareLinearDevelopMetadataCurrentV1>;
 
@@ -16,24 +13,16 @@ type Metadata = ReturnType<typeof prepareLinearDevelopMetadataCurrentV1>;
  * distinct phases. No body, pixel or native context is read here. */
 export function prepareImageDevelopGpuPlanCurrentV1(metadata: Metadata, physicalBytes = metadata.sourcePlan.byteLength, overlay = false) {
 	if (!Number.isSafeInteger(physicalBytes) || physicalBytes < metadata.sourcePlan.byteLength) throw new RangeError('GPU Develop requires bounded physical source bytes.');
-	const colors = preparePixelFrameWebGl2ColorsCurrentV1(metadata.stages.flatMap(stage => stage.kind === 'color' ? [stage.effect] : []));
-	const byId = new Map(colors.map(pass => [pass.id, pass] as const)), passes: PreparedPixelFrameWebGl2PassCurrentV1[] = [];
-	let current = metadata.descriptor;
-	for (const stage of metadata.stages) {
-		if (stage.kind === 'geometry') {
-			const pass = preparePixelFrameWebGl2GeometryCurrentV1(stage.geometry, current); passes.push(pass); current = pass.descriptor;
-		} else if (stage.kind === 'lut') passes.push(preparePixelFrameWebGl2LutCurrentV1({ id: stage.id, reference: stage.reference }));
-		else if (stage.kind === 'color') { const pass = byId.get(stage.effect.id); if (pass) passes.push(pass); }
-		else if (stage.kind === 'lens-distortion') passes.push(preparePixelFrameWebGl2OpticsCurrentV1({
-			id: `native-lens-${passes.length}`, type: 'lens-distortion-v1', enabled: true, params: { amount: stage.amount },
-		}, current));
-		else if (stage.kind === 'chromatic-aberration') passes.push(preparePixelFrameWebGl2OpticsCurrentV1({
-			id: stage.id, type: 'chromatic-aberration-v1', enabled: true, params: { red: stage.red, blue: stage.blue },
-		}, current));
-		else if (stage.kind === 'defringe' || stage.kind === 'optical-vignette') passes.push(preparePixelFrameWebGl2OpticsCurrentV1(stage.effect, current));
-		else if (stage.kind === 'spatial') passes.push(preparePixelFrameWebGl2SpatialCurrentV1(stage.effect, current));
-	}
-	const pipeline = planPixelFrameWebGl2PipelineCurrentV1(metadata.descriptor, passes);
+	const maskPipeline = preparePixelFrameWebGl2MaskPlanCurrentV1(metadata), passes = maskPipeline.passes;
+	const unmaskedPipeline = planPixelFrameWebGl2PipelineCurrentV1(metadata.descriptor, passes);
+	if (unmaskedPipeline.maximumFrameBytes !== maskPipeline.maximumFrameBytes) throw new RangeError('GPU authored/pixel pipeline extents differ.');
+	const hasPlaneReference = unmaskedPipeline.hasPlaneReference || maskPipeline.executedCheckpoints.length > 0;
+	const pipeline = Object.freeze({ ...unmaskedPipeline, hasPlaneReference, imageTextureCount: maskPipeline.imageTextureCount,
+		textureBytes: maskPipeline.maximumFrameBytes * maskPipeline.imageTextureCount,
+		referenceBytes: hasPlaneReference ? maskPipeline.maximumFrameBytes * 2 : 0 });
+	// Known image/reference fees only: pending graph/brush/overlay costs are
+	// not zero and this partial plan must never admit a GPU mask dispatch.
+	const workingPlanComplete = maskPipeline.graphAdmissionComplete && metadata.masks.references.length === 0 && !overlay;
 	const luts = planPixelFrameWebGl2LutsCurrentV1(passes.filter(isPixelFrameWebGl2LutCurrentV1));
 	const uniformBytes = passes.some(pass => pass.kind > 2) ? PIXEL_FRAME_WEBGL2_COLOR_SCRATCH_BYTES_CURRENT_V1 : 0;
 	const floatBytes = metadata.descriptor.width * metadata.descriptor.height * 16;
@@ -47,9 +36,9 @@ export function prepareImageDevelopGpuPlanCurrentV1(metadata: Metadata, physical
 		physicalBytes + floatBytes + pipeline.readbackBytes + presentationBytes,
 		physicalBytes + floatBytes + luts.capturePeakBytes,
 		physicalBytes + floatBytes + luts.oracleBytes + luts.textureBytes + 1024);
-	const unsupported = Boolean(metadata.repairs || metadata.masks.plan.bindings.length || metadata.masks.references.length || overlay
+	const unsupported = Boolean(!workingPlanComplete || metadata.repairs || metadata.masks.plan.bindings.length || metadata.masks.references.length || overlay
 		|| metadata.stages.some(stage => stage.kind !== 'noop' && stage.kind !== 'color' && stage.kind !== 'lut' && stage.kind !== 'geometry'
 			&& stage.kind !== 'lens-distortion' && stage.kind !== 'chromatic-aberration' && stage.kind !== 'defringe' && stage.kind !== 'optical-vignette' && stage.kind !== 'spatial'));
-	return Object.freeze({ passes: pipeline.passes, pipeline, luts, uniformBytes, floatBytes, presentationBytes, resourceBytes,
-		gpuWorkingBytes, peakWorkingBytes, unsupported, eligible: luts.eligible && peakWorkingBytes <= CURRENT_LINEAR_WORKING_BYTES_V1 });
+	return Object.freeze({ passes: pipeline.passes, pipeline, maskPipeline, workingPlanComplete, luts, uniformBytes, floatBytes, presentationBytes, resourceBytes,
+		gpuWorkingBytes, peakWorkingBytes, unsupported, eligible: workingPlanComplete && luts.eligible && peakWorkingBytes <= CURRENT_LINEAR_WORKING_BYTES_V1 });
 }
