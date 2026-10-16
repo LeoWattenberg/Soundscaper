@@ -5,6 +5,7 @@ import { PIXEL_FRAME_WEBGL2_GLOBAL_VERTEX_CURRENT_V1 as VERTEX, PIXEL_FRAME_WEBG
 import { PIXEL_FRAME_WEBGL2_COLOR_FRAGMENT_CURRENT_V1 as COLOR_FRAGMENT } from './pixel-frame-webgl2-color-glsl-current-v1.ts';
 import { PIXEL_FRAME_WEBGL2_LUT_FRAGMENT_CURRENT_V1 as LUT_FRAGMENT } from './pixel-frame-webgl2-lut-glsl-current-v1.ts';
 import { PIXEL_FRAME_WEBGL2_GEOMETRY_FRAGMENT_CURRENT_V1 as GEOMETRY_FRAGMENT } from './pixel-frame-webgl2-geometry-glsl-current-v1.ts';
+import { PIXEL_FRAME_WEBGL2_OPTICS_FRAGMENT_CURRENT_V1 as OPTICS_FRAGMENT } from './pixel-frame-webgl2-optics-glsl-current-v1.ts';
 import { pixelFrameWebGl2PassSupportedCurrentV1, type PreparedPixelFrameWebGl2PassCurrentV1 } from './pixel-frame-webgl2-pass-current-v1.ts';
 import type { PixelFrameWebGl2LutResourcesCurrentV1 } from './pixel-frame-webgl2-lut-current-v1.ts';
 import { pixelFrameWebGl2NumericEligibleCurrentV1, validatePixelFrameWebGl2ColorReadbackCurrentV1 } from './pixel-frame-webgl2-numeric-current-v1.ts';
@@ -29,7 +30,7 @@ export async function openPixelFrameWebGl2ContextCurrentV1(frame: Readonly<Linea
 	checkRepairSignalV1(signal);
 	const pipeline = planPixelFrameWebGl2PipelineCurrentV1(frame.descriptor, passes);
 	if (passes.some(pass => !pixelFrameWebGl2PassSupportedCurrentV1(pass, resources))) unavailable('numeric-range');
-	const extended = passes.some(pass => pass.kind > 2 && pass.kind !== 9), hasLuts = passes.some(pass => pass.kind === 8);
+	const extended = passes.some(pass => pass.kind > 2 && pass.kind < 9), hasLuts = passes.some(pass => pass.kind === 8);
 	const cubeSize = hasLuts ? resources!.maximumSize : 0;
 	const canvas = typeof OffscreenCanvas === 'function' ? new OffscreenCanvas(1, 1)
 		: typeof document === 'object' ? document.createElement('canvas') : unavailable('canvas-unavailable');
@@ -112,6 +113,10 @@ export async function openPixelFrameWebGl2ContextCurrentV1(frame: Readonly<Linea
 			source: [0, 1, 2].map(index => uniform(geometryProgram, `uApertureToSource[${index}]`)),
 			crop: uniform(geometryProgram, 'uCropBounds'), integer: uniform(geometryProgram, 'uIntegerPermutation'),
 			inverse: [0, 1].map(index => uniform(geometryProgram, `uIntegerToSource[${index}]`)) } : undefined;
+		const opticsProgram = pipeline.hasOptics ? compile(OPTICS_FRAGMENT) : undefined;
+		const opticsUniforms = opticsProgram ? { program: opticsProgram, image: uniform(opticsProgram, 'uImage'),
+			kind: uniform(opticsProgram, 'uOpticsKind'), extent: uniform(opticsProgram, 'uExtent'),
+			params0: uniform(opticsProgram, 'uParams0'), params1: uniform(opticsProgram, 'uParams1') } : undefined;
 		for (let index = 0; index < 2; index++) {
 			const texture = native.createTexture(); if (!texture) return unavailable('execution-unavailable'); textures.push(texture);
 			native.bindTexture(native.TEXTURE_2D, texture);
@@ -122,6 +127,7 @@ export async function openPixelFrameWebGl2ContextCurrentV1(frame: Readonly<Linea
 		const array = native.createVertexArray(); if (!array) return unavailable('execution-unavailable'); arrays.push(array);
 		native.bindVertexArray(array); native.useProgram(program); native.uniform1i(image, 0);
 		if (geometryUniforms) { native.useProgram(geometryUniforms.program); native.uniform1i(geometryUniforms.image, 0); native.useProgram(program); }
+		if (opticsUniforms) { native.useProgram(opticsUniforms.program); native.uniform1i(opticsUniforms.image, 0); native.useProgram(program); }
 		if (cube) {
 			native.uniform1i(cube, 1); native.activeTexture(native.TEXTURE1);
 			const texture = native.createTexture(); if (!texture) return unavailable('execution-unavailable'); cubeTexture = texture;
@@ -160,6 +166,10 @@ export async function openPixelFrameWebGl2ContextCurrentV1(frame: Readonly<Linea
 				for (let row = 0; row < 2; row++) native.uniform3f(geometry.output[row]!, a[row * 3]!, a[row * 3 + 1]!, a[row * 3 + 2]!);
 				for (let row = 0; row < 3; row++) native.uniform3f(geometry.source[row]!, m[row * 3]!, m[row * 3 + 1]!, m[row * 3 + 2]!);
 				if (inverse) for (let row = 0; row < 2; row++) native.uniform3i(geometry.inverse[row]!, inverse[row * 3]!, inverse[row * 3 + 1]!, inverse[row * 3 + 2]!);
+			} else if (pass && 'sourceDescriptor' in pass) {
+				const optics = opticsUniforms!; native.useProgram(optics.program);
+				native.uniform1i(optics.kind, pass.kind); native.uniform2i(optics.extent, width, height);
+				native.uniform4f(optics.params0, ...pass.params0); native.uniform4f(optics.params1, ...pass.params1);
 			} else {
 				native.useProgram(program); native.uniform1i(kind, pass?.kind ?? 0);
 				if (pass?.kind === 8) {
@@ -210,7 +220,7 @@ export async function openPixelFrameWebGl2ContextCurrentV1(frame: Readonly<Linea
 			const output = 1 - current, extent = extents[output];
 			if (extent?.width !== descriptor.width || extent.height !== descriptor.height) upload(output, descriptor.width, descriptor.height, null);
 			draw(current, output, descriptor.width, descriptor.height, pass); current = output;
-			if (pass.kind === 8 || pass.kind === 9) { await new Promise<void>(resolve => { setTimeout(resolve, 0); }); assertCurrent(); }
+			if (pass.kind >= 8) { await new Promise<void>(resolve => { setTimeout(resolve, 0); }); assertCurrent(); }
 		}
 		if (!passes.length) { upload(1, width, height, null); draw(0, 1, width, height); current = 1; }
 		const fence = native.fenceSync(native.SYNC_GPU_COMMANDS_COMPLETE, 0); if (!fence) return unavailable('execution-unavailable');
@@ -226,7 +236,7 @@ export async function openPixelFrameWebGl2ContextCurrentV1(frame: Readonly<Linea
 		}
 		native.bindFramebuffer(native.FRAMEBUFFER, framebuffer); native.framebufferTexture2D(native.FRAMEBUFFER, native.COLOR_ATTACHMENT0, native.TEXTURE_2D, textures[current]!, 0);
 		const pixels = allocate(); native.readPixels(0, 0, width, height, native.RGBA, native.FLOAT, pixels); assertCurrent();
-		const equivalent = pipeline.hasGeometry
+		const equivalent = pipeline.hasPlaneReference
 			? await validatePixelFrameWebGl2ReferenceCurrentV1(frame, { descriptor: pipeline.finalDescriptor, pixels }, passes, assertCurrent, resources, signal)
 			: await validatePixelFrameWebGl2ColorReadbackCurrentV1(frame.pixels, pixels, passes, assertCurrent, resources);
 		if (!equivalent) unavailable('numeric-range');

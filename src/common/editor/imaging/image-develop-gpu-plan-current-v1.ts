@@ -6,6 +6,7 @@ import { preparePixelFrameWebGl2LutCurrentV1, planPixelFrameWebGl2LutsCurrentV1,
 import type { PreparedPixelFrameWebGl2PassCurrentV1 } from './pixel-frame-webgl2-pass-current-v1.ts';
 import { preparePixelFrameWebGl2GeometryCurrentV1 } from './pixel-frame-webgl2-geometry-current-v1.ts';
 import { planPixelFrameWebGl2PipelineCurrentV1 } from './pixel-frame-webgl2-pipeline-current-v1.ts';
+import { preparePixelFrameWebGl2OpticsCurrentV1 } from './pixel-frame-webgl2-optics-current-v1.ts';
 
 type Metadata = ReturnType<typeof prepareLinearDevelopMetadataCurrentV1>;
 
@@ -22,6 +23,13 @@ export function prepareImageDevelopGpuPlanCurrentV1(metadata: Metadata, physical
 			const pass = preparePixelFrameWebGl2GeometryCurrentV1(stage.geometry, current); passes.push(pass); current = pass.descriptor;
 		} else if (stage.kind === 'lut') passes.push(preparePixelFrameWebGl2LutCurrentV1({ id: stage.id, reference: stage.reference }));
 		else if (stage.kind === 'color') { const pass = byId.get(stage.effect.id); if (pass) passes.push(pass); }
+		else if (stage.kind === 'lens-distortion') passes.push(preparePixelFrameWebGl2OpticsCurrentV1({
+			id: `native-lens-${passes.length}`, type: 'lens-distortion-v1', enabled: true, params: { amount: stage.amount },
+		}, current));
+		else if (stage.kind === 'chromatic-aberration') passes.push(preparePixelFrameWebGl2OpticsCurrentV1({
+			id: stage.id, type: 'chromatic-aberration-v1', enabled: true, params: { red: stage.red, blue: stage.blue },
+		}, current));
+		else if (stage.kind === 'defringe' || stage.kind === 'optical-vignette') passes.push(preparePixelFrameWebGl2OpticsCurrentV1(stage.effect, current));
 	}
 	const pipeline = planPixelFrameWebGl2PipelineCurrentV1(metadata.descriptor, passes);
 	const luts = planPixelFrameWebGl2LutsCurrentV1(passes.filter(isPixelFrameWebGl2LutCurrentV1));
@@ -38,7 +46,8 @@ export function prepareImageDevelopGpuPlanCurrentV1(metadata: Metadata, physical
 		physicalBytes + floatBytes + luts.capturePeakBytes,
 		physicalBytes + floatBytes + luts.oracleBytes + luts.textureBytes + 1024);
 	const unsupported = Boolean(metadata.repairs || metadata.masks.plan.bindings.length || metadata.masks.references.length || overlay
-		|| metadata.stages.some(stage => stage.kind !== 'noop' && stage.kind !== 'color' && stage.kind !== 'lut' && stage.kind !== 'geometry'));
+		|| metadata.stages.some(stage => stage.kind !== 'noop' && stage.kind !== 'color' && stage.kind !== 'lut' && stage.kind !== 'geometry'
+			&& stage.kind !== 'lens-distortion' && stage.kind !== 'chromatic-aberration' && stage.kind !== 'defringe' && stage.kind !== 'optical-vignette'));
 	return Object.freeze({ passes: pipeline.passes, pipeline, luts, uniformBytes, floatBytes, presentationBytes, resourceBytes,
 		gpuWorkingBytes, peakWorkingBytes, unsupported, eligible: luts.eligible && peakWorkingBytes <= CURRENT_LINEAR_WORKING_BYTES_V1 });
 }

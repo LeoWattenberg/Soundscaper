@@ -7,6 +7,7 @@ import { LinearDevelopOwnerV1 } from './image-develop-linear-owner-v1.ts';
 import { writePixelFrameWebGl2PassChannelsCurrentV1 } from './pixel-frame-webgl2-pass-current-v1.ts';
 import { planPixelFrameWebGl2PipelineCurrentV1 } from './pixel-frame-webgl2-pipeline-current-v1.ts';
 import { writePixelFrameWebGl2GeometryCurrentV1 } from './pixel-frame-webgl2-geometry-current-v1.ts';
+import { writePixelFrameWebGl2OpticsCurrentV1 } from './pixel-frame-webgl2-optics-current-v1.ts';
 import type { PixelFrameWebGl2LutResourcesCurrentV1 } from './pixel-frame-webgl2-lut-current-v1.ts';
 import { pixelFrameWebGl2ComponentEquivalentCurrentV1 } from './pixel-frame-webgl2-numeric-current-v1.ts';
 import { captureRepairSignalV1, checkRepairSignalV1, RepairTaskBudgetV1 } from './pixel-frame-repair-lifetime-v1.ts';
@@ -41,8 +42,21 @@ function metadata(sourceValue: unknown, resultValue: unknown, values: unknown,
 		resources.supported(pass);
 	}
 	if (!same(pipeline.finalDescriptor, result)) throw new RangeError('Native GPU reference output descriptor differs from its complete stage chain.');
+	// Track only a conservative same-pixel witness, not neighborhood provenance.
+	// Vignette never restores eligibility lost to resampling. Coupled color
+	// operations and active Defringe propagate it to every output channel.
+	const ancestry: [boolean, boolean, boolean] = [true, true, true];
+	for (const pass of passes) {
+		if (pass.kind === 9 && !pass.integerPermutation || pass.kind === 10 && pass.params1[3] !== 0 && pass.params1[0] !== 0) ancestry.fill(false);
+		else if (pass.kind === 11 && pass.params1[3] !== 0) {
+			if (pass.params1[0] !== 0) ancestry[0] = false;
+			if (pass.params1[1] !== 0) ancestry[2] = false;
+		} else if ((pass.kind === 3 || pass.kind === 4 || pass.kind === 5 || pass.kind === 8
+			|| pass.kind === 12 && pass.params1[3] !== 0 && pass.params1[0] !== 0) && ancestry.some(value => !value)) ancestry.fill(false);
+	}
 	return Object.freeze({ source, result, passes, maximumBytes: pipeline.maximumFrameBytes,
 		integerAncestry: passes.every(pass => pass.kind !== 9 || pass.integerPermutation),
+		ancestry: Object.freeze(ancestry), hasAncestry: ancestry.some(value => value),
 		exactPermutation: passes.every(pass => pass.kind === 9 && pass.integerPermutation) });
 }
 
@@ -99,9 +113,12 @@ export async function validatePixelFrameWebGl2ReferenceCurrentV1(sourceValue: Re
 			check();
 			for (const pass of plan.passes) {
 				check();
-				if (pass.kind === 9) {
+				if ('sourceDescriptor' in pass) {
 					const next = owner.floats(pass.descriptor.width * pass.descriptor.height * 4);
-					check(); await writePixelFrameWebGl2GeometryCurrentV1(pass, current, next, signal); check();
+					check();
+					if (pass.kind === 9) await writePixelFrameWebGl2GeometryCurrentV1(pass, current, next, signal);
+					else await writePixelFrameWebGl2OpticsCurrentV1(pass, current, next, signal);
+					check();
 					owner.retire(backing); backing = next.buffer;
 					current = Object.freeze({ descriptor: pass.descriptor, pixels: next });
 				} else for (let offset = 0; offset < current.pixels.length; offset += 4) {
@@ -116,7 +133,7 @@ export async function validatePixelFrameWebGl2ReferenceCurrentV1(sourceValue: Re
 				if (budget.visit()) await budget.yield();
 				if (!Object.is(current.pixels[offset + 3], result.pixels[offset + 3])) return false;
 				const pixel = offset / 4; let x = pixel % plan.result.width, y = Math.floor(pixel / plan.result.width), original: number | undefined;
-				if (plan.integerAncestry) {
+				if (plan.integerAncestry && plan.hasAncestry) {
 					// Reverse the captured integer maps without a provenance plane.
 					// Count stage visits too, so long chains retain bounded yields.
 					for (let index = plan.passes.length - 1; index >= 0; index--) {
@@ -128,11 +145,11 @@ export async function validatePixelFrameWebGl2ReferenceCurrentV1(sourceValue: Re
 						y = inverse[3] * x + inverse[4] * y + inverse[5]; x = nextX;
 					}
 					if (Number.isSafeInteger(x) && Number.isSafeInteger(y) && x >= 0 && x < plan.source.width && y >= 0 && y < plan.source.height) original = (y * plan.source.width + x) * 4;
-				} else if (plan.source.width === plan.result.width && plan.source.height === plan.result.height) original = offset;
+				}
 				for (let channel = 0; channel < 3; channel++) {
 					const expected = current.pixels[offset + channel]!, actual = result.pixels[offset + channel]!;
 					if (plan.exactPermutation ? !Object.is(expected, actual) : !pixelFrameWebGl2ComponentEquivalentCurrentV1(expected, actual,
-						original === undefined ? undefined : source.pixels[original + channel])) return false;
+						original === undefined || !plan.ancestry[channel] ? undefined : source.pixels[original + channel])) return false;
 				}
 			}
 			check(); return true;
