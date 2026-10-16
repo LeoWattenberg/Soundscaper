@@ -3,8 +3,14 @@
 Status: **M01–M12 In progress**. Latest behavioral/test integration
 `fc38539a6` includes the reviewed playback-start repair, product handbook
 sidebar repair and two browser test corrections. Their focused checks pass;
-fresh complete static, Node and browser gates and the affected native Frame
-successor delivery regression remain required on the combined source.
+fresh complete static, Node and browser gates remain required on the combined
+source. The affected native Frame successor link/delivery regression passed
+on `48a90f028` with exact PCM/timestamps and the original picture/alpha limits.
+A later documentation-only correction retains the existing lowercase
+"installed After Effects" caveat expected by the capability-register test;
+the unmodified four-case regression passes after that correction. The partial
+source48 static and Node runs were cancelled before completion and remain
+unaccepted; their coverage is not used.
 
 Application source `70a02ba9e0dd01d34f3b79eb9a7f259d2197e7d2`, tree
 `d17908da24d1b8fcf994866e0cdde95586bbf129`, passed full Node/static and the
@@ -197,6 +203,7 @@ Current receipts below are relative to the retained recovery root:
 | Chromium duration | `current-70a02ba9e-sustained-browser-unready/qualification.json` |
 | Failed ordinary browser | `current-motion-browser-final-preparation-20261015/full-actual-70a02ba9e-unready/ordinary-full/qualification.json` |
 | Linked/dual browsers | `current-motion-browser-final-preparation-20261015/follow-on-parentlock-70a02ba9e-unready/linked/qualification.json`; `current-motion-browser-final-preparation-20261015/dual-parentlock-70a02ba9e-v2-unready/dual-origin/qualification.json` |
+| Affected native Successor regression | `successor-playback-repair-48a90f028-20261016/qualification.json` |
 | Playback repair | `playback-repair-70a02ba9e-20261016/qualification.json` |
 | Browser probe repairs | `browser-probe-repairs-70a02ba9e-20261016/qualification.json` |
 | UI diagnostics | `ui-input-diagnostic-70a02ba9e-20261016/preparation-wt7/qualification.json`; `ui-input-diagnostic-70a02ba9e-20261016/workers4/qualification.json` |
