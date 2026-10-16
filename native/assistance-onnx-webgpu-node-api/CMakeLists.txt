@@ -61,3 +61,10 @@ target_compile_definitions(onnx_webgpu_probe PRIVATE ORT_API_MANUAL_INIT)
 target_include_directories(onnx_webgpu_probe PRIVATE "${ORT_HEADERS}")
 target_link_libraries(onnx_webgpu_probe PRIVATE "${ORT_LINK_LIBRARY}" Threads::Threads ${CMAKE_DL_LIBS})
 set_target_properties(onnx_webgpu_probe PROPERTIES OUTPUT_NAME "onnx-webgpu-device-probe")
+
+# Driver-independent regression: an earlier built-in EP with the same name must
+# never replace the separately authenticated plugin. This fixture is not shipped.
+add_executable(onnx_webgpu_device_test webgpu_device_test.cc)
+target_compile_features(onnx_webgpu_device_test PRIVATE cxx_std_20)
+target_compile_definitions(onnx_webgpu_device_test PRIVATE ORT_API_MANUAL_INIT)
+target_include_directories(onnx_webgpu_device_test PRIVATE "${ORT_HEADERS}")

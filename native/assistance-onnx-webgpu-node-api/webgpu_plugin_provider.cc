@@ -16,6 +16,7 @@ void ScapeAppendWebGpuPlugin(Ort::SessionOptions& options,
 	const std::unordered_map<std::string, std::string>& provider_options) {
 	auto& env = OrtSingletonData::GetOrtObjects()->env;
 	static std::once_flag registration;
+	static std::filesystem::path authenticated_plugin;
 	std::call_once(registration, [&env]() {
 #ifdef _WIN32
 		HMODULE module = nullptr;
@@ -44,6 +45,7 @@ void ScapeAppendWebGpuPlugin(Ort::SessionOptions& options,
 #endif
 #endif
 		env.RegisterExecutionProviderLibrary("soundscaper_webgpu", plugin.c_str());
+		authenticated_plugin = plugin;
 	});
 	const auto& api = Ort::GetApi();
 	const OrtEpDevice* const* devices = nullptr;
@@ -55,7 +57,7 @@ void ScapeAppendWebGpuPlugin(Ort::SessionOptions& options,
 		values.push_back(value.c_str());
 	}
 	for (size_t i = 0; i < count; ++i) {
-		if (std::strcmp(api.EpDevice_EpName(devices[i]), "WebGpuExecutionProvider") == 0) {
+		if (ScapeIsWebGpuPluginDevice(devices[i], authenticated_plugin)) {
 			Ort::ThrowOnError(api.SessionOptionsAppendExecutionProvider_V2(
 				options, env, &devices[i], 1, keys.data(), values.data(), keys.size()));
 			return;

@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 #include "onnxruntime_cxx_api.h"
+#include "webgpu_probe.h"
 
 #include <chrono>
 #include <cstdlib>
@@ -75,7 +76,7 @@ int main(int argc, char** argv) {
 		const auto& api = Ort::GetApi();
 		Ort::ThrowOnError(api.GetEpDevices(env, &devices, &count));
 		for (size_t i = 0; i < count; ++i) {
-			if (std::strcmp(api.EpDevice_EpName(devices[i]), "WebGpuExecutionProvider") != 0) continue;
+			if (!ScapeIsWebGpuPluginDevice(devices[i], plugin)) continue;
 			Ort::SessionOptions options;
 			Ort::ThrowOnError(api.SessionOptionsAppendExecutionProvider_V2(options, env, &devices[i], 1, nullptr, nullptr, 0));
 			options.AddConfigEntry("session.disable_cpu_ep_fallback", "1");

@@ -23,6 +23,7 @@ test('every ONNX plugin bridge uses a matching target runner and builds an isola
 	]) {
 		const selected = desktopOnnxWebGpuBindingBuildPlan({ targetId, platform, architecture });
 		assert.ok(selected.buildArgs.includes('onnx_webgpu_probe'));
+		assert.ok(selected.buildArgs.includes('onnx_webgpu_device_test'));
 		assert.deepEqual(selected.generatorArgs, targetId.startsWith('win-')
 			? ['-A', targetId === 'win-arm64' ? 'ARM64' : 'x64'] : []);
 	}

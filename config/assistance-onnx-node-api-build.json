@@ -151,11 +151,12 @@
 		}
 	],
 	"recipeFiles": {
-		"CMakeLists.txt": "5b4c6128c449facdb121f3ce3cfa182f49c071ba843e076d3ce15621e54af0af",
-		"webgpu_plugin_provider.cc": "aa517625a5e091302782396d273ba6ff26960296e33a32c55afa6e932dd9a41e",
+		"CMakeLists.txt": "2d9da87d09efeb4c95bcdff7e890cbc55fef342de978e71ea44e8b12f6520ad8",
+		"webgpu_device_test.cc": "9af329543e8b87ec1990968be08c2b1aead3b1bbe3aff60cf977e42876e54e27",
+		"webgpu_plugin_provider.cc": "9481cb66b9500dade3fd643c88e7f26e5678f67167ed0c82e82fcfbce600fc75",
 		"webgpu_plugin_provider.h": "c774eedaac056bafdd51a954d8118f60bbb34d9ab993619bf1b8ddb5ccb4b6de",
-		"webgpu_probe.h": "b420edcdf6446685d9a119d5089be1b4a24ed29c9180278203700891e055199f",
-		"webgpu_probe_main.cc": "fdce1055ef8a8040f147ac665369a613ff5b40cc042e2b2e7ba79015502d8571"
+		"webgpu_probe.h": "2d64b57afb24248f1a56577785ef27ec9e2131b615282cd124fc39b08d48d8e4",
+		"webgpu_probe_main.cc": "2f4ac5d59d13a42ecc76c5eec0d2c74210c6c0e2085097970e3b4b6eb69cc7e2"
 	},
 	"patchedSessionOptionsSha256": "08099d69b088d5a957472cd58d09167595161caf86467cfa484a34e6713e2c5b"
 }

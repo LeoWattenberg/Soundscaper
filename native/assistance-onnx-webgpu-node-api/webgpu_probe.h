@@ -1,6 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 #pragma once
 
+#include "onnxruntime_cxx_api.h"
+#include <cstring>
 #include <filesystem>
 #include <cstdlib>
 #include <stdexcept>
@@ -26,6 +28,19 @@
 extern char** environ;
 #endif
 #endif
+
+// An ORT core can expose a built-in EP with the same name before the separately
+// authenticated plugin. Select the registered library, never the first name.
+inline bool ScapeIsWebGpuPluginDevice(const OrtEpDevice* device,
+	const std::filesystem::path& expected_plugin) {
+	const auto& api = Ort::GetApi();
+	if (std::strcmp(api.EpDevice_EpName(device), "WebGpuExecutionProvider") != 0) return false;
+	const auto* metadata = api.EpDevice_EpMetadata(device);
+	const char* library = metadata ? api.GetKeyValue(metadata, "library_path") : nullptr;
+	if (!library || !*library) return false;
+	std::error_code error;
+	return std::filesystem::equivalent(std::filesystem::u8path(library), expected_plugin, error) && !error;
+}
 
 // Driver discovery runs in a separate executable because some Dawn callbacks
 // terminate their process instead of returning an error for a missing adapter.

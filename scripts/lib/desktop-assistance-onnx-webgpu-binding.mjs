@@ -30,7 +30,8 @@ export function desktopOnnxWebGpuBindingBuildPlan({ targetId, platform = process
 	return {
 		generatorArgs: platform === 'win32' ? ['-A', targetId === 'win-arm64' ? 'ARM64' : 'x64'] : [],
 		targetId, configureArgs: ['-DCMAKE_BUILD_TYPE=Release'],
-		buildArgs: ['--config', 'Release', '--target', 'onnxruntime_binding', 'onnx_webgpu_probe', '--parallel', '4'],
+		buildArgs: ['--config', 'Release', '--target', 'onnxruntime_binding', 'onnx_webgpu_probe',
+			'onnx_webgpu_device_test', '--parallel', '4'],
 	};
 }
 
@@ -93,6 +94,10 @@ export async function prepareDesktopAssistanceOnnxWebGpuBinding({
 		await command('cmake', configureArgs, work);
 		await command('cmake', ['--build', build, ...plan.buildArgs], work);
 		const binaryRoot = targetId.startsWith('win-') ? join(build, 'Release') : build;
+		if (targetId.endsWith(`-${process.arch}`)) {
+			await command(join(binaryRoot, `onnx_webgpu_device_test${targetId.startsWith('win-') ? '.exe' : ''}`),
+				['authenticated-plugin-fixture'], work);
+		}
 		const binary = join(binaryRoot, 'onnxruntime_binding.node');
 		assertOnnxBinaryArchitecture(await readFile(binary), targetId);
 		await copyFile(binary, join(outputRoot, 'onnxruntime_binding.node'));
