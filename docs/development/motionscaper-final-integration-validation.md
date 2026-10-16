@@ -1,13 +1,22 @@
 # Motionscaper final integration status
 
-Status: **M01–M12 In progress**. Reviewed repairs are integrated into
-`feat/motionscaper` in the main Motionscaper worktree. Latest local integration
-includes the catalog-owner admission fix (`2e10bc63e`), bridge
-locale repair (`3ad4bda4e`), all 26 generated UI/handbook languages and test-only
-morph/codec evidence additions. Full gates at `361418fee` closed failed;
-catalog bundling repair `802026569` has focused validation, with fresh full
-gates and the test-prerequisite repair still pending. Earlier application
-source `8b2325853` includes native-selection draft ownership,
+Status: **M01–M12 In progress**. Latest behavioral/test integration
+`fc38539a6` includes the reviewed playback-start repair, product handbook
+sidebar repair and two browser test corrections. Their focused checks pass;
+fresh complete static, Node and browser gates and the affected native Frame
+successor delivery regression remain required on the combined source.
+
+Application source `70a02ba9e0dd01d34f3b79eb9a7f259d2197e7d2`, tree
+`d17908da24d1b8fcf994866e0cdde95586bbf129`, passed full Node/static and the
+fixed Linux installed aggregate, native duration and four maximum profiles.
+One controlled Chromium duration run passed. Its complete three-suite browser
+gate failed with eight failures; historical failures remain failed. Accepted
+coverage and external release gates remain open. No milestone is complete.
+
+### Earlier integration notes
+
+The following implementation notes retain their original source-specific scope.
+Earlier application source `8b2325853` includes native-selection draft ownership,
 the reviewed native shutdown repair,
 paired-download synchronization, saved-kind/cross-consumer contract tests and
 deferred panel focus ownership. M06 also includes graph/path keyboard activation
@@ -106,6 +115,99 @@ register activation, hosted deployment, dispatch or publication was performed
 by this recovery.
 
 ## Latest integrated validation
+
+The combined repairs are committed as:
+
+- `db3d017fe`: prepare buffered/live sources before the shared playback start,
+  then allow one rebase of an expired, wholly unstarted eligible window. The
+  original strict per-source refusal and recorder/message-bound ownership
+  remain enforced. Four meaningful pre-fix regression failures are retained;
+  all eight new controls and 49 existing ownership/timing controls pass after
+  the fix, with strict types, changed lint and size checks.
+- `98366245c`: point each product handbook sidebar at its physical product
+  source directory. Motion58 and Frame87 page/navigation checks pass, alongside
+  the original Sound32 regression cases. The normal complete Motion Pages build
+  passes local app/docs/staging/asset checks and fails the final live predecessor
+  preflight because no deployment answers `https://motionscaper.org`. No bypass
+  or deployment was performed.
+- `7f148d5b3`: use stable source IDs for take-flatten peak comparisons and add
+  real same-name WAV imports with independently authored amplitudes. The old
+  name probe fails that control by 0.499969482421875; both corrected cases pass
+  in Chromium, Firefox and WebKit. Original width, precision, frame-count and
+  history assertions remain unchanged. This proves the probe defect, not the
+  exclusive cause of the historical flatten failure.
+- `fc38539a6`: normalize zero seconds in native `datetime-local` test input.
+  Firefox reproduces the malformed whole-minute value before normalization;
+  the deterministic boundary and original real timed-recording workflow pass
+  in all three engines. Application behavior and timeouts are unchanged.
+
+The three source70 UI failures remain unresolved. One passive four-case
+Chromium diagnostic passed with one worker; a separate run passed with the
+original four-worker/fully-parallel setting. Brush input reached enabled,
+selected surfaces with normal pointer capture; focused Clip Properties Enter
+opened its dialog. These are non-reproductions, not repairs. One menu event
+ring evicted early entries, and uncaught page errors were not independently
+collected. Temporary hooks are not part of the integrated source.
+
+On source70, all five Node partitions passed: 27,468 total, 27,451 passed,
+17 declared skips and zero failures; all 1,224 Motion cases passed. Full static
+passed with unchanged startup/chunk limits (largest Sound locale chunk
+486,512 bytes). The fixed Linux x64 software aggregate passed all five
+workflows. Original native 300/1,200-frame duration and maximum cases passed:
+64×64 shutter/lens with shadows, 64 planes/65-plane refusal, 32 lights and
+32,768 frames/32,769-frame refusal with cancellation/retry. Index PSS growth
+was 63,667,200 bytes against 67,108,864. The original metadata refusal remains
+preserved beside the narrowly accepted reference-decoder ctime audit;
+combined input/process/output closure passed.
+
+Controlled Chromium 300/1,200-frame preview, physical OPFS PNG/VP9 WebM,
+lossy Opus, cancellation/retry and all 546 memory rows passed unchanged limits.
+This does not qualify exact PCM or the OS picker. Source70's Motion58 sidebar
+failure remains failed beside the isolated repair's evidence.
+
+The ordinary invocation completed all 7,578 cases with 7,283 passes,
+287 declared skips and eight failures: five Chromium, one Firefox and two
+WebKit. Linked39 and dual9 passed all cases separately. The full three-suite
+outcome is 7,331 passes, 287 skips and eight failures from 7,626 cases.
+All 442 executed Motion-named ordinary cases passed, with two declared skips;
+this does not qualify the whole gate. The original ordinary post freeze also
+failed on Firefox's empty `.parentlock` timestamps. A complete supplementary
+read-only comparison found only that pair changed across all 66,042 original
+records; all bytes and remaining fields matched. It does not promote either
+original failure. Linked/dual checks used narrow future-only accounting for
+that exact empty lock; all remaining inputs stayed strict. All producers and
+post audits are closed, and raw coverage stays opaque and unadmitted.
+
+The changed scheduler requires fresh complete gates and a rebuilt native Frame
+successor delivery workflow. Independent Motion-only duration/maximum results
+retain source70 component attribution; they are not relabeled as whole-package
+qualification for the later source. Coverage union and monotone ratchets remain
+open. Installed AE, other hardware/OS/architectures, signing, installation,
+update and publication remain unqualified.
+
+Current receipts below are relative to the retained recovery root:
+`~/.cache/soundscaper/motionscaper-recovery-328cae02f-20261013/`.
+
+| Evidence | Receipt |
+| --- | --- |
+| Complete Node/static | `current-70a02ba9e-node-final/qualification.json`; `current-70a02ba9e-static/qualification.json` |
+| Linux workflows | `current-70a02ba9e-native-qualification/aggregate-audit/qualified-after-reference-ctime-audit.json` |
+| Native duration/maxima | `current-70a02ba9e-sustained-native/qualification.json`; `current-70a02ba9e-native-maximum-preparation/final-native-handoff.json` |
+| Handbook failure/repair | `current-70a02ba9e-handbook-preparation/qualification.json`; `handbook-sidebar-repair-70a02ba9e-20261016/qualification.json` |
+| Chromium duration | `current-70a02ba9e-sustained-browser-unready/qualification.json` |
+| Failed ordinary browser | `current-motion-browser-final-preparation-20261015/full-actual-70a02ba9e-unready/ordinary-full/qualification.json` |
+| Linked/dual browsers | `current-motion-browser-final-preparation-20261015/follow-on-parentlock-70a02ba9e-unready/linked/qualification.json`; `current-motion-browser-final-preparation-20261015/dual-parentlock-70a02ba9e-v2-unready/dual-origin/qualification.json` |
+| Playback repair | `playback-repair-70a02ba9e-20261016/qualification.json` |
+| Browser probe repairs | `browser-probe-repairs-70a02ba9e-20261016/qualification.json` |
+| UI diagnostics | `ui-input-diagnostic-70a02ba9e-20261016/preparation-wt7/qualification.json`; `ui-input-diagnostic-70a02ba9e-20261016/workers4/qualification.json` |
+
+No manual **Update AI assets** run is required. No tag, signing, workflow
+dispatch, hosted deployment or publication has been performed.
+
+### Earlier source-attributed validation
+
+The chronology below preserves original failures and the pending prerequisites
+at each recorded boundary. Later passes do not promote those failures.
 
 The complete five-partition Node gate on `361418fee` closed with 27,468 tests:
 27,406 passed, 45 failed, 17 skipped and none cancelled. All 1,224 Motion cases

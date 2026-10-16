@@ -74,6 +74,37 @@ package complete.
 ### Implementation status
 
 M01–M12 are **In progress**; named implementations do not close release gates.
+The latest integrated repairs (`fc38539a6`) include shared playback-start
+preparation, product handbook navigation, stable source identity in peak probes
+and native whole-minute timed-recording input normalization. Focused regressions
+pass, including 57 playback controls and nine browser cases across three engines.
+Fresh complete gates on the combined source remain required.
+
+Application source `70a02ba9e` passed the complete static gate and all five Node
+partitions: 27,451 passes, 17 declared skips and zero failures, including all
+1,224 Motion cases. Its fixed Linux x64 software profile passed all five
+installed workflows, the original 300/1,200-frame native duration and four
+maintained maximum profiles. One controlled Chromium 300/1,200-frame run also
+passed; lossy Opus is not exact PCM, and OPFS does not qualify the OS picker.
+Its complete browser gate failed: 7,331 passes, 287 declared skips and eight
+failures across ordinary, linked and dual-origin suites. Linked39 and dual9
+passed separately. The three UI failures did not recur in bounded one-worker
+and four-worker diagnostics; their historical cause remains unresolved.
+
+The handbook repair passes Motion58 and Frame87 page/navigation checks. The
+complete Motion Pages build passed local app/docs/staging/asset checks, then
+failed its live predecessor preflight because no deployment answered the
+canonical origin. No deployment or bypass was performed. Accepted coverage,
+installed AE, other hardware/targets, signing, installation, update and
+publication remain open. Source-specific evidence and remaining work are in
+[final validation status](motionscaper-final-integration-validation.md).
+
+### Earlier source-attributed implementation and validation
+
+The following notes preserve their original dates, sources and outcomes,
+including the pending prerequisites at each boundary. Later passes do not
+promote earlier failures or establish their causes.
+
 The final scope audit found two locale seams and missing generated Motion copy.
 The editor admission fix (`2e10bc63e`) now covers all ten Motion copy owners and
 the shared effect labels it consumes. Its actual loader/resolver regression
