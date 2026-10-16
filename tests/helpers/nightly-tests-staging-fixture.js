@@ -75,7 +75,7 @@ export async function createFixture(context) {
 			`desktop/bundled-${format}-stream.ts`, 'export const fixtureSupport = true;\n',
 		]),
 		...await Promise.all([
-			'constants.js', 'desktop-video-h264-encoder.ts', 'file-associations.js', 'file-capabilities.js', 'freesound-integration.js',
+			'audiocom-authorization.ts', 'audiocom-links.ts', 'constants.js', 'desktop-video-h264-encoder.ts', 'file-associations.js', 'file-capabilities.js', 'freesound-integration.js',
 			'main-file-capability-ipc.mjs', 'product.json', 'protocol.js', 'read-capability-admission.js',
 			'read-capability-range-stream.js', 'read-capability-request-lease.js', 'read-capability-support.js',
 			'read-selection-service.js', 'save-publication-mode.js', 'save-space.js', 'save-targets.js', 'validation.js', 'original-file-overwrite.ts',

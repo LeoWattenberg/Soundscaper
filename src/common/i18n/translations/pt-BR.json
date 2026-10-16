@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "pt-BR",
 	"provenance": {
-		"machine": {"model":"gpt-6","modelDigest":"sha256:399b6e29821b65e4c499df33c27f51c309e52e984fcfe60d8d0fe2826eacbbce","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"gpt-6","modelDigest":"sha256:f7864f3e97d676372efdd2a799ba0721ac0e133f023ec314ebeac526d2462298","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"de2e43dc13474ba712ade5ea8e47550eba0e8bfb","runId":35327911264,"artifactId":10539339149,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/35327911264","archiveName":"Audacity_locale_262610911.zip","archiveSha256":"13b1ff11c39a677c711a1d29738a394aaca7a200533927aab3f45bbd76c1ff8e","archiveByteLength":15413913,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/de2e43dc13474ba712ade5ea8e47550eba0e8bfb/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -51,6 +51,12 @@
 		"admRemove": ["machine","Remove ADM","Remover ADM"],
 		"admRemoveObject": ["machine","Remove object","Remover objeto"],
 		"admRouting": ["machine","Bed routing","Roteamento do leito"],
+		"advancedAudioServer": ["machine","audio.com API","API do audio.com"],
+		"advancedAudioServerDescription": ["machine","Choose audio.com or a compatible server such as Audiocity. Custom servers must be publicly reachable; localhost works when running Soundscaper locally. Changing the server signs you out. Open Window → audio.com to connect again.","Escolha audio.com ou um servidor compatível, como Audiocity. Os servidores personalizados devem ser acessíveis publicamente; localhost funciona quando o Soundscaper é executado localmente. Alterar o servidor encerra sua sessão. Abra Janela → audio.com para se conectar novamente."],
+		"advancedAudioServerInvalid": ["machine","Enter an HTTPS server URL without a path, query, or sign-in details. HTTP localhost URLs work when running Soundscaper locally.","Insira uma URL de servidor HTTPS sem caminho, consulta ou dados de acesso. As URLs HTTP de localhost funcionam quando o Soundscaper é executado localmente."],
+		"advancedAudioServerSave": ["machine","Save server","Salvar servidor"],
+		"advancedAudioServerUrl": ["machine","Server URL","URL do servidor"],
+		"advancedAudioServerUseDefault": ["machine","Use audio.com","Usar audio.com"],
 		"advancedLocalProcessing": ["machine","Advanced Local Processing","Processamento local avançado"],
 		"advancedOptions": ["machine","Advanced options","Opções avançadas"],
 		"alignEndToEnd": ["machine","Align end to end","Alinhado fim ao fim"],
@@ -1989,6 +1995,7 @@
 		"preferenceOff": ["machine","Off","Desativado"],
 		"preferencePerTrack": ["machine","Per track","Por faixa"],
 		"preferences": ["audacity","Preferences","Preferências"],
+		"preferencesAdvanced": ["machine","Advanced","Avançadas"],
 		"preferencesAudioSettings": ["machine","Audio settings","Configurações de áudio"],
 		"preferencesEditing": ["machine","Editing","Edição"],
 		"preferencesEffects": ["machine","Effects","Efeitos"],
@@ -2734,6 +2741,7 @@
 		"ui.about.videoCompositing": ["machine","Video compositing","Composição de vídeo"],
 		"ui.about.videoEffects": ["machine","Video effects","Efeitos de vídeo"],
 		"ui.about.website": ["machine","Website","Site"],
+		"ui.audiocom.panel": ["machine","audio.com","audio.com"],
 		"ui.clipSpreadsheet.cancelPaste": ["machine","Cancel paste","Cancelar colagem"],
 		"ui.clipSpreadsheet.channels": ["machine","Channels","Canais"],
 		"ui.clipSpreadsheet.clipboardUnavailable": ["machine","Use Ctrl/Cmd+C or Ctrl/Cmd+V to copy or paste the selected cells.","Use Ctrl/Cmd+C ou Ctrl/Cmd+V para copiar ou colar as células selecionadas."],

@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "it",
 	"provenance": {
-		"machine": {"model":"gpt-6","modelDigest":"sha256:9b89e3966bc7b363a7ba35a3aeb3efec735d2f056e945449a68dbee166c1d218","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"gpt-6","modelDigest":"sha256:c3715e2b96c2cee87a1821b27cf5aba1eeccb0beb2b874fcc7b57c35251ee255","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"de2e43dc13474ba712ade5ea8e47550eba0e8bfb","runId":35327911264,"artifactId":10539339149,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/35327911264","archiveName":"Audacity_locale_262610911.zip","archiveSha256":"13b1ff11c39a677c711a1d29738a394aaca7a200533927aab3f45bbd76c1ff8e","archiveByteLength":15413913,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/de2e43dc13474ba712ade5ea8e47550eba0e8bfb/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -51,6 +51,12 @@
 		"admRemove": ["machine","Remove ADM","Rimuovi ADM"],
 		"admRemoveObject": ["machine","Remove object","Rimuovi oggetto"],
 		"admRouting": ["machine","Bed routing","Instradamento del bed"],
+		"advancedAudioServer": ["machine","audio.com API","API di audio.com"],
+		"advancedAudioServerDescription": ["machine","Choose audio.com or a compatible server such as Audiocity. Custom servers must be publicly reachable; localhost works when running Soundscaper locally. Changing the server signs you out. Open Window → audio.com to connect again.","Scegli audio.com o un server compatibile come Audiocity. I server personalizzati devono essere accessibili pubblicamente; localhost funziona quando Soundscaper viene eseguito in locale. Cambiare server ti disconnette. Apri Finestra → audio.com per riconnetterti."],
+		"advancedAudioServerInvalid": ["machine","Enter an HTTPS server URL without a path, query, or sign-in details. HTTP localhost URLs work when running Soundscaper locally.","Inserisci un URL di server HTTPS senza percorso, query o credenziali di accesso. Gli URL HTTP di localhost funzionano quando Soundscaper viene eseguito in locale."],
+		"advancedAudioServerSave": ["machine","Save server","Salva server"],
+		"advancedAudioServerUrl": ["machine","Server URL","URL del server"],
+		"advancedAudioServerUseDefault": ["machine","Use audio.com","Usa audio.com"],
 		"advancedLocalProcessing": ["machine","Advanced Local Processing","Elaborazione locale avanzata"],
 		"advancedOptions": ["machine","Advanced options","Opzioni avanzate"],
 		"alignEndToEnd": ["machine","Align end to end","Allinea in sequenza"],
@@ -1989,6 +1995,7 @@
 		"preferenceOff": ["machine","Off","Disattivato"],
 		"preferencePerTrack": ["machine","Per track","Per traccia"],
 		"preferences": ["audacity","Preferences","Preferenze"],
+		"preferencesAdvanced": ["machine","Advanced","Avanzate"],
 		"preferencesAudioSettings": ["machine","Audio settings","Impostazioni audio"],
 		"preferencesEditing": ["machine","Editing","Modifica"],
 		"preferencesEffects": ["machine","Effects","Effetti"],
@@ -2734,6 +2741,7 @@
 		"ui.about.videoCompositing": ["machine","Video compositing","Compositing video"],
 		"ui.about.videoEffects": ["machine","Video effects","Effetti video"],
 		"ui.about.website": ["machine","Website","Sito web"],
+		"ui.audiocom.panel": ["machine","audio.com","audio.com"],
 		"ui.clipSpreadsheet.cancelPaste": ["machine","Cancel paste","Annulla incolla"],
 		"ui.clipSpreadsheet.channels": ["machine","Channels","Canali"],
 		"ui.clipSpreadsheet.clipboardUnavailable": ["machine","Use Ctrl/Cmd+C or Ctrl/Cmd+V to copy or paste the selected cells.","Usa Ctrl/Cmd+C o Ctrl/Cmd+V per copiare o incollare le celle selezionate."],

@@ -9,6 +9,7 @@ import type {
 } from './recording-routing-service-types.d.ts';
 import { setRecordingTrackRoute } from '../../../recording-routing.js';
 import { supportsDisplayAudioCapture } from '../../../recording-display-input.ts';
+import { raceAbortableRead } from '../../../abort-race.ts';
 
 export type {
 	PersistedRecordingRouting,
@@ -31,7 +32,7 @@ export function createRecordingRoutingService<
 >(runtime: RecordingRoutingServiceRuntime<Project, Stream>) {
 	const {
 		AUDIO_DEVICE_PREFERENCES_SETTING_KEY, RECORDING_CHANNEL_COUNT_MAXIMUM, RECORDING_DEFAULT_DEVICE_ID, RECORDING_DISPLAY_SOURCE_KEY,
-		assignPreferredInputToTrack, engine, mediaDevices, microphoneMeterDeviceId,
+		assignPreferredInputToTrack, engine, lifetime, mediaDevices, microphoneMeterDeviceId,
 		getMicrophoneMeterSession, invalidateMicrophoneMeter, normalizePreferredInputDeviceId, normalizePreferredOutputDeviceId,
 		normalizeRecordingRouting, persistSetting, productSettingKey, getProject,
 		projectSampleRate, publishDocumentSnapshot, recordingCapturePool, recordingRouteSourceKey,
@@ -39,6 +40,7 @@ export function createRecordingRoutingService<
 		stopMicrophoneMetering, store, updatePreferences,
 	} = runtime;
 	let outputDeviceSelectionGeneration = 0;
+	let inventoryGeneration = 0;
 	let retainedNativeInventory: RecordingRoutingNativeInventory | null = null;
 	async function loadRecordingRouting(currentProject: Project | null = getProject()) {
 		if (!currentProject) {
@@ -111,11 +113,14 @@ export function createRecordingRoutingService<
 		publish = true,
 		nativeInventory,
 	}: RecordingRoutingRefreshOptions = {}) {
+		lifetime.signal.throwIfAborted();
+		const generation = ++inventoryGeneration;
 		if (nativeInventory !== undefined) retainedNativeInventory = nativeInventory;
 		const webInputs: RecordingRoutingDeviceRow[] = [];
 		const webOutputs: RecordingRoutingDeviceRow[] = [];
-		if (mediaDevices?.enumerateDevices) {
-			const devices = await mediaDevices.enumerateDevices();
+		const enumerateDevices = mediaDevices?.enumerateDevices;
+		if (enumerateDevices) {
+			const devices = await raceAbortableRead(() => enumerateDevices.call(mediaDevices), lifetime.signal);
 			for (const device of devices || []) {
 				if (!device?.deviceId) continue;
 				const row = {
@@ -127,31 +132,38 @@ export function createRecordingRoutingService<
 				else if (device.kind === 'audiooutput' && row.deviceId !== 'default') webOutputs.push(row);
 			}
 		}
+		lifetime.signal.throwIfAborted();
+		if (!isCurrentInventory(generation) && !probe) return state.recordingDevices;
 		const discoveredInputs = uniqueDeviceRows([...webInputs, ...(retainedNativeInventory?.inputs || [])]);
 		const discoveredOutputs = uniqueDeviceRows([...webOutputs, ...(retainedNativeInventory?.outputs || [])]);
-		state.recordingEnumeratedDeviceIds = new Set(discoveredInputs.map((device) => device.deviceId));
-		if (discoveredInputs.some((device) => device.label)) state.audioInputAccess = true;
-		updateRecordingDeviceRows(discoveredInputs);
-		state.audioInputDevices = Object.freeze(state.recordingDevices.map((device, index) => Object.freeze({
-			deviceId: device.deviceId,
-			label: device.label || `Audio input ${index + 1}`,
-			channelCount: device.channelCount,
-			status: device.status,
-		})));
-		state.audioOutputDevices = Object.freeze(discoveredOutputs.map((device, index) => Object.freeze({
-			deviceId: device.deviceId,
-			label: device.label || `Audio output ${index + 1}`,
-			groupId: device.groupId || '',
-			isDefault: device.isDefault === true,
-		})));
+		if (isCurrentInventory(generation)) {
+			state.recordingEnumeratedDeviceIds = new Set(discoveredInputs.map((device) => device.deviceId));
+			if (discoveredInputs.some((device) => device.label)) state.audioInputAccess = true;
+			updateRecordingDeviceRows(discoveredInputs);
+			state.audioInputDevices = Object.freeze(state.recordingDevices.map((device, index) => Object.freeze({
+				deviceId: device.deviceId,
+				label: device.label || `Audio input ${index + 1}`,
+				channelCount: device.channelCount,
+				status: device.status,
+			})));
+			state.audioOutputDevices = Object.freeze(discoveredOutputs.map((device, index) => Object.freeze({
+				deviceId: device.deviceId,
+				label: device.label || `Audio output ${index + 1}`,
+				groupId: device.groupId || '',
+				isDefault: device.isDefault === true,
+			})));
+		}
 		if (probe) {
+			// A newer passive inventory must not cancel an explicit input probe.
 			await Promise.allSettled(webInputs.map((device) => recordingCapturePool.acquireHardware(device.deviceId, {
 				channelCount: RECORDING_CHANNEL_COUNT_MAXIMUM,
 				sampleRate: projectSampleRate(),
 			})));
+			lifetime.signal.throwIfAborted();
 			syncRecordingPoolSnapshot();
 			if (!state.recorder) releaseUnretainedRecordingInputs();
 			syncRecordingPoolSnapshot();
+			if (!isCurrentInventory(generation)) return state.recordingDevices;
 			updateRecordingDeviceRows(discoveredInputs);
 			state.audioInputDevices = Object.freeze(state.recordingDevices.map((device) => Object.freeze({
 				deviceId: device.deviceId,
@@ -160,9 +172,14 @@ export function createRecordingRoutingService<
 				status: device.status,
 			})));
 		}
-		await reconcilePreferredOutputDevice();
+		await reconcilePreferredOutputDevice(generation);
+		if (!isCurrentInventory(generation)) return state.recordingDevices;
 		if (publish) publishDocumentSnapshot();
 		return state.recordingDevices;
+	}
+
+	function isCurrentInventory(generation: number) {
+		return !lifetime.inactive && generation === inventoryGeneration;
 	}
 
 	async function setPreferredInputDevice(deviceId: string) {
@@ -299,12 +316,15 @@ export function createRecordingRoutingService<
 		}
 	}
 
-	async function reconcilePreferredOutputDevice() {
+	async function reconcilePreferredOutputDevice(expectedInventory?: number) {
 		const generation = outputDeviceSelectionGeneration;
+		const isCurrent = () => !lifetime.inactive && generation === outputDeviceSelectionGeneration
+			&& (expectedInventory === undefined || isCurrentInventory(expectedInventory));
+		if (!isCurrent()) return;
 		const preferred = state.preferredOutputDeviceId;
 		if (!preferred) {
 			await Promise.resolve(engine.setOutputDevice?.('')).catch(() => undefined);
-			if (generation !== outputDeviceSelectionGeneration) return;
+			if (!isCurrent()) return;
 			state.activeOutputDeviceId = '';
 			state.audioOutputStatus = 'default';
 			return;
@@ -312,7 +332,7 @@ export function createRecordingRoutingService<
 		const available = state.audioOutputDevices.some((device) => device.deviceId === preferred);
 		if (!available) {
 			await Promise.resolve(engine.setOutputDevice?.('')).catch(() => undefined);
-			if (generation !== outputDeviceSelectionGeneration) return;
+			if (!isCurrent()) return;
 			state.activeOutputDeviceId = '';
 			state.audioOutputStatus = 'unavailable';
 			return;
@@ -324,14 +344,14 @@ export function createRecordingRoutingService<
 		}
 		try {
 			const result = await Promise.resolve(engine.setOutputDevice?.(preferred));
-			if (generation !== outputDeviceSelectionGeneration) return;
+			if (!isCurrent()) return;
 			state.activeOutputDeviceId = result?.activeDeviceId ?? preferred;
 			state.audioOutputStatus = 'active';
 		} catch (error) {
-			if (generation !== outputDeviceSelectionGeneration) return;
+			if (!isCurrent()) return;
 			const errorName = (error as Readonly<{ name?: string }> | null)?.name;
 			await Promise.resolve(engine.setOutputDevice?.('')).catch(() => undefined);
-			if (generation !== outputDeviceSelectionGeneration) return;
+			if (!isCurrent()) return;
 			state.activeOutputDeviceId = '';
 			state.audioOutputStatus = errorName === 'NotSupportedError' ? 'unsupported' : 'denied';
 		}

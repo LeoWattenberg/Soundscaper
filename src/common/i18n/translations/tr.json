@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "tr",
 	"provenance": {
-		"machine": {"model":"gpt-6","modelDigest":"sha256:5f115455cd4aec14c8de571ca830e29173c2a69315637b5224fc14040b5abf60","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"gpt-6","modelDigest":"sha256:a608c81955b058bddcf1f6e16d821d1842658f47978e9a1659524d4d13ae36be","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"de2e43dc13474ba712ade5ea8e47550eba0e8bfb","runId":35327911264,"artifactId":10539339149,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/35327911264","archiveName":"Audacity_locale_262610911.zip","archiveSha256":"13b1ff11c39a677c711a1d29738a394aaca7a200533927aab3f45bbd76c1ff8e","archiveByteLength":15413913,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/de2e43dc13474ba712ade5ea8e47550eba0e8bfb/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -51,6 +51,12 @@
 		"admRemove": ["machine","Remove ADM","ADM'yi kaldır"],
 		"admRemoveObject": ["machine","Remove object","Nesneyi kaldır"],
 		"admRouting": ["machine","Bed routing","Yatak yönlendirmesi"],
+		"advancedAudioServer": ["machine","audio.com API","audio.com API’si"],
+		"advancedAudioServerDescription": ["machine","Choose audio.com or a compatible server such as Audiocity. Custom servers must be publicly reachable; localhost works when running Soundscaper locally. Changing the server signs you out. Open Window → audio.com to connect again.","audio.com ya da Audiocity gibi uyumlu bir sunucu seçin. Özel sunucular herkese açık olarak erişilebilir olmalıdır; localhost, Soundscaper yerel olarak çalıştırıldığında çalışır. Sunucuyu değiştirmek oturumunuzu kapatır. Yeniden bağlanmak için Pencere → audio.com menüsünü açın."],
+		"advancedAudioServerInvalid": ["machine","Enter an HTTPS server URL without a path, query, or sign-in details. HTTP localhost URLs work when running Soundscaper locally.","Yol, sorgu veya oturum açma bilgileri içermeyen bir HTTPS sunucu URL’si girin. HTTP localhost URL’leri, Soundscaper yerel olarak çalıştırıldığında çalışır."],
+		"advancedAudioServerSave": ["machine","Save server","Sunucuyu kaydet"],
+		"advancedAudioServerUrl": ["machine","Server URL","Sunucu URL’si"],
+		"advancedAudioServerUseDefault": ["machine","Use audio.com","audio.com kullan"],
 		"advancedLocalProcessing": ["machine","Advanced Local Processing","Gelişmiş Yerel İşleme"],
 		"advancedOptions": ["machine","Advanced options","Gelişmiş seçenekler"],
 		"alignEndToEnd": ["machine","Align end to end","Uçtan uca hizala"],
@@ -1989,6 +1995,7 @@
 		"preferenceOff": ["machine","Off","Kapalı"],
 		"preferencePerTrack": ["machine","Per track","İz başına"],
 		"preferences": ["audacity","Preferences","Ayarlar"],
+		"preferencesAdvanced": ["machine","Advanced","Gelişmiş"],
 		"preferencesAudioSettings": ["machine","Audio settings","Ses ayarları"],
 		"preferencesEditing": ["machine","Editing","Düzenleme"],
 		"preferencesEffects": ["machine","Effects","Etkiler"],
@@ -2734,6 +2741,7 @@
 		"ui.about.videoCompositing": ["machine","Video compositing","Video birleştirme"],
 		"ui.about.videoEffects": ["machine","Video effects","Video efektleri"],
 		"ui.about.website": ["machine","Website","Web sitesi"],
+		"ui.audiocom.panel": ["machine","audio.com","audio.com"],
 		"ui.clipSpreadsheet.cancelPaste": ["machine","Cancel paste","Yapıştırmayı iptal et"],
 		"ui.clipSpreadsheet.channels": ["machine","Channels","Kanallar"],
 		"ui.clipSpreadsheet.clipboardUnavailable": ["machine","Use Ctrl/Cmd+C or Ctrl/Cmd+V to copy or paste the selected cells.","Seçili hücreleri kopyalamak veya yapıştırmak için Ctrl/Cmd+C ya da Ctrl/Cmd+V kullanın."],

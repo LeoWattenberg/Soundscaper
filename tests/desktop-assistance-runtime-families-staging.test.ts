@@ -11,10 +11,12 @@ import candidates from '../config/assistance-runtime-family-supply-candidates.js
 import {
 	type AssistanceRuntimeFamilyId,
 	type AssistanceRuntimeFamilyManifestV1,
+	describeAssistanceRuntimeFamilyAvailability,
 	validateAssistanceRuntimeFamilyManifestV1,
 } from '../desktop/assistance-runtime-family-manifest.ts';
 import { stageDesktopAssistanceRuntimeFamilies } from '../scripts/lib/desktop-assistance-runtime-families.mjs';
 import { verifyDesktopAssistanceRuntimeFamilyPackage } from '../scripts/lib/desktop-assistance-runtime-family-verification.mjs';
+import { onnxGpuTargetFixture } from './helpers/desktop-assistance-onnx-gpu-fixture.ts';
 
 async function fixture() {
 	const root = await mkdtemp(join(tmpdir(), 'assistance-package-'));
@@ -95,6 +97,92 @@ test('desktop packaging fails when the editorial engine is missing or changed', 
 				},
 			}), /Cannot package llama-cpp/u);
 		} finally { await f.clean(); }
+	}
+});
+
+test('packaging retains target GPU capability metadata inside the authenticated manifest', async () => {
+	const f = await fixture();
+	try {
+		const result = await stageDesktopAssistanceRuntimeFamilies({
+			targetId: 'linux-x64', runtimeRoot: f.root,
+			stageOnnx: async () => {
+				const staged = await f.stage('onnxruntime-node');
+				const bytes = Buffer.from('authenticated GPU package fixture');
+				const gpu = onnxGpuTargetFixture('linux-x64', bytes);
+				const targetRoot = join(f.root, staged.manifest.runtimePrefix, 'linux-x64');
+				await rm(join(targetRoot, 'index.js'));
+				for (const file of gpu.files) {
+					await mkdir(join(targetRoot, file.path, '..'), { recursive: true });
+					await writeFile(join(targetRoot, file.path), bytes);
+				}
+				return { ...staged, manifest: {
+					...staged.manifest,
+					targets: staged.manifest.targets.map((target) => target.id === 'linux-x64'
+						? gpu : target),
+				} };
+			},
+			stageWhisper: () => f.stage('whisper-cpp'),
+			stageLlama: () => f.stage('llama-cpp'),
+		});
+		const packaged = JSON.parse(result.manifestBytes.toString()) as {
+			manifests: Record<AssistanceRuntimeFamilyId, unknown>;
+		};
+		const admitted = validateAssistanceRuntimeFamilyManifestV1(packaged.manifests['onnxruntime-node']);
+		const target = admitted.targets.find(({ id }) => id === 'linux-x64');
+		assert.equal(target?.status, 'authenticated');
+		if (target?.status !== 'authenticated') throw new Error('Expected authenticated ONNX target.');
+		assert.deepEqual(target.executionProviders, ['webgpu', 'cpu']);
+		await verifyDesktopAssistanceRuntimeFamilyPackage({
+			...result, targetId: 'linux-x64', runtimeRoot: f.root,
+		});
+	} finally { await f.clean(); }
+});
+
+test('packaging authenticates Vulkan companions and retains their bound paths through distribution', async (context) => {
+	const f = await fixture();
+	context.after(f.clean);
+	const bytes = Buffer.from('authenticated GPU binary');
+	async function stageNative(familyId: 'whisper-cpp' | 'llama-cpp') {
+		const staged = await f.stage(familyId);
+		const target = staged.manifest.targets.find(({ id }) => id === 'linux-x64');
+		if (target?.status !== 'authenticated') throw new Error('Expected authenticated target.');
+		const path = `gpu/${target.entrypoint}`;
+		await mkdir(join(f.root, staged.manifest.runtimePrefix, 'linux-x64/gpu'));
+		await writeFile(join(f.root, staged.manifest.runtimePrefix, 'linux-x64', path), bytes);
+		return { ...staged, manifest: { ...staged.manifest,
+			targets: staged.manifest.targets.map((entry) => entry.id !== target.id ? entry : {
+				...target, executionProviders: ['vulkan', 'cpu'], accelerationEntrypoints: { vulkan: path },
+				files: [...target.files, { path, byteLength: bytes.length,
+					sha256: createHash('sha256').update(bytes).digest('hex'), executable: true }],
+			}),
+		} };
+	}
+	const result = await stageDesktopAssistanceRuntimeFamilies({
+		targetId: 'linux-x64', runtimeRoot: f.root,
+		stageOnnx: () => f.stage('onnxruntime-node'),
+		stageWhisper: () => stageNative('whisper-cpp'), stageLlama: () => stageNative('llama-cpp'),
+	});
+	const packaged = JSON.parse(result.manifestBytes.toString()) as {
+		manifests: Record<AssistanceRuntimeFamilyId, unknown>;
+	};
+	for (const familyId of ['whisper-cpp', 'llama-cpp'] as const) {
+		const manifest = validateAssistanceRuntimeFamilyManifestV1(packaged.manifests[familyId]);
+		const availability = await describeAssistanceRuntimeFamilyAvailability({
+			familyId, manifest, runtimeRoot: f.root, platform: 'linux', architecture: 'x64',
+			totalMemoryBytes: Number.MAX_SAFE_INTEGER,
+		});
+		assert.equal(availability.status, 'available');
+		if (availability.status !== 'available') throw new Error('Expected packaged GPU availability.');
+		const companion = availability.descriptor.accelerationEntrypoints?.vulkan;
+		assert.equal(typeof companion, 'string');
+		if (!companion) throw new Error('Expected authenticated Vulkan companion.');
+		assert.ok(availability.descriptor.files.some((file) => file.path === companion && file.executable));
+		await verifyDesktopAssistanceRuntimeFamilyPackage({ ...result, targetId: 'linux-x64', runtimeRoot: f.root });
+		await writeFile(companion, Buffer.alloc(bytes.length));
+		await assert.rejects(verifyDesktopAssistanceRuntimeFamilyPackage({
+			...result, targetId: 'linux-x64', runtimeRoot: f.root,
+		}), new RegExp(`${familyId} engine failed authentication`, 'u'));
+		await writeFile(companion, bytes);
 	}
 });
 

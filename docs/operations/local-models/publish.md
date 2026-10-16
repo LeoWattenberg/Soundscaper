@@ -53,7 +53,7 @@ readback are checked with `npm run audit:kokoro-model-release`. Run
 `node scripts/models/verify-kokoro-model-release.mjs --verify-public` to repeat
 HEAD, byte-range, CORS, and full SHA-256 checks against all 56 live CDN files.
 The model files are published. Target builds generate the pinned offline G2P
-helper alongside the other four CPU engine archives, then publish all five
+helper alongside the other four inference engine archives, then publish all five
 authenticated archives to R2. The client checks each required runtime's
 complete file inventory before inference. Actual speech generation still
 requires a passing nine-language text-to-WAV nightly

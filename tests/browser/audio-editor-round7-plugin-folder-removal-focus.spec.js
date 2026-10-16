@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { installDesktopSpeedWarmupManifest } from './helpers/desktop-speed-warmup-fixture.js';
 import { expect, test } from './audio-editor-test-fixtures.js';
 import { bootEditor, chooseCommandAction, collectClientErrors } from './audio-editor-test-helpers.js';
 
@@ -38,6 +39,7 @@ test('keyboard removal of a custom plugin folder retains the surviving Add path 
 });
 
 async function installPluginFolderBridge(page) {
+	await installDesktopSpeedWarmupManifest(page);
 	await page.addInitScript(() => {
 		let granted = false;
 		let added = false;

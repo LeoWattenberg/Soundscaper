@@ -2,6 +2,7 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { framescaperPublishedProject } from './helpers/framescaper-controller-project-fixture.ts';
 import type { AudioEditorCommand } from '../src/common/editor/commands/protocol.ts';
 import { fingerprintNativeMediaPlan } from '../src/common/editor/native-media-plan-canonical-form.ts';
 import { normalizeVideoVisualPresetV1 } from '../src/common/editor/video-visual-preset-v24.ts';
@@ -49,10 +50,10 @@ test('renaming a saved generator model preserves its exact preset binding in one
 	const originalDonor = normalizeVideoGeneratorSourceV1(controller.project?.sources.find(source => source.id === donorClip.sourceId));
 	await runPreset('save-visual', { name: 'Unrelated preset' });
 	updateTitle('Changed title', 72, '#00ff00ff');
-	const before = environment.runtime.cloneProject(controller.project);
+	const before = framescaperPublishedProject(controller.project);
 	const history = controller.getSnapshot().history.undoEntries.length;
 	assert.equal(controller.actions.projectBin.rename(donorClip.id, 'Renamed preset model'), 'Renamed preset model');
-	const after = environment.runtime.cloneProject(controller.project);
+	const after = framescaperPublishedProject(controller.project);
 	const renamed = normalizeVideoGeneratorSourceV1(after.sources.find(source => source.id === donorClip.sourceId));
 	assert.deepEqual(renamed, { ...originalDonor, name: 'Renamed preset model' });
 	const bound = presets(after.videoVisualPresets).find(preset => preset.id === selectedPreset.id);

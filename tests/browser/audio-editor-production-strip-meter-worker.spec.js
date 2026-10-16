@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { installDesktopSpeedWarmupManifest } from './helpers/desktop-speed-warmup-fixture.js';
 import { expect, halfMinuteTone, test } from './audio-editor-test-fixtures.js';
 import {
 	bootEditor,
@@ -11,6 +12,7 @@ import {
 for (const platform of ['web', 'desktop']) {
 	test(`${platform} playback computes production strip meters in a dedicated worker`, async ({ page }) => {
 		test.setTimeout(90_000);
+		if (platform === 'desktop') await installDesktopSpeedWarmupManifest(page);
 		await page.addInitScript((desktop) => {
 			const probe = { created: 0, submissions: 0, results: 0, transferredBuffers: 0,
 				maximumPeak: 0, workerErrors: [] };

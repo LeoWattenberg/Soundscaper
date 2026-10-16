@@ -11,6 +11,9 @@
   menu (or a menu submenu) and let the user opt in from there.
 - Audio models, workers, storage, effects, import/export, and WASM integration
   live in `src/common/editor/`.
+- Every local AI model must offer GPU execution on every maintained desktop
+  target. Select authenticated GPU providers automatically and retain CPU as a
+  fallback. Never force model adapters to CPU or silently omit GPU runtime builds.
 - Do not commit generated `dist/`, `coverage/`, `playwright-report/`,
   `test-results/`, or `node_modules/` content.
 - Keep FFmpeg runtime assets out of the Pages bundle; production assets are

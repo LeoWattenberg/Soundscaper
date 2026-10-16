@@ -21,6 +21,10 @@ import type {
 	SpeechRecognizerFactory,
 } from './assistance-speech-runtime.ts';
 import { readAssistanceVoiceActivityInputV1 } from './assistance-voice-activity-input.ts';
+import {
+	callSherpaNativeV1, createSherpaNativeExecutorV1, disposeSherpaNativeV1,
+	type SherpaAccelerationOptions, type SherpaExecutionProvider,
+} from './assistance-sherpa-acceleration.ts';
 
 /** The raw shape the runtime returns for one decoded stream. */
 export interface SherpaTransducerResult {
@@ -131,19 +135,22 @@ export interface SherpaRuntimeModule {
 	OfflineRecognizer: new (config: unknown) => {
 		createStream(): {
 			acceptWaveform(wave: { sampleRate: number; samples: Float32Array }): void;
+			free?(): void;
+			dispose?(): void;
 		};
 		decode(stream: unknown): void;
 		getResult(stream: unknown): SherpaTransducerResult;
+		free?(): void;
+		dispose?(): void;
 	};
 	readWave(path: string, enableExternalBuffer: false): { samples: Float32Array; sampleRate: number };
 }
 
-export interface SherpaFactoryOptions {
+export interface SherpaFactoryOptions extends SherpaAccelerationOptions {
 	readonly numThreads?: number;
-	readonly provider?: string;
 }
 
-function transducerConfig(model: SpeechModelPaths, options: SherpaFactoryOptions) {
+function transducerConfig(model: SpeechModelPaths, options: SherpaFactoryOptions, provider: SherpaExecutionProvider) {
 	if (typeof model.joiner !== 'string' || model.joiner === '') {
 		throw new TypeError('This runtime needs a separate joiner model.');
 	}
@@ -153,7 +160,7 @@ function transducerConfig(model: SpeechModelPaths, options: SherpaFactoryOptions
 			transducer: { encoder: model.encoder, decoder: model.decoder, joiner: model.joiner },
 			tokens: model.tokens,
 			numThreads: options.numThreads ?? 2,
-			provider: options.provider ?? 'cpu',
+			provider,
 			debug: 0,
 			modelType: 'nemo_transducer',
 		},
@@ -189,10 +196,25 @@ export function createSherpaRecognizerFactory(
 	options: SherpaFactoryOptions = {},
 ): SpeechRecognizerFactory {
 	const module = resolveRuntimeModule(runtime);
+	// Validate the closure before any native model construction.
+	createSherpaNativeExecutorV1(options);
 	return {
 		async create(request) {
-			const recognizer = new module.OfflineRecognizer(transducerConfig(request.model, options));
+			const executor = createSherpaNativeExecutorV1(options);
+			let recognizer: InstanceType<SherpaRuntimeModule['OfflineRecognizer']> | null = null;
+			const dispose = (): void => {
+				const owned = recognizer;
+				recognizer = null;
+				if (owned) disposeSherpaNativeV1(owned);
+			};
+			const construct = (provider: SherpaExecutionProvider): void => {
+				const config = transducerConfig(request.model, options, provider);
+				recognizer = callSherpaNativeV1(() => new module.OfflineRecognizer(config));
+			};
+			try { await executor.run(request.signal, construct); }
+			catch (error) { dispose(); throw error; }
 			return {
+				dispose,
 				async recognize(
 					audioPath: string,
 					voiceActivityPath?: string,
@@ -204,40 +226,47 @@ export function createSherpaRecognizerFactory(
 						|| wave.samples.length < 1) {
 						throw new RangeError('Speech recognition requires exact 16 kHz mono selected audio.');
 					}
-					if (voiceActivityPath === undefined) {
-						const result = decodeRange(recognizer, wave.samples, wave.sampleRate);
-						request.signal?.throwIfAborted();
-						request.onProgress?.(Object.freeze({ completed: 1, total: 1 }));
-						return result;
-					}
-					const activity = await readAssistanceVoiceActivityInputV1(
-						voiceActivityPath, wave.samples.length, request.signal,
-					);
-					if (activity.segments.length === 0) {
-						request.onProgress?.(Object.freeze({ completed: 1, total: 1 }));
-						return Object.freeze({ language: null, segments: Object.freeze([]) });
-					}
-					const segments: RecognizedSegmentResult[] = [];
-					const languages = new Set<string>();
-					for (const [index, range] of activity.segments.entries()) {
-						request.signal?.throwIfAborted();
-						const endSample = range.startSample + range.sampleCount;
-						const local = decodeRange(recognizer,
-							wave.samples.subarray(range.startSample, endSample), wave.sampleRate);
-						if (local.language !== null) languages.add(local.language);
-						segments.push(...remapRecognitionRange(
-							local, range.startSample / wave.sampleRate, range.sampleCount / wave.sampleRate,
-						));
-						request.signal?.throwIfAborted();
-						request.onProgress?.(Object.freeze({ completed: index + 1,
-							total: activity.segments.length }));
-					}
-					if (languages.size > 1) {
-						throw new Error('Speech-recognition VAD ranges returned conflicting languages.');
-					}
-					return Object.freeze({
-						language: languages.size === 1 ? [...languages][0]! : null,
-						segments: Object.freeze(segments),
+					const activity = voiceActivityPath === undefined ? undefined
+						: await readAssistanceVoiceActivityInputV1(voiceActivityPath, wave.samples.length, request.signal);
+					let completedRanges = 0;
+					return executor.run(request.signal, (provider) => {
+						if (recognizer === null) construct(provider);
+						const active = recognizer!;
+						try {
+							if (activity === undefined) {
+								const result = decodeRange(active, wave.samples, wave.sampleRate);
+								request.signal?.throwIfAborted();
+								request.onProgress?.(Object.freeze({ completed: 1, total: 1 }));
+								return result;
+							}
+							if (activity.segments.length === 0) {
+								request.onProgress?.(Object.freeze({ completed: 1, total: 1 }));
+								return Object.freeze({ language: null, segments: Object.freeze([]) });
+							}
+							const segments: RecognizedSegmentResult[] = [];
+							const languages = new Set<string>();
+							for (const [index, range] of activity.segments.entries()) {
+								request.signal?.throwIfAborted();
+								const endSample = range.startSample + range.sampleCount;
+								const local = decodeRange(active,
+									wave.samples.subarray(range.startSample, endSample), wave.sampleRate);
+								if (local.language !== null) languages.add(local.language);
+								segments.push(...remapRecognitionRange(
+									local, range.startSample / wave.sampleRate, range.sampleCount / wave.sampleRate,
+								));
+								request.signal?.throwIfAborted();
+								completedRanges = Math.max(completedRanges, index + 1);
+								request.onProgress?.(Object.freeze({ completed: completedRanges,
+									total: activity.segments.length }));
+							}
+							if (languages.size > 1) {
+								throw new Error('Speech-recognition VAD ranges returned conflicting languages.');
+							}
+							return Object.freeze({
+								language: languages.size === 1 ? [...languages][0]! : null,
+								segments: Object.freeze(segments),
+							});
+						} catch (error) { dispose(); throw error; }
 					});
 				},
 			};
@@ -250,10 +279,12 @@ function decodeRange(
 	samples: Float32Array,
 	sampleRate: number,
 ): SpeechRecognitionResult {
-	const stream = recognizer.createStream();
-	stream.acceptWaveform({ sampleRate, samples });
-	recognizer.decode(stream);
-	return sherpaResultToRecognition(recognizer.getResult(stream), samples.length / sampleRate);
+	const stream = callSherpaNativeV1(() => recognizer.createStream());
+	try {
+		callSherpaNativeV1(() => { stream.acceptWaveform({ sampleRate, samples }); });
+		callSherpaNativeV1(() => { recognizer.decode(stream); });
+		return sherpaResultToRecognition(recognizer.getResult(stream), samples.length / sampleRate);
+	} finally { disposeSherpaNativeV1(stream); }
 }
 
 function remapRecognitionRange(

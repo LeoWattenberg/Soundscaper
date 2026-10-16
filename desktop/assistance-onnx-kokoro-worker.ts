@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-/** Authenticated CPU ONNX Kokoro v1.0 synthesis from offline phoneme chunks. */
+/** Authenticated ONNX Kokoro v1.0 synthesis from offline phoneme chunks. */
 
 import { readFile } from 'node:fs/promises';
 
@@ -11,8 +11,8 @@ import {
 	type KokoroVoice,
 } from '../src/common/editor/assistance/kokoro-voices-v1.ts';
 import {
-	assertAssistanceOnnxCpuJobV1,
-	createAssistanceOnnxCpuSessionV1,
+	assertAssistanceOnnxJobV1,
+	createAssistanceOnnxSessionV1,
 	publishAssistanceOnnxOutputV1,
 	reviewAssistanceOnnxRuntimeModuleV1,
 } from './assistance-onnx-worker-common.ts';
@@ -76,7 +76,7 @@ async function executeKokoro(
 	loadRuntime: RuntimeLoader,
 	phonemize: KokoroOfflinePhonemizerV1 | undefined,
 ): Promise<unknown> {
-	assertAssistanceOnnxCpuJobV1(context, 'text-to-speech',
+	assertAssistanceOnnxJobV1(context, 'text-to-speech',
 		'The Kokoro adapter received a foreign authenticated CPU job.');
 	const { language, voice, speed, models } = reviewRequest(context);
 	if (!phonemize) throw new AssistanceRuntimeFamilyAdapterUnavailableError();
@@ -106,7 +106,7 @@ async function executeKokoro(
 	const runtime = reviewAssistanceOnnxRuntimeModuleV1(
 		await loadRuntime(context.job.descriptor.entrypoint), RUNTIME_ERRORS,
 	);
-	const session = await createAssistanceOnnxCpuSessionV1(
+	const session = await createAssistanceOnnxSessionV1(
 		runtime, models.network.path, SESSION_ERRORS,
 	);
 	const chunks: Uint8Array[] = [];

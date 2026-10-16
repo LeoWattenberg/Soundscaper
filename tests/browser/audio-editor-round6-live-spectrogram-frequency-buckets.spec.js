@@ -43,9 +43,7 @@ for (const [label, fftBin] of [['retained neighboring bucket', 278], ['narrow sk
 			}
 			return signalPixels;
 		})).toBeGreaterThan(4);
-		// Read the current column after the ordinary playback onset has settled.
-		await page.waitForTimeout(1000);
-		const brightest = await panel.locator('[data-live-analysis-spectrogram]').evaluate(canvas => {
+		const currentBrightness = () => panel.locator('[data-live-analysis-spectrogram]').evaluate(canvas => {
 			const { data } = canvas.getContext('2d').getImageData(canvas.width - 1, 0, 1, canvas.height);
 			let maximum = 0;
 			for (let offset = 0; offset < data.length; offset += 4) {
@@ -53,6 +51,11 @@ for (const [label, fftBin] of [['retained neighboring bucket', 278], ['narrow sk
 			}
 			return maximum;
 		});
+		await expect.poll(currentBrightness).toBeGreaterThan(190);
+		await expect.poll(() => page.evaluate(() => window.__round6LiveFrequency)).toMatchObject({
+			rate: sampleRate, size: 4096, index: fftBin,
+		});
+		const brightest = await currentBrightness();
 		const analysis = await page.evaluate(() => window.__round6LiveFrequency);
 		console.log('ordinary live Spectrogram tone brightness', { frequency, brightest, analysis });
 		await editor.getByRole('button', { name: 'Stop', exact: true }).click();

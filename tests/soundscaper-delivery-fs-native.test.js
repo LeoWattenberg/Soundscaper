@@ -9,6 +9,7 @@ import {
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { after, before, test } from 'node:test';
+import { compileNativeTestFixture } from '../scripts/lib/node-native-test-fixtures.ts';
 
 const ROOT = resolve(import.meta.dirname, '..');
 const SOURCE_ROOT = join(ROOT, 'native/soundscaper-professional-host/src');
@@ -27,17 +28,7 @@ before(async () => {
 	temporary = await mkdtemp(join(tmpdir(), 'soundscaper-delivery-fs-native-'));
 	executable = join(temporary, 'soundscaper_delivery_fs');
 	if (process.platform !== 'linux') return;
-	const result = spawnSync('g++', [
-		'-std=c++20', '-O2', '-Wall', '-Wextra', '-Werror', '-pthread',
-		join(ROOT, 'native/common/sha256.cpp'),
-		join(SOURCE_ROOT, 'delivery_fs_main.cpp'),
-		join(SOURCE_ROOT, 'delivery_fs_protocol.cpp'),
-		join(SOURCE_ROOT, 'delivery_fs_sha256.cpp'),
-		join(SOURCE_ROOT, 'delivery_fs_posix.cpp'),
-		join(SOURCE_ROOT, 'delivery_fs_linux.cpp'),
-		'-o', executable,
-	], { cwd: ROOT, encoding: 'utf8' });
-	assert.equal(result.status, 0, result.stderr || result.stdout);
+	compileNativeTestFixture({ repositoryRoot: ROOT, kind: 'delivery-filesystem', outputPath: executable });
 });
 
 after(async () => {

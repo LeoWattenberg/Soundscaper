@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { installDesktopSpeedWarmupManifest } from './helpers/desktop-speed-warmup-fixture.js';
 import { createWavFixture, expect, test } from './audio-editor-test-fixtures.js';
 import { bootEditor, chooseCommandAction, clipByName, collectClientErrors, getMenuItem, importFiles, openNestedCommandMenu } from './audio-editor-test-helpers.js';
 import { editorDatabaseName } from './helpers/editor-databases.js';
@@ -130,6 +131,7 @@ for (const condition of ['locked', 'four-channel']) test(`ARA menu refuses an or
 });
 
 async function installAraFixture(page) {
+	await installDesktopSpeedWarmupManifest(page);
 	await page.addInitScript(() => {
 		const calls = [];
 		let source = null;

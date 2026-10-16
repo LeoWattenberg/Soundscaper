@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-/** Authenticated PP-OCRv4 mobile detector/orientation/recognizer CPU pipeline. */
+/** Authenticated PP-OCRv4 mobile pipeline using the selected ONNX provider. */
 
 import { readFile } from 'node:fs/promises';
 
@@ -23,7 +23,7 @@ import {
 import {
 	assistanceOnnxRuntimeValueV1,
 	assertAssistanceOnnxVisualRuntimeJobV1,
-	createAssistanceOnnxVisualCpuSessionV1,
+	createAssistanceOnnxVisualSessionV1,
 	exactAssistanceOnnxOutputsV1,
 	exactAssistanceOnnxVisualArtifactsV1,
 	publishAssistanceOnnxVisualOutputV1,
@@ -84,11 +84,11 @@ async function executeOcr(
 		await loadRuntime(context.job.descriptor.entrypoint),
 	);
 	const [detector, orientation, recognizer] = await Promise.all([
-		createAssistanceOnnxVisualCpuSessionV1(runtime,
+		createAssistanceOnnxVisualSessionV1(runtime,
 			models.text_detection.path, DETECTION_INPUTS, DETECTION_OUTPUTS),
-		createAssistanceOnnxVisualCpuSessionV1(runtime,
+		createAssistanceOnnxVisualSessionV1(runtime,
 			models.text_orientation.path, ORIENTATION_INPUTS, ORIENTATION_OUTPUTS),
-		createAssistanceOnnxVisualCpuSessionV1(runtime,
+		createAssistanceOnnxVisualSessionV1(runtime,
 			models.text_recognition.path, RECOGNITION_INPUTS, RECOGNITION_OUTPUTS),
 	]);
 	const frames: unknown[] = [];

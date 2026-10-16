@@ -32,6 +32,21 @@ export const selectionEffects = Object.freeze({
 
 export async function installOscillatorMicrophone(page) {
 	await page.addInitScript(() => {
+		// This synthetic source has no hardware I/O delay. Keep native PCM/worklet
+		// processing while excluding the runner's changing device latency metadata.
+		for (const name of ['AudioContext', 'webkitAudioContext']) {
+			const NativeAudioContext = globalThis[name];
+			if (typeof NativeAudioContext !== 'function') continue;
+			globalThis[name] = class extends NativeAudioContext {
+				constructor(...arguments_) {
+					super(...arguments_);
+					Object.defineProperties(this, {
+						baseLatency: { configurable: true, value: 0 },
+						outputLatency: { configurable: true, value: 0 },
+					});
+				}
+			};
+		}
 		const streams = [];
 		Object.defineProperty(globalThis, '__complexWorkflowStreams', {
 			configurable: true,

@@ -19,6 +19,7 @@ import type {
 	SourceReadOptions,
 } from './source-read-repository.ts';
 import type { SourceRecordRepository } from './source-record-repository.ts';
+import { readSampleBlockSourceChunk, SAMPLE_BLOCK_SOURCE_STORAGE } from './sample-block-source.ts';
 
 export const OWNED_SOURCE_PCM_MAXIMUM_DEPENDENCY_COUNT = 4_094;
 
@@ -146,7 +147,7 @@ export class OwnedSourcePcmReadSessionRepository {
 				&& !sameStoredSourceIdentity(source, expectedSource)) {
 				throw generationChangedError();
 			}
-			if (source.storage !== 'copy-on-write') break;
+			if (source.storage !== 'copy-on-write' && source.storage !== SAMPLE_BLOCK_SOURCE_STORAGE) break;
 			currentId = nonEmptyBaseSourceId(source.baseSourceId);
 		}
 		await this.#assertGenerationCurrent(sources, signal);
@@ -165,15 +166,25 @@ export class OwnedSourcePcmReadSessionRepository {
 		}
 		await this.#assertGenerationCurrent(generation, signal);
 		let chunk: SourcePcmChunk | null = null;
-		const cow = generation.slice(0, -1);
+		const cow = generation.filter((source) => source.storage === 'copy-on-write');
 		if (cow.length && typeof this.#options.records.firstChunk === 'function') {
 			const found = await this.#options.records.firstChunk(cow.map((source) => nonEmptySourceToken(source.sourceToken)), chunkIndex, signal);
 			throwIfAborted(signal);
+			const base = generation[cow.length]!;
 			chunk = found ? await this.#options.pcm.decodeRecord(found.record, cow[found.ownerIndex]!, signal)
+				: base.storage === SAMPLE_BLOCK_SOURCE_STORAGE
+				? await readSampleBlockSourceChunk(base, generation.at(-1)!, chunkIndex,
+					(index) => this.#readPhysicalChunk(generation.at(-1)!, index, signal, view))
 				: await this.#readPhysicalChunk(generation.at(-1)!, chunkIndex, signal, view);
 		} else {
 			for (const source of generation) {
 				throwIfAborted(signal);
+				if (source.storage === SAMPLE_BLOCK_SOURCE_STORAGE) {
+					const base = generation.at(-1)!;
+					chunk = await readSampleBlockSourceChunk(source, base, chunkIndex,
+						(index) => this.#readPhysicalChunk(base, index, signal, view));
+					break;
+				}
 				if (source.storage === 'copy-on-write') {
 					const replacement = await this.#options.records.chunk(nonEmptySourceToken(source.sourceToken), chunkIndex);
 					throwIfAborted(signal);

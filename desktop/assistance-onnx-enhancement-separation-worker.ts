@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-/** Authenticated CPU ONNX custody for DeepFilterNet3 and TIGER-DnR. */
+/** Authenticated ONNX custody for DeepFilterNet3 and TIGER-DnR. */
 
 import { readFile } from 'node:fs/promises';
 
@@ -32,8 +32,8 @@ import type {
 	AssistanceOnnxTensorV1,
 } from './assistance-onnx-runtime-worker.ts';
 import {
-	assertAssistanceOnnxCpuJobV1,
-	createAssistanceOnnxCpuSessionV1,
+	assertAssistanceOnnxJobV1,
+	createAssistanceOnnxSessionV1,
 	reviewAssistanceOnnxRuntimeModuleV1,
 } from './assistance-onnx-worker-common.ts';
 import type {
@@ -176,7 +176,7 @@ async function executeDeepFilterNet3(
 		const runtime = reviewAssistanceOnnxRuntimeModuleV1(
 			await loadRuntime(context.job.descriptor.entrypoint), ENHANCEMENT_RUNTIME_ERRORS,
 		);
-		const session = await createAssistanceOnnxCpuSessionV1(
+		const session = await createAssistanceOnnxSessionV1(
 			runtime, models.network.path, {
 				value: 'The DeepFilterNet3 ONNX inference session surface is invalid.',
 				surface: 'The DeepFilterNet3 ONNX inference session surface is invalid.',
@@ -275,7 +275,7 @@ async function executeTigerDnr(
 		const runtime = reviewAssistanceOnnxRuntimeModuleV1(
 			await loadRuntime(context.job.descriptor.entrypoint), ENHANCEMENT_RUNTIME_ERRORS,
 		);
-		const session = await createAssistanceOnnxCpuSessionV1(
+		const session = await createAssistanceOnnxSessionV1(
 			runtime, grant.models[0].path, {
 				value: 'The TIGER-DnR ONNX inference session surface is invalid.',
 				surface: 'The TIGER-DnR ONNX inference session surface is invalid.',
@@ -454,7 +454,7 @@ function assertRuntimeJob(
 	context: AssistanceRuntimeFamilyWorkerExecutionContext,
 	task: SupportedTask,
 ): void {
-	assertAssistanceOnnxCpuJobV1(context, task,
+	assertAssistanceOnnxJobV1(context, task,
 		`The ${task} adapter received a foreign authenticated CPU job.`);
 }
 

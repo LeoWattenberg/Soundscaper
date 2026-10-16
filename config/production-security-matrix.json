@@ -1,9 +1,9 @@
 {
 	"schemaVersion": 1,
-	"groundedAt": "2026-10-02",
+	"groundedAt": "2026-10-16",
 	"modelDocument": "docs/policies/security.md",
 	"productVersions": {
-		"version": "1.0.0-rc.Oct.10.a",
+		"version": "1.0.0-rc.Oct.13.a",
 		"stableTarget": "1.0.0"
 	},
 	"projectIdentityBaseline": {
@@ -1763,6 +1763,99 @@
 				{
 					"kind": "test",
 					"path": "tests/desktop-freesound-integration.test.js"
+				}
+			]
+		},
+		{
+			"id": "authenticated-client-to-audiocom-proxy",
+			"from": "Soundscaper web client or packaged main-process proxy holding an opaque Soundscaper session, and audio.com OAuth/API/CDN responses",
+			"to": "Cloudflare Pages audio.com Functions, provider-specific encrypted D1 grants, and selected provider upload destinations",
+			"data": "OAuth state and PKCE proof, web cookie or desktop bearer capability, bounded search metadata, public playback URLs and audio bytes, selected upload bytes and publication metadata, explicitly selected standalone AUP3/AUP4 archive bytes and revision identifiers on configured Audiocity deployments",
+			"entryPoints": [
+				"functions/api/audiocom/oauth/start.ts",
+				"functions/api/audiocom/oauth/callback.ts",
+				"functions/api/audiocom/oauth/poll.ts",
+				"functions/api/audiocom/oauth/session.ts",
+				"functions/api/audiocom/search.ts",
+				"functions/api/audiocom/library.ts",
+				"functions/api/audiocom/preview.ts",
+				"functions/api/audiocom/uploads.ts",
+				"desktop/audiocom-integration.ts",
+				"functions/api/audiocom/projects/index.ts",
+				"functions/api/audiocom/projects/download.ts"
+			],
+			"evidence": [
+				{
+					"kind": "implementation",
+					"path": "functions/api/audiocom/_shared/oauth-handlers.ts"
+				},
+				{
+					"kind": "implementation",
+					"path": "functions/api/audiocom/_shared/oauth-repository.ts"
+				},
+				{
+					"kind": "implementation",
+					"path": "functions/api/audiocom/_shared/oauth-http.ts"
+				},
+				{
+					"kind": "implementation",
+					"path": "functions/api/audiocom/_shared/oauth-provider.ts"
+				},
+				{
+					"kind": "implementation",
+					"path": "functions/api/audiocom/_shared/contracts.ts"
+				},
+				{
+					"kind": "implementation",
+					"path": "functions/api/audiocom/_shared/handlers.ts"
+				},
+				{
+					"kind": "implementation",
+					"path": "functions/api/audiocom/_shared/streams.ts"
+				},
+				{
+					"kind": "implementation",
+					"path": "migrations/freesound-oauth/0002_audiocom.sql"
+				},
+				{
+					"kind": "implementation",
+					"path": "desktop/audiocom-integration.ts"
+				},
+				{
+					"kind": "implementation",
+					"path": "desktop/audiocom-authorization.ts"
+				},
+				{
+					"kind": "implementation",
+					"path": "public/_routes.json"
+				},
+				{
+					"kind": "test",
+					"path": "tests/audiocom-oauth.test.ts"
+				},
+				{
+					"kind": "test",
+					"path": "tests/audiocom-d1-repository.test.ts"
+				},
+				{
+					"kind": "test",
+					"path": "tests/audiocom-handlers.test.ts"
+				},
+				{
+					"kind": "test",
+					"path": "tests/audiocom-api.test.ts"
+				},
+				{
+					"kind": "test",
+					"path": "tests/desktop-audiocom-integration.test.ts"
+				},
+				{
+					"kind": "test",
+					"path": "tests/desktop-audiocom-protocol.test.ts"
+				},
+				{
+					"kind": "test",
+					"path": "tests/production-security-audiocom-proxy.test.ts"
 				}
 			]
 		},
@@ -5669,6 +5762,188 @@
 			]
 		},
 		{
+			"id": "audiocom-proxy-boundary",
+			"title": "The authenticated audio.com proxy exposes credentials, unintended destinations or publication authority, or retains unbounded transfer work",
+			"boundaryIds": [
+				"authenticated-client-to-audiocom-proxy"
+			],
+			"assets": [
+				"audio.com OAuth credentials and encrypted provider grants",
+				"Soundscaper web and desktop session capabilities",
+				"selected upload audio, publication metadata and visibility choices",
+				"provider and proxy availability, egress bandwidth, and account quotas",
+				"playback response integrity"
+			],
+			"actor": "A malicious browser origin, compromised renderer, stolen capability, abusive authenticated caller, or compromised provider response attempts credential disclosure, unauthorized publication, server-side request forgery, or resource amplification.",
+			"impact": "high",
+			"status": "partial",
+			"surfaceDisposition": "conditional",
+			"ownerMilestone": "1",
+			"currentControls": [
+				{
+					"id": "bounded-audiocom-oauth-media-proxy",
+					"summary": "The audio.com Pages namespace admits only canonical production, the owned soundscaper-5ki.pages.dev project, or explicitly enabled loopback hosts; trusted Soundscaper web, desktop, or current same-origin browser Origins; closed methods, bounded JSON, search parameters, upload metadata, and session transports. Mutations reject cross-site fetch metadata; CORS is not client authentication. OAuth uses ten-minute random state and handoff capabilities, single-use state exchange, and PKCE S256 with an encrypted verifier. Preview sign-in requires an explicit registered callback on that same Pages project, isolated preview D1 and secrets, and a callback-origin check; the original editor polls on its own host and receives a host-only cookie. Production cannot use a preview callback; the default https://api.audio.com token/API targets disable redirects and apply ten-second control-request deadlines. audio.com is the default. An opt-in Advanced preference chooses a custom Audiocity server through a validated origin header; custom origins require public HTTPS, with HTTP loopback restricted to an explicitly enabled local Soundscaper server. Each custom OAuth attempt registers its own public client with a fixed Soundscaper callback; the default client secret is never sent to a custom server. D1 persists the issuer, public client ID, scope and callback on each attempt and grant, so headerless callbacks and refresh use the authorized binding, while a changed selection requires reconnecting. Headerless audio previews derive their issuer from the authenticated grant. OAuth requests public projects only for Audiocity, and origin-bound attempt identifiers and persisted bindings prevent grants being forwarded after a provider change. The browser and Electron main validate authorization and content links against configuration returned by their fixed Soundscaper backend and matched to the explicit server selection. Electron main captures only successfully validated server-issued provider metadata, and changing preferences disposes stale searches, previews, uploads and archive transfers even while the panel is closed. D1 stores provider tokens and polling session secrets only as AES-256-GCM ciphertext with provider- and field-specific authenticated data; browser sessions use Secure HttpOnly SameSite=Strict cookies and desktop sessions use opaque hashed Soundscaper capabilities. Rolling sessions expire after 30 days, refresh rotation uses generation-fenced leases, and disconnect removes orphan grants. No public userinfo endpoint is invented or account identity inferred. Uploads require supported raw audio of exactly 1 through 100,000,000 bytes with bounded metadata; only provider-returned policies on exact HTTPS s3.audio.com/audio/, s3.ustatik.com/audio.com.audio/, or s3.eu-central-1.wasabisys.com/audio.com.audio/source/ paths receive bytes. The Wasabi source destination is upload-only and does not broaden playback or source-download authority, and provider OAuth credentials are never sent to storage. Configured Audiocity transfers admit only exact same-origin UUID upload/hook and signed media paths; discovery must match that origin and advertise archive formats and byte ceilings. The server awaits verified stream completion before the POST success hook; failure and cancellation attempt the provider DELETE cleanup hook with an independent ten-second timeout. Preview requests require a valid application session, pin the same exact CDN hosts and paths, block redirects, accept only audio MIME responses, enforce simple byte ranges, and cap declared and observed bytes at 128 MiB. JSON responses are bounded and normalized, omit signed upload policies and OAuth credentials, and use no-store and nosniff. Electron main holds the opaque capability outside renderer authority, captures it from polling responses, strips renderer credentials, exposes closed routes and an exact authorization-URL opener, and persists only with an admitted safeStorage backend. The regular public audio.com API has no Audacity project storage or retrieval and no original source download route. Configured Audiocity archive routes require project-scoped sessions, list only whole-file transport, and stream selected standalone AUP3/AUP4 files of 16 through 100,000,000 bytes. Completion requires verified exact bytes, a SQLite header, the storage success hook and snapshot synchronization; downloads select a completed revision with its own format and bounded exact length. Native block snapshots and automatic serialization of the open project are excluded. Backend and desktop tests prove state replay and handoff rejection, encrypted PKCE and token confinement, refresh fencing, session transport admission, fixed destinations, exact upload byte checks, cancellation cleanup, range handling, and bounded response failure; fixtures alone do not establish live audio.com upload success. A registered preview smoke test on 2026-10-15 separately confirmed browser consent and polling, panel search, ranged playback, an unlisted two-second WAV upload through processing completion and playback, provider deletion, and application disconnect; it does not qualify account quota failures or production abuse controls. A separate disposable local integration harness exercises real Pages Functions and D1, an Audiocity server, cross-origin PKCE consent, audio search/upload/range playback, and whole-file archive upload/download followed by the existing editor importer.",
+					"evidence": [
+						{
+							"kind": "implementation",
+							"path": "functions/api/audiocom/_shared/oauth-handlers.ts"
+						},
+						{
+							"kind": "implementation",
+							"path": "functions/api/audiocom/_shared/oauth-repository.ts"
+						},
+						{
+							"kind": "implementation",
+							"path": "functions/api/audiocom/_shared/oauth-http.ts"
+						},
+						{
+							"kind": "implementation",
+							"path": "functions/api/audiocom/_shared/oauth-provider.ts"
+						},
+						{
+							"kind": "implementation",
+							"path": "functions/api/audiocom/_shared/contracts.ts"
+						},
+						{
+							"kind": "implementation",
+							"path": "functions/api/audiocom/_shared/handlers.ts"
+						},
+						{
+							"kind": "implementation",
+							"path": "functions/api/audiocom/_shared/streams.ts"
+						},
+						{
+							"kind": "implementation",
+							"path": "migrations/freesound-oauth/0002_audiocom.sql"
+						},
+						{
+							"kind": "implementation",
+							"path": "desktop/audiocom-integration.ts"
+						},
+						{
+							"kind": "implementation",
+							"path": "desktop/audiocom-authorization.ts"
+						},
+						{
+							"kind": "implementation",
+							"path": "public/_routes.json"
+						},
+						{
+							"kind": "test",
+							"path": "tests/audiocom-oauth.test.ts"
+						},
+						{
+							"kind": "test",
+							"path": "tests/audiocom-d1-repository.test.ts"
+						},
+						{
+							"kind": "test",
+							"path": "tests/audiocom-handlers.test.ts"
+						},
+						{
+							"kind": "test",
+							"path": "tests/audiocom-api.test.ts"
+						},
+						{
+							"kind": "test",
+							"path": "tests/desktop-audiocom-integration.test.ts"
+						},
+						{
+							"kind": "test",
+							"path": "tests/desktop-audiocom-protocol.test.ts"
+						},
+						{
+							"kind": "test",
+							"path": "tests/production-security-audiocom-proxy.test.ts"
+						},
+						{
+							"kind": "implementation",
+							"path": "functions/api/audiocom/_shared/provider-config.ts"
+						},
+						{
+							"kind": "implementation",
+							"path": "functions/api/audiocom/_shared/provider-discovery.ts"
+						},
+						{
+							"kind": "implementation",
+							"path": "functions/api/audiocom/_shared/project-handlers.ts"
+						},
+						{
+							"kind": "implementation",
+							"path": "functions/api/audiocom/_shared/project-contracts.ts"
+						},
+						{
+							"kind": "test",
+							"path": "tests/audiocom-provider.test.ts"
+						},
+						{
+							"kind": "test",
+							"path": "tests/audiocom-project-handlers.test.ts"
+						},
+						{
+							"kind": "test",
+							"path": "tests/desktop-audiocity-provider.test.ts"
+						},
+						{
+							"kind": "test",
+							"path": "tests/browser/audiocity/audio-editor-audiocity.spec.js"
+						},
+						{
+							"kind": "implementation",
+							"path": "scripts/audiocity-validation-server.mjs"
+						},
+						{
+							"kind": "document",
+							"path": "docs/research/audio-com-project-sync.md"
+						},
+						{
+							"kind": "implementation",
+							"path": "functions/api/audiocom/_shared/provider-selection.ts"
+						},
+						{
+							"kind": "implementation",
+							"path": "functions/api/audiocom/_shared/oauth-provider-binding-contracts.ts"
+						},
+						{
+							"kind": "implementation",
+							"path": "migrations/freesound-oauth/0003_audiocom_provider_binding.sql"
+						},
+						{
+							"kind": "implementation",
+							"path": "src/common/editor/advanced-preferences.ts"
+						},
+						{
+							"kind": "test",
+							"path": "tests/audiocom-server-selection.test.ts"
+						}
+					],
+					"policyAuthority": "family-v1-active"
+				}
+			],
+			"residualRisks": [
+				{
+					"id": "audiocom-deployment-and-live-provider-proof",
+					"exposure": "The repository does not provision or verify a production rate-limit or abuse-monitoring rule for /api/audiocom/*. Authenticated callers can still exhaust OAuth, refresh, search, concurrent stream, upload, egress or account quotas. A registered preview smoke test confirmed OAuth, the real signed-upload destination and success hook, processing completion, preview ranges, provider deletion, and disconnect for one unlisted WAV. Account quota failures, expired-session behavior against the live provider, concurrency, and production deployment controls remain unqualified. Local Audiocity validation and a separate native metadata/WavPack round trip do not establish production audio.com readiness or native Audacity desktop compatibility.",
+					"requiredControl": "Retain deployment evidence for active namespace-specific request and concurrency limits and monitoring; qualify account-limit and expired-session behavior with the registered application and verify the production registration and configuration before claiming provider-operational readiness.",
+					"ownerMilestone": "1",
+					"acceptanceCriteria": [
+						"Production evidence identifies route matches, identity keys, thresholds, actions and alert ownership; probes show abusive authenticated and unauthenticated bursts are bounded while ordinary connect/search/upload/preview workflows remain usable.",
+						"A registered test account records an unlisted upload through processing completion, the returned share link, provider quota and expired-session handling, and explicit cleanup; the test preserves the distinction between unlisted and private audio."
+					]
+				},
+				{
+					"id": "audiocom-media-transfer-lifecycle",
+					"exposure": "Audio and archive upload/download and preview transfers propagate request cancellation and enforce byte ceilings, but have no proxy-owned streamed-body idle or total deadline; CDN response-header latency is also bounded only by the request and platform lifecycle. Allowed-host audio MIME does not authenticate media structure or a digest. Upload creation is non-idempotent: an indeterminate response or retry can duplicate remote audio or archive projects, and cleanup after cancellation is best-effort, so incomplete or already accepted remote audio can remain.",
+					"requiredControl": "Before claiming bounded media elapsed time or retry-safe delivery, enforce and test transfer lifecycle deadlines and reconcile ambiguous provider outcomes before retry; retain the CDN trust dependency unless bytes are authenticated against trusted metadata, and expose unresolved remote cleanup to the user.",
+					"ownerMilestone": "1",
+					"acceptanceCriteria": [
+						"Stalled headers and bodies cancel within documented idle and total deadlines and release upstream work without late success publication.",
+						"Lost create, storage PUT, or success-hook replies and cancellation at every transfer stage reconcile against provider state without ordinary retries duplicating audio; failed cleanup remains visible and recoverable."
+					]
+				}
+			]
+		},
+		{
 			"id": "electron-renderer-ipc-boundary",
 			"title": "Current Electron renderer IPC reaches privileges outside the versioned bridge",
 			"boundaryIds": [
@@ -5838,7 +6113,7 @@
 				},
 				{
 					"id": "local-assistance-pathless-operation-bridge",
-					"summary": "The active desktop localAssistance v1 bridge remains frozen and pathless, and the additive AssistanceWorkflow v1 bridge binds each guided run to one closed workflow graph, aggregate fence, recipe/settings version, exact slotted model roles, authenticated input/output claims, and stage progress. Guided recipes are the default; Advanced exposes the existing fifteen primitive operations as validated one-stage recipes. Preload and main independently validate opaque identities and bounded claims; main-private staging, authenticated MessagePort transfer, redacted errors, quiescent cancellation/release, and project-isolated disposable custody expose no filesystem path. Existing installed catalog-bound Parakeet speech-recognition, Silero voice-activity-detection, and paired Pyannote-segmentation plus ERes2Net-embedding speaker-diarization execute through authenticated Sherpa. Model-free shot-detection still requires one current external FFmpeg/FFprobe exact-pair admission, SHA-256 checks, the fixed scdet canary, and bounded shell-free execution. CPU workers and owned deterministic stages cover Whisper, wav2vec2 alignment, DeepFilterNet and Dereverb enhancement, TIGER separation, PANNs reactions, Beat This, TransNetV2, nomic and SigLIP embeddings, OCR, subject/saliency reframe, deterministic highlights, and bounded Qwen editorial JSON. Retained Linux x64 conversions bind TIGER, PANNs, both Beat This checkpoints, TransNetV2, and Dereverb to exact artifacts and passing source-framework parity. Release preparation builds selected-target ONNX Runtime, whisper.cpp, llama.cpp, Sherpa, and Kokoro G2P payloads, signs macOS native bytes, and binds each immutable R2 archive and its extracted file inventory to a digest-pinned distribution manifest inside app.asar; Electron packages omit those payloads. Explicit Model Manager installation fetches the required target runtime archives alongside selected model weights, and first execution may fetch a missing runtime for preseeded or previously installed weights. Archive length, SHA-256, and every extracted file are verified before execution; execution still requires the exact catalog entry, installed artifact, and current target runtime. Source code and historical supply-candidate status do not grant that authority. Missing or failed delivery returns typed unavailability without a substitute model, alternate executable, or fabricated output. Model installation and launches remain explicit menu actions under one exact workflow consent. Explicit reviewed acceptance starts unselected, revalidates the aggregate fence, and uses ordinary atomic commands for a content-addressed transcript body and captions, link-aware cleanup, anonymous speaker attribution, derived audio and D/M/E placement, reactions, beats and tempo, shot annotations, disposable semantic indexes, reframe crop/keyframes, and highlight secondary sequences. Disposable indexes and raw Qwen output do not enter .scape. Stale authority, invalid semantic output, publication fault, or command failure refuses canonical mutation. The EU R2 release gates require immutable publication and full-digest public read-back of each released model and target runtime archive. Separate nightly tests download and execute the offered models in real Electron; every result identifies its package, model, workload, and target. A complete five-target privacy/cancellation study and owner-device observations remain unrecorded; owner QA is optional and nonblocking; licensing, catalog publication, artifact digest, runtime/platform, selected-media, storage, executable, and consent gates remain fail closed.",
+					"summary": "The active desktop localAssistance v1 bridge remains frozen and pathless, and the additive AssistanceWorkflow v1 bridge binds each guided run to one closed workflow graph, aggregate fence, recipe/settings version, exact slotted model roles, authenticated input/output claims, and stage progress. Guided recipes are the default; Advanced exposes the existing fifteen primitive operations as validated one-stage recipes. Preload and main independently validate opaque identities and bounded claims; main-private staging, authenticated MessagePort transfer, redacted errors, quiescent cancellation/release, and project-isolated disposable custody expose no filesystem path. Existing installed catalog-bound Parakeet speech-recognition, Silero voice-activity-detection, and paired Pyannote-segmentation plus ERes2Net-embedding speaker-diarization execute through authenticated Sherpa. Model-free shot-detection still requires one current external FFmpeg/FFprobe exact-pair admission, SHA-256 checks, the fixed scdet canary, and bounded shell-free execution. GPU-capable runtime workers and owned deterministic stages cover Whisper, wav2vec2 alignment, DeepFilterNet and Dereverb enhancement, TIGER separation, PANNs reactions, Beat This, TransNetV2, nomic and SigLIP embeddings, OCR, subject/saliency reframe, deterministic highlights, and bounded Qwen editorial JSON. Retained Linux x64 conversions bind TIGER, PANNs, both Beat This checkpoints, TransNetV2, and Dereverb to exact artifacts and passing source-framework parity. Release preparation builds selected-target ONNX Runtime, whisper.cpp, llama.cpp, Sherpa, and Kokoro G2P payloads, signs macOS native bytes, and binds each immutable R2 archive and its extracted file inventory to a digest-pinned distribution manifest inside app.asar; Electron packages omit those payloads. Explicit Model Manager installation fetches the required target runtime archives alongside selected model weights, and first execution may fetch a missing runtime for preseeded or previously installed weights. Archive length, SHA-256, and every extracted file are verified before execution; execution still requires the exact catalog entry, installed artifact, and current target runtime. Source code and historical supply-candidate status do not grant that authority. Missing or failed delivery returns typed unavailability without a substitute model, alternate executable, or fabricated output. Model installation and launches remain explicit menu actions under one exact workflow consent. Explicit reviewed acceptance starts unselected, revalidates the aggregate fence, and uses ordinary atomic commands for a content-addressed transcript body and captions, link-aware cleanup, anonymous speaker attribution, derived audio and D/M/E placement, reactions, beats and tempo, shot annotations, disposable semantic indexes, reframe crop/keyframes, and highlight secondary sequences. Disposable indexes and raw Qwen output do not enter .scape. Stale authority, invalid semantic output, publication fault, or command failure refuses canonical mutation. The EU R2 release gates require immutable publication and full-digest public read-back of each released model and target runtime archive. Separate nightly tests download and execute the offered models in real Electron; every result identifies its package, model, workload, and target. A complete five-target privacy/cancellation study and owner-device observations remain unrecorded; owner QA is optional and nonblocking; licensing, catalog publication, artifact digest, runtime/platform, selected-media, storage, executable, and consent gates remain fail closed.",
 					"evidence": [
 						{
 							"kind": "implementation",
@@ -11316,8 +11591,111 @@
 					"policyAuthority": "family-v1-active"
 				},
 				{
+					"id": "authenticated-local-assistance-gpu-execution",
+					"summary": "Authenticated target manifests bind a GPU option and portable CPU fallback for all 22 catalog models across all five desktop targets. Sherpa and ONNX Runtime use CoreML or native WebGPU on macOS ARM64 and native WebGPU on Windows/Linux x64 and ARM64. Sherpa is source-built on every target against the pinned ONNX Runtime 1.29.0 core and reviewed WebGPU plugin; generic ONNX rebuilds its Node-API binding on all five targets to register that plugin. An authenticated isolated device probe contains WebGPU initialization failures before resident registration. Exact generated native files, source pins, MIT licenses, third-party notices, and provenance enter each authenticated closure. Kokoro G2P also gives its learned English Tok2Vec/tagger models a GPU option: a sealed ORT WebGPU GEMM shim preserves the exact weights, tokenizer, lexical features, and remaining CPU operators. Its isolated probe, same-process-architecture core/plugin libraries, source pins, and notices join the authenticated G2P closure. Windows ARM64 retains the existing x64 frozen-helper emulation. Imported CPU PyTorch does not execute a learned network with model=False; speech synthesis remains in the separate accelerated ONNX worker. Whisper and Qwen use embedded Metal on macOS ARM64 or separate Vulkan GPU executables on Windows/Linux. Each Vulkan companion and its portable CPU executable share an authenticated archive; the CPU executable does not link Vulkan. System Vulkan loaders and compatible graphics drivers remain host dependencies outside archive authentication. Digest-pinned Vulkan Headers/Loader, shaderc, glslang, SPIRV Headers and Tools build embedded shaders with provenance and notices. Existing menu-invoked operations prefer authenticated GPU providers before CPU fallback for native initialization or execution failure. Cancellation, authentication failures, invalid inputs, invalid outputs, and cleanup failures remain terminal. Legacy CPU archives remain compatible; new builds cannot omit GPU support. CUDA and DirectML are not packaged. Publication, usable devices, driver compatibility, and performance need separate evidence; source, fixture, and build checks do not establish them.",
+					"evidence": [
+						{
+							"kind": "implementation",
+							"path": "desktop/assistance-acceleration-entrypoints.ts"
+						},
+						{
+							"kind": "implementation",
+							"path": "desktop/assistance-native-gpu-execution.ts"
+						},
+						{
+							"kind": "implementation",
+							"path": "scripts/lib/desktop-assistance-vulkan-companion.mjs"
+						},
+						{
+							"kind": "implementation",
+							"path": "scripts/lib/desktop-assistance-vulkan-toolchain.mjs"
+						},
+						{
+							"kind": "document",
+							"path": "config/desktop-assistance-vulkan-sources.json"
+						},
+						{
+							"kind": "test",
+							"path": "tests/desktop-assistance-native-gpu-worker.test.ts"
+						},
+						{
+							"kind": "test",
+							"path": "tests/desktop-assistance-vulkan-admission.test.ts"
+						},
+						{
+							"kind": "test",
+							"path": "tests/desktop-assistance-vulkan-toolchain.test.ts"
+						},
+						{
+							"kind": "implementation",
+							"path": "desktop/assistance-sherpa-acceleration.ts"
+						},
+						{
+							"kind": "implementation",
+							"path": "scripts/lib/desktop-assistance-sherpa-gpu-runtime.mjs"
+						},
+						{
+							"kind": "implementation",
+							"path": "scripts/lib/desktop-assistance-onnx-webgpu-binding.mjs"
+						},
+						{
+							"kind": "implementation",
+							"path": "scripts/lib/desktop-assistance-onnx-native-closure.mjs"
+						},
+						{
+							"kind": "document",
+							"path": "config/assistance-sherpa-gpu-build.json"
+						},
+						{
+							"kind": "document",
+							"path": "config/assistance-onnx-node-api-build.json"
+						},
+						{
+							"kind": "document",
+							"path": "config/assistance-onnx-webgpu-plugin.json"
+						},
+						{
+							"kind": "test",
+							"path": "tests/desktop-assistance-sherpa-gpu-adapters.test.ts"
+						},
+						{
+							"kind": "test",
+							"path": "tests/desktop-assistance-sherpa-gpu-admission.test.ts"
+						},
+						{
+							"kind": "test",
+							"path": "tests/desktop-assistance-all-model-gpu-capabilities.test.ts"
+						},
+						{
+							"kind": "implementation",
+							"path": "desktop/assistance_kokoro_g2p_gpu.py"
+						},
+						{
+							"kind": "implementation",
+							"path": "native/assistance-kokoro-g2p-gpu/ort-gemm.cc"
+						},
+						{
+							"kind": "implementation",
+							"path": "scripts/lib/desktop-kokoro-g2p-gpu.mjs"
+						},
+						{
+							"kind": "document",
+							"path": "config/assistance-kokoro-g2p-gpu-build.json"
+						},
+						{
+							"kind": "test",
+							"path": "tests/desktop-kokoro-g2p-gpu.test.js"
+						},
+						{
+							"kind": "test",
+							"path": "tests/python/test_kokoro_g2p_gpu.py"
+						}
+					],
+					"policyAuthority": "family-v1-active"
+				},
+				{
 					"id": "supervised-helper-lifecycle",
-					"summary": "The supervisor spawns helpers only after payload verification and terminates them on heartbeat silence beyond the two-second crash-detection budget, a missed one-second cancellation acknowledgement, contract violation, or lower-only per-job bound; repeated crashes quarantine the exact runtime family until explicit clearance. Existing Sherpa ONNX 1.13.5 remains the active lazy utility-process family for catalog-bound Parakeet, Silero, and exact Pyannote/ERes2Net jobs, while model-free external-FFmpeg shot detection retains its separate exact-pair admission, canary, fixed grammar, bounds, and process-tree cancellation. Additional isolated utility-process, thread-worker, file-grant, memory-admission, heartbeat, RSS, crash-quarantine, and termination-cancellation contracts are implemented for CPU-only ONNX Runtime 1.29.0, whisper.cpp v1.9.3, and llama.cpp b10509. Their operation workers cover alignment, enhancement/separation, tagging/beats, accurate shots, embeddings/OCR/vision, and schema-constrained editorial generation. Release preparation builds and verifies all five selected-target closures before archive publication; Windows ARM64 Sherpa builds and verifies its Node addon before archiving. Explicit Model Manager installation downloads required runtime archives, and first inference for preseeded or previously installed weights may fetch a missing runtime. Missing delivery, catalog, conversion, admission, or target evidence returns typed unavailability before native execution. This conditional implementation does not claim an operating-system sandbox, aggregate resource/performance bounds, completed live runtime-payload R2 publication/read-back without its release receipt, or owner-device QA; nightly-with-tests owns the five-target packaged canaries.",
+					"summary": "The supervisor spawns helpers only after payload verification and terminates them on heartbeat silence beyond the two-second crash-detection budget, a missed one-second cancellation acknowledgement, contract violation, or lower-only per-job bound; repeated crashes quarantine the exact runtime family until explicit clearance. Existing Sherpa ONNX 1.13.5 remains the active lazy utility-process family for catalog-bound Parakeet, Silero, and exact Pyannote/ERes2Net jobs, while model-free external-FFmpeg shot detection retains its separate exact-pair admission, canary, fixed grammar, bounds, and process-tree cancellation. Additional isolated utility-process, thread-worker, file-grant, memory-admission, heartbeat, RSS, crash-quarantine, and termination-cancellation contracts are implemented for ONNX Runtime 1.29.0, whisper.cpp v1.9.3, and llama.cpp b10509. Authenticated provider and companion admission follows the separately recorded local-assistance GPU execution contract. Their operation workers cover alignment, enhancement/separation, tagging/beats, accurate shots, embeddings/OCR/vision, and schema-constrained editorial generation. Release preparation builds and verifies all five selected-target closures before archive publication; Sherpa builds and verifies its GPU-capable addon and shared ONNX provider closure for all five targets before archiving. Explicit Model Manager installation downloads required runtime archives, and first inference for preseeded or previously installed weights may fetch a missing runtime. Missing delivery, catalog, conversion, admission, or target evidence returns typed unavailability before native execution. This conditional implementation does not claim an operating-system sandbox, aggregate resource/performance bounds, completed live runtime-payload R2 publication/read-back without its release receipt, or owner-device QA; nightly-with-tests owns the five-target packaged canaries.",
 					"evidence": [
 						{
 							"kind": "implementation",
@@ -12024,7 +12402,7 @@
 				},
 				{
 					"id": "local-assistance-runtime-diagnostics",
-					"exposure": "The Sherpa helper, CPU runtime-family hosts, and external-FFmpeg shot detector execute ordinary native code with ambient account authority. Exact payload, selected-file, model-artifact, and executable authentication plus supervision contain accidental faults but do not create an operating-system sandbox, close the FFmpeg hash-to-path/dynamic-library gaps, or establish aggregate CPU/RSS and long-session bounds. Retained Linux x64 conversions now authenticate TIGER-DnR, PANNs Cnn10, both Beat This checkpoints, TransNetV2, and Dereverb Room, with exact artifact identities and passing source-framework/ONNX comparisons. The conversion evidence directory also retains direct production-worker smoke results, separately from packaged Electron tests. Release preparation builds pinned ONNX Runtime, whisper.cpp, llama.cpp, Sherpa, and Kokoro G2P target closures and signs macOS native bytes. A protected ASAR distribution manifest binds immutable R2 archive length and SHA-256 plus every extracted file; Electron packages omit the native assistance payloads. Historical external-supply candidate statuses are not substitutes for those release identities. Model and runtime distribution require versioned notices and full-digest public read-back; explicit Model Manager installation fetches the model and required runtime, and first use of preseeded or previously installed weights may fetch a missing runtime. Execution rechecks the selected model and target closure. Successful fixture runs prove only the model, runtime, workload, and target actually exercised. No complete five-target packaged privacy/cancellation workload or owner-device observation set establishes network behavior after model and runtime installation, unselected-media isolation, cancellation p95, canonical-state loss, or general model correctness. Optional owner QA does not grant runtime authority. Missing catalog entry, artifact, selected-media, runtime, storage, executable, or consent authority remains a hard machine refusal. Reviewed canonical acceptance spans transcript, link-aware cleanup, speaker attribution, derived audio/stems, reactions, beats/tempo, shots, indexes, reframe, and highlights; that wider stale-safe mutation surface does not itself verify runtime privacy, performance, or target compatibility.",
+					"exposure": "The Sherpa helper, CPU/GPU runtime-family hosts, and external-FFmpeg shot detector execute ordinary native code with ambient account authority. Exact payload, selected-file, model-artifact, and executable authentication plus supervision contain accidental faults but do not create an operating-system sandbox, close the FFmpeg hash-to-path/dynamic-library gaps, or establish aggregate CPU/RSS and long-session bounds. Retained Linux x64 conversions now authenticate TIGER-DnR, PANNs Cnn10, both Beat This checkpoints, TransNetV2, and Dereverb Room, with exact artifact identities and passing source-framework/ONNX comparisons. The conversion evidence directory also retains direct production-worker smoke results, separately from packaged Electron tests. Release preparation builds pinned ONNX Runtime, whisper.cpp, llama.cpp, Sherpa, and Kokoro G2P target closures and signs macOS native bytes. A protected ASAR distribution manifest binds immutable R2 archive length and SHA-256 plus every extracted file; Electron packages omit the native assistance payloads. Historical external-supply candidate statuses are not substitutes for those release identities. Model and runtime distribution require versioned notices and full-digest public read-back; explicit Model Manager installation fetches the model and required runtime, and first use of preseeded or previously installed weights may fetch a missing runtime. Execution rechecks the selected model and target closure. Successful fixture runs prove only the model, runtime, workload, and target actually exercised. No complete five-target packaged privacy/cancellation workload or owner-device observation set establishes network behavior after model and runtime installation, unselected-media isolation, cancellation p95, canonical-state loss, or general model correctness. Optional owner QA does not grant runtime authority. Missing catalog entry, artifact, selected-media, runtime, storage, executable, or consent authority remains a hard machine refusal. Reviewed canonical acceptance spans transcript, link-aware cleanup, speaker attribution, derived audio/stems, reactions, beats/tempo, shots, indexes, reframe, and highlights; that wider stale-safe mutation surface does not itself verify runtime privacy, performance, or target compatibility.",
 					"requiredControl": "For execution, require digest-pinned catalog entries, verified converted artifacts and parity where applicable, the exact selected-target native runtime closure, and every existing artifact, platform, memory, storage, executable, selected-media, and consent check. For distribution, retain the matching versioned notices, immutable model and target-runtime archive publication with full-digest public read-back, and ASAR-pinned archive and extracted-file identities. Run real packaged model canaries separately from the normal suite and report the exact models, workloads, and targets exercised; owner QA remains optional. Report every missing machine combination as typed unavailable without using human review as the reason.",
 					"ownerMilestone": "7",
 					"acceptanceCriteria": [

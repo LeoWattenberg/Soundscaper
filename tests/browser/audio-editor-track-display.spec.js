@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { capturePassingScreenshot } from './helpers/passing-screenshots.js';
 import { createWavFixture, expect, test, toneA } from './audio-editor-test-fixtures.js';
 import {
 	bootEditor, chooseCommandAction, chooseDropdown, clipByName,
@@ -70,7 +71,7 @@ test('frequency views retain neutral clip bodies across skins, themes, and clip 
 				if (theme === 'dark') expect(Math.max(...rgb)).toBeLessThan(80);
 				else expect(Math.min(...rgb)).toBeGreaterThan(200);
 			}
-			await page.screenshot({ path: testInfo.outputPath(`frequency-${skin}-${theme}.png`) });
+			await capturePassingScreenshot(page, { path: testInfo.outputPath(`frequency-${skin}-${theme}.png`) });
 		}
 	}
 	expect(errors).toEqual([]);

@@ -8,12 +8,23 @@ test.use({ browserCoverage: false });
 
 test('a negative recording offset delays the saved take instead of disappearing at zero latency', async ({ page }) => {
 	test.setTimeout(90_000);
+	await page.addInitScript(() => {
+		const prototype = (globalThis.AudioContext ?? globalThis.webkitAudioContext).prototype;
+		globalThis.__complexWorkflowSpikedHostLatency = false;
+		Object.defineProperties(prototype, {
+			baseLatency: { configurable: true, get: () => globalThis.__complexWorkflowSpikedHostLatency ? 0.2 : 0 },
+			outputLatency: { configurable: true, get: () => globalThis.__complexWorkflowSpikedHostLatency ? 0.25 : 0 },
+		});
+		globalThis.__complexWorkflowHostLatency = () => [prototype.baseLatency, prototype.outputLatency];
+	});
 	await installOscillatorMicrophone(page);
 	const editor = await bootEditor(page, '/embed/en/');
 	const projectId = await editor.getAttribute('data-project-id');
-	// Open the real device once; its automatic latency may still change between
-	// captures, so each signed placement is checked independently.
+	// Prime the capture before a host latency spike larger than a 400 ms manual offset.
+	// Synthetic microphone placement must continue to use its controlled zero latency.
 	await recordPass(page, editor);
+	await page.evaluate(() => { globalThis.__complexWorkflowSpikedHostLatency = true; });
+	expect(await page.evaluate(() => globalThis.__complexWorkflowHostLatency())).toEqual([0.2, 0.25]);
 	const starts = [];
 	const savedClips = [];
 	for (const offset of [-500, -400]) {
@@ -60,6 +71,8 @@ test('a negative recording offset delays the saved take instead of disappearing 
 	});
 	expect(starts[0]).toBeGreaterThan(0.25);
 	expect(starts[1]).toBeGreaterThan(0.15);
+	expect(starts[0]).toBeCloseTo(0.5, 6);
+	expect(starts[1]).toBeCloseTo(0.4, 6);
 	await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved');
 	await page.reload();
 	const restored = await waitForEditor(page);

@@ -16,6 +16,7 @@ import {
 	stubDisplayCapture,
 	waitForEditor,
 } from './audio-editor-test-helpers.js';
+import { waitForCurrentWaveformPaint } from './helpers/performance-paint-readiness.js';
 
 test.describe('audio editor React/design-system workflows', () => {
 	registerAudioEditorHooks();
@@ -82,7 +83,7 @@ test.describe('audio editor React/design-system workflows', () => {
 				return clearRect.apply(this, args);
 			};
 		});
-		await page.waitForTimeout(150);
+		await waitForCurrentWaveformPaint(editor, 2);
 		await page.evaluate(() => { globalThis.__idleWaveformDraws = 0; });
 		await page.waitForTimeout(350);
 		expect(await page.evaluate(() => globalThis.__idleWaveformDraws)).toBe(0);

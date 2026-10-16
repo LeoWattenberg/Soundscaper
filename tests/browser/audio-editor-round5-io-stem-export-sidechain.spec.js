@@ -27,9 +27,9 @@ function toneAmplitude(samples, frequency) {
 }
 
 for (const [title, amplitude, gated, bus] of [
-	['track stem delivery retains an external Gate detector without mixing it into the programme', 0.1, false, false],
-	['track stem delivery retains a quiet Gate detector and the closed programme gate', 0.001, true, false],
-	['track stem delivery retains a Gate detector routed through a group bus', 0.1, false, true],
+	['stem and clip delivery retain an external Gate detector without mixing it into the programme', 0.1, false, false],
+	['stem and clip delivery retain a quiet Gate detector and the closed programme gate', 0.001, true, false],
+	['stem and clip delivery retain a Gate detector routed through a group bus', 0.1, false, true],
 	['track stem delivery retains a quiet Gate detector routed through a group bus', 0.001, true, true],
 ]) test(title, async ({ page }, testInfo) => {
 	test.setTimeout(90_000);
@@ -60,19 +60,31 @@ for (const [title, amplitude, gated, bus] of [
 	if (gated) expect(rms(mixed)).toBeLessThan(0.002);
 	else expect(rms(mixed)).toBeGreaterThan(0.1);
 	const dialog = await openExportDialog(page, editor);
-	await chooseDropdown(page, dialog.locator('[data-export-field="output"]'), 'Individual stems (split by tracks)');
+	for (const output of bus && gated ? ['stems'] : ['stems', 'clips']) {
+		await test.step(`deliver individual ${output}`, async () => {
+			await verifyProgrammeDelivery(page, dialog, output, gated, testInfo);
+		});
+	}
+});
+
+async function verifyProgrammeDelivery(page, dialog, output, gated, testInfo) {
+	const stems = output === 'stems';
+	await chooseDropdown(page, dialog.locator('[data-export-field="output"]'), stems
+		? 'Individual stems (split by tracks)' : 'Individual clips (split by clips)');
 	const download = dialog.locator('[data-export-download]');
 	const previousDownload = await download.count() ? await download.getAttribute('href') : null;
 	await dialog.getByRole('button', { name: 'Export', exact: true }).click();
 	await expect(download).toBeVisible({ timeout: 20_000 });
 	await expect.poll(() => download.getAttribute('href')).not.toBe(previousDownload);
-	await expect(download).toHaveAttribute('download', /-stems-.*\.zip$/u);
+	await expect(download).toHaveAttribute('download', stems ? /-stems-.*\.zip$/u : /-clips-.*\.zip$/u);
 	const archiveBytes = await readDownloadBytes(page, download);
-	await testInfo.attach('track-stems.zip', { body: Buffer.from(archiveBytes), contentType: 'application/zip' });
+	await testInfo.attach(stems ? 'track-stems.zip' : 'individual-clips.zip', {
+		body: Buffer.from(archiveBytes), contentType: 'application/zip',
+	});
 	const archive = new ZipReader(new Uint8ArrayReader(archiveBytes), { useWebWorkers: false });
 	try {
 		const entries = await archive.getEntries();
-		expect(entries).toHaveLength(3);
+		expect(entries).toHaveLength(stems ? 3 : 2);
 		const programme = entries.find(({ filename }) => filename.includes('browser-mono-tone'));
 		expect(programme).toBeTruthy();
 		const bytes = await programme.getData(new Uint8ArrayWriter());
@@ -92,4 +104,4 @@ for (const [title, amplitude, gated, bus] of [
 		}
 		expect(toneAmplitude(samples, 660)).toBeLessThan(0.001);
 	} finally { await archive.close(); }
-});
+}

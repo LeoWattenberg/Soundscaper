@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "hi",
 	"provenance": {
-		"machine": {"model":"gpt-6","modelDigest":"sha256:9d89041543cca846a56b773eb8419b2c78e6dd57b892bd8a94779c55cb26f20f","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"gpt-6","modelDigest":"sha256:1d6fe53b21335c8e250b9bcad277cd587dc1422a9639ef8a84d92e7f8ba0e981","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"de2e43dc13474ba712ade5ea8e47550eba0e8bfb","runId":35327911264,"artifactId":10539339149,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/35327911264","archiveName":"Audacity_locale_262610911.zip","archiveSha256":"13b1ff11c39a677c711a1d29738a394aaca7a200533927aab3f45bbd76c1ff8e","archiveByteLength":15413913,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/de2e43dc13474ba712ade5ea8e47550eba0e8bfb/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -51,6 +51,12 @@
 		"admRemove": ["machine","Remove ADM","ADM हटाएं"],
 		"admRemoveObject": ["machine","Remove object","ऑब्जेक्ट हटाएं"],
 		"admRouting": ["machine","Bed routing","बेड रूटिंग"],
+		"advancedAudioServer": ["machine","audio.com API","audio.com API"],
+		"advancedAudioServerDescription": ["machine","Choose audio.com or a compatible server such as Audiocity. Custom servers must be publicly reachable; localhost works when running Soundscaper locally. Changing the server signs you out. Open Window → audio.com to connect again.","audio.com या Audiocity जैसे संगत सर्वर को चुनें। कस्टम सर्वर सार्वजनिक रूप से सुलभ होने चाहिए; localhost तब काम करता है जब Soundscaper स्थानीय रूप से चलता है। सर्वर बदलने पर आप साइन आउट हो जाते हैं। फिर से कनेक्ट करने के लिए विंडो → audio.com खोलें।"],
+		"advancedAudioServerInvalid": ["machine","Enter an HTTPS server URL without a path, query, or sign-in details. HTTP localhost URLs work when running Soundscaper locally.","पाथ, क्वेरी या साइन-इन विवरण के बिना HTTPS सर्वर URL दर्ज करें। HTTP localhost URL तब काम करते हैं जब Soundscaper स्थानीय रूप से चलता है।"],
+		"advancedAudioServerSave": ["machine","Save server","सर्वर सहेजें"],
+		"advancedAudioServerUrl": ["machine","Server URL","सर्वर URL"],
+		"advancedAudioServerUseDefault": ["machine","Use audio.com","audio.com का उपयोग करें"],
 		"advancedLocalProcessing": ["machine","Advanced Local Processing","उन्नत स्थानीय प्रसंस्करण"],
 		"advancedOptions": ["machine","Advanced options","उन्नत विकल्प"],
 		"alignEndToEnd": ["machine","Align end to end","अंत से अंत तक संरेखित करें"],
@@ -1989,6 +1995,7 @@
 		"preferenceOff": ["machine","Off","बंद"],
 		"preferencePerTrack": ["machine","Per track","प्रति ट्रैक"],
 		"preferences": ["audacity","Preferences","वरीयतायें"],
+		"preferencesAdvanced": ["machine","Advanced","उन्नत"],
 		"preferencesAudioSettings": ["machine","Audio settings","ऑडियो सेटिंग्स"],
 		"preferencesEditing": ["machine","Editing","संपादन"],
 		"preferencesEffects": ["machine","Effects","प्रभाव"],
@@ -2734,6 +2741,7 @@
 		"ui.about.videoCompositing": ["machine","Video compositing","वीडियो संयोजन"],
 		"ui.about.videoEffects": ["machine","Video effects","वीडियो प्रभाव"],
 		"ui.about.website": ["machine","Website","वेबसाइट"],
+		"ui.audiocom.panel": ["machine","audio.com","audio.com"],
 		"ui.clipSpreadsheet.cancelPaste": ["machine","Cancel paste","पेस्ट रद्द करें"],
 		"ui.clipSpreadsheet.channels": ["machine","Channels","चैनल"],
 		"ui.clipSpreadsheet.clipboardUnavailable": ["machine","Use Ctrl/Cmd+C or Ctrl/Cmd+V to copy or paste the selected cells.","चयनित सेल कॉपी या पेस्ट करने के लिए Ctrl/Cmd+C या Ctrl/Cmd+V इस्तेमाल करें।"],

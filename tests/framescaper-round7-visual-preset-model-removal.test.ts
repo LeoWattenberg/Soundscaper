@@ -2,6 +2,7 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { framescaperPublishedProject } from './helpers/framescaper-controller-project-fixture.ts';
 import type { AudioEditorCommand } from '../src/common/editor/commands/protocol.ts';
 import { fingerprintNativeMediaPlan } from '../src/common/editor/native-media-plan-canonical-form.ts';
 import { normalizeVideoVisualPresetV1 } from '../src/common/editor/video-visual-preset-v24.ts';
@@ -15,7 +16,7 @@ import { createFramescaperEditorProjectEnvironment } from '../src/framescaper/ed
 import { createInstrumentedIndexedDB } from './helpers/instrumented-indexeddb.js';
 
 test('removing a saved generator model from the Bin preserves the independently saved preset and history', async context => {
-	const { controller, environment, authoring, library } = await setup(context);
+	const { controller, authoring, library } = await setup(context);
 	await authoring.run('video-title');
 	const clip = normalizeVideoGeneratorClipV1(controller.project?.clips.at(-1));
 	controller.actions.timeline.selectClip(clip.id);
@@ -46,7 +47,7 @@ test('removing a saved generator model from the Bin preserves the independently 
 	assert.deepEqual(createFramescaperVisualInspectorModel({ project: controller.project, selectedClipId: clip.id }).generator, donor.generator,
 		'the same normally saved preset applies successfully before removal');
 	controller.actions.edit.undo();
-	const before = environment.runtime.cloneProject(controller.project);
+	const before = framescaperPublishedProject(controller.project);
 	assert.equal(preset.authoredStateSha256, fingerprintNativeMediaPlan(controller.project?.sources.find(source => source.id === donor.id)).sha256);
 	const history = controller.getSnapshot().history.undoEntries.length;
 	assert.deepEqual(new Set(controller.actions.projectBin.removeFromProject(donorClip.id)), new Set([donorClip.id, donorInstanceId]));

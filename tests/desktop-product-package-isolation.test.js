@@ -257,7 +257,7 @@ async function loadOnnxRuntime(entrypoint) {
 	assert.doesNotMatch(onnx, /RUNTIME_SESSION_ERRORS/u);
 });
 
-test('Soundscaper emitted ONNX worker retains shared runtime-loader errors', async () => {
+test('Soundscaper emitted ONNX worker retains accelerated per-job loaders and shared runtime errors', async () => {
 	const source = await readFile(new URL('../desktop/assistance-onnx-runtime-worker.ts', import.meta.url), 'utf8');
 	const emitted = ts.transpileModule(source, {
 		fileName: 'desktop/assistance-onnx-runtime-worker.ts',
@@ -272,6 +272,37 @@ test('Soundscaper emitted ONNX worker retains shared runtime-loader errors', asy
 	assert.match(transformed, /const RUNTIME_MODULE_ERRORS = Object\.freeze/u);
 	assert.equal(transformed.match(/RUNTIME_MODULE_ERRORS/gu)?.length, 3);
 	assert.doesNotMatch(transformed, /RUNTIME_SESSION_ERRORS/u);
+	assert.doesNotMatch(transformed, /executeSiglip2|executeOcr|executeSubjects|executeSaliency|executeTransNetV2/u);
+	const acceleration = ts.transpileModule(await readFile(
+		new URL('../desktop/assistance-onnx-acceleration.ts', import.meta.url), 'utf8'), {
+		compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2024 },
+	}).outputText;
+	const audioPorts = ['AudioRuntime', 'EnhancementSeparation', 'Dereverb', 'Kokoro', 'TextEmbedding', 'WordAlignment']
+		.map((name) => `function createAssistanceOnnx${name}WorkerAdapterV1(loadRuntime) {
+			return async (context) => {
+				const runtime = await loadRuntime(context.job.descriptor.entrypoint);
+				return runtime.InferenceSession.create('/authenticated/model.onnx', {
+					executionProviders: ['cpu'], graphOptimizationLevel: 'all',
+					interOpNumThreads: 1, intraOpNumThreads: 4,
+				});
+			};
+		}`).join('\n');
+	// Inject task ports while executing the emitted orchestration and real GPU selector.
+	const module = await importSource(`${transformed.replace(/^import [^\n]+;\n/gmu, '')}\n${acceleration}\n${audioPorts}`);
+	const attempted = [];
+	const adapter = module.createAssistanceOnnxRuntimeWorkerAdapterV1({ loadRuntime: async () => ({
+		Tensor: class Tensor {}, InferenceSession: { create: async (path, options) => {
+			assert.equal(path, '/authenticated/model.onnx');
+			attempted.push(options.executionProviders);
+			return { inputNames: ['input'], outputNames: ['output'], run: async () => ({}), release() {} };
+		} },
+	}) });
+	for (const executionProviders of [['webgpu', 'cpu'], undefined]) {
+		const session = await adapter({ grant: { task: 'audio-tagging' },
+			job: { descriptor: { entrypoint: '/authenticated/runtime.js', executionProviders } } });
+		await session.release();
+	}
+	assert.deepEqual(attempted, [['webgpu', 'cpu'], ['cpu']]);
 });
 
 test('Stable Soundscaper excludes the legacy development native-addon fixture', () => {

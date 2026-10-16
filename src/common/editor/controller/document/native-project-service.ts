@@ -30,6 +30,7 @@ import {
 	saveNativeScapeArchiveCopy,
 } from './internal/native-project/native-scape-save.ts';
 import { createNativeAudacityProjectSave } from './internal/native-project/native-audacity-project-save.ts';
+import { persistNativeAudacitySampleBlocks } from './internal/native-project/native-audacity-block-import.ts';
 import { confirmFileSizeWarning } from '../shared/file-size-warning.ts';
 import { withAudacityWorkerSizeAdmission } from './internal/native-project/audacity-worker-size-admission.ts';
 import type {
@@ -276,6 +277,7 @@ export function createNativeProjectService(runtime: NativeProjectServiceRuntime)
 			const decode = streaming ? activeClient.planImport! : activeClient.decode;
 			const decoded = await decode.call(activeClient, nativeId, {
 				title: file.name, signal: operation.task.signal,
+				preserveSampleBlocks: Boolean(runtime.store.writeSampleBlockSource),
 				onProgress: (progress) => {
 					updateNativeProjectProgress(progress, runtime.copy.importing, operation.task,
 						operation.projectToken, { start: 0.3, end: 1 }, { key: 'importing' });
@@ -285,16 +287,25 @@ export function createNativeProjectService(runtime: NativeProjectServiceRuntime)
 			importedProject = runtime.adaptAudacityProject
 				? await runtime.adaptAudacityProject(decoded.project)
 				: runtime.loadProject(decoded.project).project;
-			const decodedBytes = streaming
+			const decodedBytes = decoded.sampleBlockStorage?.pcmBytes ?? (streaming
 				? importedProject.sources.filter((source) => isAudioMediaKind(source.kind)).reduce(
 					(total, source) => total + runtime.sourcePcmBytes(source as NativeProjectAudioSource), 0)
 				: decoded.sources.reduce((total, source) => total + source.channels.reduce(
 				(channelTotal, channel) => channelTotal + channel.byteLength,
 				0,
-			), 0);
+			), 0));
 			await runtime.preflightStorage(decodedBytes, 'import');
 			assertOwnership(operation.task, operation.projectToken);
-			if (streaming) {
+			if (decoded.sampleBlockStorage) {
+				let completedBytes = 0;
+				await persistNativeAudacitySampleBlocks(runtime, activeClient, nativeId, importedProject,
+					decoded.sampleBlockStorage, persistedSourceIds, operation.task.signal,
+					() => assertOwnership(operation.task, operation.projectToken), (bytes) => {
+						completedBytes += bytes;
+						updateNativeProjectProgress({ value: decodedBytes ? completedBytes / decodedBytes : 1 },
+							runtime.copy.importing, operation.task, operation.projectToken, { start: 0.3, end: 1 }, { key: 'importing' });
+					});
+			} else if (streaming) {
 				let completedBytes = 0;
 				for (const source of importedProject.sources.filter((item) => isAudioMediaKind(item.kind))) {
 					const chunks = activeClient.readSourceChunks!(nativeId, source.id, { signal: operation.task.signal });
@@ -456,7 +467,7 @@ async function deleteSources(
 	deleteSource: (sourceId: string) => PromiseLike<unknown> | unknown,
 	sourceIds: readonly string[],
 ): Promise<void> {
-	for (const sourceId of sourceIds) {
+	for (const sourceId of [...sourceIds].reverse()) {
 		await Promise.resolve(deleteSource(sourceId)).catch(() => undefined);
 	}
 }

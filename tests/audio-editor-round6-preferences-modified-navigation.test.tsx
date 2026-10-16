@@ -44,7 +44,7 @@ for (const ownership of ['ctrlKey', 'altKey', 'metaKey', 'defaultPrevented'] as 
 			assert.equal(stopped, 1, 'the vendor arrow handler does not receive the released chord');
 			assert.equal(general.ownerDocument.activeElement, general);
 			await act(async () => { reactProps(adapter).onKeyDownCapture?.({ ...event, [ownership]: false }); });
-			assert.equal(dom.one('[aria-controls="dialog-panel-workspace"]').getAttribute('aria-selected'), 'true');
+			assert.equal(dom.one('[aria-controls="dialog-panel-advanced"]').getAttribute('aria-selected'), 'true');
 			assert.equal(prevented, 1);
 			assert.equal(stopped, 2);
 		} finally {

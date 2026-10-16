@@ -86,17 +86,24 @@
 	],
 	"packageProducers": [
 		{
-			"id": "sherpa-onnx-win-arm64",
-			"manifestPath": "config/assistance-native-runtime-manifest.json",
+			"id": "assistance-sherpa-onnx-node",
+			"manifestPath": "config/assistance-sherpa-gpu-build.json",
 			"manifestTargetPath": "targets",
-			"targets": ["win-arm64"],
+			"targets": ["linux-x64", "linux-arm64", "mac-arm64", "win-x64", "win-arm64"],
 			"workflowPath": ".github/workflows/desktop-nightly-tests.yml",
 			"packageCommand": "scripts/desktop-nightly-tests-products.mjs",
 			"pipelinePaths": [
 				"scripts/desktop-nightly-tests-products.mjs",
 				"scripts/desktop-prepare.mjs",
 				"scripts/lib/desktop-assistance-speech-runtime.mjs",
-				"scripts/lib/desktop-assistance-sherpa-arm64.mjs"
+				"scripts/lib/desktop-assistance-sherpa-gpu-runtime.mjs",
+				"scripts/lib/desktop-assistance-sherpa-gpu-sources.mjs",
+				"scripts/lib/desktop-assistance-onnx-native-closure.mjs",
+				"config/assistance-sherpa-gpu-build.json",
+				"config/assistance-onnx-webgpu-plugin.json",
+				"config/assistance-onnx-runtime-payloads.json",
+				"native/assistance-sherpa-gpu/CMakeLists.txt",
+				"native/assistance-sherpa-gpu/webgpu-provider.cc"
 			]
 		},
 		{
@@ -110,7 +117,21 @@
 				"scripts/desktop-nightly-tests-products.mjs",
 				"scripts/desktop-prepare.mjs",
 				"scripts/lib/desktop-assistance-runtime-families.mjs",
-				"scripts/lib/desktop-assistance-onnx-runtime.mjs"
+				"scripts/lib/desktop-assistance-onnx-runtime.mjs",
+				"scripts/lib/desktop-assistance-onnx-webgpu-binding.mjs",
+				"scripts/lib/desktop-assistance-onnx-native-closure.mjs",
+				"config/assistance-onnx-node-api-build.json",
+				"config/assistance-onnx-webgpu-plugin.json",
+				"config/assistance-onnx-runtime-payloads.json",
+				"native/assistance-onnx-webgpu-node-api/CMakeLists.txt",
+				"native/assistance-onnx-webgpu-node-api/webgpu_plugin_provider.cc",
+				"native/assistance-onnx-webgpu-node-api/webgpu_plugin_provider.h",
+				"scripts/kokoro-g2p/build.mjs",
+				"scripts/lib/desktop-kokoro-g2p-gpu.mjs",
+				"config/assistance-kokoro-g2p-gpu-build.json",
+				"desktop/assistance_kokoro_g2p_gpu.py",
+				"native/assistance-kokoro-g2p-gpu/CMakeLists.txt",
+				"native/assistance-kokoro-g2p-gpu/ort-gemm.cc"
 			]
 		},
 		{
@@ -124,7 +145,10 @@
 				"scripts/desktop-nightly-tests-products.mjs",
 				"scripts/desktop-prepare.mjs",
 				"scripts/lib/desktop-assistance-runtime-families.mjs",
-				"scripts/lib/desktop-assistance-whisper-runtime.mjs"
+				"scripts/lib/desktop-assistance-whisper-runtime.mjs",
+				"scripts/lib/desktop-assistance-vulkan-companion.mjs",
+				"scripts/lib/desktop-assistance-vulkan-toolchain.mjs",
+				"config/desktop-assistance-vulkan-sources.json"
 			]
 		},
 		{
@@ -138,7 +162,10 @@
 				"scripts/desktop-nightly-tests-products.mjs",
 				"scripts/desktop-prepare.mjs",
 				"scripts/lib/desktop-assistance-runtime-families.mjs",
-				"scripts/lib/desktop-assistance-llama-runtime.mjs"
+				"scripts/lib/desktop-assistance-llama-runtime.mjs",
+				"scripts/lib/desktop-assistance-vulkan-companion.mjs",
+				"scripts/lib/desktop-assistance-vulkan-toolchain.mjs",
+				"config/desktop-assistance-vulkan-sources.json"
 			]
 		}
 	]

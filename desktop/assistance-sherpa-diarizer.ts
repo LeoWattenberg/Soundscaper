@@ -9,6 +9,10 @@ import {
 	type SpeakerDiarizationResult,
 	type SpeakerTurnResult,
 } from './assistance-diarization-runtime.ts';
+import {
+	callSherpaNativeV1, createSherpaNativeExecutorV1, disposeSherpaNativeV1,
+	type SherpaAccelerationOptions,
+} from './assistance-sherpa-acceleration.ts';
 
 const SAMPLE_RATE = 16_000;
 
@@ -21,6 +25,8 @@ interface SherpaSpeakerSegment {
 interface SherpaDiarizerInstance {
 	readonly sampleRate: number;
 	process(samples: Float32Array): readonly SherpaSpeakerSegment[];
+	free?(): void;
+	dispose?(): void;
 }
 
 interface SherpaDiarizerModule {
@@ -41,10 +47,11 @@ function resolveRuntimeModule(runtime: unknown): SherpaDiarizerModule {
 	throw new TypeError('The speech runtime does not expose offline speaker diarization.');
 }
 
-export function createSherpaDiarizerFactory(runtime: unknown): Readonly<{
+export function createSherpaDiarizerFactory(runtime: unknown, options: SherpaAccelerationOptions = {}): Readonly<{
 	diarize(request: SpeakerDiarizationRequest): Promise<SpeakerDiarizationResult>;
 }> {
 	const module = resolveRuntimeModule(runtime);
+	createSherpaNativeExecutorV1(options);
 	return Object.freeze({
 		async diarize(request: SpeakerDiarizationRequest): Promise<SpeakerDiarizationResult> {
 			if (typeof request?.audioPath !== 'string' || request.audioPath === ''
@@ -55,36 +62,40 @@ export function createSherpaDiarizerFactory(runtime: unknown): Readonly<{
 			request.signal?.throwIfAborted();
 			// Electron's V8 sandbox requires V8-owned buffers.
 			const wave = module.readWave(request.audioPath, false);
-			if (wave.sampleRate !== SAMPLE_RATE || !(wave.samples instanceof Float32Array)) {
+			if (wave.sampleRate !== SAMPLE_RATE || !(wave.samples instanceof Float32Array) || wave.samples.length < 1) {
 				throw new RangeError('Speaker diarization requires exact 16 kHz selected audio.');
 			}
-			const diarizer = new module.OfflineSpeakerDiarization({
-				segmentation: {
-					pyannote: { model: request.models.segmentation },
-					numThreads: 2, debug: 0, provider: 'cpu',
-				},
-				embedding: {
-					model: request.models.embedding,
-					numThreads: 2, debug: 0, provider: 'cpu',
-				},
-				clustering: { numClusters: 0, threshold: 0.5 },
-				minDurationOn: 0.3,
-				minDurationOff: 0.5,
+			return createSherpaNativeExecutorV1(options).run(request.signal, (provider) => {
+				const diarizer = callSherpaNativeV1(() => new module.OfflineSpeakerDiarization({
+					segmentation: {
+						pyannote: { model: request.models.segmentation },
+						numThreads: 2, debug: 0, provider,
+					},
+					embedding: {
+						model: request.models.embedding,
+						numThreads: 2, debug: 0, provider,
+					},
+					clustering: { numClusters: 0, threshold: 0.5 },
+					minDurationOn: 0.3,
+					minDurationOff: 0.5,
+				}));
+				try {
+					if (diarizer.sampleRate !== SAMPLE_RATE) {
+						throw new RangeError('The speaker diarizer does not use the exact 16 kHz preparation rate.');
+					}
+					request.onProgress?.(Object.freeze({ completed: 0, total: wave.samples.length }));
+					request.signal?.throwIfAborted();
+					const nativeTurns = callSherpaNativeV1(() => diarizer.process(wave.samples));
+					request.signal?.throwIfAborted();
+					if (!Array.isArray(nativeTurns)) {
+						throw new TypeError('The speaker diarizer returned an invalid segment collection.');
+					}
+					const turns = nativeTurns.map((turn, index) => speakerTurn(turn, index, wave.samples.length));
+					turns.sort(compareSpeakerTurns);
+					request.onProgress?.(Object.freeze({ completed: wave.samples.length, total: wave.samples.length }));
+					return normalizeSpeakerDiarizationResult({ sampleRate: SAMPLE_RATE, turns });
+				} finally { disposeSherpaNativeV1(diarizer); }
 			});
-			if (diarizer.sampleRate !== SAMPLE_RATE) {
-				throw new RangeError('The speaker diarizer does not use the exact 16 kHz preparation rate.');
-			}
-			request.onProgress?.(Object.freeze({ completed: 0, total: wave.samples.length }));
-			request.signal?.throwIfAborted();
-			const nativeTurns = diarizer.process(wave.samples);
-			request.signal?.throwIfAborted();
-			if (!Array.isArray(nativeTurns)) {
-				throw new TypeError('The speaker diarizer returned an invalid segment collection.');
-			}
-			const turns = nativeTurns.map((turn, index) => speakerTurn(turn, index, wave.samples.length));
-			turns.sort(compareSpeakerTurns);
-			request.onProgress?.(Object.freeze({ completed: wave.samples.length, total: wave.samples.length }));
-			return normalizeSpeakerDiarizationResult({ sampleRate: SAMPLE_RATE, turns });
 		},
 	});
 }

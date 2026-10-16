@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "cs",
 	"provenance": {
-		"machine": {"model":"gpt-6","modelDigest":"sha256:d51e3ed1d6afca98da332b39ff1d944b19fc2b88c1efe72c6b37cada264bf8be","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"gpt-6","modelDigest":"sha256:89a7c79febca18fffee559200db559a8c88d011e97f6d496f132b5f561b15177","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"de2e43dc13474ba712ade5ea8e47550eba0e8bfb","runId":35327911264,"artifactId":10539339149,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/35327911264","archiveName":"Audacity_locale_262610911.zip","archiveSha256":"13b1ff11c39a677c711a1d29738a394aaca7a200533927aab3f45bbd76c1ff8e","archiveByteLength":15413913,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/de2e43dc13474ba712ade5ea8e47550eba0e8bfb/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -51,6 +51,12 @@
 		"admRemove": ["machine","Remove ADM","Odebrat ADM"],
 		"admRemoveObject": ["machine","Remove object","Odebrat objekt"],
 		"admRouting": ["machine","Bed routing","Směrování základu"],
+		"advancedAudioServer": ["machine","audio.com API","API audio.com"],
+		"advancedAudioServerDescription": ["machine","Choose audio.com or a compatible server such as Audiocity. Custom servers must be publicly reachable; localhost works when running Soundscaper locally. Changing the server signs you out. Open Window → audio.com to connect again.","Vyberte audio.com nebo kompatibilní server, například Audiocity. Vlastní servery musí být veřejně dostupné; localhost funguje, když Soundscaper běží místně. Změna serveru vás odhlásí. Pro opětovné připojení otevřete Okno → audio.com."],
+		"advancedAudioServerInvalid": ["machine","Enter an HTTPS server URL without a path, query, or sign-in details. HTTP localhost URLs work when running Soundscaper locally.","Zadejte HTTPS URL serveru bez cesty, dotazu nebo přihlašovacích údajů. HTTP URL s localhost fungují, když Soundscaper běží místně."],
+		"advancedAudioServerSave": ["machine","Save server","Uložit server"],
+		"advancedAudioServerUrl": ["machine","Server URL","URL serveru"],
+		"advancedAudioServerUseDefault": ["machine","Use audio.com","Použít audio.com"],
 		"advancedLocalProcessing": ["machine","Advanced Local Processing","Pokročilé místní zpracování"],
 		"advancedOptions": ["machine","Advanced options","Pokročilé možnosti"],
 		"alignEndToEnd": ["machine","Align end to end","Zarovnat konec na konec"],
@@ -1989,6 +1995,7 @@
 		"preferenceOff": ["machine","Off","Vypnuto"],
 		"preferencePerTrack": ["machine","Per track","Pro každou stopu"],
 		"preferences": ["audacity","Preferences","Nastavení"],
+		"preferencesAdvanced": ["machine","Advanced","Pokročilé"],
 		"preferencesAudioSettings": ["machine","Audio settings","Nastavení zvuku"],
 		"preferencesEditing": ["machine","Editing","Úpravy"],
 		"preferencesEffects": ["machine","Effects","Efekty"],
@@ -2734,6 +2741,7 @@
 		"ui.about.videoCompositing": ["machine","Video compositing","Kompozice videa"],
 		"ui.about.videoEffects": ["machine","Video effects","Video efekty"],
 		"ui.about.website": ["machine","Website","Webové stránky"],
+		"ui.audiocom.panel": ["machine","audio.com","audio.com"],
 		"ui.clipSpreadsheet.cancelPaste": ["machine","Cancel paste","Zrušit vložení"],
 		"ui.clipSpreadsheet.channels": ["machine","Channels","Kanály"],
 		"ui.clipSpreadsheet.clipboardUnavailable": ["machine","Use Ctrl/Cmd+C or Ctrl/Cmd+V to copy or paste the selected cells.","Ke kopírování nebo vložení vybraných buněk použijte Ctrl/Cmd+C nebo Ctrl/Cmd+V."],

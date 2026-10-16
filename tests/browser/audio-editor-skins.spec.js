@@ -1,3 +1,4 @@
+import { capturePassingScreenshot } from './helpers/passing-screenshots.js';
 import { expect, monoTone, test } from './audio-editor-test-fixtures.js';
 import { assertNoSeriousAxeViolations, bootEditor, chooseCommandAction, importFiles, registerAudioEditorHooks } from './audio-editor-test-helpers.js';
 
@@ -24,7 +25,7 @@ for (const product of ['soundscaper', 'framescaper']) {
 				await expect.poll(() => preview.evaluate((image) => image.complete && image.naturalWidth > 0)).toBe(true);
 				await expect(preview).toHaveCSS('object-fit', 'contain');
 			}
-			await dialog.screenshot({ path: testInfo.outputPath('appearance-previews.png') });
+			await capturePassingScreenshot(dialog, { path: testInfo.outputPath('appearance-previews.png') });
 			await dialog.getByRole('button', { name: 'Lilac', exact: true }).click();
 			await expect(dialog.getByRole('button', { name: 'Lilac', exact: true })).toBeEnabled();
 			await expect(editor).toHaveAttribute('data-editor-skin', 'lilac');
@@ -99,7 +100,7 @@ for (const product of ['soundscaper', 'framescaper']) {
 					await dialog.getByRole('button', { name: 'Close', exact: true }).last().click();
 					const after = await timelineGeometry(editor);
 					expect(after).toEqual(before);
-					await page.screenshot({ path: testInfo.outputPath(`${name}-${mode}.png`) });
+					await capturePassingScreenshot(page, { path: testInfo.outputPath(`${name}-${mode}.png`) });
 					await appearance(page, editor);
 				}
 			}

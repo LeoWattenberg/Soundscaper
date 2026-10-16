@@ -30,10 +30,12 @@ export async function runScapeOpenRendererSmoke(scope, plan) {
 		}
 		const alerts = document.querySelectorAll('[role="alert"], [role="alertdialog"]');
 		const dialogs = document.querySelectorAll('[role="dialog"], [role="alertdialog"]');
-		// Opening a project temporarily blocks Project bin mutations. Wait for
-		// that specific toast to clear before accepting the success UI.
+		// Project bin activity and background plugin scans use alert toasts.
+		// Wait for their normal notifications to clear before accepting success;
+		// failed scans and unrelated alerts still reject the smoke immediately.
 		const unexpectedAlerts = [...alerts].filter((element) => element.getAttribute?.('role') !== 'alert'
-			|| !element.closest?.('[data-project-bin-toast] [data-editor-toast="project-bin-busy"]'));
+			|| (!element.closest?.('[data-project-bin-toast] [data-editor-toast="project-bin-busy"]')
+				&& !element.closest?.('[data-editor-toast^="native-plugin-scan-"] .toast--info, [data-editor-toast^="native-plugin-scan-"] .toast--success')));
 		if (unexpectedAlerts.length || dialogs.length) {
 			// Name what was exposed: a first-launch chooser and a stale-build prompt
 			// are both dialogs, and a bare "exposed a dialog" tells them apart only

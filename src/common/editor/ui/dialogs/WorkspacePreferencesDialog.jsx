@@ -6,6 +6,7 @@ import { DialogSideNav } from '@soundscaper/design-system/DialogSideNav/DialogSi
 import { DialogFooter } from '@soundscaper/design-system/Footer';
 import { PreferencePanel } from '@soundscaper/design-system/PreferencePanel';
 import AppearancePreferencesPage from './AppearancePreferencesPage.jsx';
+import AdvancedPreferencesPage from './AdvancedPreferencesPage.tsx';
 import { Separator } from '@soundscaper/design-system/Separator';
 
 import { productProfile } from '../../../products.js';
@@ -84,6 +85,7 @@ export default function WorkspacePreferencesDialog({
 		{ id: 'effects', label: copy.preferencesEffects, icon: iconNameToChar('WAVEFORM') },
 		{ id: 'shortcuts', label: copy.shortcuts, icon: iconNameToChar('SHORTCUTS') },
 		{ id: 'workspace', label: copy.workspace, icon: iconNameToChar('WORKSPACE') },
+		...(productId === 'soundscaper' ? [{ id: 'advanced', label: copy.preferencesAdvanced, icon: iconNameToChar('SETTINGS_COG') }] : []),
 	];
 	const selectedPageLabel = pages.find((page) => page.id === selectedPage)?.label || copy.preferencesTitle;
 	useEffect(() => setSelectedPage(workspacePreferencesPage(initialPage)), [initialPage]);
@@ -174,6 +176,10 @@ export default function WorkspacePreferencesDialog({
 
 						{selectedPage === 'appearance' && (
 							<AppearancePreferencesPage controller={controller} preferences={preferences} copy={copy} run={run} />
+						)}
+
+						{selectedPage === 'advanced' && productId === 'soundscaper' && (
+							<AdvancedPreferencesPage controller={controller} preferences={preferences} copy={copy} run={run} />
 						)}
 
 						{selectedPage === 'workspace' && (

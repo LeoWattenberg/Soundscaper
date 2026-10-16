@@ -62,3 +62,18 @@ patches/**/*.patch text eol=lf
 /scripts/kokoro-g2p/notices/** -text
 /scripts/models/** text eol=lf
 /config/milestone-7-model-*.json text eol=lf
+
+# Local AI native recipes pin raw source bytes across Windows and Unix checkouts.
+/native/assistance-sherpa-gpu/** text eol=lf
+/native/assistance-onnx-webgpu-node-api/** text eol=lf
+/native/assistance-kokoro-g2p-gpu/** text eol=lf
+/desktop/assistance-kokoro-g2p-helper.py text eol=lf
+/desktop/assistance_kokoro_g2p_gpu.py text eol=lf
+/scripts/kokoro-g2p/build.mjs text eol=lf
+/scripts/lib/desktop-kokoro-g2p-gpu.mjs text eol=lf
+/scripts/lib/desktop-assistance-onnx-native-closure.mjs text eol=lf
+/config/assistance-kokoro-g2p-gpu-build.json text eol=lf
+/config/assistance-onnx-runtime-payloads.json text eol=lf
+/config/assistance-onnx-webgpu-plugin.json text eol=lf
+/config/assistance-onnx-node-api-build.json text eol=lf
+/config/assistance-sherpa-gpu-build.json text eol=lf

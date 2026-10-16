@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "pl",
 	"provenance": {
-		"machine": {"model":"gpt-6","modelDigest":"sha256:c4a71b65ffcd137b9b5f929be6485fe9027cf80146c60948d18aae991ae1fd43","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"gpt-6","modelDigest":"sha256:c1bc0d95196a15cda2bfebfe39dac33d7029e0f2621ff66ac93e2fc4ffede8cd","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"de2e43dc13474ba712ade5ea8e47550eba0e8bfb","runId":35327911264,"artifactId":10539339149,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/35327911264","archiveName":"Audacity_locale_262610911.zip","archiveSha256":"13b1ff11c39a677c711a1d29738a394aaca7a200533927aab3f45bbd76c1ff8e","archiveByteLength":15413913,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/de2e43dc13474ba712ade5ea8e47550eba0e8bfb/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -51,6 +51,12 @@
 		"admRemove": ["machine","Remove ADM","Usuń ADM"],
 		"admRemoveObject": ["machine","Remove object","Usuń obiekt"],
 		"admRouting": ["machine","Bed routing","Routing bed"],
+		"advancedAudioServer": ["machine","audio.com API","API audio.com"],
+		"advancedAudioServerDescription": ["machine","Choose audio.com or a compatible server such as Audiocity. Custom servers must be publicly reachable; localhost works when running Soundscaper locally. Changing the server signs you out. Open Window → audio.com to connect again.","Wybierz audio.com lub zgodny serwer, taki jak Audiocity. Niestandardowe serwery muszą być publicznie dostępne; localhost działa, gdy Soundscaper jest uruchomiony lokalnie. Zmiana serwera powoduje wylogowanie. Aby połączyć się ponownie, otwórz Okno → audio.com."],
+		"advancedAudioServerInvalid": ["machine","Enter an HTTPS server URL without a path, query, or sign-in details. HTTP localhost URLs work when running Soundscaper locally.","Podaj adres URL serwera HTTPS bez ścieżki, zapytania ani danych logowania. Adresy URL HTTP localhost działają, gdy Soundscaper jest uruchomiony lokalnie."],
+		"advancedAudioServerSave": ["machine","Save server","Zapisz serwer"],
+		"advancedAudioServerUrl": ["machine","Server URL","URL serwera"],
+		"advancedAudioServerUseDefault": ["machine","Use audio.com","Użyj audio.com"],
 		"advancedLocalProcessing": ["machine","Advanced Local Processing","Zaawansowana obróbka lokalna"],
 		"advancedOptions": ["machine","Advanced options","Zaawansowane opcje"],
 		"alignEndToEnd": ["machine","Align end to end","Wyrównaj koniec do końca"],
@@ -1989,6 +1995,7 @@
 		"preferenceOff": ["machine","Off","Wyłączone"],
 		"preferencePerTrack": ["machine","Per track","Dla każdej ścieżki"],
 		"preferences": ["audacity","Preferences","Ustawienia"],
+		"preferencesAdvanced": ["machine","Advanced","Zaawansowane"],
 		"preferencesAudioSettings": ["machine","Audio settings","Ustawienia audio"],
 		"preferencesEditing": ["machine","Editing","Edycja"],
 		"preferencesEffects": ["machine","Effects","Efekty"],
@@ -2734,6 +2741,7 @@
 		"ui.about.videoCompositing": ["machine","Video compositing","Kompozycja wideo"],
 		"ui.about.videoEffects": ["machine","Video effects","Efekty wideo"],
 		"ui.about.website": ["machine","Website","Witryna internetowa"],
+		"ui.audiocom.panel": ["machine","audio.com","audio.com"],
 		"ui.clipSpreadsheet.cancelPaste": ["machine","Cancel paste","Anuluj wklejanie"],
 		"ui.clipSpreadsheet.channels": ["machine","Channels","Kanały"],
 		"ui.clipSpreadsheet.clipboardUnavailable": ["machine","Use Ctrl/Cmd+C or Ctrl/Cmd+V to copy or paste the selected cells.","Użyj Ctrl/Cmd+C lub Ctrl/Cmd+V, aby skopiować lub wkleić zaznaczone komórki."],

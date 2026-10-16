@@ -9,10 +9,8 @@ import { spawnSync } from 'node:child_process';
 import test from 'node:test';
 
 import { createUnifiedExactRenderPlan } from '../src/common/editor/unified-exact-render-plan.ts';
-import {
-	boostClosureIncludeArguments,
-	requireExactRetimeClosure,
-} from './helpers/framescaper-boost-closure.js';
+import { requireExactRetimeClosure } from './helpers/framescaper-boost-closure.js';
+import { createMediaContractHostFixture } from './helpers/framescaper-media-contract-host-fixture.js';
 import {
 	mediaHostUnifiedPlan,
 	mediaHostUnifiedPlanGeneration,
@@ -22,6 +20,8 @@ import { unifiedExactPlanFixture } from './helpers/unified-exact-render-plan-fix
 const repositoryRoot = resolve(import.meta.dirname, '..');
 const hostRoot = join(repositoryRoot, 'native/framescaper-media-host');
 const sourceRoot = join(hostRoot, 'src');
+const contractHost = createMediaContractHostFixture(repositoryRoot);
+test.after(() => contractHost.cleanup());
 
 test('closed media adapters authenticate canonical plans and source bytes before execution', (context) => {
 	const fixture = buildContractHost(context);
@@ -398,25 +398,16 @@ function buildContractHost(context) {
 		return null;
 	}
 	if (!requireExactRetimeClosure(context)) return null;
-	const boostArguments = boostClosureIncludeArguments();
 	const directory = mkdtempSync(join(tmpdir(), 'framescaper-media-adapters-'));
-	const executable = join(directory, 'framescaper-media-host');
-	const files = [
-		'media_host.cpp', 'image_sequence_pack.cpp', 'legacy_plan_semantics.cpp',
-		'legacy_plan_v8_filter_semantics.cpp', 'media_file_grants.cpp',
-		'media_host_arguments.cpp', 'media_plan.cpp', 'sha256.cpp', 'strict_json.cpp',
-	].map((file) => join(sourceRoot, file));
-	files.push(join(repositoryRoot, 'native/common/sha256.cpp'));
-	const built = spawnSync('c++', [
-		'-std=c++20', '-Wall', '-Wextra', '-Wpedantic', '-Werror',
-		'-DFRAMESCAPER_MEDIA_HOST_CONTRACT_ONLY=1', ...boostArguments, '-I', sourceRoot,
-		...files, '-o', executable,
-	], { encoding: 'utf8' });
-	assert.equal(built.status, 0, built.stderr);
-	return {
-		directory, executable,
-		cleanup: () => rmSync(directory, { recursive: true, force: true }),
-	};
+	try {
+		return {
+			directory, executable: contractHost.copyTo(join(directory, 'framescaper-media-host')),
+			cleanup: () => rmSync(directory, { recursive: true, force: true }),
+		};
+	} catch (error) {
+		rmSync(directory, { recursive: true, force: true });
+		throw error;
+	}
 }
 
 function operationPaths(directory) {

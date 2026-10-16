@@ -284,7 +284,7 @@ function assertBrowserCoverage(workflow, label, { staticJobs, gate, browserShard
 	// divide it alongside the site suite. It has to be pinned to one leg of the
 	// matrix or the shards would each run the whole of it.
 	const handbookLegs = [...browserJob.matchAll(
-		/^\s+if: (?<condition>matrix\.project == 'chromium'.*)\n\s+run: npm run test:docs:browser$/gmu,
+		/^\s+if: (?<condition>matrix\.project == 'chromium'.*)\n\s+run: \|\n\s+node scripts\/ci-handbook-build\.mjs verify\n\s+npx playwright test --config playwright\.docs\.config\.mjs$/gmu,
 	)];
 	assert.equal(handbookLegs.length, 1, `${label} must run the handbook suite from exactly one job`);
 	assert.match(handbookLegs[0].groups.condition, /matrix\.shard == 1/u, `${label} must not run the handbook suite once per shard`);
@@ -293,7 +293,7 @@ function assertBrowserCoverage(workflow, label, { staticJobs, gate, browserShard
 	assert.ok(firefoxJob.includes(gate), `${label} firefox must wait for the verified build`);
 	assert.match(firefoxJob, /runs-on: ubuntu-24\.04/u);
 	assert.doesNotMatch(firefoxJob, /^\s+container:/mu);
-	assert.match(firefoxJob, /playwright install --with-deps firefox/u);
+	assert.match(firefoxJob, /uses: \.\/\.github\/actions\/verified-firefox/u);
 	assert.match(firefoxJob, /ci-apt-install\.sh pulseaudio pulseaudio-utils/u);
 	assert.match(firefoxJob, /scripts\/ci-firefox-pulseaudio\.sh/u);
 	assert.match(firefoxJob, /node scripts\/ci-firefox-audio-clock\.mjs/u);

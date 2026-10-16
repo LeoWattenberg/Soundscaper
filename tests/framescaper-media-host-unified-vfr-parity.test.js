@@ -7,9 +7,10 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import test from 'node:test';
+import { compileNativeTestFixture } from '../scripts/lib/node-native-test-fixtures.ts';
+import { mediaContractFixtureKind } from '../scripts/lib/node-native-test-fixture-recipes.ts';
 
 import {
-	boostClosureIncludeArguments,
 	exactRetimeClosureAvailable,
 	requireExactRetimeClosure,
 } from './helpers/framescaper-boost-closure.js';
@@ -18,11 +19,6 @@ import {
 } from './helpers/framescaper-media-host-unified-plan-fixture.js';
 
 const repositoryRoot = resolve(import.meta.dirname, '..');
-const sourceRoot = join(repositoryRoot, 'native/framescaper-media-host/src');
-const fixtureSource = join(
-	repositoryRoot,
-	'native/framescaper-media-host/tests/unified_plan_admission_fixture.cpp',
-);
 const SOURCE_SHA256 = 'ab'.repeat(32);
 const PRESENTATION_TICKS = Object.freeze(Array.from({ length: 20 }, (_, index) => (
 	index === 0 ? 0n : Array.from({ length: index }, (__, cell) => [11n, 17n, 13n][cell % 3]).reduce(
@@ -276,19 +272,9 @@ function buildFixture(context) {
 		return null;
 	}
 	if (!requireExactRetimeClosure(context)) return null;
-	const boostArguments = boostClosureIncludeArguments();
 	const directory = mkdtempSync(join(tmpdir(), 'framescaper-unified-vfr-validator-'));
 	const executable = join(directory, 'unified-plan-admission');
-	const files = [
-		'media_plan.cpp', 'legacy_plan_semantics.cpp', 'legacy_plan_v8_filter_semantics.cpp',
-		'media_file_grants.cpp', 'sha256.cpp', 'strict_json.cpp',
-	].map((file) => join(sourceRoot, file));
-	files.push(join(repositoryRoot, 'native/common/sha256.cpp'));
-	const built = spawnSync('c++', [
-		'-std=c++20', '-Wall', '-Wextra', '-Wpedantic', '-Werror',
-		...boostArguments, '-I', sourceRoot, fixtureSource, ...files, '-o', executable,
-	], { encoding: 'utf8' });
-	assert.equal(built.status, 0, built.stderr);
+	compileNativeTestFixture({ repositoryRoot, kind: 'media-validator', outputPath: executable });
 	compiledFixture = {
 		directory,
 		executable,
@@ -306,21 +292,9 @@ function buildProductionHost(context) {
 		context.skip('A C++ compiler is not installed on this source-audit host.');
 		return null;
 	}
-	const boostArguments = boostClosureIncludeArguments();
 	const directory = mkdtempSync(join(tmpdir(), 'framescaper-production-vfr-host-'));
 	const executable = join(directory, 'framescaper-media-host');
-	const files = [
-		'media_host.cpp', 'image_sequence_pack.cpp', 'legacy_plan_semantics.cpp',
-		'legacy_plan_v8_filter_semantics.cpp', 'media_file_grants.cpp',
-		'media_host_arguments.cpp', 'media_plan.cpp', 'sha256.cpp', 'strict_json.cpp',
-	].map((file) => join(sourceRoot, file));
-	files.push(join(repositoryRoot, 'native/common/sha256.cpp'));
-	const built = spawnSync('c++', [
-		'-std=c++20', '-Wall', '-Wextra', '-Wpedantic', '-Werror', ...boostArguments,
-		'-DFRAMESCAPER_MEDIA_HOST_CONTRACT_ONLY=1', '-I', sourceRoot,
-		...files, '-o', executable,
-	], { encoding: 'utf8' });
-	assert.equal(built.status, 0, built.stderr);
+	compileNativeTestFixture({ repositoryRoot, kind: mediaContractFixtureKind(), outputPath: executable });
 	const source = join(directory, 'source.mov');
 	writeFileSync(source, 'production-vfr-source');
 	const scratch = join(directory, 'scratch');

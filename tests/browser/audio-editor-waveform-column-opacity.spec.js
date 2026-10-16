@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
+import { capturePassingScreenshot } from './helpers/passing-screenshots.js';
 import { fileURLToPath } from 'node:url';
 import { build } from 'esbuild';
 import { createWavFixture, expect, test } from './audio-editor-test-fixtures.js';
@@ -63,7 +64,7 @@ for (const product of ['soundscaper', 'framescaper']) test.describe(`${product} 
 				return translucent;
 			})).toBe(0);
 		}
-		await page.screenshot({ path: testInfo.outputPath('waveform-without-gradient.png') });
+		await capturePassingScreenshot(page, { path: testInfo.outputPath('waveform-without-gradient.png') });
 	});
 });
 

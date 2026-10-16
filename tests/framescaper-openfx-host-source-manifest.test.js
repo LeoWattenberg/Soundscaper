@@ -16,6 +16,7 @@ import {
 	deriveFramescaperOpenFxPayloadManifest,
 	verifyFramescaperOpenFxPayloadManifest,
 } from '../scripts/lib/framescaper-openfx-host-build.mjs';
+import { createNativeFixtureCompiler } from './helpers/native-fixture-compiler.ts';
 
 const repositoryRoot = resolve(import.meta.dirname, '..');
 const hostRoot = join(repositoryRoot, 'native/framescaper-openfx-host');
@@ -162,19 +163,29 @@ test('contract-only scanner and per-fingerprint runtime fixtures self-test separ
 				'media_file_grants.cpp', 'media_plan.cpp', 'sha256.cpp', 'strict_json.cpp',
 			].map((source) => join(mediaSourceRoot, source)),
 		];
+		const compiler = createNativeFixtureCompiler({
+			directory,
+			invoke(arguments_, label) {
+				const built = spawnSync('c++', arguments_, { encoding: 'utf8' });
+				assert.equal(built.status, 0, `${label}: ${built.stderr}`);
+			},
+		});
 		for (const [source, output, expectedMode] of [
 			['ofx_scanner.cpp', 'scanner', 'short-lived-scanner'],
 			['ofx_runtime_host.cpp', 'runtime', 'per-binary-fingerprint-runtime'],
 		]) {
 			const executable = join(directory, output);
-			const built = spawnSync('c++', [
-				'-std=c++20', '-Wall', '-Wextra', '-Wpedantic', '-Werror',
-				'-DFRAMESCAPER_OPENFX_CONTRACT_ONLY=1',
-				'-I', join(hostRoot, 'src'), '-I', mediaSourceRoot, ...common,
-				join(hostRoot, 'src', source), '-pthread',
-				...(process.platform === 'linux' ? ['-ldl'] : []), '-o', executable,
-			], { encoding: 'utf8' });
-			assert.equal(built.status, 0, built.stderr);
+			compiler.executable({
+				arguments: [
+					'-std=c++20', '-Wall', '-Wextra', '-Wpedantic', '-Werror',
+					'-DFRAMESCAPER_OPENFX_CONTRACT_ONLY=1',
+					'-I', join(hostRoot, 'src'), '-I', mediaSourceRoot,
+				],
+				sources: [...common, join(hostRoot, 'src', source)],
+				objectArguments: ['-pthread'],
+				linkArguments: ['-pthread', ...(process.platform === 'linux' ? ['-ldl'] : [])],
+				outputPath: executable, label: `OpenFX ${output}`,
+			});
 			const selfTest = spawnSync(executable, ['--self-test'], { encoding: 'utf8' });
 			assert.equal(selfTest.status, 0, selfTest.stderr);
 			const result = JSON.parse(selfTest.stdout);

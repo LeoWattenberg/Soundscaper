@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-/** Authenticated composite YuNet face and D-FINE object detection on CPU. */
+/** Authenticated composite YuNet face and D-FINE object detection with ONNX. */
 
 import { readFile } from 'node:fs/promises';
 
@@ -22,7 +22,7 @@ import {
 import {
 	assistanceOnnxRuntimeValueV1,
 	assertAssistanceOnnxVisualRuntimeJobV1,
-	createAssistanceOnnxVisualCpuSessionV1,
+	createAssistanceOnnxVisualSessionV1,
 	exactAssistanceOnnxOutputsV1,
 	exactAssistanceOnnxVisualArtifactsV1,
 	publishAssistanceOnnxVisualOutputV1,
@@ -90,9 +90,9 @@ async function executeSubjects(
 		await loadRuntime(context.job.descriptor.entrypoint),
 	);
 	const [faceSession, objectSession] = await Promise.all([
-		createAssistanceOnnxVisualCpuSessionV1(runtime,
+		createAssistanceOnnxVisualSessionV1(runtime,
 			yunet.face_detection_yunet_2026may.path, YUNET_INPUTS, YUNET_OUTPUTS),
-		createAssistanceOnnxVisualCpuSessionV1(runtime,
+		createAssistanceOnnxVisualSessionV1(runtime,
 			dfine.model.path, DFINE_INPUTS, DFINE_OUTPUTS),
 	]);
 	const frames: unknown[] = [];

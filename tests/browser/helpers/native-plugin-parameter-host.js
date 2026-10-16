@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { installDesktopSpeedWarmupManifest } from './desktop-speed-warmup-fixture.js';
 import { createWavFixture, expect } from '../audio-editor-test-fixtures.js';
 import { bootEditor, chooseCommandAction, importFiles } from '../audio-editor-test-helpers.js';
 
@@ -17,6 +18,7 @@ export async function openInstalledGain(page) {
 
 /** Desktop host fixture over the production preload relay and plug-in RPC port. */
 export async function installNativePluginParameterHost(page) {
+	await installDesktopSpeedWarmupManifest(page);
 	await page.addInitScript(() => {
 		const values = [.25];
 		const writes = [];

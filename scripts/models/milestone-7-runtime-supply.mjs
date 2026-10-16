@@ -9,7 +9,7 @@ const TARGET_IDS = Object.freeze([
 ]);
 const STEPS = Object.freeze([
 	'fetch-pinned-source',
-	'build-or-extract-cpu-target',
+	'build-or-extract-reviewed-target',
 	'inventory-regular-files',
 	'sha256-every-file',
 	'pack-immutable-runtime-prefix',
@@ -30,7 +30,7 @@ const FAMILIES = Object.freeze({
 		version: '1.29.0',
 		manifestUrl: 'https://registry.npmjs.org/onnxruntime-node/-/onnxruntime-node-1.29.0.tgz',
 		revision: '1.29.0',
-		recipeId: 'onnxruntime-node-upstream-closure-v1',
+		recipeId: 'onnxruntime-node-upstream-closure-v2',
 		source: Object.freeze({
 			kind: 'npm-tarball',
 			url: 'https://registry.npmjs.org/onnxruntime-node/-/onnxruntime-node-1.29.0.tgz',
@@ -43,7 +43,7 @@ const FAMILIES = Object.freeze({
 		version: 'v1.9.3',
 		manifestUrl: 'https://github.com/ggml-org/whisper.cpp/releases/tag/v1.9.3',
 		revision: 'v1.9.3',
-		recipeId: 'whisper-cpp-locked-cpu-build-v1',
+		recipeId: 'whisper-cpp-locked-accelerated-build-v2',
 		source: Object.freeze({
 			kind: 'git-revision',
 			url: 'https://github.com/ggml-org/whisper.cpp',
@@ -56,7 +56,7 @@ const FAMILIES = Object.freeze({
 		version: 'b10509',
 		manifestUrl: 'https://github.com/ggml-org/llama.cpp',
 		revision: 'b10509',
-		recipeId: 'llama-cpp-locked-cpu-build-v1',
+		recipeId: 'llama-cpp-locked-accelerated-build-v2',
 		source: Object.freeze({
 			kind: 'git-revision',
 			url: 'https://github.com/ggml-org/llama.cpp',

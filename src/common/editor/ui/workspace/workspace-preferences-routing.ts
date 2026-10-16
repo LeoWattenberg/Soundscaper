@@ -2,6 +2,7 @@
 
 const PREFERENCE_PAGES = new Set([
 	'general',
+	'advanced',
 	'appearance',
 	'audio',
 	'playback-recording',

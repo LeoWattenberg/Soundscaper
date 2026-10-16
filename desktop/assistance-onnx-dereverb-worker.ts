@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-/** Authenticated CPU ONNX custody for the dereverb-room BS-RoFormer model. */
+/** Authenticated ONNX custody for the dereverb-room BS-RoFormer model. */
 
 import {
 	ASSISTANCE_DEREVERB_ROOM_CHUNK_FRAMES,
@@ -24,8 +24,8 @@ import type {
 	AssistanceOnnxTensorV1,
 } from './assistance-onnx-runtime-worker.ts';
 import {
-	assertAssistanceOnnxCpuJobV1,
-	createAssistanceOnnxCpuSessionV1,
+	assertAssistanceOnnxJobV1,
+	createAssistanceOnnxSessionV1,
 	reviewAssistanceOnnxRuntimeModuleV1,
 } from './assistance-onnx-worker-common.ts';
 import type {
@@ -119,7 +119,7 @@ async function executeDereverbRoom(
 		const runtime = reviewAssistanceOnnxRuntimeModuleV1(
 			await loadRuntime(context.job.descriptor.entrypoint), DEREVERB_RUNTIME_ERRORS,
 		);
-		const session = await createAssistanceOnnxCpuSessionV1(
+		const session = await createAssistanceOnnxSessionV1(
 			runtime, grant.models[0]!.path, DEREVERB_SESSION_ERRORS,
 		);
 		try {
@@ -311,7 +311,7 @@ export function assertDereverbModelGrant(
 }
 
 function assertRuntimeJob(context: AssistanceRuntimeFamilyWorkerExecutionContext): void {
-	assertAssistanceOnnxCpuJobV1(context, 'dereverberation',
+	assertAssistanceOnnxJobV1(context, 'dereverberation',
 		'The dereverberation adapter received a foreign authenticated CPU job.');
 }
 

@@ -2,10 +2,10 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { createFramescaperFixtureController } from './helpers/framescaper-controller-project-fixture.ts';
 import { createEditorProjectRuntimeSelection } from '../src/framescaper/editor-project-runtime-selection.ts';
 import { FRAMESCAPER_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-project-runtime-profile.ts';
 import { createFramescaperBaselineImageFixture } from './helpers/framescaper-baseline-image-fixture.ts';
-import { createFramescaperAudioEditorController } from '../src/framescaper/editor-controller.ts';
 import { createFramescaperEditorProjectEnvironment } from '../src/framescaper/editor-project-environment.ts';
 import { createInstrumentedIndexedDB } from './helpers/instrumented-indexeddb.js';
 import { applyFramescaperProjectCommand } from '../src/framescaper/editor-project-commands.ts';
@@ -78,10 +78,10 @@ test('the real Framescaper controller removes a header-selected image through pu
 	}, { type: 'image-clip/set', clipId: fixture.clip.id, expectedClip: null, expectedPlacement: null,
 		clip: fixture.clip, placement: { scope: 'timeline', trackId: track.id } }] });
 	assert.ok(await environment.timelineImages.publishIfCurrent({ expected: base, project: authored, bytes: fixture.bytes }));
-	const controller = createFramescaperAudioEditorController(environment);
+	const controller = await createFramescaperFixtureController(environment, fixture.project.id);
 	try {
 		await controller.ready;
-		await controller.actions.project.openById(fixture.project.id);
+		assert.equal(controller.project?.id, fixture.project.id);
 		controller.actions.timeline.selectClip(fixture.clip.id);
 		controller.actions.edit.deleteLeaveGap();
 		assert.equal(controller.project?.clips.some(clip => clip.id === fixture.clip.id), false);

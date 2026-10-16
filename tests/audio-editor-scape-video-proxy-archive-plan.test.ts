@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { readFile, readdir } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import test from 'node:test';
+import { scapeVideoProxySourceReferences } from './helpers/scape-video-proxy-source-audit.ts';
 
 import * as archivePlanModule from '../src/common/editor/scape-video-proxy-archive-plan.ts';
 import {
@@ -195,10 +196,10 @@ test('enforces proxy identity, body bounds, timing binding, and the archive entr
 });
 
 test('has no deprecated V2 wrapper and keeps the baseline archive owner at format 1', async () => {
-	const references: string[] = [];
-	for (const file of await sourceFiles(['src', 'desktop', 'scripts', 'tests'])) {
-		if ((await readSource(file)).includes(MODULE_STEM)) references.push(file);
-	}
+	const references = await scapeVideoProxySourceReferences(
+		await sourceFiles(['src', 'desktop', 'scripts', 'tests']),
+		['src/framescaper/editor-professional-media-archive-plan.ts', TEST_MODULE], MODULE_STEM, readSource,
+	);
 	assert.ok(references.includes('src/framescaper/editor-professional-media-archive-plan.ts'));
 	assert.ok(references.includes(TEST_MODULE));
 	assert.ok(references.every((file) => !file.includes('scape-video-proxy-archive-plan-v2')));

@@ -47,7 +47,7 @@ import {
 } from './file-associations.js';
 import { registerSelectedReadCapability } from './read-selection-service.js';
 import { registerFileCapabilityIpc } from './main-file-capability-ipc.mjs'; import { SesxMediaSessionStore } from './sesx-media-session.mjs'; import { registerExternalMediaIpc } from './project-library-runtime/desktop/external-media-ipc.js'; import { OriginalFileOverwriteStore } from './project-library-runtime/desktop/original-file-overwrite.js';
-import { createProtocolHandler, registerAppScheme } from './protocol.js'; import { createDesktopFreesoundIntegration } from './freesound-integration.js';
+import { createProtocolHandler, registerAppScheme } from './protocol.js'; import { createDesktopFreesoundIntegration } from './freesound-integration.js'; import { createDesktopAudiocomIntegration } from './project-library-runtime/desktop/audiocom-integration.js';
 import { createDesktopSmokeProbe } from './desktop-smoke.js';
 import { createDesktopNightlyTestsWindow } from './nightly-tests-window.mjs';
 import { createSoakDebugDialog } from './soak-debug-dialog.mjs'; import { collectSoakDebugProcessMetrics, createSoakDebugMainCoverageCheckpoint, soakDebugProcessMetricsEnabled, SOAK_DEBUG_FLAG } from './soak-debug-process-metrics.mjs';
@@ -87,7 +87,7 @@ let rendererReady = false;
 let pendingClose = null;
 let projectLibraryRuntime = null, projectLibraryStartup = null, projectLibraryIpc = null;
 let linkedVideoLocators = null, nativeTier = null, nativeServices = null, soundscaperDelivery = null;
-let captureSecurity = null, assistance = null, assistanceSemanticSearch = null, externalFfmpegPreferences = null, desktopCodecs = null, freesound = null;
+let captureSecurity = null, assistance = null, assistanceSemanticSearch = null, externalFfmpegPreferences = null, desktopCodecs = null, freesound = null, audiocom = null;
 let allowNextClose = false;
 let applicationIsQuitting = false;
 const rendererOwnershipCleanup = new DesktopRendererOwnershipCleanup({
@@ -220,13 +220,13 @@ async function startApplication() {
 		...createFramescaperNativeServicesElectronPorts(settings, (error) => console.error('Framescaper native service failed:', cleanError(error))),
 	});
 	releaseChecker = new ReleaseChecker({ currentVersion: app.getVersion(), settings, tagPrefix: UPDATE_TAG_PREFIX });
-	freesound = await createDesktopFreesoundIntegration({ appOrigin: APP_ORIGIN, apiOrigin: 'https://soundscaper.org', channels: IPC, filePath: resolve(desktopStorage.stateRoot, 'freesound-session.json'), handle, platform: process.platform, productId: PRODUCT_ID, safeStorage, shell });
+	freesound = await createDesktopFreesoundIntegration({ appOrigin: APP_ORIGIN, apiOrigin: 'https://soundscaper.org', channels: IPC, filePath: resolve(desktopStorage.stateRoot, 'freesound-session.json'), handle, platform: process.platform, productId: PRODUCT_ID, safeStorage, shell }); audiocom = await createDesktopAudiocomIntegration({ appOrigin: APP_ORIGIN, apiOrigin: 'https://soundscaper.org', channels: IPC, filePath: resolve(desktopStorage.stateRoot, 'audiocom-session.json'), handle, platform: process.platform, productId: PRODUCT_ID, safeStorage, shell });
 	const desktopSession = session.fromPartition(SESSION_PARTITION);
 	await desktopSession.protocol.handle(APP_SCHEME, createProtocolHandler({
 		productId: PRODUCT_ID,
 		rendererRoot: resources.renderer,
 		runtimeRoot: resources.runtime,
-		readCapabilities, freesoundProxy: freesound.proxy,
+		readCapabilities, freesoundProxy: freesound.proxy, audiocomProxy: audiocom.proxy,
 	}));
 	if (applicationShutdown.requested) return;
 	await registerIpcHandlers(desktopSession);

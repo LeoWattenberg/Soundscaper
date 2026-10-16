@@ -2,7 +2,7 @@
 import { createParallelStackSession } from '../../src/common/editor/controller/transport/internal/parallel-stack-session.ts';
 import { compileParallelStackPlan } from '../../src/common/editor/engine/parallel-stack-plan.ts';
 import { createParallelStackViews, PARALLEL_STACK_PROCESSOR_NAME, type ParallelStackViews,
-	type SharedParallelStackBuffers } from '../../src/common/editor/engine/parallel-stack-protocol.ts';
+	ParallelStackStatus, type SharedParallelStackBuffers } from '../../src/common/editor/engine/parallel-stack-protocol.ts';
 import type { EngineProject } from '../../src/common/editor/engine/types.ts';
 
 export interface ParallelDesktopSmokeResult {
@@ -64,7 +64,6 @@ async function run(): Promise<ParallelDesktopSmokeResult> {
 			const source = context.createConstantSource(); source.offset.value = .15;
 			source.connect(input); source.start(); sources.push(source);
 		}
-		await new Promise<void>((resolve) => setTimeout(resolve, 500));
 		const active = capture.views;
 		if (!active) throw new Error('No shared worker generation was prepared.');
 		const sequences = () => {
@@ -78,13 +77,24 @@ async function run(): Promise<ParallelDesktopSmokeResult> {
 			}
 			return result;
 		};
+		const samples = new Float32Array(256);
+		const outputPeak = () => {
+			graph.masterAnalyser?.getFloatTimeDomainData(samples);
+			return samples.reduce((maximum, sample) => Math.max(maximum, Math.abs(sample)), 0);
+		};
+		const readyDeadline = performance.now() + 5_000;
+		while (sequences().some((sequence) => sequence < 10) || outputPeak() < .3) {
+			if (active.status() !== ParallelStackStatus.Running || errors.length > 0) {
+				throw new Error(`Parallel audio failed before the renderer stall: fault=${String(active.fault())}, ${errors.join('; ')}`);
+			}
+			if (performance.now() >= readyDeadline) throw new Error('Parallel audio did not become audible before the renderer stall.');
+			await new Promise<void>((resolve) => setTimeout(resolve, 10));
+		}
 		const before = sequences();
 		const until = performance.now() + 500;
 		while (performance.now() < until) { /* Block the renderer UI, leaving real worker/audio threads active. */ }
 		const after = sequences();
-		const samples = new Float32Array(256);
-		graph.masterAnalyser?.getFloatTimeDomainData(samples);
-		const peak = samples.reduce((maximum, sample) => Math.max(maximum, Math.abs(sample)), 0);
+		const peak = outputPeak();
 		const result = { isolated: crossOriginIsolated, secure: isSecureContext, protocol: location.protocol,
 			workers: workers.length, progress: after.map((sequence, worker) => sequence - before[worker]!), peak,
 			fault: active.fault(), status: active.status(), errors };

@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "he",
 	"provenance": {
-		"machine": {"model":"gpt-6","modelDigest":"sha256:62888b063accc8d62f736297ddd0ef52f06a872d8089e71425e1ae43c0be969e","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"gpt-6","modelDigest":"sha256:7db74965e41975181308f0da6c410d02e8955e1883457d594f6a4d13c4bfc990","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"de2e43dc13474ba712ade5ea8e47550eba0e8bfb","runId":35327911264,"artifactId":10539339149,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/35327911264","archiveName":"Audacity_locale_262610911.zip","archiveSha256":"13b1ff11c39a677c711a1d29738a394aaca7a200533927aab3f45bbd76c1ff8e","archiveByteLength":15413913,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/de2e43dc13474ba712ade5ea8e47550eba0e8bfb/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -51,6 +51,12 @@
 		"admRemove": ["machine","Remove ADM","הסרת ADM"],
 		"admRemoveObject": ["machine","Remove object","הסרת אובייקט"],
 		"admRouting": ["machine","Bed routing","ניתוב מצע"],
+		"advancedAudioServer": ["machine","audio.com API","audio.com API"],
+		"advancedAudioServerDescription": ["machine","Choose audio.com or a compatible server such as Audiocity. Custom servers must be publicly reachable; localhost works when running Soundscaper locally. Changing the server signs you out. Open Window → audio.com to connect again.","יש לבחור ב-audio.com או בשרת תואם כגון Audiocity. שרתים מותאמים חייבים להיות נגישים לציבור; localhost פועל כאשר Soundscaper מופעל מקומית. שינוי השרת מנתק אותך מהחשבון. יש לפתוח חלון → audio.com כדי להתחבר שוב."],
+		"advancedAudioServerInvalid": ["machine","Enter an HTTPS server URL without a path, query, or sign-in details. HTTP localhost URLs work when running Soundscaper locally.","יש להזין כתובת URL של שרת HTTPS ללא נתיב, שאילתה או פרטי התחברות. כתובות HTTP localhost פועלות כאשר Soundscaper מופעל מקומית."],
+		"advancedAudioServerSave": ["machine","Save server","שמירת שרת"],
+		"advancedAudioServerUrl": ["machine","Server URL","כתובת URL של השרת"],
+		"advancedAudioServerUseDefault": ["machine","Use audio.com","שימוש ב-audio.com"],
 		"advancedLocalProcessing": ["machine","Advanced Local Processing","עיבוד מקומי מתקדם"],
 		"advancedOptions": ["machine","Advanced options","אפשרויות מתקדמות"],
 		"alignEndToEnd": ["machine","Align end to end","יישור מקצה לקצה"],
@@ -1989,6 +1995,7 @@
 		"preferenceOff": ["machine","Off","כבוי"],
 		"preferencePerTrack": ["machine","Per track","לפי רצועה"],
 		"preferences": ["audacity","Preferences","העדפות"],
+		"preferencesAdvanced": ["machine","Advanced","מתקדם"],
 		"preferencesAudioSettings": ["machine","Audio settings","הגדרות שמע"],
 		"preferencesEditing": ["machine","Editing","עריכה"],
 		"preferencesEffects": ["machine","Effects","אפקטים"],
@@ -2734,6 +2741,7 @@
 		"ui.about.videoCompositing": ["machine","Video compositing","קומפוזיציית וידאו"],
 		"ui.about.videoEffects": ["machine","Video effects","אפקטים לווידאו"],
 		"ui.about.website": ["machine","Website","אתר אינטרנט"],
+		"ui.audiocom.panel": ["machine","audio.com","audio.com"],
 		"ui.clipSpreadsheet.cancelPaste": ["machine","Cancel paste","ביטול הדבקה"],
 		"ui.clipSpreadsheet.channels": ["machine","Channels","ערוצים"],
 		"ui.clipSpreadsheet.clipboardUnavailable": ["machine","Use Ctrl/Cmd+C or Ctrl/Cmd+V to copy or paste the selected cells.","להעתקת התאים שנבחרו או להדבקתם, יש להשתמש ב־Ctrl/Cmd+C או ב־Ctrl/Cmd+V."],

@@ -1,0 +1,109 @@
+{
+	"schemaVersion": 1,
+	"version": "0.4.0",
+	"minimumRuntimeVersion": "1.24.4",
+	"sourceRevision": "2e2543fbe9fae542f921d47a72d21d5a4ef0b710",
+	"archive": {
+		"id": "onnx-webgpu-plugin",
+		"url": "https://api.nuget.org/v3-flatcontainer/microsoft.ml.onnxruntime.ep.webgpu/0.4.0/microsoft.ml.onnxruntime.ep.webgpu.0.4.0.nupkg",
+		"byteLength": 46707778,
+		"sha256": "cc2e093a2eaa760a630d6c3299f015f1dd86885b9eb5877257135308f7c5e923"
+	},
+	"files": [
+		{
+			"sourcePath": "LICENSE",
+			"path": "ONNX-WebGPU-LICENSE",
+			"byteLength": 1094,
+			"sha256": "c250d6278f0b47a6439fb7592b08b58a55eb9f535aa49a1db63211c3f982b674"
+		},
+		{
+			"sourcePath": "ThirdPartyNotices.txt",
+			"path": "ONNX-WebGPU-ThirdPartyNotices.txt",
+			"byteLength": 344457,
+			"sha256": "c53a76501ef60db6f865f20599f220761201ac4057683acefdab37d861b86622"
+		}
+	],
+	"targets": {
+		"mac-arm64": {
+			"sourcePath": "runtimes/osx-arm64/native/libonnxruntime_providers_webgpu.dylib",
+			"path": "libonnxruntime_providers_webgpu.dylib",
+			"byteLength": 14966224,
+			"sha256": "894aa43c308c97afe58f6485b8411962181a39b27170f5f210cc7503adb52850"
+		},
+		"linux-x64": {
+			"sourcePath": "runtimes/linux-x64/native/libonnxruntime_providers_webgpu.so",
+			"path": "libonnxruntime_providers_webgpu.so",
+			"byteLength": 16450888,
+			"sha256": "9f76e3dc4459421958ad086a9da03bf7e5de9289e9a3a56e28bbb459773dec81"
+		},
+		"linux-arm64": {
+			"sourcePath": "runtimes/linux-arm64/native/libonnxruntime_providers_webgpu.so",
+			"path": "libonnxruntime_providers_webgpu.so",
+			"byteLength": 13862448,
+			"sha256": "720e1288e7e465f924db44b88a98a9d1c543eba3fbb2ff801cf2545f5e7f0279"
+		},
+		"win-x64": {
+			"sourcePath": "runtimes/win-x64/native/onnxruntime_providers_webgpu.dll",
+			"path": "onnxruntime_providers_webgpu.dll",
+			"byteLength": 10954080,
+			"sha256": "85d7b2065b1968b846cd00d5d87d5286d3c44e8f6c557cd382d96300e524b6cb"
+		},
+		"win-arm64": {
+			"sourcePath": "runtimes/win-arm64/native/onnxruntime_providers_webgpu.dll",
+			"path": "onnxruntime_providers_webgpu.dll",
+			"byteLength": 11279672,
+			"sha256": "e2a72894617c0519cae3080534ca1fc957c4ab607a993c05f326d83b322a581d"
+		}
+	},
+	"headers": [
+		{
+			"id": "ort-include-onnxruntime-core-session-onnxruntime_c_api-h",
+			"url": "https://raw.githubusercontent.com/microsoft/onnxruntime/2e2543fbe9fae542f921d47a72d21d5a4ef0b710/include/onnxruntime/core/session/onnxruntime_c_api.h",
+			"path": "include/onnxruntime/core/session/onnxruntime_c_api.h",
+			"byteLength": 398209,
+			"sha256": "acc0cf4b3f28d39339c76770d76164bb7a0637dc89f5fde764b4017b632f6743"
+		},
+		{
+			"id": "ort-include-onnxruntime-core-session-onnxruntime_cxx_api-h",
+			"url": "https://raw.githubusercontent.com/microsoft/onnxruntime/2e2543fbe9fae542f921d47a72d21d5a4ef0b710/include/onnxruntime/core/session/onnxruntime_cxx_api.h",
+			"path": "include/onnxruntime/core/session/onnxruntime_cxx_api.h",
+			"byteLength": 169698,
+			"sha256": "9c63ed5bf0427ddf1c10a99aca0beeec77318ce77d2ea6f7ae76d7d933660f67"
+		},
+		{
+			"id": "ort-include-onnxruntime-core-session-onnxruntime_cxx_inline-h",
+			"url": "https://raw.githubusercontent.com/microsoft/onnxruntime/2e2543fbe9fae542f921d47a72d21d5a4ef0b710/include/onnxruntime/core/session/onnxruntime_cxx_inline.h",
+			"path": "include/onnxruntime/core/session/onnxruntime_cxx_inline.h",
+			"byteLength": 157865,
+			"sha256": "c508dbb7d8203003a2584b8712118cb88e5b4ef1e1c7876a9974156fb7489301"
+		},
+		{
+			"id": "ort-include-onnxruntime-core-session-onnxruntime_ep_c_api-h",
+			"url": "https://raw.githubusercontent.com/microsoft/onnxruntime/2e2543fbe9fae542f921d47a72d21d5a4ef0b710/include/onnxruntime/core/session/onnxruntime_ep_c_api.h",
+			"path": "include/onnxruntime/core/session/onnxruntime_ep_c_api.h",
+			"byteLength": 156950,
+			"sha256": "e6c986c9e98583f8113b2c6bc3864814883b806d501cf24da4d239c45753e235"
+		},
+		{
+			"id": "ort-include-onnxruntime-core-session-onnxruntime_float16-h",
+			"url": "https://raw.githubusercontent.com/microsoft/onnxruntime/2e2543fbe9fae542f921d47a72d21d5a4ef0b710/include/onnxruntime/core/session/onnxruntime_float16.h",
+			"path": "include/onnxruntime/core/session/onnxruntime_float16.h",
+			"byteLength": 17991,
+			"sha256": "88b242845d25981633a0bbd1c148e273cf8bfb016ea3f57c4af41a06530f72b0"
+		},
+		{
+			"id": "ort-include-onnxruntime-core-session-onnxruntime_error_code-h",
+			"url": "https://raw.githubusercontent.com/microsoft/onnxruntime/2e2543fbe9fae542f921d47a72d21d5a4ef0b710/include/onnxruntime/core/session/onnxruntime_error_code.h",
+			"path": "include/onnxruntime/core/session/onnxruntime_error_code.h",
+			"byteLength": 2775,
+			"sha256": "5ce3b054e798eced8d14f5b86e98692fd33470463f96194ce0700a2d53dd8721"
+		},
+		{
+			"id": "ort-coreml-provider-factory",
+			"url": "https://raw.githubusercontent.com/microsoft/onnxruntime/2e2543fbe9fae542f921d47a72d21d5a4ef0b710/include/onnxruntime/core/providers/coreml/coreml_provider_factory.h",
+			"path": "include/onnxruntime/core/providers/coreml/coreml_provider_factory.h",
+			"byteLength": 5247,
+			"sha256": "d6430c47d2b076d4a40ba6523e78d75cc4c4b0e5604fb280168891331b057ade"
+		}
+	]
+}

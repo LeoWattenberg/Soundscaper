@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
-import { copyFile, mkdir, mkdtemp, rm, symlink } from 'node:fs/promises';
+import { copyFile, mkdir, mkdtemp, readFile, rm, symlink } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import test from 'node:test';
@@ -13,9 +13,12 @@ test('the declared nightly preload fixture builds from packaged sources without 
 	const root = await mkdtemp(join(tmpdir(), 'soundscaper-nightly-preload-'));
 	context.after(() => rm(root, { recursive: true, force: true }));
 	const repository = resolve(import.meta.dirname, '..');
+	const preloadSource = await readFile(join(repository, 'desktop/preload.mjs'), 'utf8');
+	const runtimeSources = [...preloadSource.matchAll(/['"]\.\/project-library-runtime\/(desktop\/[^'"]+)\.js['"]/gu)]
+		.map(([, source]) => `${source}.ts`);
 	const sources = [
 		'tests/helpers/desktop-preload-source.mjs', 'desktop/preload.mjs',
-		'desktop/ara-preload.ts', 'desktop/blender-preload.ts',
+		...runtimeSources,
 		'src/common/editor/ara-contract.ts', 'src/common/editor/blender-contract.ts',
 	];
 	for (const source of sources) {

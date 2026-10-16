@@ -9,7 +9,7 @@ qualify, attest to, or sign off a release. Historical “qualified” and
 “admitted” wording in retained version narratives means only that a bounded
 technical input or operation passed its named checks.
 
-The model is grounded on 2026-10-02. It must be updated when a trust boundary, supported input, renderer bridge, worker ABI, native executable, plug-in surface, release channel, or long-job lifecycle changes.
+The model is grounded on 2026-10-16. It must be updated when a trust boundary, supported input, renderer bridge, worker ABI, native executable, plug-in surface, release channel, or long-job lifecycle changes.
 
 ## 1.0 project-identity boundary
 
@@ -79,6 +79,7 @@ The browser, Electron/Chromium runtime, operating system, and hardware are trust
 | `public-browser-to-desktop-release-redirect` | Browser visitor following a desktop download link | Product Pages download Function and GitHub's public release listing | Accept only product hosts and safe methods, bound the upstream lookup, and redirect only to a published release with that product's installer. |
 | `public-client-to-freesound-proxy` | Public browsers, packaged Soundscaper clients, and other network callers | Pages Functions and their server-only Freesound credential | Admit only fixed read routes and bounded inputs, and never expose or forward the credential outside the fixed API origin. |
 | `authenticated-client-to-freesound-proxy` | Soundscaper web client or packaged main-process proxy holding an opaque session | OAuth/media Functions, D1 token store, and server-held OAuth credentials | Bind exact session transport and origin to closed OAuth, original-download, upload, and publication routes without exposing tokens to the renderer. |
+| `authenticated-client-to-audiocom-proxy` | Soundscaper web client or packaged main holding an opaque session, and provider OAuth/API/CDN responses | Pages audio.com Functions, encrypted D1 grants, and approved provider upload storage | Bind state, encrypted PKCE, session transport and publication metadata to closed routes and pinned provider destinations without exposing credentials. |
 | `freesound-upstream-to-proxy` | Freesound OAuth/API, original-file, upload, and CDN preview responses | Owned OAuth/media contracts and bounded streams | Reject untrusted fetch targets, redirects, open response shapes, disallowed media types, and bodies beyond per-response ceilings. |
 | `renderer-to-electron-main` | Sandboxed renderer | Electron main process | Only the product-qualified v1 bridge, including bounded pathless linked-video, maintained linked PCM container, and owning-family project-library calls, reaches privileged handlers. |
 | `electron-main-to-filesystem` | Protocol and IPC requests | User-selected files and packaged resources | Renderer code receives capabilities, not ambient paths or arbitrary filesystem access; persisted linked-video and maintained linked PCM container paths remain main-private. |
@@ -943,6 +944,90 @@ interrupted upload is non-idempotent: retrying after an ambiguous upstream
 outcome can create another pending Freesound upload.
 <!-- /policy-narrative:freesound-authenticated-media-lifecycle -->
 
+### audio.com API proxy
+
+`audiocom-proxy-boundary` is **partial** at the
+`authenticated-client-to-audiocom-proxy` boundary.
+
+<!-- policy-narrative:bounded-audiocom-oauth-media-proxy -->
+The audio.com Pages namespace admits only canonical production, the owned
+soundscaper-5ki.pages.dev project, or explicitly enabled loopback hosts; trusted
+Soundscaper web, desktop, or current same-origin browser Origins; closed
+methods, bounded JSON, search parameters, upload metadata, and session
+transports. Mutations reject cross-site fetch metadata; CORS is not client
+authentication. OAuth uses ten-minute random state and handoff capabilities,
+single-use state exchange, and PKCE S256 with an encrypted verifier. Preview
+sign-in requires an explicit registered callback on that same Pages project,
+isolated preview D1 and secrets, and a callback-origin check; the original
+editor polls on its own host and receives a host-only cookie. Production cannot
+use a preview callback; the default https://api.audio.com token/API targets
+disable redirects and apply ten-second control-request deadlines. audio.com is
+the default. An opt-in Advanced preference chooses a custom Audiocity server
+through a validated origin header; custom origins require public HTTPS, with
+HTTP loopback restricted to an explicitly enabled local Soundscaper server. Each
+custom OAuth attempt registers its own public client with a fixed Soundscaper
+callback; the default client secret is never sent to a custom server. D1
+persists the issuer, public client ID, scope and callback on each attempt and
+grant, so headerless callbacks and refresh use the authorized binding, while a
+changed selection requires reconnecting. Headerless audio previews derive their
+issuer from the authenticated grant. OAuth requests public projects only for
+Audiocity, and origin-bound attempt identifiers and persisted bindings prevent
+grants being forwarded after a provider change. The browser and Electron main
+validate authorization and content links against configuration returned by their
+fixed Soundscaper backend and matched to the explicit server selection. Electron
+main captures only successfully validated server-issued provider metadata, and
+changing preferences disposes stale searches, previews, uploads and archive
+transfers even while the panel is closed. D1 stores provider tokens and polling
+session secrets only as AES-256-GCM ciphertext with provider- and field-specific
+authenticated data; browser sessions use Secure HttpOnly SameSite=Strict cookies
+and desktop sessions use opaque hashed Soundscaper capabilities. Rolling
+sessions expire after 30 days, refresh rotation uses generation-fenced leases,
+and disconnect removes orphan grants. No public userinfo endpoint is invented or
+account identity inferred. Uploads require supported raw audio of exactly 1
+through 100,000,000 bytes with bounded metadata; only provider-returned policies
+on exact HTTPS s3.audio.com/audio/, s3.ustatik.com/audio.com.audio/, or
+s3.eu-central-1.wasabisys.com/audio.com.audio/source/ paths receive bytes. The
+Wasabi source destination is upload-only and does not broaden playback or
+source-download authority, and provider OAuth credentials are never sent to
+storage. Configured Audiocity transfers admit only exact same-origin UUID
+upload/hook and signed media paths; discovery must match that origin and
+advertise archive formats and byte ceilings. The server awaits verified stream
+completion before the POST success hook; failure and cancellation attempt the
+provider DELETE cleanup hook with an independent ten-second timeout. Preview
+requests require a valid application session, pin the same exact CDN hosts and
+paths, block redirects, accept only audio MIME responses, enforce simple byte
+ranges, and cap declared and observed bytes at 128 MiB. JSON responses are
+bounded and normalized, omit signed upload policies and OAuth credentials, and
+use no-store and nosniff. Electron main holds the opaque capability outside
+renderer authority, captures it from polling responses, strips renderer
+credentials, exposes closed routes and an exact authorization-URL opener, and
+persists only with an admitted safeStorage backend. The regular public audio.com
+API has no Audacity project storage or retrieval and no original source download
+route. Configured Audiocity archive routes require project-scoped sessions, list
+only whole-file transport, and stream selected standalone AUP3/AUP4 files of 16
+through 100,000,000 bytes. Completion requires verified exact bytes, a SQLite
+header, the storage success hook and snapshot synchronization; downloads select
+a completed revision with its own format and bounded exact length. Native block
+snapshots and automatic serialization of the open project are excluded. Backend
+and desktop tests prove state replay and handoff rejection, encrypted PKCE and
+token confinement, refresh fencing, session transport admission, fixed
+destinations, exact upload byte checks, cancellation cleanup, range handling,
+and bounded response failure; fixtures alone do not establish live audio.com
+upload success. A registered preview smoke test on 2026-10-15 separately
+confirmed browser consent and polling, panel search, ranged playback, an
+unlisted two-second WAV upload through processing completion and playback,
+provider deletion, and application disconnect; it does not qualify account quota
+failures or production abuse controls. A separate disposable local integration
+harness exercises real Pages Functions and D1, an Audiocity server, cross-origin
+PKCE consent, audio search/upload/range playback, and whole-file archive
+upload/download followed by the existing editor importer.
+<!-- /policy-narrative:bounded-audiocom-oauth-media-proxy -->
+
+The [control register](../../config/production-security-matrix.json) records
+the remaining deployment and media lifecycle controls and acceptance criteria in
+`audiocom-deployment-and-live-provider-proof` and
+`audiocom-media-transfer-lifecycle`.
+
 ### Electron renderer, IPC, and filesystem capabilities
 
 `electron-renderer-ipc-boundary` is **enforced for the current v1 bridges only**. The window uses sandboxing, context isolation, no Node integration, sender/root-document checks, denied navigation and new-window paths, and a frozen input-validating preload API. Shared-project methods are bounded pathless list, read, bundle, commit, delete, and managed-media transfer operations for the closed canonical-PCM and retained-original-video encodings; main independently sanitizes their values, caps transfer bodies at 64 GiB and chunks at 4 MiB, and permits at most four active uploads and four active reads across the bridge service. Linked-original load requests are closed pathless DTOs with mandatory kind-specific Boolean modes: whole-Blob materialization requires `range: false` for audio or `playback: false` for video, while ranged access requires the corresponding true mode and a non-null exact locator revision. Main and preload independently validate the mode, returned revision, profile-bound descriptor, safe size, canonical URL, and kind-specific MIME/name contract, and they retire a descriptor that cannot be returned safely. Upload capacity remains charged through publication or abort settlement, and service disposal waits for finishing publications. Upload sessions and linked-original reads remain bound to their renderer owner for authorization and revocation. Navigation, renderer loss, and window close revoke the owner, fence new work, abort its uploads, and drain admitted operations and range reads. The external-video addition exposes nine separately validated owner-scoped methods for capabilities, begin, input write, input close, execute, stat, bounded range read, delete, and cancel. It admits opaque operation ids, exact closed plans, and at-most-1-MiB chunks, never renderer-selected paths, executables, or argv; at most two sessions exist globally and one per owner. Navigation, renderer loss, window close, disposal, and shutdown fence new work, cancel and drain the child/session lifecycle, and remove main-private scratch. The desktop local-assistance and additive workflow bridges likewise expose only opaque jobs, aggregate selected-media fences, authenticated slotted claims/reservations, closed operations and workflow graphs, progress, typed unavailable outcomes, and MessagePort byte transfers. Main-private staging, model/runtime/video/executable paths, and project-isolated derivative storage stay outside renderer authority; cancellation and release drain transfers and helper or external-process work before cleanup. No renderer receives a filesystem path. Implemented workflow code creates no authority for a runtime payload or digest-pinned model that has not passed admission.
@@ -978,14 +1063,14 @@ fixed shell-free, bounded, process-tree-supervised grammar. Qualification or
 executable-authority loss returns typed unavailable; malformed actual metadata
 or process failure stays hard, and no shot boundary is fabricated.
 
-Conditional CPU runtime families and owned deterministic stages implement
+Conditional GPU-capable runtime families and owned deterministic stages implement
 Whisper/wav2vec2 alignment, DeepFilterNet enhancement, TIGER separation, PANNs
 reactions, Beat This, TransNetV2 accurate shots, nomic/SigLIP embeddings, OCR,
 subject/saliency reframe, deterministic highlights, and bounded Qwen editorial
 JSON. Their isolated process/thread protocols enforce exact file grants, memory
 admission, supervision, crash quarantine, and termination cancellation. Desktop
-preparation provisions the exact selected-target CPU engine and authenticates
-its generated file manifest, including the Windows ARM64 Sherpa addon. The
+preparation provisions the exact selected-target GPU/CPU engine and authenticates
+its generated file manifest, including the five-target Sherpa GPU addons. The
 [retained conversion evidence](../../evidence/milestone-7-model-conversion/README.md)
 binds TIGER, PANNs, both Beat This checkpoints, TransNetV2, and Dereverb Room to
 actual source-framework comparisons and exact converted artifacts. Unmet model,
@@ -1497,13 +1582,45 @@ and quiescent staging cleanup. Catalog-bound Parakeet, Silero, and exact
 Pyannote/ERes2Net remain the active Sherpa routes. The additional ONNX Runtime,
 whisper.cpp, and llama.cpp families implement equivalent isolated grants,
 process/thread protocols, memory admission, quarantine, and termination.
-Release preparation builds these CPU engines, the Sherpa addon, and the Kokoro
+Release preparation builds these engines, the Sherpa addon, and the Kokoro
 G2P closure for each supported target. The macOS native bytes are signed.
 The protected archive pins each immutable R2 download and its extracted file
 inventory, while the Electron package carries none of the assistance payloads.
 Model Manager downloads the required runtime when a model is installed; a
 preseeded or previously installed model can fetch it on first use. The complete
 closure is verified again before native execution.
+
+<!-- policy-narrative:local-assistance-gpu-execution -->
+Authenticated target manifests bind a GPU option and portable CPU fallback for
+all 22 catalog models across all five desktop targets. Sherpa and ONNX Runtime
+use CoreML or native WebGPU on macOS ARM64 and native WebGPU on Windows/Linux
+x64 and ARM64. Sherpa is source-built on every target against the pinned ONNX
+Runtime 1.29.0 core and reviewed WebGPU plugin; generic ONNX rebuilds its
+Node-API binding on all five targets to register that plugin. An authenticated
+isolated device probe contains WebGPU initialization failures before resident
+registration. Exact generated native files, source pins, MIT licenses,
+third-party notices, and provenance enter each authenticated closure. Kokoro G2P
+also gives its learned English Tok2Vec/tagger models a GPU option: a sealed ORT
+WebGPU GEMM shim preserves the exact weights, tokenizer, lexical features, and
+remaining CPU operators. Its isolated probe, same-process-architecture
+core/plugin libraries, source pins, and notices join the authenticated G2P
+closure. Windows ARM64 retains the existing x64 frozen-helper emulation.
+Imported CPU PyTorch does not execute a learned network with model=False; speech
+synthesis remains in the separate accelerated ONNX worker. Whisper and Qwen use
+embedded Metal on macOS ARM64 or separate Vulkan GPU executables on
+Windows/Linux. Each Vulkan companion and its portable CPU executable share an
+authenticated archive; the CPU executable does not link Vulkan. System Vulkan
+loaders and compatible graphics drivers remain host dependencies outside archive
+authentication. Digest-pinned Vulkan Headers/Loader, shaderc, glslang, SPIRV
+Headers and Tools build embedded shaders with provenance and notices. Existing
+menu-invoked operations prefer authenticated GPU providers before CPU fallback
+for native initialization or execution failure. Cancellation, authentication
+failures, invalid inputs, invalid outputs, and cleanup failures remain terminal.
+Legacy CPU archives remain compatible; new builds cannot omit GPU support. CUDA
+and DirectML are not packaged. Publication, usable devices, driver
+compatibility, and performance need separate evidence; source, fixture, and
+build checks do not establish them.
+<!-- /policy-narrative:local-assistance-gpu-execution -->
 
 The conditional external-FFmpeg shot adapter is a separate ordinary child
 process, not a Sherpa job. A current main-only executable-pair admission,
@@ -1515,22 +1632,22 @@ selected executable's ambient account authority. Authentication or executable
 loss returns typed unavailable; malformed actual detection remains hard.
 
 <!-- policy-narrative:local-assistance-runtime-diagnostics -->
-The Sherpa helper, CPU runtime-family hosts, and external-FFmpeg shot detector
-execute ordinary native code with ambient account authority. Exact payload,
-selected-file, model-artifact, and executable authentication plus supervision
-contain accidental faults but do not create an operating-system sandbox, close
-the FFmpeg hash-to-path/dynamic-library gaps, or establish aggregate CPU/RSS and
-long-session bounds. Retained Linux x64 conversions now authenticate TIGER-DnR,
-PANNs Cnn10, both Beat This checkpoints, TransNetV2, and Dereverb Room, with
-exact artifact identities and passing source-framework/ONNX comparisons. The
-conversion evidence directory also retains direct production-worker smoke
-results, separately from packaged Electron tests. Release preparation builds
-pinned ONNX Runtime, whisper.cpp, llama.cpp, Sherpa, and Kokoro G2P target
-closures and signs macOS native bytes. A protected ASAR distribution manifest
-binds immutable R2 archive length and SHA-256 plus every extracted file;
-Electron packages omit the native assistance payloads. Historical
-external-supply candidate statuses are not substitutes for those release
-identities. Model and runtime distribution require versioned notices and
+The Sherpa helper, CPU/GPU runtime-family hosts, and external-FFmpeg shot
+detector execute ordinary native code with ambient account authority. Exact
+payload, selected-file, model-artifact, and executable authentication plus
+supervision contain accidental faults but do not create an operating-system
+sandbox, close the FFmpeg hash-to-path/dynamic-library gaps, or establish
+aggregate CPU/RSS and long-session bounds. Retained Linux x64 conversions now
+authenticate TIGER-DnR, PANNs Cnn10, both Beat This checkpoints, TransNetV2, and
+Dereverb Room, with exact artifact identities and passing source-framework/ONNX
+comparisons. The conversion evidence directory also retains direct
+production-worker smoke results, separately from packaged Electron tests.
+Release preparation builds pinned ONNX Runtime, whisper.cpp, llama.cpp, Sherpa,
+and Kokoro G2P target closures and signs macOS native bytes. A protected ASAR
+distribution manifest binds immutable R2 archive length and SHA-256 plus every
+extracted file; Electron packages omit the native assistance payloads.
+Historical external-supply candidate statuses are not substitutes for those
+release identities. Model and runtime distribution require versioned notices and
 full-digest public read-back; explicit Model Manager installation fetches the
 model and required runtime, and first use of preseeded or previously installed
 weights may fetch a missing runtime. Execution rechecks the selected model and

@@ -1,4 +1,5 @@
 import { normalizeAppearancePreferences } from './appearance-preferences.ts';
+import { normalizeAudioEditorAdvancedPreferences } from './advanced-preferences.ts';
 import { normalizeCustomToolbarButtons } from './custom-toolbar-buttons.ts';
 import { mergePreferences } from './preference-merge.ts';
 import {
@@ -183,6 +184,7 @@ const FORBIDDEN_TOP_LEVEL_KEYS = new Set([
  * @property {{playAtSpeedMode: 'naive'|'staffpad'}} playback
  * @property {{menuOrganization: 'default'|'sortby:name'}} effects
  * @property {import('./performance-preferences.ts').AudioEditorPerformancePreferences} performance
+ * @property {import('./advanced-preferences.ts').AudioEditorAdvancedPreferences} advanced
  * @property {import('./startup-preferences.ts').AudioEditorStartupPreferences} startup
  */
 
@@ -293,6 +295,7 @@ export function createAudioEditorPreferencesV1(options = {}) {
 			),
 		},
 		performance: normalizeAudioEditorPerformancePreferences(options.performance),
+		advanced: normalizeAudioEditorAdvancedPreferences(options.advanced),
 		startup: {
 			mode: oneOf(
 				options.startup?.mode ?? AUDIO_EDITOR_DEFAULT_STARTUP_MODE,
@@ -461,6 +464,7 @@ export function validateAudioEditorPreferencesV1(preferences) {
 		oneOf(preferences.effects.menuOrganization, EFFECT_MENU_ORGANIZATION_SET, 'effects.menuOrganization');
 	}
 	if (preferences.performance !== undefined) normalizeAudioEditorPerformancePreferences(preferences.performance);
+	if (preferences.advanced !== undefined) normalizeAudioEditorAdvancedPreferences(preferences.advanced);
 	if (preferences.waveformVisualization !== undefined) normalizeWaveformVisualizationPreferences(preferences.waveformVisualization);
 	if (preferences.waveformDisplay !== undefined) normalizeWaveformDisplayPreferences(preferences.waveformDisplay);
 	if (preferences.startup !== undefined) {
@@ -514,6 +518,7 @@ export function loadAudioEditorPreferencesV1(value) {
 			playback: normalized.playback,
 			effects: normalized.effects,
 			performance: normalized.performance,
+			advanced: normalized.advanced,
 			// Preferences saved before Program start existed carry no startup
 			// section; normalization supplies the mode that matches what those
 			// sessions already did, which is to continue the last session.

@@ -18,7 +18,8 @@ test('Motion stable reuses the complete quality workflow including all browser e
 	assert.match(extractJob(quality, 'browser'), /project: \[chromium, webkit\]/u);
 	assert.match(extractJob(quality, 'browser'), /test:browser:motion-links/u);
 	assert.match(extractJob(quality, 'browser'), /test:browser:dual-origin/u);
-	assert.match(extractJob(quality, 'browser'), /test:docs:browser/u);
+	assert.match(extractJob(quality, 'browser'), /ci-handbook-build\.mjs verify/u);
+	assert.match(extractJob(quality, 'browser'), /playwright test --config playwright\.docs\.config\.mjs/u);
 	assert.match(extractJob(quality, 'firefox'), /--project=firefox/u);
 	assert.match(extractJob(quality, 'coverage'), /coverage:check/u);
 	assert.match(extractJob(quality, 'deploy'), /github.event_name == 'push' && github.ref == 'refs\/heads\/main'/u);

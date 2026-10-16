@@ -51,12 +51,13 @@ function historyWith(names: readonly string[], limit = LIMIT): SharedHistory {
 }
 
 test('a macro longer than the undo limit keeps its opening checkpoint for Undo and rollback', () => {
-	const before = historyWith(['user-a', 'user-b'], 200);
+	const before = historyWith(['user-a', 'user-b']);
 	const depth = macroDepth(before);
 	const opening = trackNames(before);
 	let edited = before;
-	for (let index = 0; index < 210; index += 1) edited = commit(edited, `macro-${index}`);
-	assert.equal(edited.undoStack.length, 200);
+	for (let index = 0; index < LIMIT + 2; index += 1) edited = commit(edited, `macro-${index}`);
+	assert.equal(edited.undoStack.length, LIMIT);
+	assert.ok((edited.dropped ?? 0) > depth, 'the macro opening has fallen out of the bounded stack');
 
 	const collapsed = collapseEditorHistory(
 		edited, depth, { type: 'macro/run', name: 'Long macro' }, before,

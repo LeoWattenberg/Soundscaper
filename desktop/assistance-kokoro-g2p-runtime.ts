@@ -9,9 +9,9 @@ import {
 	type StdioPipe,
 } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { constants } from 'node:fs';
+import { constants, type BigIntStats } from 'node:fs';
 import { access, lstat, open, readdir, realpath } from 'node:fs/promises';
-import { isAbsolute, resolve } from 'node:path';
+import { basename, dirname, isAbsolute, resolve } from 'node:path';
 
 import { isKokoroVoiceForLanguage } from '../src/common/editor/assistance/kokoro-voices-v1.ts';
 import type {
@@ -37,6 +37,7 @@ interface PinnedFile {
 	readonly path: string;
 	readonly byteLength: number;
 	readonly sha256: string;
+	readonly executable?: true;
 }
 
 interface Manifest {
@@ -132,10 +133,14 @@ async function readManifestBytes(path: string, signal?: AbortSignal): Promise<Ui
 		|| before.size > BigInt(MAXIMUM_MANIFEST_BYTES) || await realpath(path) !== path) {
 		throw new TypeError('The offline Kokoro G2P manifest is not a regular packaged file.');
 	}
+	const validateArchive = await captureManifestArchive(path);
 	const handle = await open(path, constants.O_RDONLY | (process.platform === 'win32' ? 0 : constants.O_NOFOLLOW));
 	try {
 		const opened = await handle.stat({ bigint: true });
-		if (opened.dev !== before.dev || opened.ino !== before.ino || opened.size !== before.size) {
+		// Electron opens an ASAR entry through an extracted physical file, while
+		// its virtual lstat supplies numeric sizes and a fresh synthetic inode.
+		if (!opened.isFile() || opened.size !== BigInt(before.size)
+			|| validateArchive === null && (opened.dev !== before.dev || opened.ino !== before.ino)) {
 			throw new Error('The offline Kokoro G2P manifest changed during admission.');
 		}
 		const bytes = Buffer.alloc(Number(opened.size));
@@ -147,12 +152,51 @@ async function readManifestBytes(path: string, signal?: AbortSignal): Promise<Ui
 			offset += bytesRead;
 		}
 		const after = await handle.stat({ bigint: true });
-		if (after.size !== before.size || after.mtimeNs !== before.mtimeNs || after.ctimeNs !== before.ctimeNs) {
+		const pathAfter = await lstat(path, { bigint: true });
+		if (!samePhysicalSnapshot(opened, after) || !pathAfter.isFile() || pathAfter.isSymbolicLink()
+			|| pathAfter.size !== before.size || pathAfter.mode !== before.mode || await realpath(path) !== path
+			|| validateArchive === null && !samePhysicalSnapshot(before, pathAfter)) {
 			throw new Error('The offline Kokoro G2P manifest changed during its bounded read.');
 		}
+		await validateArchive?.();
 		signal?.throwIfAborted();
 		return bytes;
 	} finally { await handle.close(); }
+}
+
+async function captureManifestArchive(path: string): Promise<(() => Promise<void>) | null> {
+	if (!process.versions.electron) return null;
+	let directory = dirname(path);
+	while (true) {
+		if (basename(directory).endsWith('.asar')) {
+			// Only Electron's unpatched filesystem can prove this is an actual
+			// archive file; a directory named app.asar keeps ordinary admission.
+			const moduleId = 'node:original-fs';
+			const fs = (await import(moduleId) as typeof import('node:fs')).promises;
+			const before = await fs.lstat(directory, { bigint: true });
+			if (!before.isDirectory()) {
+				if (!before.isFile() || before.isSymbolicLink() || await fs.realpath(directory) !== directory) {
+					throw new TypeError('The offline Kokoro G2P manifest archive is not canonical.');
+				}
+				const archive = directory;
+				return async () => {
+					const after = await fs.lstat(archive, { bigint: true });
+					if (!after.isFile() || after.isSymbolicLink() || !samePhysicalSnapshot(before, after)
+						|| await fs.realpath(archive) !== archive) {
+						throw new Error('The offline Kokoro G2P manifest archive changed during its bounded read.');
+					}
+				};
+			}
+		}
+		const parent = dirname(directory);
+		if (parent === directory) return null;
+		directory = parent;
+	}
+}
+
+function samePhysicalSnapshot(before: BigIntStats, after: BigIntStats): boolean {
+	return before.dev === after.dev && before.ino === after.ino && before.size === after.size
+		&& before.mtimeNs === after.mtimeNs && before.ctimeNs === after.ctimeNs;
 }
 
 function reviewManifest(bytes: Uint8Array, targetId: string): Manifest {
@@ -173,7 +217,8 @@ function reviewManifest(bytes: Uint8Array, targetId: string): Manifest {
 	let totalBytes = 0;
 	let previous = '';
 	const files = root.files.map((entry) => {
-		const file = record(entry, ['path', 'byteLength', 'sha256'], 'file pin');
+		const file = record(entry, ['path', 'byteLength', 'sha256',
+			...(entry && typeof entry === 'object' && Object.hasOwn(entry, 'executable') ? ['executable'] : [])], 'file pin');
 		const path = payloadPath(file.path);
 		if (previous !== '' && previous.localeCompare(path, 'en') >= 0
 			|| !Number.isSafeInteger(file.byteLength)
@@ -181,12 +226,17 @@ function reviewManifest(bytes: Uint8Array, targetId: string): Manifest {
 			|| typeof file.sha256 !== 'string' || !SHA256.test(file.sha256)) {
 			throw new TypeError('The offline Kokoro G2P file pin is invalid or unsorted.');
 		}
+		if (Object.hasOwn(file, 'executable') && (file.executable !== true
+			|| path !== executable && !/^_internal\/scape-gpu\/onnx-webgpu-device-probe(?:\.exe)?$/u.test(path))) {
+			throw new TypeError('The offline Kokoro G2P executable file pin is invalid.');
+		}
 		previous = path;
 		totalBytes += Number(file.byteLength);
 		if (totalBytes > MAXIMUM_CLOSURE_BYTES) {
 			throw new RangeError('The offline Kokoro G2P file closure exceeds its byte bound.');
 		}
-		return Object.freeze({ path, byteLength: Number(file.byteLength), sha256: file.sha256 });
+		return Object.freeze({ path, byteLength: Number(file.byteLength), sha256: file.sha256,
+			...(file.executable === true ? { executable: true as const } : {}) });
 	});
 	if (!files.some((file) => file.path === executable)) {
 		throw new TypeError('The offline Kokoro G2P executable is absent from its closure.');
@@ -214,6 +264,7 @@ async function authenticateClosure(
 	}
 	if (process.platform !== 'win32') {
 		await access(resolve(directory, manifest.executable), constants.X_OK);
+		for (const file of manifest.files) if (file.executable) await access(resolve(directory, file.path), constants.X_OK);
 	}
 	signal?.throwIfAborted();
 }

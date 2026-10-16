@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { installDesktopSpeedWarmupManifest } from './desktop-speed-warmup-fixture.js';
 import { nativeSidecarFixture } from '../../helpers/framescaper-native-sidecar-fixture.ts';
 
 export async function installNativeCaptionSidecar(page, name, text, options = {}) {
@@ -21,6 +22,7 @@ export async function installNativeCaptionSidecar(page, name, text, options = {}
 			bytes: [...new Uint8Array(await response.arrayBuffer())],
 		};
 	});
+	await installDesktopSpeedWarmupManifest(page);
 	await page.addInitScript(({ nativeSave }) => {
 		Object.defineProperty(globalThis, 'framescaperDesktop', { enumerable: true, value: Object.freeze({ v1: Object.freeze({
 			version: 1,

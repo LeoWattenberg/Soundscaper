@@ -11,6 +11,31 @@ import {
 const LOUDNESS_SAMPLE_RATE = 24_000;
 const TRUE_PEAK_SAMPLE_RATE = 48_000;
 
+test('tone fixtures reuse equal-level PCM within a block and preserve phase across full and partial blocks', () => {
+	const blocks = [];
+	pushToneSegments({ snapshot: () => ({ peak: 0 }), push: channels => { blocks.push(channels); } },
+		[[4_103 / LOUDNESS_SAMPLE_RATE, [-28, -28, -24, -30, -30]], [3 / LOUDNESS_SAMPLE_RATE, [-28, -28]]]);
+	assert.deepEqual(blocks.map(channels => channels[0].length), [4_096, 7, 3]);
+	let cursor = 0;
+	for (const channels of blocks) {
+		assert.equal(channels[0], channels[1]);
+		if (channels.length === 5) {
+			assert.equal(channels[3], channels[4]);
+			assert.notEqual(channels[0], channels[2]);
+			assert.notEqual(channels[0], channels[3]);
+		}
+		for (const [index, channel] of channels.entries()) {
+			const level = index < 2 ? -28 : index === 2 ? -24 : -30;
+			const expected = Float32Array.from({ length: channel.length }, (_, frame) => (
+				10 ** (level / 20) * Math.sin(2 * Math.PI * 1_000 * (cursor + frame) / LOUDNESS_SAMPLE_RATE)
+			));
+			assert.deepEqual(channel, expected);
+		}
+		cursor += channels[0].length;
+	}
+	assert.notEqual(blocks[0][0], blocks[1][0]);
+});
+
 test('Tech 3341 synthetic loudness cases 1-6 meet their minimum tolerances', () => {
 	const cases = [
 		{ number: 1, segments: [[20, -23]], expected: -23, fields: ['momentaryLufs', 'shortTermLufs', 'integratedLufs'] },
@@ -353,11 +378,16 @@ function pushToneSegments(meter, segments) {
 		let framesLeft = Math.round(seconds * LOUDNESS_SAMPLE_RATE);
 		while (framesLeft > 0) {
 			const frames = Math.min(4_096, framesLeft);
+			const pcmByLevel = new Map();
 			const channels = levels.map((level) => {
+				const cached = pcmByLevel.get(level);
+				if (cached) return cached;
 				const amplitude = 10 ** (level / 20);
-				return Float32Array.from({ length: frames }, (_, frame) => (
+				const pcm = Float32Array.from({ length: frames }, (_, frame) => (
 					amplitude * Math.sin(2 * Math.PI * 1_000 * (cursor + frame) / LOUDNESS_SAMPLE_RATE)
 				));
+				pcmByLevel.set(level, pcm);
+				return pcm;
 			});
 			meter.push(channels);
 			cursor += frames;

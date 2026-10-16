@@ -1,9 +1,11 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-/** Reviewed CPU-only ONNX Runtime adapters mounted inside the isolated worker. */
+/** Reviewed ONNX Runtime adapters mounted inside the isolated worker. */
 
 import { readFile } from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
+
+import { createAssistanceOnnxAcceleratedRuntimeV1 } from './assistance-onnx-acceleration.ts';
 
 import {
 	reviewAssistanceFramePackV1,
@@ -40,7 +42,7 @@ import {
 	createAssistanceOnnxWordAlignmentWorkerAdapterV1,
 } from './assistance-onnx-word-alignment-worker.ts';
 import {
-	createAssistanceOnnxCpuSessionV1,
+	createAssistanceOnnxSessionV1,
 	publishAssistanceOnnxOutputV1,
 	reviewAssistanceOnnxRuntimeModuleV1,
 	type AssistanceOnnxSessionLeaseCacheV1,
@@ -83,7 +85,7 @@ export interface AssistanceOnnxRuntimeModuleV1 {
 		create(
 			modelPath: string,
 			options: Readonly<{
-				executionProviders: readonly ['cpu'];
+				executionProviders: readonly ('cpu' | 'coreml' | 'webgpu')[];
 				graphOptimizationLevel: 'all';
 				interOpNumThreads: 1;
 				intraOpNumThreads: 4;
@@ -121,22 +123,26 @@ export function createAssistanceOnnxRuntimeWorkerAdapterV1(
 		throw new TypeError('The offline Kokoro phonemizer port is invalid.');
 	}
 	const baseLoader = options.loadRuntime ?? loadOnnxRuntime;
-	const loadRuntime = options.sessionCache === undefined ? baseLoader
-		: async (entrypoint: string) => options.sessionCache!.wrapRuntime(await baseLoader(entrypoint));
-	const executeAudio = createAssistanceOnnxAudioRuntimeWorkerAdapterV1(loadRuntime);
-	const executeEnhancementSeparation =
-		createAssistanceOnnxEnhancementSeparationWorkerAdapterV1(loadRuntime);
-	const executeDereverb = createAssistanceOnnxDereverbWorkerAdapterV1(loadRuntime);
-	const executeKokoro = createAssistanceOnnxKokoroWorkerAdapterV1(
-		loadRuntime, options.phonemizeKokoro,
-	);
-	const executeTextEmbedding = createAssistanceOnnxTextEmbeddingWorkerAdapterV1(loadRuntime);
-	const executeWordAlignment = createAssistanceOnnxWordAlignmentWorkerAdapterV1(loadRuntime);
-	const executeSiglip2 = createAssistanceOnnxSiglip2WorkerAdapterV1(loadRuntime);
-	const executeOcr = createAssistanceOnnxOcrWorkerAdapterV1(loadRuntime);
-	const executeSubjects = createAssistanceOnnxSubjectWorkerAdapterV1(loadRuntime);
-	const executeSaliency = createAssistanceOnnxSaliencyWorkerAdapterV1(loadRuntime);
 	const execute = async (context: AssistanceRuntimeFamilyWorkerExecutionContext) => {
+		const acceleratedLoader = async (entrypoint: string) => createAssistanceOnnxAcceleratedRuntimeV1(
+			await baseLoader(entrypoint), context.job.descriptor,
+			() => options.sessionCache === undefined ? context.signal : options.sessionCache.activeSignal,
+		);
+		const loadRuntime = options.sessionCache === undefined ? acceleratedLoader
+			: async (entrypoint: string) => options.sessionCache!.wrapRuntime(await acceleratedLoader(entrypoint));
+		const executeAudio = createAssistanceOnnxAudioRuntimeWorkerAdapterV1(loadRuntime);
+		const executeEnhancementSeparation =
+			createAssistanceOnnxEnhancementSeparationWorkerAdapterV1(loadRuntime);
+		const executeDereverb = createAssistanceOnnxDereverbWorkerAdapterV1(loadRuntime);
+		const executeKokoro = createAssistanceOnnxKokoroWorkerAdapterV1(
+			loadRuntime, options.phonemizeKokoro,
+		);
+		const executeTextEmbedding = createAssistanceOnnxTextEmbeddingWorkerAdapterV1(loadRuntime);
+		const executeWordAlignment = createAssistanceOnnxWordAlignmentWorkerAdapterV1(loadRuntime);
+		const executeSiglip2 = createAssistanceOnnxSiglip2WorkerAdapterV1(loadRuntime);
+		const executeOcr = createAssistanceOnnxOcrWorkerAdapterV1(loadRuntime);
+		const executeSubjects = createAssistanceOnnxSubjectWorkerAdapterV1(loadRuntime);
+		const executeSaliency = createAssistanceOnnxSaliencyWorkerAdapterV1(loadRuntime);
 		if (context.grant.task === 'word-alignment') return executeWordAlignment(context);
 		if (context.grant.task === 'speech-enhancement'
 			|| context.grant.task === 'source-separation') {
@@ -191,7 +197,7 @@ async function executeTransNetV2(
 	const runtime = reviewAssistanceOnnxRuntimeModuleV1(
 		await loadRuntime(job.descriptor.entrypoint), RUNTIME_MODULE_ERRORS,
 	);
-	const session = await createAssistanceOnnxCpuSessionV1(
+	const session = await createAssistanceOnnxSessionV1(
 		runtime, grant.models[0]!.path, RUNTIME_SESSION_ERRORS,
 	);
 	let completedBatches = 0;

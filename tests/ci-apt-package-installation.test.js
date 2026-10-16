@@ -30,14 +30,70 @@ test('every workflow step that installs packages is bounded by a step timeout', 
 	const unbounded = [];
 	for (const workflowName of await readWorkflowNames()) {
 		const workflow = await readFile(new URL(workflowName, workflowDirectory), 'utf8');
-		for (const step of splitSteps(workflow)) {
-			if (!step.includes('ci-apt-install.sh')) continue;
-			if (!/^\s+timeout-minutes:\s*\d+\s*$/mu.test(step)) {
-				unbounded.push(`${workflowName}: ${step.split('\n')[0].trim()}`);
-			}
-		}
+		unbounded.push(...unboundedPackageInstallSteps(workflow).map(step => `${workflowName}: ${step}`));
 	}
 	assert.deepEqual(unbounded, [], 'package install steps must carry timeout-minutes');
+});
+
+test('anonymous package installs cannot inherit the timeout of a preceding named or later anonymous step', () => {
+	const workflow = `jobs:
+  tests:
+    steps:
+      - name: Restore dependencies
+        timeout-minutes: 1
+        uses: ./verified-dependencies
+      - run: bash scripts/ci-apt-install.sh xvfb
+      - uses: ./later-action
+        timeout-minutes: 10
+`;
+	assert.deepEqual(unboundedPackageInstallSteps(workflow), ['- run: bash scripts/ci-apt-install.sh xvfb']);
+	assert.deepEqual(splitSteps(workflow).map(step => step.split('\n')[0].trim()), [
+		'- name: Restore dependencies', '- run: bash scripts/ci-apt-install.sh xvfb', '- uses: ./later-action',
+	]);
+});
+
+test('an unbounded final install cannot inherit the next job timeout or its first step', () => {
+	const workflow = `jobs:
+  first:
+    steps:
+      - run: bash scripts/ci-apt-install.sh xvfb
+  second:
+    timeout-minutes: 20
+    steps:
+      - uses: ./another-action
+        timeout-minutes: 10
+`;
+	assert.deepEqual(unboundedPackageInstallSteps(workflow), ['- run: bash scripts/ci-apt-install.sh xvfb']);
+	assert.equal(splitSteps(workflow)[0].includes('second:'), false);
+});
+
+test('conditional anonymous installs retain their own timeout and nested run text stays within its step', () => {
+	const workflow = `jobs:
+  tests:
+    steps:
+      - if: runner.os == 'Linux'
+        timeout-minutes: 10
+        run: |
+          bash scripts/ci-apt-install.sh xvfb
+          - name: literal command text
+      - run: echo complete
+`;
+	assert.deepEqual(unboundedPackageInstallSteps(workflow), []);
+	assert.equal(splitSteps(workflow).length, 2);
+	assert.ok(splitSteps(workflow)[0].includes('- name: literal command text'));
+});
+
+test('only a timeout on the install step mapping bounds its command', () => {
+	const workflow = `jobs:
+  tests:
+    steps:
+      - timeout-minutes: 10
+        run: bash scripts/ci-apt-install.sh xvfb
+      - run: |
+          bash scripts/ci-apt-install.sh cmake
+          timeout-minutes: 30
+`;
+	assert.deepEqual(unboundedPackageInstallSteps(workflow), ['- run: |']);
 });
 
 test('the helper installs nothing when the runner image already carries the packages', () => {
@@ -126,16 +182,46 @@ async function readWorkflowNames() {
 function splitSteps(workflow) {
 	const steps = [];
 	let current = null;
+	let stepsIndent = null;
+	let stepIndent = null;
+	const finish = () => {
+		if (current) steps.push(current.join('\n'));
+		current = null;
+	};
 	for (const line of workflow.split('\n')) {
-		if (/^\s+- name:\s/u.test(line)) {
-			if (current) steps.push(current.join('\n'));
+		const indent = /^ */u.exec(line)[0].length;
+		if (/^ *steps:\s*(?:#.*)?$/u.test(line) && (stepsIndent === null || indent <= stepsIndent)) {
+			finish();
+			stepsIndent = indent;
+			stepIndent = null;
+			continue;
+		}
+		if (stepsIndent === null) continue;
+		if (/^ *-\s/u.test(line) && indent >= stepsIndent && (stepIndent === null || indent === stepIndent)) {
+			finish();
+			stepIndent = indent;
 			current = [line];
+		} else if (line.trim() && !line.trimStart().startsWith('#') && indent <= stepsIndent) {
+			finish();
+			stepsIndent = null;
+			stepIndent = null;
 		} else if (current) {
 			current.push(line);
 		}
 	}
-	if (current) steps.push(current.join('\n'));
+	finish();
 	return steps;
+}
+
+function unboundedPackageInstallSteps(workflow) {
+	return splitSteps(workflow)
+		.filter(step => {
+			if (!step.includes('ci-apt-install.sh')) return false;
+			const indent = /^ */u.exec(step)[0].length;
+			const timeout = new RegExp(`^(?: {${indent}}- | {${indent + 2}})timeout-minutes:\\s*\\d+\\s*(?:#.*)?$`, 'mu');
+			return !timeout.test(step);
+		})
+		.map(step => step.split('\n')[0].trim());
 }
 
 // The helper only ever reaches apt through `sudo timeout … apt-get`, so stubbing those

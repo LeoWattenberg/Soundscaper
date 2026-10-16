@@ -72,6 +72,7 @@ async function fixture(
 		maximumByteLength?: number;
 		planBody?: string;
 		modelId?: string;
+		executionProviders?: readonly ('cpu' | 'metal')[];
 	}> = {},
 ) {
 	const root = await mkdtemp(join(tmpdir(), 'soundscaper-llama-worker-'));
@@ -103,8 +104,9 @@ async function fixture(
 		task: 'editorial-generation' as const, maximumRssBytes: 12 * 1024 ** 3,
 		maximumDurationMs: 60_000, grant,
 		descriptor: {
-			familyId: 'llama-cpp' as const, runtimeVersion: 'b10509', target: 'linux-x64' as const,
+			familyId: 'llama-cpp' as const, runtimeVersion: 'b10509', target: options.executionProviders?.includes('metal') ? 'mac-arm64' as const : 'linux-x64' as const,
 			executionProvider: 'cpu' as const, entrypoint: '/runtime/llama-completion',
+			...(options.executionProviders ? { executionProviders: options.executionProviders } : {}),
 			files: [{ path: '/runtime/llama-completion', relativePath: 'llama-completion',
 				byteLength: 1, sha256: '4'.repeat(64), executable: true }],
 		},
@@ -329,4 +331,93 @@ test('termination kills and quiesces the exact llama.cpp child', async (context)
 	assert.deepEqual(child.signals, ['SIGTERM', 'SIGKILL']);
 	assert.ok(performance.now() - started < 2_000);
 	await assert.rejects(worker.completion, /abort|terminated|cancel/iu);
+});
+
+
+test('authenticated llama.cpp GPU capability enables automatic layer fitting and falls back once on execution failure', async (context) => {
+	const { job, paths } = await fixture(context, { executionProviders: ['cpu', 'metal'] });
+	const seen: string[][] = [];
+	const spawn: AssistanceLlamaCppSpawn = (_executable, args) => {
+		seen.push([...args]);
+		const child = new FakeChild();
+		queueMicrotask(() => {
+			if (seen.length === 1) {
+				child.stdout.end('discarded partial GPU output');
+				child.emit('close', 1, null);
+			} else {
+				child.stdout.end(JSON.stringify(VALID_PROPOSAL));
+				child.emit('close', 0, null);
+			}
+		});
+		return child;
+	};
+	await createAssistanceLlamaCppWorkerSpawnerV1({ spawn })(job, {
+		onProgress: () => undefined,
+	}).completion;
+	assert.equal(seen.length, 2);
+	assert.equal(seen[0]![seen[0]!.indexOf('--gpu-layers') + 1], 'auto');
+	assert.equal(seen[0]!.includes('--device'), false);
+	assert.equal(seen[0]!.includes('--no-kv-offload'), false);
+	assert.equal(seen[0]!.includes('--no-op-offload'), false);
+	assert.equal(seen[1]![seen[1]!.indexOf('--gpu-layers') + 1], '0');
+	assert.equal(seen[1]![seen[1]!.indexOf('--device') + 1], 'none');
+	assert.equal(seen[1]!.includes('--no-kv-offload'), true);
+	assert.equal(seen[1]!.includes('--no-op-offload'), true);
+	assert.deepEqual(JSON.parse((await readFile(paths.output)).toString()), VALID_PROPOSAL);
+});
+
+test('GPU llama.cpp output validation failures do not launch a CPU retry', async (context) => {
+	for (const body of ['{invalid json', 'x'.repeat(256 * 1024 + 1)]) {
+		const { job, paths } = await fixture(context, { executionProviders: ['cpu', 'metal'] });
+		let starts = 0;
+		const spawn: AssistanceLlamaCppSpawn = () => {
+			starts += 1;
+			const child = new FakeChild();
+			queueMicrotask(() => { child.stdout.end(body); child.emit('close', 0, null); });
+			return child;
+		};
+		await assert.rejects(createAssistanceLlamaCppWorkerSpawnerV1({ spawn })(job, {
+			onProgress: () => undefined,
+		}).completion, /failed closed review|output bound/iu);
+		assert.equal(starts, 1);
+		assert.equal((await readFile(paths.output)).byteLength, 0);
+	}
+});
+
+test('GPU llama.cpp termination never retries on CPU', async (context) => {
+	const { job } = await fixture(context, { executionProviders: ['cpu', 'metal'] });
+	const children: FakeChild[] = [];
+	const spawn: AssistanceLlamaCppSpawn = () => {
+		const child = new FakeChild(); children.push(child); return child;
+	};
+	const worker = createAssistanceLlamaCppWorkerSpawnerV1({ spawn })(job, {
+		onProgress: () => undefined,
+	});
+	for (let attempt = 0; children.length === 0 && attempt < 100; attempt += 1) {
+		await new Promise((resolve) => { setTimeout(resolve, 1); });
+	}
+	assert.equal(children.length, 1);
+	await worker.terminate();
+	await assert.rejects(worker.completion, /abort|terminated|cancel/iu);
+	assert.equal(children.length, 1);
+});
+
+
+test('a successful Metal llama.cpp job never starts a CPU process', async (context) => {
+	const { job } = await fixture(context, { executionProviders: ['cpu', 'metal'] });
+	const seen: string[][] = [];
+	const spawn: AssistanceLlamaCppSpawn = (_executable, args) => {
+		seen.push([...args]);
+		const child = new FakeChild();
+		queueMicrotask(() => {
+			child.stdout.end(JSON.stringify(VALID_PROPOSAL));
+			child.emit('close', 0, null);
+		});
+		return child;
+	};
+	await createAssistanceLlamaCppWorkerSpawnerV1({ spawn })(job, {
+		onProgress: () => undefined,
+	}).completion;
+	assert.equal(seen.length, 1);
+	assert.equal(seen[0]![seen[0]!.indexOf('--gpu-layers') + 1], 'auto');
 });

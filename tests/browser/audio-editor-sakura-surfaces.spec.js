@@ -1,3 +1,4 @@
+import { capturePassingScreenshot } from './helpers/passing-screenshots.js';
 import { resolveSkinTheme } from '../../src/common/editor/ui/skins/skin-themes.ts';
 import { expect, monoTone, test } from './audio-editor-test-fixtures.js';
 import { bootEditor, chooseCommandAction, chooseNestedCommandAction, closeWorkspacePanel, importFiles, registerAudioEditorHooks } from './audio-editor-test-helpers.js';
@@ -40,7 +41,7 @@ for (const product of ['soundscaper', 'framescaper']) {
 				await page.mouse.up();
 			}
 			await expectRulerColors(ruler, theme);
-			await page.screenshot({ path: testInfo.outputPath('Sakura-timecodes-ruler-meters.png') });
+			await capturePassingScreenshot(page, { path: testInfo.outputPath('Sakura-timecodes-ruler-meters.png') });
 			if (product === 'framescaper') {
 				await chooseNestedCommandAction(page, editor, 'File', ['Project management', 'Project properties']);
 				const properties = editor.locator('[data-workspace-panel="metadata"]');

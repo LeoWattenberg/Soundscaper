@@ -44,6 +44,7 @@ import {
 	waitForProjectActivation,
 	waitForResponsiveEditorLayout,
 } from './audio-editor-test-helpers.js';
+import { waitForCurrentWaveformPaint, waitForPlayheadAdvance } from './helpers/performance-paint-readiness.js';
 
 test.describe('audio editor React/design-system workflows', () => {
 	registerAudioEditorHooks();
@@ -289,7 +290,8 @@ test.describe('audio editor React/design-system workflows', () => {
 
 		await editor.getByRole('button', { name: 'Play', exact: true }).click();
 		await expect(editor.getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
-		await page.waitForTimeout(500);
+		await waitForCurrentWaveformPaint(editor, 2);
+		await waitForPlayheadAdvance(editor);
 		// Keep both probes on the same post-startup playback window.
 		await page.evaluate(() => {
 			globalThis.__audioEditorLongTasks = [];
@@ -521,7 +523,8 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(recordingWaveform).toBeVisible();
 		await expect(recordingWaveform).toHaveAttribute('data-waveform-renderer', 'audacity');
 		await expect(recordingWaveform).toHaveAttribute('data-waveform-mode', 'summary');
-		await page.waitForTimeout(350);
+		// The preview duration counts PCM retained after the input latency trim.
+		await expect(recordingPreview).toHaveAccessibleName(/, (?:0\.[1-9]\d*|[1-9]\d*(?:\.\d+)?) seconds? long$/u);
 		await editor.evaluate((element) => {
 			element.tabIndex = -1;
 			element.focus();

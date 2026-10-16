@@ -207,7 +207,11 @@ export function createSourceLifecycleService<
 				}
 				const chunkProvider = registerStoredChunkProvider(source, metadata);
 				const useChunkStream = Boolean(chunkProvider) && requiresChunkStream;
-				let peaks = await store.loadAnalysis(peakCacheKey(source.id));
+				let peaks = await raceAbortableRead(
+					() => store.loadAnalysis(peakCacheKey(source.id)),
+					options.signal,
+				);
+				throwIfSourceLoadAborted(options.signal);
 				if (useChunkStream) {
 					sourceBuffers.delete(source.id);
 					if (!waveformPeaksHaveRms(peaks, source)) {

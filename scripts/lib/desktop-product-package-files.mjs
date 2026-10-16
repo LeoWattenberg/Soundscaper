@@ -4,6 +4,7 @@ const PRODUCT_IDS = Object.freeze(['soundscaper', 'framescaper']);
 
 const COMMON_CONFIG_FILES = Object.freeze([
 	'config/assistance-native-runtime-manifest.json',
+	'config/assistance-sherpa-gpu-build.json',
 	'config/assistance-runtime-family-supply-candidates.json',
 	'config/assistance-runtime-distribution.json',
 	'config/assistance-kokoro-g2p-runtime-manifest.json',

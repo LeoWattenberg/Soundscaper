@@ -41,7 +41,7 @@ export async function stageDesktopKokoroG2pRuntime({ targetId, bundleRoot, runti
 			await mkdir(dirname(output), { recursive: true });
 			await cp(input, output, { errorOnExist: true, force: false });
 			const info = await fileDescriptor(output);
-			files.push({ path, ...info });
+			files.push({ path, ...info, ...(executablePath(path, executable) ? { executable: true } : {}) });
 			totalBytes += info.byteLength;
 			if (totalBytes > MAXIMUM_TOTAL_BYTES) throw new Error('Kokoro G2P build bundle exceeds its byte limit.');
 		}
@@ -77,7 +77,8 @@ export async function describeDesktopKokoroG2pBundle({ targetId, bundleRoot }) {
 	if (!paths.includes(executable)) throw new Error('Kokoro G2P build bundle is missing its executable.');
 	const files = [];
 	for (const path of paths) {
-		files.push({ path, ...await fileDescriptor(join(root, path)) });
+		files.push({ path, ...await fileDescriptor(join(root, path)),
+			...(executablePath(path, executable) ? { executable: true } : {}) });
 	}
 	const manifest = {
 		schemaVersion: 1, runtimeVersion: KOKORO_G2P_VERSION, targetId,
@@ -128,6 +129,7 @@ export function validateDesktopKokoroG2pManifest(manifest, targetId) {
 			|| !validRelativePath(file.path)
 			|| !Number.isSafeInteger(file.byteLength) || file.byteLength < 0
 			|| file.byteLength > MAXIMUM_FILE_BYTES || !SHA256.test(file.sha256)
+			|| Object.hasOwn(file, 'executable') && (file.executable !== true || !executablePath(file.path, manifest.executable))
 			|| (previous !== '' && previous.localeCompare(file.path, 'en') >= 0)) {
 			throw new TypeError('Kokoro G2P target manifest has an invalid file path or digest.');
 		}
@@ -138,6 +140,10 @@ export function validateDesktopKokoroG2pManifest(manifest, targetId) {
 		|| !manifest.files.some(({ path }) => path === manifest.executable)) {
 		throw new TypeError('Kokoro G2P target manifest has no valid executable closure.');
 	}
+}
+
+function executablePath(path, main) {
+	return path === main || /^_internal\/scape-gpu\/onnx-webgpu-device-probe(?:\.exe)?$/u.test(path);
 }
 
 async function validatePythonLicenseCoverage(bundleRoot) {

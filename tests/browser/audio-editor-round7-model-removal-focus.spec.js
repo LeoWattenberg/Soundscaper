@@ -1,9 +1,11 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { installDesktopSpeedWarmupManifest } from './helpers/desktop-speed-warmup-fixture.js';
 import { expect, test } from './audio-editor-test-fixtures.js';
 import { bootEditor, chooseCommandAction } from './audio-editor-test-helpers.js';
 
 test('Model Manager keyboard removal keeps focus on Install or the surviving filtered search', async ({ page }) => {
+	await installDesktopSpeedWarmupManifest(page);
 	await page.addInitScript(() => {
 		let installed = true;
 		const model = () => ({ modelId: 'deepfilternet3', version: '3.0.0', task: 'speech-enhancement',

@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { installDesktopSpeedWarmupManifest } from './helpers/desktop-speed-warmup-fixture.js';
 import { createWavFixture, expect, test } from './audio-editor-test-fixtures.js';
 import { addRackEffect, bootEditor, chooseNestedCommandAction, clipByName, closeDialog, commitInput,
 	importFiles, openEffectsForTrack } from './audio-editor-test-helpers.js';
@@ -7,6 +8,7 @@ import { addRackEffect, bootEditor, chooseNestedCommandAction, clipByName, close
 test('Blender publishes the audible delay release and retains it for a separately muted stem', async ({ page }) => {
 	const notices = [];
 	page.on('dialog', dialog => { notices.push(dialog.message()); void dialog.dismiss(); });
+	await installDesktopSpeedWarmupManifest(page);
 	await page.addInitScript(() => {
 		const probe = { tracks: [], chunks: [], completed: 0, selects: 0, begins: 0, aborted: 0 };
 		globalThis.__blenderStemRelease = probe;

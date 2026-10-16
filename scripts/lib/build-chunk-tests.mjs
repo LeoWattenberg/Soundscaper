@@ -77,7 +77,7 @@ export const EDITOR_ASSISTANCE_MODEL_PREFLIGHT_CHUNK_TEST = new RegExp(
 	`${editorPath}(?:assistance[\\\\/](?:workflow-recipes|workflow-settings-v1)|controller[\\\\/]assistance[\\\\/](?:local-assistance-task-models|internal[\\\\/]guided[\\\\/]local-assistance-guided-(?:model-selection|stage-selection))|ui[\\\\/](?:local-model-manager-(?:bridge|store)|local-model-bytes))\\.ts$`,
 );
 export const EDITOR_COPY_CHUNK_TEST =
-	/(?:src[\\/]common[\\/]i18n[\\/](?:(?:catalogs|runtime|canonical-extras(?:-(?:standard-effects|audacity-effects|audacity-presets))?|(?!(?:freesound-attribution|site|site-sidebar)-copy\.js$)[^\\/]+-copy)\.js|(?:editor-copy-(?:inventory|scope)|[^\\/]+-copy)\.ts)|src[\\/]soundscaper[\\/]framescaper-capture-copy\.js)$/;
+	/(?!.*[\\/]audiocom-copy\.ts$)(?:src[\\/]common[\\/]i18n[\\/](?:(?:catalogs|runtime|canonical-extras(?:-(?:standard-effects|audacity-effects|audacity-presets))?|(?!(?:freesound-attribution|site|site-sidebar)-copy\.js$)[^\\/]+-copy)\.js|(?:editor-copy-(?:inventory|scope)|[^\\/]+-copy)\.ts)|src[\\/]soundscaper[\\/]framescaper-capture-copy\.js)$/;
 
 /** Dependency-free message descriptors shared by project models and controllers. */
 export const EDITOR_PRESENTATION_CHUNK_TEST = /src[\\/]common[\\/]i18n[\\/](?:presentation-(?:message|progress)|translation-scope)\.ts$/;
@@ -163,9 +163,11 @@ export const EDITOR_OPTIONAL_ASSISTANCE_CHUNK_TEST = new RegExp(
 /** Helpers reached only by optional surfaces; broad UI ownership must not hoist them. */
 const deferredSurfaceHelpers = String.raw`ui[\\/](?:clip-spreadsheet[\\/][^\\/]+|(?:AdmMetadataFields|BextMetadataFields|adm-metadata-editor-model|bext-metadata-editor-model|desktop-speed-warmup|export-channel-matrix|export-dialog-output-options|export-dialog-initial-settings|use-export-dialog-output|label-export-dialog-model|delivery-batch-dialog-model|audio-warp-dialog-model|take-comp-dialog-model|video-keyframe-dialog-input|video-retime-exact-map-input|ParametricEqNumericInput|useParametricEqSpectrum)\.[jt]sx?|skins[\\/](?:SkinCarousel|SkinPreferences|appearance-previews)\.tsx?|workspace[\\/]freesound-media-url\.ts)`;
 
+const audiocomOptionalModule = String.raw`(?:controller[\\/]import[\\/](?:internal[\\/])?audiocom-(?:panel-session|api-client|upload-queue|provider|project-archives|project-archive-client)\.ts|ui[\\/](?:workspace[\\/]Audiocom(?:Panel(?:Container)?|UploadArea|PublishDialog|Link|ProjectArchives)\.tsx|audio-editor-design-system[\\/]06a-panels-audiocom\.css))`;
+
 /** Menu-opened UI, panel-only domain helpers, and deferred native authoring contracts. */
 export const EDITOR_OPTIONAL_SURFACE_CHUNK_TEST = new RegExp(
-	`(?:${editorPath}(?:${editorOptionalSurfaceModule}|${deferredSurfaceHelpers}|recording-notes-(?:markdown|code)\\.ts|selected-generator-source-command\\.ts|ui[\\\\/]workspace[\\\\/]RecordingNotesPanel\\.tsx|freesound-upload-metadata\\.ts|ui[\\\\/]local-assistance-review-authority\\.ts|local-diagnostics-(?:report|contract)\\.ts|native-ofx-(?:host-contract(?:-v2)?|interact-contract)\\.ts)|src[\\\\/]common[\\\\/]i18n[\\\\/]freesound-attribution-copy\\.js|src[\\\\/]framescaper[\\\\/](?:editor-selected-timeline-image-image-(?:preview|filmstrip|preview-resources)|editor-native-openfx-authoring-model)\\.ts)$`,
+	`(?:${editorPath}(?:${editorOptionalSurfaceModule}|${audiocomOptionalModule}|${deferredSurfaceHelpers}|recording-notes-(?:markdown|code)\\.ts|selected-generator-source-command\\.ts|ui[\\\\/]workspace[\\\\/]RecordingNotesPanel\\.tsx|freesound-upload-metadata\\.ts|ui[\\\\/]local-assistance-review-authority\\.ts|local-diagnostics-(?:report|contract)\\.ts|native-ofx-(?:host-contract(?:-v2)?|interact-contract)\\.ts)|src[\\\\/]common[\\\\/]i18n[\\\\/](?:freesound-attribution-copy\\.js|audiocom-copy\\.ts)|src[\\\\/]framescaper[\\\\/](?:editor-selected-timeline-image-image-(?:preview|filmstrip|preview-resources)|editor-native-openfx-authoring-model)\\.ts)$`,
 );
 
 /** Split Tool interaction runtimes kept out of the product-ready startup graph. */

@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { installDesktopSpeedWarmupManifest } from './helpers/desktop-speed-warmup-fixture.js';
 import { createWavFixture, expect, test } from './audio-editor-test-fixtures.js';
 import { bootEditor, chooseCommandAction, chooseNestedCommandAction, getMenuItem, importFiles, openNestedCommandMenu } from './audio-editor-test-helpers.js';
 
@@ -61,6 +62,7 @@ async function dismissCompletionNotice(page, message) {
 }
 
 async function installBlenderFixture(page) {
+	await installDesktopSpeedWarmupManifest(page);
 	await page.addInitScript(() => {
 		const probe = { commits: [], stops: [], current: null, chunks: [], selects: [] };
 		let sessionIndex = 0;

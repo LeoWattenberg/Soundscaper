@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { installDesktopSpeedWarmupManifest } from './helpers/desktop-speed-warmup-fixture.js';
 import { expect, test } from './audio-editor-test-fixtures.js';
 import { bootEditor, chooseCommandAction } from './audio-editor-test-helpers.js';
 
@@ -52,6 +53,7 @@ test('Audio settings edits the visible Default input after an unsaved offset sou
 });
 
 test('desktop FFmpeg Browse can retry a failed native chooser without discarding its configuration', async ({ page }) => {
+	await installDesktopSpeedWarmupManifest(page);
 	await page.addInitScript(() => {
 		const ready = { state: 'ready', location: '/fixture/bin/ffmpeg', version: '9.0.1', detail: '',
 			canInstall: false, canBrowse: true, canClear: true };

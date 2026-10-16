@@ -1,10 +1,12 @@
 import { expect } from '@playwright/test';
 import { test } from './audio-editor-test-fixtures.js';
+import { waitForEditor } from './audio-editor-test-helpers.js';
 
 import { createDeterministicAvFixture } from './fixtures/deterministic-av-media.js';
 import { resolveBrowserProductTestUrl } from './helpers/browser-product-test-url.js';
 import { FRAMESCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
 import { hasWebGl2Capability } from './helpers/webgl2-capability.js';
+import { playAndWaitForAdvance } from './helpers/playback-progress.js';
 import { closeWorkspacePanel } from './helpers/workspace-panel-chrome.js';
 
 const DATABASE_NAME = FRAMESCAPER_DATABASE_NAME;
@@ -57,11 +59,15 @@ test.describe('dedicated OPFS storage worker', () => {
 		expect(workerRequests.length).toBeGreaterThan(0);
 
 		await page.reload();
+		editor = await waitForEditor(page);
+		// A cleared informational toast must not keep an already-loaded project waiting.
+		await editor.locator('[data-status]').evaluate(status => {
+			status.dataset.state = 'info';
+			status.textContent = '';
+		});
 		editor = await waitForVideoEditor(page);
 		await expectPersistedPreviewClip(page, editor);
-		await editor.getByRole('button', { name: 'Play', exact: true }).click();
-		await expect(editor.getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
-		await page.waitForTimeout(150);
+		await playAndWaitForAdvance(editor);
 		await editor.getByRole('button', { name: 'Stop', exact: true }).click();
 		await expect(editor.getByRole('button', { name: 'Play', exact: true })).toBeVisible();
 		expect(await mainThreadFallbacks(page)).toEqual({ createWritable: 0, getFile: 0 });
@@ -98,10 +104,8 @@ async function expectPersistedPreviewClip(page, editor) {
 }
 
 async function waitForVideoEditor(page) {
-	const editor = page.locator('[data-audio-editor]');
-	await expect(editor).toBeVisible({ timeout: 20_000 });
-	await expect(editor).toHaveAttribute('data-audio-editor-bound', 'true');
-	await expect(editor.locator('[data-status]')).toHaveAttribute('data-state', 'success', { timeout: 20_000 });
+	const editor = await waitForEditor(page);
+	await expect(editor).toHaveAttribute('data-project-id', /\S/u, { timeout: 20_000 });
 	const decline = page.getByRole('button', { name: 'Decline', exact: true });
 	if (await decline.isVisible()) await decline.click();
 	const workspace = page.locator('[data-sidebar] [data-workspace-select]');

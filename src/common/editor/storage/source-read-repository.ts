@@ -7,6 +7,7 @@ import type { OpfsRepository } from './opfs-repository.ts';
 import type { PcmRepository } from './pcm-repository.ts';
 import { combineSourceReadAbortSignals, SOURCE_PCM_READ_SESSION_RELEASED_ERROR_NAME } from './source-pcm-read-session.ts';
 import type { SourceRecordRepository } from './source-record-repository.ts';
+import { SAMPLE_BLOCK_SOURCE_STORAGE } from './sample-block-source.ts';
 
 const SESSION_CLEANUP_REASON = new Error('Source PCM read sessions are being released.');
 SESSION_CLEANUP_REASON.name = SOURCE_PCM_READ_SESSION_RELEASED_ERROR_NAME;
@@ -253,6 +254,12 @@ export class SourceReadRepository {
 		}
 		const nextAncestors = new Set(ancestors).add(sourceId);
 		throwIfAborted(signal);
+		if (source.storage === SAMPLE_BLOCK_SOURCE_STORAGE) {
+			const session = await this.openSession(sourceId, { signal, expectedSource: source });
+			if (!session) throw new Error('Sample-block source disappeared during reading.');
+			try { return await session.chunk(chunkIndex, { signal }); }
+			finally { await session.release(); }
+		}
 		if (source.storage === 'copy-on-write') {
 			const replacement = await this.#options.records.chunk(source.sourceToken as string, chunkIndex);
 			return replacement
@@ -290,6 +297,14 @@ export class SourceReadRepository {
 		}
 		if (ancestors.has(sourceId)) throw new Error('The immutable source dependency graph contains a cycle.');
 		const nextAncestors = new Set(ancestors).add(sourceId);
+		if (source.storage === SAMPLE_BLOCK_SOURCE_STORAGE) {
+			const session = await this.openSession(sourceId, { signal, expectedSource: source });
+			if (!session) throw new Error('Sample-block source disappeared during reading.');
+			try {
+				for (let index = 0; index < Number(source.chunkCount); index += 1) yield await session.chunk(index, { signal });
+			} finally { await session.release(); }
+			return;
+		}
 		if (source.storage === 'copy-on-write') {
 			const replacementIterator = this.#options.records.chunks(source.sourceToken as string)[Symbol.asyncIterator]();
 			try {

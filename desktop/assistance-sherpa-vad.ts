@@ -7,6 +7,10 @@ import {
 	type VoiceActivityRequest,
 	type VoiceActivityResult,
 } from './assistance-vad-runtime.ts';
+import {
+	callSherpaNativeV1, createSherpaNativeExecutorV1, disposeSherpaNativeV1,
+	type SherpaAccelerationOptions,
+} from './assistance-sherpa-acceleration.ts';
 
 const SAMPLE_RATE = 16_000;
 const WINDOW_SAMPLES = 512;
@@ -23,6 +27,8 @@ interface SherpaVadInstance {
 	pop(): void;
 	flush(): void;
 	clear(): void;
+	free?(): void;
+	dispose?(): void;
 }
 
 interface SherpaVadModule {
@@ -42,10 +48,11 @@ function resolveRuntimeModule(runtime: unknown): SherpaVadModule {
 	throw new TypeError('The speech runtime does not expose Silero VAD.');
 }
 
-export function createSherpaVadFactory(runtime: unknown): Readonly<{
+export function createSherpaVadFactory(runtime: unknown, options: SherpaAccelerationOptions = {}): Readonly<{
 	detect(request: VoiceActivityRequest): Promise<VoiceActivityResult>;
 }> {
 	const module = resolveRuntimeModule(runtime);
+	createSherpaNativeExecutorV1(options);
 	return Object.freeze({
 		async detect(request: VoiceActivityRequest): Promise<VoiceActivityResult> {
 			if (typeof request?.audioPath !== 'string' || request.audioPath === ''
@@ -55,45 +62,50 @@ export function createSherpaVadFactory(runtime: unknown): Readonly<{
 			request.signal?.throwIfAborted();
 			// Electron's V8 sandbox requires V8-owned buffers.
 			const wave = module.readWave(request.audioPath, false);
-			if (wave.sampleRate !== SAMPLE_RATE) {
+			if (wave.sampleRate !== SAMPLE_RATE || !(wave.samples instanceof Float32Array) || wave.samples.length < 1) {
 				throw new RangeError('Voice activity requires exact 16 kHz selected audio.');
 			}
-			const vad = new module.Vad({
-				sileroVad: {
-					model: request.model.model, threshold: 0.5,
-					minSilenceDuration: 0.5, minSpeechDuration: 0.25,
-					windowSize: WINDOW_SAMPLES, maxSpeechDuration: 30,
-				},
-				sampleRate: SAMPLE_RATE, numThreads: 2, provider: 'cpu', debug: 0,
-			}, 60);
-			const segments: Array<{ startSample: number; sampleCount: number }> = [];
-			const drain = (): void => {
-				while (!vad.isEmpty()) {
-					const segment = vad.front(false);
-					segments.push({ startSample: segment.start, sampleCount: segment.samples.length });
-					vad.pop();
-				}
-			};
-			try {
-				for (let offset = 0; offset < wave.samples.length; offset += WINDOW_SAMPLES) {
-					request.signal?.throwIfAborted();
-					const end = Math.min(offset + WINDOW_SAMPLES, wave.samples.length);
-					vad.acceptWaveform(wave.samples.subarray(offset, end));
-					drain();
-					request.onProgress?.(Object.freeze({ completed: end, total: wave.samples.length }));
-				}
-				vad.flush();
-				drain();
-				request.signal?.throwIfAborted();
-				for (const [index, segment] of segments.entries()) {
-					if (segment.startSample + segment.sampleCount > wave.samples.length) {
-						throw new RangeError(`Sherpa VAD segment ${index} exceeds the selected audio.`);
+			let completedSamples = 0;
+			return createSherpaNativeExecutorV1(options).run(request.signal, (provider) => {
+				const vad = callSherpaNativeV1(() => new module.Vad({
+					sileroVad: {
+						model: request.model.model, threshold: 0.5,
+						minSilenceDuration: 0.5, minSpeechDuration: 0.25,
+						windowSize: WINDOW_SAMPLES, maxSpeechDuration: 30,
+					},
+					sampleRate: SAMPLE_RATE, numThreads: 2, provider, debug: 0,
+				}, 60));
+				const segments: Array<{ startSample: number; sampleCount: number }> = [];
+				const drain = (): void => {
+					while (!callSherpaNativeV1(() => vad.isEmpty())) {
+						const segment = vad.front(false);
+						segments.push({ startSample: segment.start, sampleCount: segment.samples.length });
+						callSherpaNativeV1(() => { vad.pop(); });
 					}
+				};
+				try {
+					for (let offset = 0; offset < wave.samples.length; offset += WINDOW_SAMPLES) {
+						request.signal?.throwIfAborted();
+						const end = Math.min(offset + WINDOW_SAMPLES, wave.samples.length);
+						callSherpaNativeV1(() => { vad.acceptWaveform(wave.samples.subarray(offset, end)); });
+						request.signal?.throwIfAborted();
+						drain();
+						completedSamples = Math.max(completedSamples, end);
+						request.onProgress?.(Object.freeze({ completed: completedSamples, total: wave.samples.length }));
+					}
+					callSherpaNativeV1(() => { vad.flush(); });
+					drain();
+					request.signal?.throwIfAborted();
+					for (const [index, segment] of segments.entries()) {
+						if (segment.startSample + segment.sampleCount > wave.samples.length) {
+							throw new RangeError(`Sherpa VAD segment ${index} exceeds the selected audio.`);
+						}
+					}
+					return normalizeVoiceActivityResult({ sampleRate: SAMPLE_RATE, segments });
+				} finally {
+					try { vad.clear(); } finally { disposeSherpaNativeV1(vad); }
 				}
-				return normalizeVoiceActivityResult({ sampleRate: SAMPLE_RATE, segments });
-			} finally {
-				vad.clear();
-			}
+			});
 		},
 	});
 }

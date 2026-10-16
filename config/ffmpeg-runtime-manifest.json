@@ -54,8 +54,8 @@
 	"evidence": {
 		"lineEndings": {
 			"path": ".gitattributes",
-			"byteLength": 3309,
-			"sha256": "5262806a9ef49dc43f1848a959b696d251058e21abb89d160b528b368d60188a"
+			"byteLength": 4085,
+			"sha256": "6f24de3e2795936e97438dbe41799c322c6fa731eb82f451a0738a9a7ea049a2"
 		},
 		"correspondingSource": {
 			"path": "desktop/ffmpeg-corresponding-source.json",
@@ -79,13 +79,13 @@
 		},
 		"securityMatrix": {
 			"path": "config/production-security-matrix.json",
-			"byteLength": 883713,
-			"sha256": "4f6d3e9c3a254a5723dfa4c5b49c91e838a83f48f00d68cd39b2147969e260b8"
+			"byteLength": 905052,
+			"sha256": "e9bb577152111e6c4b46adcb085c452aeb22ec514ee3223388e0f51765588976"
 		},
 		"threatModel": {
 			"path": "docs/policies/security.md",
-			"byteLength": 344950,
-			"sha256": "8e68d644b7380c3d01d2d6f62cbfb84b6471a7e60c95207d93587cbf00240abe"
+			"byteLength": 353639,
+			"sha256": "b8414809baf67994235aaf1fbda96b3cac88dfea26d2c062a4fe6715d17a6fb2"
 		}
 	},
 	"security": {
@@ -115,6 +115,6 @@
 		}
 	},
 	"integrity": {
-		"payloadSha256": "4d69d458e2ff71ce520e21eed340320b77cdf2734cc5005fbaecb34adffa9cf6"
+		"payloadSha256": "a8a76d44aca15f501b7b6e6d67167179945eeb43ad13791907b68cf46466dc1e"
 	}
 }

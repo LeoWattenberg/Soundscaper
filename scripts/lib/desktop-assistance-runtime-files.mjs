@@ -2,6 +2,7 @@
 
 /** Exact compiled closure owned by desktop local assistance and its model store. */
 export const DESKTOP_ASSISTANCE_RUNTIME_FILES = Object.freeze([
+	'desktop/assistance-acceleration-entrypoints.js',
 	'desktop/assistance-cleanup-barrier.js',
 	'desktop/assistance-runtime-family-cancellation.js',
 	'desktop/assistance-runtime-distribution.js',
@@ -13,6 +14,7 @@ export const DESKTOP_ASSISTANCE_RUNTIME_FILES = Object.freeze([
 	'desktop/assistance-data-claims.js',
 	'desktop/assistance-diarization-runtime.js',
 	'desktop/assistance-electron-data-port.js',
+	'desktop/assistance-execution-providers.js',
 	'desktop/assistance-external-ffmpeg-shot-runtime.js',
 	'desktop/assistance-external-ffmpeg-video-materializer.js',
 	'desktop/assistance-float32-mono-wave-file-reader.js',
@@ -22,7 +24,10 @@ export const DESKTOP_ASSISTANCE_RUNTIME_FILES = Object.freeze([
 	'desktop/assistance-job-protocol.js',
 	'desktop/assistance-llama-cpp-worker.js',
 	'desktop/assistance-main-ipc.js',
+	'desktop/assistance-native-gpu-execution.js',
 	'desktop/assistance-dereverb-room-onnx-tensors.js',
+	'desktop/assistance-onnx-acceleration.js',
+	'desktop/assistance-onnx-gpu-closure.js',
 	'desktop/assistance-onnx-audio-runtime-worker.js',
 	'desktop/assistance-onnx-dereverb-worker.js',
 	'desktop/assistance-onnx-enhancement-separation-worker.js',
@@ -68,6 +73,7 @@ export const DESKTOP_ASSISTANCE_RUNTIME_FILES = Object.freeze([
 	'desktop/assistance-semantic-query-executor.js',
 	'desktop/assistance-selected-video-authority.js',
 	'desktop/assistance-service.js',
+	'desktop/assistance-sherpa-acceleration.js',
 	'desktop/assistance-sherpa-diarizer.js',
 	'desktop/assistance-streaming-float32-wave.js',
 	'desktop/assistance-sherpa-recognizer.js',

@@ -2,7 +2,7 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createFramescaperAudioEditorController } from '../src/framescaper/editor-controller.ts';
+import { createFramescaperFixtureController } from './helpers/framescaper-controller-project-fixture.ts';
 import { createFramescaperEditorProjectEnvironment } from '../src/framescaper/editor-project-environment.ts';
 import { createFramescaperProject } from '../src/framescaper/editor-project.ts';
 import { FRAMESCAPER_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-project-runtime-profile.ts';
@@ -18,10 +18,10 @@ for (const action of ['track-mute', 'mute-tracks'] as const) test(`${action} own
 	} });
 	const project = createFramescaperProject(FRAMESCAPER_PROJECT_RUNTIME_PROFILE, framescaperBaselineOptions());
 	assert.ok(await environment.createProjectIfAbsent(project));
-	const controller = createFramescaperAudioEditorController(environment);
+	const controller = await createFramescaperFixtureController(environment, project.id);
 	context.after(async () => { await controller.dispose(); await environment.close(); });
 	await controller.ready;
-	await controller.actions.project.openById(project.id);
+	assert.equal(controller.project?.id, project.id);
 	controller.actions.timeline.selectClip('video-clip');
 	const id = 'video-track';
 	const track = controller.project?.tracks.find(candidate => candidate.id === id);

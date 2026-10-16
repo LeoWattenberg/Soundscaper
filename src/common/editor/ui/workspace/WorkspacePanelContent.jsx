@@ -62,6 +62,7 @@ const DEFERRED_WORKSPACE_PANELS = Object.freeze({
 	} : {}),
 	...(SOUNDSCAPER_BUILD ? {
 		freesound: lazyEditorModule(() => import('./FreesoundPanelContainer.tsx')),
+		audiocom: lazyEditorModule(() => import('./AudiocomPanelContainer.tsx')),
 		'clip-spreadsheet': lazyEditorModule(() => import('../clip-spreadsheet/ClipSpreadsheetPanel.tsx')),
 	} : {}),
 });
@@ -149,7 +150,7 @@ export default function WorkspacePanelContent({
 						? <SequenceTimingProjectProperties project={project} snapshot={snapshot}
 							controller={controller} copy={copy} run={run} />
 						: null}
-					disabled={panelId === 'freesound'
+					disabled={panelId === 'freesound' || panelId === 'audiocom'
 						? Boolean(snapshot.readOnly || blocked)
 						: snapshot.readOnly}
 					onUpdate={(changes) => run(() => controller.actions.metadata.update(changes))}

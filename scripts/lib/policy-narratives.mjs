@@ -9,35 +9,8 @@ import { resolve } from 'node:path';
 // `node scripts/sync-policy-narratives.mjs` rewrites the blocks; `--check`
 // (and tests/policy-narrative-sync.test.js) fails when a block drifts.
 
-export const FALLBACK_WITNESS_ROLES = Object.freeze([
-	'project-audio-mix-v1',
-	'audio-track-render-v1',
-	'project-video-render-v1',
-	'video-clip-render-v1',
-]);
-
-export const FALLBACK_ROUNDTRIP_WORKFLOWS = Object.freeze([
-	'audio-whole-mix-electron-roundtrip',
-	'audio-track-render-electron-roundtrip',
-	'video-full-project-electron-roundtrip',
-	'video-clip-render-electron-roundtrip',
-]);
-
-export const ELECTRON_LIBRARY_WORKFLOWS = Object.freeze([
-	'electron-soundscaper-to-framescaper-to-soundscaper-library',
-	'electron-framescaper-to-soundscaper-to-framescaper-library',
-]);
-
-export const ELECTRON_LEASE_WORKFLOWS = Object.freeze([
-	'same-project-simultaneous-open',
-	'cross-product-simultaneous-open',
-	'writer-lease-transfer',
-	'stale-lease-takeover',
-	'conflicting-canonical-commit',
-	'renderer-loss-during-operation',
-	'orderly-process-restart',
-	'crash-restart-recovery',
-]);
+import { FALLBACK_WITNESS_ROLES, FALLBACK_ROUNDTRIP_WORKFLOWS, ELECTRON_LIBRARY_WORKFLOWS, ELECTRON_LEASE_WORKFLOWS } from './policy-narrative-vocabularies.mjs';
+export { FALLBACK_WITNESS_ROLES, FALLBACK_ROUNDTRIP_WORKFLOWS, ELECTRON_LIBRARY_WORKFLOWS, ELECTRON_LEASE_WORKFLOWS };
 
 const NARRATIVE_CODE_ID_TOKENS = Object.freeze([
 	...FALLBACK_WITNESS_ROLES,
@@ -64,6 +37,7 @@ export const POLICY_NARRATIVE_BINDINGS = Object.freeze([
 		['scape-archive-expansion', 'overridable-scape-size-admission'],
 		['scape-archive-expansion', 'bounded-streaming-media-extraction'],
 		['external-project-document-validation', 'maintained-project-publication-admission'],
+		['audiocom-proxy-boundary', 'bounded-audiocom-oauth-media-proxy'],
 	].map(([riskId, controlId]) => Object.freeze({
 		marker: controlId,
 		register: 'config/production-security-matrix.json',
@@ -444,6 +418,12 @@ export const POLICY_NARRATIVE_BINDINGS = Object.freeze([
 		document: 'docs/policies/project-compatibility.md',
 		intro: null,
 		wrap: 80,
+	}),
+	Object.freeze({
+		marker: 'local-assistance-gpu-execution', register: 'config/production-security-matrix.json',
+		riskId: 'native-helper-processes', controlId: 'authenticated-local-assistance-gpu-execution',
+		field: 'summary', document: 'docs/policies/security.md',
+		intro: null, wrap: 80,
 	}),
 	Object.freeze({
 		marker: 'local-assistance-runtime-diagnostics',

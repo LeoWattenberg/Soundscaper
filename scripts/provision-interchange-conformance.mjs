@@ -1,11 +1,12 @@
 #!/usr/bin/env node
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { mkdirSync, readFileSync, rmSync, writeFileSync, existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
+
+import { cachedInterchangeWheel, interchangeCacheIdentity } from './lib/interchange-download-cache.mjs';
 
 /**
  * Provision the interchange conformance reference implementations.
@@ -35,6 +36,7 @@ const config = JSON.parse(readFileSync(resolve(root, 'config/interchange-conform
 const target = resolve(root, 'vendor/interchange-conformance');
 const stamp = resolve(target, '.provisioned.json');
 const checkOnly = process.argv.includes('--check');
+const cacheRoot = resolve(root, '.wrangler/test-download-cache/interchange');
 const TRANSIENT_CONNECTION_ERRORS = new Set([
 	'UND_ERR_CONNECT_TIMEOUT', 'ETIMEDOUT', 'ECONNRESET', 'EAI_AGAIN',
 ]);
@@ -165,8 +167,8 @@ function supportedTags() {
  * carries compressed tag sets (`cp312.cp313-abi3-manylinux…`), so each component
  * is expanded before matching rather than compared whole.
  */
-function compatibleWheel(files) {
-	const supported = new Set(supportedTags());
+function compatibleWheel(files, tags) {
+	const supported = new Set(tags);
 	for (const file of files) {
 		if (!file.filename.endsWith('.whl')) continue;
 		const parts = file.filename.slice(0, -4).split('-');
@@ -197,34 +199,14 @@ function extract(buffer, name) {
 async function provision() {
 	rmSync(target, { recursive: true, force: true });
 	mkdirSync(target, { recursive: true });
+	const tags = supportedTags();
+	const cacheIdentity = interchangeCacheIdentity(config, pythonAbiTag(), tags);
 
 	for (const entry of config.packages) {
-		const release = await pypiRelease(entry.name, entry.version);
-		let file;
-		if (entry.wheel === 'platform') {
-			file = compatibleWheel(release.urls);
-			if (!file) {
-				throw new Error(
-					`No ${entry.name} ${entry.version} wheel matches this interpreter `
-					+ `(${pythonAbiTag()}). The conformance suite needs a platform this project publishes for.`,
-				);
-			}
-		} else {
-			file = release.urls.find((candidate) => candidate.filename === entry.wheel);
-			if (!file) throw new Error(`PyPI no longer publishes ${entry.wheel}.`);
-		}
-
-		const bytes = await download(file.url);
-		const digest = createHash('sha256').update(bytes).digest('hex');
-		// A pinned digest is authoritative; where the wheel is platform-specific
-		// the published digest is what we can verify against, and the version is
-		// what is actually pinned.
-		const expected = entry.sha256 ?? file.digests?.sha256;
-		if (!expected || digest !== expected) {
-			throw new Error(
-				`${file.filename} failed its integrity check.\n  expected ${expected}\n  received ${digest}`,
-			);
-		}
+		const { bytes } = await cachedInterchangeWheel(entry, {
+			cacheRoot, cacheIdentity, release: pypiRelease, download,
+			selectPlatformWheel: files => compatibleWheel(files, tags),
+		});
 		extract(bytes, entry.name.replaceAll(/[^\w.-]+/gu, '-'));
 		process.stdout.write(`provisioned ${entry.name} ${entry.version} (${entry.license})\n`);
 	}
@@ -249,6 +231,10 @@ function verify() {
 }
 
 if (process.argv[1]?.endsWith('provision-interchange-conformance.mjs')) {
+	if (process.argv.includes('--cache-key')) {
+		process.stdout.write(`key=${interchangeCacheIdentity(config, pythonAbiTag(), supportedTags())}\n`);
+		process.exit(0);
+	}
 	if (checkOnly) {
 		const state = provisionState();
 		process.stdout.write(`${state.ready ? 'ready' : `not ready (${state.reason})`}\n`);

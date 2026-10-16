@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { installDesktopSpeedWarmupManifest } from './desktop-speed-warmup-fixture.js';
+
 const MODELS = Object.freeze([
 	['silero-vad-v6', '6.2.1', 'voice-activity-detection'],
 	['parakeet-tdt-0.6b-v3', '3.0.0', 'speech-recognition'],
@@ -18,6 +20,7 @@ const MODELS = Object.freeze([
 ]);
 
 export async function installMilestone7LocalAssistanceFixture(page) {
+	await installDesktopSpeedWarmupManifest(page);
 	await page.addInitScript(({ models }) => {
 		const artifactSha256 = '11'.repeat(32);
 		const runtimeModels = Object.freeze(models.map(([modelId, version, task]) => Object.freeze({

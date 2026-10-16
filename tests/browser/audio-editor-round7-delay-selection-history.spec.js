@@ -6,16 +6,12 @@ import { addRackEffect, bootEditor, chooseCommandAction, chooseDropdown, closeDi
 	openExportDialog, readDownloadBytes } from './audio-editor-test-helpers.js';
 
 test('a selected delivery retains the ordinary finite echoes heard in the complete mix', async ({ page }) => {
-	// Three PCM deliveries and the sample-digit edits exceed 75 seconds under CI coverage.
 	test.setTimeout(180_000);
 	const errors = collectClientErrors(page);
 	await disableNativeSavePicker(page);
 	const editor = await bootEditor(page, '/embed/en/');
 	await importFiles(editor, [createWavFixture({ name: 'steady quiet recording.wav', frequency: 500,
 		duration: 20, channelCount: 1, channelAmplitudes: [.02] })]);
-	const dry = await exportWindow(page, editor, false);
-	expect(dry.frames).toBe(960_000);
-	expect(dry.rms).toBeGreaterThan(.009);
 	await chooseCommandAction(page, editor, 'Select', 'Select all');
 	const panel = await openEffectsForTrack(editor, 1);
 	await addRackEffect(page, panel, 'track', 'Delay');
@@ -26,7 +22,11 @@ test('a selected delivery retains the ordinary finite echoes heard in the comple
 	await closeDialog(effect);
 	const complete = await exportWindow(page, editor, false);
 	expect(complete.frames).toBe(960_000);
-	expect(complete.rms).toBeGreaterThan(dry.rms * 8);
+	// The first echo starts at two seconds. These equal-length, whole-cycle
+	// windows avoid the clip fades and compare dry audio with its finite echoes.
+	expect(complete.preEchoRms).toBeGreaterThan(.009);
+	expect(complete.preEchoRms).toBeLessThan(.011);
+	expect(complete.rms).toBeGreaterThan(complete.preEchoRms * 8);
 	for (const [name, frame] of [['Selection start', 864_000], ['Selection end', 912_000]]) {
 		const control = editor.getByRole('group', { name, exact: true });
 		await control.locator('.timecode__format-button').click();
@@ -58,11 +58,14 @@ async function exportWindow(page, editor, selected) {
 		const context = new OfflineAudioContext(2, 1, 48_000);
 		const decoded = await context.decodeAudioData(Uint8Array.from(bytes).buffer);
 		const channel = decoded.getChannelData(0);
-		const begin = selected ? 4_800 : 868_800;
-		const end = selected ? 43_200 : 907_200;
-		let squares = 0;
-		for (let frame = begin; frame < end; frame++) squares += channel[frame] ** 2;
-		return { frames: decoded.length, rms: Math.sqrt(squares / (end - begin)) };
+		const rms = (begin, end) => {
+			let squares = 0;
+			for (let frame = begin; frame < end; frame++) squares += channel[frame] ** 2;
+			return Math.sqrt(squares / (end - begin));
+		};
+		return { frames: decoded.length,
+			rms: rms(selected ? 4_800 : 868_800, selected ? 43_200 : 907_200),
+			preEchoRms: selected ? null : rms(4_800, 43_200) };
 	}, { bytes: Array.from(bytes), selected });
 	await dialog.getByRole('button', { name: 'Close', exact: true }).click();
 	return measurements;

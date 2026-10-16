@@ -13,5 +13,6 @@ const result = await runFramescaperBoostCiProvisioning({
 	repositoryRoot: resolve(process.cwd()),
 	runnerTemp: process.env.RUNNER_TEMP,
 	githubEnvironmentPath: process.env.GITHUB_ENV,
+	cacheRoot: resolve(process.cwd(), '.wrangler/test-download-cache/boost'),
 });
 process.stdout.write(`Provisioned and authenticated Boost 1.92.0 headers in ${result.workspace}.\n`);

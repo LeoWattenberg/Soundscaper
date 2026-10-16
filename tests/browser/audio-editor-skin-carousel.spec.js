@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
+import { capturePassingScreenshot } from './helpers/passing-screenshots.js';
 import { expect, test } from './audio-editor-test-fixtures.js';
 import { assertNoSeriousAxeViolations, bootEditor, chooseCommandAction, registerAudioEditorHooks } from './audio-editor-test-helpers.js';
 
@@ -28,7 +29,7 @@ for (const product of ['soundscaper', 'framescaper']) test.describe(`${product} 
 		await page.keyboard.press('Enter');
 		await expect(editor).toHaveAttribute('data-editor-skin', 'techno');
 		await assertNoSeriousAxeViolations(page, '.editor-skin-preferences');
-		await dialog.screenshot({ path: testInfo.outputPath('skin-carousel.png') });
+		await capturePassingScreenshot(dialog, { path: testInfo.outputPath('skin-carousel.png') });
 		await page.setViewportSize({ width: 700, height: 720 });
 		const choices = dialog.locator('[data-skin-choice]');
 		const tops = await choices.evaluateAll((buttons) => buttons.map((button) => Math.round(button.getBoundingClientRect().top)));

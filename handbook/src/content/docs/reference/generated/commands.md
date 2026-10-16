@@ -548,3 +548,4 @@ Product availability follows each product profile’s command filters and each l
 | Zoom out | `zoom-out` | Ctrl+- | View > Zoom | Soundscaper, Framescaper | Audacity |
 | Zoom to selection | `zoom-to-selection` | Ctrl+E | View > Zoom | Soundscaper, Framescaper | Audacity |
 | Zoom toggle | `zoom-toggle` | Shift+Z | View > Zoom | Soundscaper, Framescaper | Audacity |
+| audio.com | `panel-audiocom` | — | Window | Soundscaper | Soundscaper local |

@@ -30,7 +30,7 @@ test('reusable professional-native workflow produces five verified build results
 	assert.doesNotMatch(source,
 		/promot|Developer ID|SIGNING_CERTIFICATE|SIGNING_PASSWORD|SOUNDSCAPER_MAC_SIGNING_IDENTITY|import-codesign-certs/iu);
 	assert.doesNotMatch(source, /secrets:/u);
-	assert.match(source, /architecture: \$\{\{ matrix\.tooling_node_arch \}\}/u);
+	assert.doesNotMatch(source, /tooling_node_arch/u);
 	assert.match(source, /architecture: \$\{\{ matrix\.node_arch \}\}/u);
 	assert.match(source, /kernel\.apparmor_restrict_unprivileged_userns=0/u);
 	assert.match(source, /Install authenticated CMake for the Ubuntu 22\.04 baseline\n\s+if: matrix\.target == 'linux-x64'\n\s+run: bash scripts\/ci-install-professional-cmake\.sh/u);

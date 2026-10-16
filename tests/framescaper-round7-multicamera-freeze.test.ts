@@ -2,9 +2,9 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createFramescaperAudioEditorController } from '../src/framescaper/editor-controller.ts';
+import { framescaperPublishedProject, createFramescaperFixtureController } from './helpers/framescaper-controller-project-fixture.ts';
 import { createFramescaperEditorProjectEnvironment } from '../src/framescaper/editor-project-environment.ts';
-import { cloneFramescaperProject, createFramescaperProject } from '../src/framescaper/editor-project.ts';
+import { createFramescaperProject } from '../src/framescaper/editor-project.ts';
 import { FRAMESCAPER_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-project-runtime-profile.ts';
 import { createFramescaperMulticameraMenuItems } from '../src/common/editor/ui/framescaper-multicamera-menu.ts';
 import { framescaperSelectedVisualAuthoringRuntimeFor } from '../src/framescaper/editor-selected-finishing-authoring-controller.ts';
@@ -32,10 +32,10 @@ test('Freeze captures the switched multicamera picture after the ordinary camera
 				sourceId: 'alternate-camera', title: 'Alternate camera', binItemId: 'alternate-bin' }] },
 	});
 	assert.ok(await environment.createProjectIfAbsent(project));
-	const controller = createFramescaperAudioEditorController(environment);
+	const controller = await createFramescaperFixtureController(environment, project.id);
 	context.after(async () => { await controller.dispose(); await environment.close(); });
 	await controller.ready;
-	await controller.actions.project.openById(project.id);
+	assert.equal(controller.project?.id, project.id);
 	const library = framescaperSelectedVisualAuthoringRuntimeFor(controller);
 	assert.ok(library);
 	const captures: FramescaperSelectedFreezeCaptureRequestFinishing[] = [];
@@ -82,14 +82,14 @@ test('Freeze captures the switched multicamera picture after the ordinary camera
 });
 
 function snapshot(project: unknown) {
-	const value = cloneFramescaperProject(FRAMESCAPER_PROJECT_RUNTIME_PROFILE, project);
+	const value = framescaperPublishedProject(project);
 	return { ...value, clips: records(value.clips), sources: records(value.sources) };
 }
 
 function records(value: unknown): readonly Readonly<Record<string, unknown>>[] {
 	assert.ok(Array.isArray(value));
-	return value.map((row: unknown) => {
+	for (const row of value as unknown[]) {
 		assert.ok(row !== null && typeof row === 'object' && !Array.isArray(row));
-		return row as Readonly<Record<string, unknown>>;
-	});
+	}
+	return value as readonly Readonly<Record<string, unknown>>[];
 }

@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { installDesktopSpeedWarmupManifest } from './helpers/desktop-speed-warmup-fixture.js';
 import { expect, test, toneA, toneB } from './audio-editor-test-fixtures.js';
 import { encodeWav } from '../../src/common/editor/wav.js';
 import { inspectWavBlobPcm } from '../../src/common/editor/wav-import.js';
@@ -33,6 +34,7 @@ async function installOriginalOverwriteBridge(page, productId, fixtures = [toneA
 			headers: { 'Content-Length': String(fixture.buffer.byteLength) },
 		}));
 	}
+	await installDesktopSpeedWarmupManifest(page);
 	await page.addInitScript(({ productId, files, holdPreparation }) => {
 		const state = { imports: 0, preparedOriginals: [], savePickers: 0, completed: [], releasedOriginals: [], releasedTargets: [], statuses: [] };
 		addEventListener('DOMContentLoaded', () => {
@@ -101,6 +103,7 @@ async function installOriginalOverwriteBridge(page, productId, fixtures = [toneA
 }
 
 async function installNativeOriginalBridge(page, native) {
+	await installDesktopSpeedWarmupManifest(page);
 	await page.exposeBinding('__nativeFileIpc', async (_source, channel, request) => await native.invoke(channel,
 		channel === 'soundscaper:v1:save:chunk' ? { ...request, bytes: Uint8Array.from(request.bytes) } : request,
 	));

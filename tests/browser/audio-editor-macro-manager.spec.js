@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { capturePassingScreenshot } from './helpers/passing-screenshots.js';
 import { expect, readFile, test } from './audio-editor-test-fixtures.js';
 import {
 	bootEditor,
@@ -137,7 +138,7 @@ test.describe('macros palette libraries', () => {
 		const source = "sound.log.info('my program');";
 		await manager.getByRole('textbox', { name: 'Program', exact: true }).fill(source);
 		await expect(programs().locator('[data-macro-script-id]')).toHaveText(['My program']);
-		await manager.screenshot({ path: testInfo.outputPath('macro-manager-program-actions.png') });
+		await capturePassingScreenshot(manager, { path: testInfo.outputPath('macro-manager-program-actions.png') });
 
 		const [download] = await Promise.all([
 			page.waitForEvent('download'),

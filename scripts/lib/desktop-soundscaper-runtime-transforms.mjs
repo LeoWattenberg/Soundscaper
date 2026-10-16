@@ -48,7 +48,7 @@ export function soundscaperAssistanceOnnxRuntimeWorkerSource(sourceValue) {
 		'visual ONNX session errors');
 	for (const adapter of ['Siglip2', 'Ocr', 'Subjects', 'Saliency']) {
 		source = replaceOnce(source,
-			new RegExp(`^    const execute${adapter} = [^\\n]+\\n`, 'mu'),
+			new RegExp(`^[\\t ]+const execute${adapter} = [^\\n]+\\n`, 'mu'),
 			'', adapter + ' ONNX adapter');
 	}
 	for (const task of [

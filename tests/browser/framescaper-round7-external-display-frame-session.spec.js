@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { installDesktopSpeedWarmupManifest } from './helpers/desktop-speed-warmup-fixture.js';
 import { expect, test } from './audio-editor-test-fixtures.js';
 import { bootEditor, chooseNestedCommandAction, collectClientErrors } from './audio-editor-test-helpers.js';
 import { seekFramescaperTimecode } from './helpers/framescaper-standard-timecode.js';
@@ -15,6 +16,7 @@ test('ordinary External display switching refuses a retired actual preview Messa
 			if (method === 'presentExternalDisplay') request = { ...request, rgba: Uint8Array.from(request.rgba) };
 			return await native.bridge[method](request);
 		});
+		await installDesktopSpeedWarmupManifest(page);
 		await page.addInitScript(() => {
 			const nativeServices = Object.fromEntries(['snapshot', 'control', 'reorder', 'remove', 'capabilities',
 				'preferences', 'externalDisplays', 'setExternalDisplay', 'presentExternalDisplay'].map(method => [method,

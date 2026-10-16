@@ -3,8 +3,10 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { buildBrowserProductSite } from './lib/browser-product-test-sites.mjs';
+import { resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
 
-const sites = Object.freeze([
+export const DUAL_ORIGIN_BROWSER_SITES = Object.freeze([
 	Object.freeze({
 		productId: 'soundscaper',
 		origin: 'http://127.0.0.1:4332',
@@ -24,4 +26,6 @@ const sites = Object.freeze([
 // file/source-map evidence. It is also the one browser denominator staged into
 // nightly-with-tests, so ordinary and reciprocal profiles cannot name different
 // bytes with the same portable coverage URL.
-for (const site of sites) await buildBrowserProductSite(site);
+if (process.argv[1] && pathToFileURL(resolve(process.argv[1])).href === import.meta.url) {
+	for (const site of DUAL_ORIGIN_BROWSER_SITES) await buildBrowserProductSite(site);
+}

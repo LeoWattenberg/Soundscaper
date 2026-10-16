@@ -4,6 +4,8 @@ dist/
 # Hidden source maps from a SCAPE_BUILD_SOURCE_MAPS=1 build; a coverage input,
 # never part of a deployed site.
 dist-source-maps/
+# Receipt for the checked handbook build.
+/handbook/.ci-build.json
 .astro/
 .wrangler/
 test-results/

@@ -2,7 +2,7 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createFramescaperAudioEditorController } from '../src/framescaper/editor-controller.ts';
+import { framescaperPublishedProject, createFramescaperFixtureController } from './helpers/framescaper-controller-project-fixture.ts';
 import { createFramescaperEditorProjectEnvironment } from '../src/framescaper/editor-project-environment.ts';
 import { createFramescaperProject } from '../src/framescaper/editor-project.ts';
 import { FRAMESCAPER_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-project-runtime-profile.ts';
@@ -27,10 +27,10 @@ for (const [offset, short] of [[-10, false], [-5, false], [0, false], [5, false]
 		} });
 		const project = createFramescaperProject(FRAMESCAPER_PROJECT_RUNTIME_PROFILE, framescaperBaselineOptions());
 		assert.ok(await environment.createProjectIfAbsent(project));
-		const controller = createFramescaperAudioEditorController(environment);
+		const controller = await createFramescaperFixtureController(environment, project.id);
 		context.after(async () => { await controller.dispose(); await environment.close(); });
 		await controller.ready;
-		await controller.actions.project.openById(project.id);
+		assert.equal(controller.project?.id, project.id);
 		const authoring = framescaperCandidateAuthoringActionRuntimeFor(controller);
 		assert.ok(authoring);
 		await authoring.run('video-title');
@@ -44,11 +44,11 @@ for (const [offset, short] of [[-10, false], [-5, false], [0, false], [5, false]
 			maskWidth: model.maskWidth, presetId: null,
 		}) as AudioEditorCommand);
 		controller.actions.timeline.selectClip(title.id);
-		const before = environment.runtime.cloneProject(controller.project);
+		const before = framescaperPublishedProject(controller.project);
 		const historyCount = controller.getSnapshot().history.undoEntries.length;
 		const start = title.sequenceStartFrame + offset;
 		controller.actions.video.overwrite({ binItemId: 'bin-video', sequenceInFrame: start * 4_800 });
-		const after = environment.runtime.cloneProject(controller.project);
+		const after = framescaperPublishedProject(controller.project);
 		const titles = (after.clips as readonly Readonly<Record<string, unknown>>[])
 			.filter(clip => clip.kind === 'generator').map(normalizeVideoGeneratorClipV1)
 			.sort((left, right) => left.sequenceStartFrame - right.sequenceStartFrame);
@@ -118,15 +118,15 @@ for (const start of [0, 5]) test(`public Bin Overwrite at ${String(start)} retai
 			expectedClip: null, expectedPlacement: null, clip: fixture.clip, placement }],
 	});
 	assert.ok(await environment.timelineImages.publishIfCurrent({ expected: base, project: authored, bytes: fixture.bytes }));
-	const controller = createFramescaperAudioEditorController(environment);
+	const controller = await createFramescaperFixtureController(environment, fixture.project.id);
 	context.after(async () => { await controller.dispose(); await environment.close(); });
 	await controller.ready;
-	await controller.actions.project.openById(fixture.project.id);
+	assert.equal(controller.project?.id, fixture.project.id);
 	controller.actions.timeline.selectClip(fixture.clip.id);
-	const before = environment.runtime.cloneProject(controller.project);
+	const before = framescaperPublishedProject(controller.project);
 	const historyCount = controller.getSnapshot().history.undoEntries.length;
 	controller.actions.video.overwrite({ binItemId: 'bin-video', sequenceInFrame: start * 4_800 });
-	const after = environment.runtime.cloneProject(controller.project);
+	const after = framescaperPublishedProject(controller.project);
 	const images = after.clips.filter(clip => clip.kind === 'image').map(normalizeFramescaperImageClipV1)
 		.sort((left, right) => left.sequenceStartFrame - right.sequenceStartFrame);
 	assert.deepEqual(images.map(clip => [clip.sequenceStartFrame, clip.sequenceFrameCount, clip.sourceStartTicks]),

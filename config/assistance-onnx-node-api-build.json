@@ -1,0 +1,162 @@
+{
+	"schemaVersion": 1,
+	"recipeId": "onnxruntime-node-webgpu-plugin-locked-build-v1",
+	"runtimeVersion": "1.29.0",
+	"sourceRevision": "2e2543fbe9fae542f921d47a72d21d5a4ef0b710",
+	"nodeHeadersVersion": "26.5.0",
+	"nodeAddonApiVersion": "8.3.1",
+	"sources": [
+		{
+			"id": "ort-js-node-src-common-h",
+			"url": "https://raw.githubusercontent.com/microsoft/onnxruntime/2e2543fbe9fae542f921d47a72d21d5a4ef0b710/js/node/src/common.h",
+			"path": "js/node/src/common.h",
+			"byteLength": 1980,
+			"sha256": "b5ad52fb093e9b3aa4d3318a99e472dac19cedbb7f95c982598de8232af7cf6b"
+		},
+		{
+			"id": "ort-js-node-src-inference_session_wrap-cc",
+			"url": "https://raw.githubusercontent.com/microsoft/onnxruntime/2e2543fbe9fae542f921d47a72d21d5a4ef0b710/js/node/src/inference_session_wrap.cc",
+			"path": "js/node/src/inference_session_wrap.cc",
+			"byteLength": 13329,
+			"sha256": "bdcb4bc7b7ce4da3e425082b83b1d77e43b6f4ef55808d4e7ce5782a3d9dfe4a"
+		},
+		{
+			"id": "ort-js-node-src-inference_session_wrap-h",
+			"url": "https://raw.githubusercontent.com/microsoft/onnxruntime/2e2543fbe9fae542f921d47a72d21d5a4ef0b710/js/node/src/inference_session_wrap.h",
+			"path": "js/node/src/inference_session_wrap.h",
+			"byteLength": 2696,
+			"sha256": "9f8984b034b9683bc9a255c8c4e1655f22dd52ddae1ea1d56840c75f71f18e16"
+		},
+		{
+			"id": "ort-js-node-src-main-cc",
+			"url": "https://raw.githubusercontent.com/microsoft/onnxruntime/2e2543fbe9fae542f921d47a72d21d5a4ef0b710/js/node/src/main.cc",
+			"path": "js/node/src/main.cc",
+			"byteLength": 316,
+			"sha256": "78c49103c78c194bdb9e4201efc5e3b635c7d9713a7e93f57bf72f3028c09ba4"
+		},
+		{
+			"id": "ort-js-node-src-ort_instance_data-cc",
+			"url": "https://raw.githubusercontent.com/microsoft/onnxruntime/2e2543fbe9fae542f921d47a72d21d5a4ef0b710/js/node/src/ort_instance_data.cc",
+			"path": "js/node/src/ort_instance_data.cc",
+			"byteLength": 1419,
+			"sha256": "566b9eec66a95ff6f91695d945d30c3918614aae7ff3717bcaff05ed02ab20a9"
+		},
+		{
+			"id": "ort-js-node-src-ort_instance_data-h",
+			"url": "https://raw.githubusercontent.com/microsoft/onnxruntime/2e2543fbe9fae542f921d47a72d21d5a4ef0b710/js/node/src/ort_instance_data.h",
+			"path": "js/node/src/ort_instance_data.h",
+			"byteLength": 1361,
+			"sha256": "8720d8b4e72dbfcd59f2955d0290383e9b29272c0b270f2dcf5ac5883e6ecd33"
+		},
+		{
+			"id": "ort-js-node-src-ort_singleton_data-cc",
+			"url": "https://raw.githubusercontent.com/microsoft/onnxruntime/2e2543fbe9fae542f921d47a72d21d5a4ef0b710/js/node/src/ort_singleton_data.cc",
+			"path": "js/node/src/ort_singleton_data.cc",
+			"byteLength": 1620,
+			"sha256": "23a8bf584c45550c4d14b517c67985055cf861620ec7679b9d4f057099dfda6b"
+		},
+		{
+			"id": "ort-js-node-src-ort_singleton_data-h",
+			"url": "https://raw.githubusercontent.com/microsoft/onnxruntime/2e2543fbe9fae542f921d47a72d21d5a4ef0b710/js/node/src/ort_singleton_data.h",
+			"path": "js/node/src/ort_singleton_data.h",
+			"byteLength": 2616,
+			"sha256": "5e8ae1fc151877e9d7b5f0d45593b39f1a0e3d47555983e415bcd782ed7b977e"
+		},
+		{
+			"id": "ort-js-node-src-run_options_helper-cc",
+			"url": "https://raw.githubusercontent.com/microsoft/onnxruntime/2e2543fbe9fae542f921d47a72d21d5a4ef0b710/js/node/src/run_options_helper.cc",
+			"path": "js/node/src/run_options_helper.cc",
+			"byteLength": 1316,
+			"sha256": "bb2f10d567ba478781677297b4f3a8bcebbbefb87a804c37a6182b8fe6eb433b"
+		},
+		{
+			"id": "ort-js-node-src-run_options_helper-h",
+			"url": "https://raw.githubusercontent.com/microsoft/onnxruntime/2e2543fbe9fae542f921d47a72d21d5a4ef0b710/js/node/src/run_options_helper.h",
+			"path": "js/node/src/run_options_helper.h",
+			"byteLength": 327,
+			"sha256": "edff59f3fc9cb3c3da1233ac7b3be719bcb2ba825e11e4e104eceb7c6086173d"
+		},
+		{
+			"id": "ort-js-node-src-session_options_helper-cc",
+			"url": "https://raw.githubusercontent.com/microsoft/onnxruntime/2e2543fbe9fae542f921d47a72d21d5a4ef0b710/js/node/src/session_options_helper.cc",
+			"path": "js/node/src/session_options_helper.cc",
+			"byteLength": 20329,
+			"sha256": "58bbf055e38cadb07e42a5980f29741b561ffc45cb6ee401f7a6378d2a898b3c"
+		},
+		{
+			"id": "ort-js-node-src-session_options_helper-h",
+			"url": "https://raw.githubusercontent.com/microsoft/onnxruntime/2e2543fbe9fae542f921d47a72d21d5a4ef0b710/js/node/src/session_options_helper.h",
+			"path": "js/node/src/session_options_helper.h",
+			"byteLength": 593,
+			"sha256": "2bfbd37fe90a8c0dadff494fdd63058e16d29ddc918a88ebb51f55e6e7f656cc"
+		},
+		{
+			"id": "ort-js-node-src-tensor_helper-cc",
+			"url": "https://raw.githubusercontent.com/microsoft/onnxruntime/2e2543fbe9fae542f921d47a72d21d5a4ef0b710/js/node/src/tensor_helper.cc",
+			"path": "js/node/src/tensor_helper.cc",
+			"byteLength": 18460,
+			"sha256": "1894282306b717539a0bca0d5787822aeefb9b617b50c6b02356d834a85da635"
+		},
+		{
+			"id": "ort-js-node-src-tensor_helper-h",
+			"url": "https://raw.githubusercontent.com/microsoft/onnxruntime/2e2543fbe9fae542f921d47a72d21d5a4ef0b710/js/node/src/tensor_helper.h",
+			"path": "js/node/src/tensor_helper.h",
+			"byteLength": 1187,
+			"sha256": "eea3c054d6c02c536f2ec50e382cf708a8d1a2170dfa1d4bdb318719651654a2"
+		}
+	],
+	"dependencies": [
+		{
+			"id": "node-addon-api",
+			"url": "https://registry.npmjs.org/node-addon-api/-/node-addon-api-8.3.1.tgz",
+			"byteLength": 60027,
+			"sha256": "7ca0aa7ad8e07f8134d1b0b5d8677cdd5cf2c4ded5c8e035f337b9e8a97bbde6",
+			"integrity": "sha512-lytcDEdxKjGJPTLEfW4mYMigRezMlyJY8W4wxJK8zE533Jlb8L8dRuObJFWg2P+AuOIxoCgKF+2Oq4d4Zd0OUA=="
+		},
+		{
+			"id": "node-headers",
+			"url": "https://nodejs.org/dist/v26.5.0/node-v26.5.0-headers.tar.gz",
+			"byteLength": 9963460,
+			"sha256": "b02b9c5922e7fd7bae30d9e97c293059175aa9d267b81d2866d52696445b5cbd"
+		},
+		{
+			"id": "node-license",
+			"url": "https://raw.githubusercontent.com/nodejs/node/v26.5.0/LICENSE",
+			"byteLength": 157606,
+			"sha256": "148eacf7863ef4329224a29398623077200a27194aa075569faf4a0a85566ca5"
+		},
+		{
+			"id": "node-arm64-lib",
+			"url": "https://nodejs.org/dist/v26.5.0/win-arm64/node.lib",
+			"byteLength": 3026634,
+			"sha256": "c01ce0d5e4e956f0e5e73cdba925d15a6d6f86883aa49f8f0b0de87aa93508ce"
+		},
+		{
+			"id": "node-x64-lib",
+			"url": "https://nodejs.org/dist/v26.5.0/win-x64/node.lib",
+			"byteLength": 3026982,
+			"sha256": "56f06350037085fce04930befd98327afc86ee46f52af6f6f8a68a03630e8380"
+		},
+		{
+			"id": "node-delay-hook",
+			"url": "https://raw.githubusercontent.com/nodejs/node-gyp/v11.5.0/src/win_delay_load_hook.cc",
+			"byteLength": 1003,
+			"sha256": "ec2357ffdf512151c21a52326ad3396aaa650b83e5c4a31153d216a155f68ecc"
+		},
+		{
+			"id": "node-gyp-license",
+			"url": "https://raw.githubusercontent.com/nodejs/node-gyp/v11.5.0/LICENSE",
+			"byteLength": 1102,
+			"sha256": "662a1b0115251cfb29c6aed0f221f8847bc49c6365d1c53a62c9f4bccc2489c3"
+		}
+	],
+	"recipeFiles": {
+		"CMakeLists.txt": "2d9da87d09efeb4c95bcdff7e890cbc55fef342de978e71ea44e8b12f6520ad8",
+		"webgpu_device_test.cc": "9af329543e8b87ec1990968be08c2b1aead3b1bbe3aff60cf977e42876e54e27",
+		"webgpu_plugin_provider.cc": "9481cb66b9500dade3fd643c88e7f26e5678f67167ed0c82e82fcfbce600fc75",
+		"webgpu_plugin_provider.h": "c774eedaac056bafdd51a954d8118f60bbb34d9ab993619bf1b8ddb5ccb4b6de",
+		"webgpu_probe.h": "2d64b57afb24248f1a56577785ef27ec9e2131b615282cd124fc39b08d48d8e4",
+		"webgpu_probe_main.cc": "2f4ac5d59d13a42ecc76c5eec0d2c74210c6c0e2085097970e3b4b6eb69cc7e2"
+	},
+	"patchedSessionOptionsSha256": "08099d69b088d5a957472cd58d09167595161caf86467cfa484a34e6713e2c5b"
+}

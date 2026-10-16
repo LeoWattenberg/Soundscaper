@@ -1,19 +1,19 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
-import { spawn, spawnSync } from 'node:child_process';
+import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { mkdtemp, open, readFile, readdir, rm, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import test from 'node:test';
+import { compileNativeTestFixture } from '../scripts/lib/node-native-test-fixtures.ts';
 
 import {
 	createSoundscaperDeliveryFilesystemProcessAuthority,
 } from '../desktop/soundscaper-delivery-filesystem-process.ts';
 
 const REPOSITORY = resolve(import.meta.dirname, '..');
-const SOURCE = join(REPOSITORY, 'native/soundscaper-professional-host/src');
 
 test('the main-only SDF1 adapter drives the real Linux target-native helper', {
 	skip: process.platform !== 'linux', timeout: 30_000,
@@ -21,15 +21,7 @@ test('the main-only SDF1 adapter drives the real Linux target-native helper', {
 	const temporary = await mkdtemp(join(tmpdir(), 'soundscaper-delivery-fs-adapter-'));
 	try {
 		const executable = join(temporary, 'soundscaper_delivery_fs');
-		const compilation = spawnSync('g++', [
-			'-std=c++20', '-O2', '-Wall', '-Wextra', '-Werror', '-pthread',
-			join(REPOSITORY, 'native/common/sha256.cpp'),
-			join(SOURCE, 'delivery_fs_main.cpp'), join(SOURCE, 'delivery_fs_protocol.cpp'),
-			join(SOURCE, 'delivery_fs_sha256.cpp'), join(SOURCE, 'delivery_fs_posix.cpp'),
-			join(SOURCE, 'delivery_fs_linux.cpp'),
-			'-o', executable,
-		], { cwd: REPOSITORY, encoding: 'utf8' });
-		assert.equal(compilation.status, 0, compilation.stderr || compilation.stdout);
+		compileNativeTestFixture({ repositoryRoot: REPOSITORY, kind: 'delivery-filesystem', outputPath: executable });
 		const outputRoot = await mkdtemp(join(temporary, 'output-'));
 		const details = await stat(outputRoot, { bigint: true });
 		const volumeIdentity = `device:${details.dev.toString(16)}`;

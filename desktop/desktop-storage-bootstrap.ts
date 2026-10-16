@@ -42,7 +42,7 @@ const DATA_FILES = Object.freeze([
 	'framescaper-native-image-sequence-import-v1',
 ]);
 const STATE_FILES = Object.freeze([
-	'freesound-session.json', 'native-plugin-quarantine-v1.json', 'logs',
+	'freesound-session.json', 'audiocom-session.json', 'native-plugin-quarantine-v1.json', 'logs',
 	...['soundscaper-delivery-services-v1.sqlite', 'framescaper-native-services-v1.sqlite']
 		.flatMap((name) => [name, `${name}-wal`, `${name}-shm`]),
 ]);

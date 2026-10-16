@@ -8,6 +8,7 @@ import {
 	importFiles,
 	registerAudioEditorHooks,
 } from './audio-editor-test-helpers.js';
+import { waitForLiveAnalysisSignal } from './helpers/performance-paint-readiness.js';
 
 test.describe('realtime Analysis panel', () => {
 	registerAudioEditorHooks();
@@ -36,7 +37,7 @@ test.describe('realtime Analysis panel', () => {
 			.toBeGreaterThan(0.2);
 		await expect.poll(async () => Number(await panel.locator('[data-analysis-value="correlation"]').textContent()))
 			.toBeLessThan(0.8);
-		await page.waitForTimeout(300);
+		await waitForLiveAnalysisSignal(panel);
 		const blockingTime = await page.evaluate(async () => {
 			const durations = [];
 			const observer = new PerformanceObserver((list) => {

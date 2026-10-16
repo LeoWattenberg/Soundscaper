@@ -66,7 +66,7 @@ test('Windows MSVC patch drift does not change archived Whisper provenance', () 
 		/Whisper MSVC compiler version/u);
 });
 
-test('Whisper build plans retain CPU-only portable targets and static runtime libraries', () => {
+test('Whisper build plans retain portable CPU fallback and embedded Metal on macOS', () => {
 	for (const [targetId, platform, architecture] of [
 		['linux-x64', 'linux', 'x64'], ['linux-arm64', 'linux', 'arm64'],
 		['mac-arm64', 'darwin', 'arm64'], ['win-x64', 'win32', 'x64'],
@@ -74,15 +74,41 @@ test('Whisper build plans retain CPU-only portable targets and static runtime li
 	]) {
 		const plan = desktopWhisperCppBuildPlan({ targetId, platform, architecture });
 		for (const option of ['BUILD_SHARED_LIBS', 'GGML_NATIVE', 'GGML_BACKEND_DL', 'GGML_OPENMP',
-			'GGML_CUDA', 'GGML_METAL', 'GGML_BLAS', 'GGML_AVX2']) {
+			'GGML_CUDA', 'GGML_VULKAN', 'GGML_BLAS', 'GGML_AVX2']) {
 			assert.ok(plan.configureArgs.includes(`-D${option}=OFF`));
 		}
+		assert.deepEqual(plan.executionProviders, platform === 'darwin' ? ['metal', 'cpu'] : ['vulkan', 'cpu']);
+		assert.ok(plan.configureArgs.includes(`-DGGML_METAL=${platform === 'darwin' ? 'ON' : 'OFF'}`));
+		assert.equal(plan.configureArgs.includes('-DGGML_METAL_EMBED_LIBRARY=ON'), platform === 'darwin');
+		assert.equal(plan.configureArgs.filter((flag) => flag.startsWith('-DGGML_METAL=')).length, 1);
 		assert.equal(plan.executable, platform === 'win32' ? 'whisper-cli.exe' : 'whisper-cli');
 		if (targetId === 'win-arm64') assert.equal(plan.configureArgs[plan.configureArgs.indexOf('-A') + 1], 'ARM64');
 		if (platform === 'win32') assert.ok(plan.configureArgs.includes('-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded'));
 	}
 	assert.throws(() => desktopWhisperCppBuildPlan({ targetId: 'mac-x64', platform: 'darwin', architecture: 'x64' }), /unsupported/u);
 	assert.throws(() => desktopWhisperCppBuildPlan({ targetId: 'linux-arm64', platform: 'linux', architecture: 'x64' }), /native/u);
+});
+
+test('Whisper builds a separate Vulkan executable on every Windows and Linux target', () => {
+	for (const [targetId, platform, architecture] of [
+		['linux-x64', 'linux', 'x64'], ['linux-arm64', 'linux', 'arm64'],
+		['win-x64', 'win32', 'x64'], ['win-arm64', 'win32', 'x64'],
+	]) {
+		const plan = desktopWhisperCppBuildPlan({ targetId, platform, architecture });
+		assert.deepEqual(plan.accelerationEntrypoints, { vulkan: `gpu/${plan.executable}` });
+		assert.ok(plan.configureArgs.includes('-DGGML_VULKAN=OFF'));
+		assert.ok(plan.vulkanConfigureArgs.includes('-DGGML_VULKAN=ON'));
+		assert.equal(plan.vulkanConfigureArgs.filter((flag) => flag.startsWith('-DGGML_VULKAN=')).length, 1);
+		for (const flag of ['-DBUILD_SHARED_LIBS=OFF', '-DGGML_BACKEND_DL=OFF', '-DGGML_CUDA=OFF']) {
+			assert.ok(plan.vulkanConfigureArgs.includes(flag));
+		}
+		if (platform === 'linux') assert.ok(plan.vulkanConfigureArgs.includes('-DCMAKE_EXE_LINKER_FLAGS=-static-libgcc -static-libstdc++'));
+		if (platform === 'win32') assert.ok(plan.vulkanConfigureArgs.includes('-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded'));
+		if (targetId === 'win-arm64') assert.ok(plan.vulkanConfigureArgs.includes('ClangCL'));
+	}
+	const metal = desktopWhisperCppBuildPlan({ targetId: 'mac-arm64', platform: 'darwin', architecture: 'arm64' });
+	assert.equal(metal.accelerationEntrypoints, undefined);
+	assert.equal(metal.vulkanConfigureArgs, undefined);
 });
 
 test('Whisper Windows ARM64 selects ClangCL because ggml rejects the MSVC ARM compiler', () => {

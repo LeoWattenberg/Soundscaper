@@ -93,6 +93,7 @@ export function createRecordingComposition(dependencies: RecordingCompositionDep
 		isRecordingSelection(selection) && selection.endFrame > selection.startFrame ? selection : null
 	);
 	const routing: RecordingRouting = createRecordingRoutingService({
+		lifetime: dependencies.lifetime,
 		AUDIO_DEVICE_PREFERENCES_SETTING_KEY,
 		RECORDING_CHANNEL_COUNT_MAXIMUM,
 		RECORDING_DEFAULT_DEVICE_ID,

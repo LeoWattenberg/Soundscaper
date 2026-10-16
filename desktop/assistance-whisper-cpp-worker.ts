@@ -18,6 +18,13 @@ import {
 	readAssistanceVoiceActivityInputV1,
 } from './assistance-voice-activity-input.ts';
 import type { VoiceActivitySegment } from './assistance-vad-runtime.ts';
+import {
+	AssistanceNativeCliExecutionError,
+	assistanceNativeCliSpawnErrorV1,
+	assistanceNativeGpuEntrypointV1,
+	createAssistanceNativeGpuExecutorV1,
+	type AssistanceNativeGpuExecutor,
+} from './assistance-native-gpu-execution.ts';
 
 interface AssistanceWhisperCppReadable {
 	on(event: 'data', listener: (chunk: unknown) => void): this;
@@ -137,18 +144,19 @@ async function executeWhisperCpp(
 	}
 	const model = grant.models[0]!;
 	const output = grant.outputs[0]!;
+	const gpu = createAssistanceNativeGpuExecutorV1(context.job.descriptor);
 	context.onProgress(0);
 	let normalized: Readonly<{ language: string | null; segments: readonly unknown[] }>;
 	if (voiceActivity === undefined) {
 		const stdout = await runWhisperCli(
 			context, spawn, model.path, input.path, language, output.maximumByteLength,
-			terminationGraceMs,
+			terminationGraceMs, gpu,
 		);
 		normalized = normalizeWhisperJson(stdout, 0);
 	} else {
 		normalized = await recognizeVoiceActivityRanges(
 			context, spawn, input.path, voiceActivity.path, model.path, language,
-			output.maximumByteLength, terminationGraceMs,
+			output.maximumByteLength, terminationGraceMs, gpu,
 		);
 	}
 	if (language !== 'auto' && normalized.language !== null && normalized.language !== language) {
@@ -186,6 +194,7 @@ async function recognizeVoiceActivityRanges(
 	language: WhisperLanguage,
 	maximumOutputBytes: number,
 	terminationGraceMs: number,
+	gpu: AssistanceNativeGpuExecutor,
 ): Promise<Readonly<{ language: string | null; segments: readonly unknown[] }>> {
 	const geometry = await inspectAssistanceSpeechWaveV1(audioPath, context.signal);
 	const activity = await readAssistanceVoiceActivityInputV1(
@@ -205,7 +214,7 @@ async function recognizeVoiceActivityRanges(
 			await writeSpeechSegmentWave(audioPath, segmentPath, range, context.signal);
 			const stdout = await runWhisperCli(
 				context, spawn, modelPath, segmentPath, language, maximumOutputBytes,
-				terminationGraceMs,
+				terminationGraceMs, gpu,
 			);
 			const normalized = normalizeWhisperJson(
 				stdout, range.startSample / geometry.sampleRate,
@@ -234,20 +243,22 @@ async function runWhisperCli(
 	language: WhisperLanguage,
 	maximumOutputBytes: number,
 	terminationGraceMs: number,
+	gpu: AssistanceNativeGpuExecutor,
 ): Promise<Uint8Array> {
-	return runCli({
+	return await gpu.run(context.signal, async (provider) => await runCli({
 		spawn,
-		executable: context.job.descriptor.entrypoint,
+		executable: assistanceNativeGpuEntrypointV1(context.job.descriptor, provider),
 		args: Object.freeze([
 			'--model', modelPath, '--file', audioPath,
-			'--output-json', '--output-file', '-', '--no-prints', '--no-gpu',
+			'--output-json', '--output-file', '-', '--no-prints',
+			...(provider === 'cpu' ? ['--no-gpu'] : []),
 			'--temperature', '0', '--temperature-inc', '0', '--no-fallback',
 			'--language', language, '--threads', '4',
 		]),
 		maximumStdoutBytes: maximumOutputBytes,
 		terminationGraceMs,
 		signal: context.signal,
-	});
+	}));
 }
 
 function whisperLanguage(value: unknown): WhisperLanguage {
@@ -336,13 +347,14 @@ async function runCli(options: Readonly<{
 	return await new Promise<Uint8Array>((resolve, reject) => {
 		let child: AssistanceWhisperCppChild;
 		try {
-			child = inspectChild(options.spawn(options.executable, options.args, {
+			child = options.spawn(options.executable, options.args, {
 				stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true, shell: false,
-			}));
+			});
 		} catch (error) {
-			reject(new Error('The authenticated whisper.cpp CLI could not be started.', { cause: error }));
+			reject(assistanceNativeCliSpawnErrorV1('The authenticated whisper.cpp CLI could not be started.', error));
 			return;
 		}
+		child = inspectChild(child);
 		const stdout: Uint8Array[] = [];
 		let stdoutBytes = 0;
 		let stderrBytes = 0;
@@ -370,7 +382,10 @@ async function runCli(options: Readonly<{
 					cause: error,
 				});
 			}
-			finish(terminalError ?? new Error('The whisper.cpp CLI was force-terminated.'));
+			const error = terminalError ?? new Error('The whisper.cpp CLI was force-terminated.');
+			finish(error instanceof AssistanceNativeCliExecutionError
+				? new Error('The whisper.cpp CLI was force-terminated without an observed exit.', { cause: error })
+				: error);
 		};
 		const stop = (error: Error): void => {
 			if (settled || terminating) return;
@@ -408,7 +423,7 @@ async function runCli(options: Readonly<{
 			}
 		});
 		child.once('error', (error) => {
-			stop(new Error('The authenticated whisper.cpp CLI failed to execute.', { cause: error }));
+			stop(assistanceNativeCliSpawnErrorV1('The authenticated whisper.cpp CLI failed to execute.', error));
 		});
 		child.once('close', (code, processSignal) => {
 			if (settled) return;
@@ -417,7 +432,7 @@ async function runCli(options: Readonly<{
 				return;
 			}
 			if (code !== 0 || processSignal !== null) {
-				finish(new Error('The authenticated whisper.cpp CLI did not complete successfully.'));
+				finish(new AssistanceNativeCliExecutionError('The authenticated whisper.cpp CLI did not complete successfully.'));
 				return;
 			}
 			const result = new Uint8Array(stdoutBytes);

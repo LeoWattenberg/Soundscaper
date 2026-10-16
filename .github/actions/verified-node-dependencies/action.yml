@@ -1,0 +1,49 @@
+name: Verified installed Node dependencies
+description: Restore only an exact authenticated npm installation, or install and replace damaged inputs.
+inputs:
+  scope:
+    description: Runner image or immutable container identity.
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: Resolve installed dependency identity
+      id: identity
+      shell: bash
+      env:
+        CI_INPUT_CACHE_SCOPE: ${{ inputs.scope }}
+      run: node scripts/ci-input-cache.mjs key dependencies >> "$GITHUB_OUTPUT"
+    - name: Restore the exact installed tree
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: |
+          node_modules
+          .wrangler/ci-input-cache/dependencies-receipt.json
+        key: verified-node-modules-v1-${{ steps.identity.outputs.key }}-${{ github.run_id }}-${{ github.run_attempt }}
+        restore-keys: verified-node-modules-v1-${{ steps.identity.outputs.key }}-
+    - name: Verify every restored file and workspace link
+      id: verification
+      shell: bash
+      env:
+        CI_INPUT_CACHE_SCOPE: ${{ inputs.scope }}
+      run: node scripts/ci-input-cache.mjs verify dependencies >> "$GITHUB_OUTPUT"
+    - name: Install fresh authenticated dependencies on a miss or corruption
+      if: steps.verification.outputs.valid != 'true'
+      shell: bash
+      run: npm ci
+    - name: Record the fresh installed tree
+      if: steps.verification.outputs.valid != 'true'
+      shell: bash
+      env:
+        CI_INPUT_CACHE_SCOPE: ${{ inputs.scope }}
+      run: node scripts/ci-input-cache.mjs record dependencies
+    # Save before consumers can mutate an installed package. A new run-specific
+    # key lets fresh authenticated installation recover from a damaged archive.
+    - name: Save the fresh verified installation
+      if: steps.verification.outputs.valid != 'true'
+      uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: |
+          node_modules
+          .wrangler/ci-input-cache/dependencies-receipt.json
+        key: verified-node-modules-v1-${{ steps.identity.outputs.key }}-${{ github.run_id }}-${{ github.run_attempt }}

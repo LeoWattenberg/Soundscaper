@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "pt-PT",
 	"provenance": {
-		"machine": {"model":"gpt-6","modelDigest":"sha256:9e0349ed70fbc44d73210d698b2c46e4486f038298c2f88bafcc49909d04cce7","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"gpt-6","modelDigest":"sha256:696819867efb1eb2350c8dff7d8b6f1a651d80f3b5eee22b677c67446120844a","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"de2e43dc13474ba712ade5ea8e47550eba0e8bfb","runId":35327911264,"artifactId":10539339149,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/35327911264","archiveName":"Audacity_locale_262610911.zip","archiveSha256":"13b1ff11c39a677c711a1d29738a394aaca7a200533927aab3f45bbd76c1ff8e","archiveByteLength":15413913,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/de2e43dc13474ba712ade5ea8e47550eba0e8bfb/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -51,6 +51,12 @@
 		"admRemove": ["machine","Remove ADM","Remover ADM"],
 		"admRemoveObject": ["machine","Remove object","Remover objeto"],
 		"admRouting": ["machine","Bed routing","Encaminhamento do leito"],
+		"advancedAudioServer": ["machine","audio.com API","API do audio.com"],
+		"advancedAudioServerDescription": ["machine","Choose audio.com or a compatible server such as Audiocity. Custom servers must be publicly reachable; localhost works when running Soundscaper locally. Changing the server signs you out. Open Window → audio.com to connect again.","Escolha audio.com ou um servidor compatível, como Audiocity. Os servidores personalizados têm de estar acessíveis publicamente; localhost funciona quando o Soundscaper é executado localmente. Alterar o servidor termina a sua sessão. Abra Janela → audio.com para voltar a estabelecer ligação."],
+		"advancedAudioServerInvalid": ["machine","Enter an HTTPS server URL without a path, query, or sign-in details. HTTP localhost URLs work when running Soundscaper locally.","Introduza um URL de servidor HTTPS sem caminho, consulta ou dados de início de sessão. Os URL HTTP de localhost funcionam quando o Soundscaper é executado localmente."],
+		"advancedAudioServerSave": ["machine","Save server","Guardar servidor"],
+		"advancedAudioServerUrl": ["machine","Server URL","URL do servidor"],
+		"advancedAudioServerUseDefault": ["machine","Use audio.com","Usar audio.com"],
 		"advancedLocalProcessing": ["machine","Advanced Local Processing","Processamento Local Avançado"],
 		"advancedOptions": ["machine","Advanced options","Opções avançadas"],
 		"alignEndToEnd": ["machine","Align end to end","Alinhar fim a fim"],
@@ -1989,6 +1995,7 @@
 		"preferenceOff": ["machine","Off","Desligado"],
 		"preferencePerTrack": ["machine","Per track","Por faixa"],
 		"preferences": ["audacity","Preferences","Preferências"],
+		"preferencesAdvanced": ["machine","Advanced","Avançadas"],
 		"preferencesAudioSettings": ["machine","Audio settings","Definições de áudio"],
 		"preferencesEditing": ["machine","Editing","Edição"],
 		"preferencesEffects": ["machine","Effects","Efeitos"],
@@ -2734,6 +2741,7 @@
 		"ui.about.videoCompositing": ["machine","Video compositing","Composição de vídeo"],
 		"ui.about.videoEffects": ["machine","Video effects","Efeitos de vídeo"],
 		"ui.about.website": ["machine","Website","Sítio Web"],
+		"ui.audiocom.panel": ["machine","audio.com","audio.com"],
 		"ui.clipSpreadsheet.cancelPaste": ["machine","Cancel paste","Cancelar colagem"],
 		"ui.clipSpreadsheet.channels": ["machine","Channels","Canais"],
 		"ui.clipSpreadsheet.clipboardUnavailable": ["machine","Use Ctrl/Cmd+C or Ctrl/Cmd+V to copy or paste the selected cells.","Utilize Ctrl/Cmd+C ou Ctrl/Cmd+V para copiar ou colar as células selecionadas."],

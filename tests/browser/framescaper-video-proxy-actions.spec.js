@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { installDesktopSpeedWarmupManifest } from './helpers/desktop-speed-warmup-fixture.js';
 import { Buffer } from 'node:buffer';
 
 import { expect, test } from './audio-editor-test-fixtures.js';
@@ -256,6 +257,7 @@ async function installDesktopLinkedVideoFixture(page, { original, changed }) {
 			headers: { 'Content-Length': String(file.size) },
 		});
 	});
+	await installDesktopSpeedWarmupManifest(page);
 	await page.addInitScript((records) => {
 		const filesByKey = Object.fromEntries(records.map((record) => [record.key, record]));
 		const filesByLocator = Object.fromEntries(records.map((record) => [record.locatorId, record]));

@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import test from 'node:test';
+import { createMediaContractHostFixture } from './helpers/framescaper-media-contract-host-fixture.js';
 
 import { FRAMESCAPER_FFMPEG_POLICY } from '../native/framescaper-media-host/build/media-build-commands.mjs';
 
@@ -110,6 +111,9 @@ test('legacy FFmpeg audit tooling stays pinned and outside production dependenci
 	assert.equal(lock.packages['node_modules/@ffmpeg/ffmpeg'].dev, true);
 });
 
+const contractHost = createMediaContractHostFixture(repositoryRoot, { closure: false });
+test.after(() => contractHost.cleanup());
+
 test('the C++20 contract fixture self-tests and rejects raw FFmpeg arguments', (context) => {
 	const compiler = spawnSync('c++', ['--version'], { encoding: 'utf8' });
 	if (compiler.status !== 0) {
@@ -118,20 +122,7 @@ test('the C++20 contract fixture self-tests and rejects raw FFmpeg arguments', (
 	}
 	const directory = mkdtempSync(join(tmpdir(), 'framescaper-media-host-'));
 	try {
-		const executable = join(directory, 'framescaper-media-host');
-		const built = spawnSync('c++', [
-			'-std=c++20', '-Wall', '-Wextra', '-Wpedantic', '-Werror',
-			'-DFRAMESCAPER_MEDIA_HOST_CONTRACT_ONLY=1', '-I', join(hostRoot, 'src'),
-			join(repositoryRoot, 'native/common/sha256.cpp'),
-			...[
-				'media_host.cpp', 'image_sequence_pack.cpp', 'legacy_plan_semantics.cpp',
-				'legacy_plan_v8_filter_semantics.cpp', 'media_file_grants.cpp',
-				'media_host_arguments.cpp', 'media_plan.cpp',
-				'sha256.cpp', 'strict_json.cpp',
-			].map((file) => join(hostRoot, 'src', file)),
-			'-o', executable,
-		], { encoding: 'utf8' });
-		assert.equal(built.status, 0, built.stderr);
+		const executable = contractHost.copyTo(join(directory, 'framescaper-media-host'));
 		const selfTest = spawnSync(executable, ['--self-test'], { encoding: 'utf8' });
 		assert.equal(selfTest.status, 0, selfTest.stderr);
 		assert.deepEqual(JSON.parse(selfTest.stdout), {

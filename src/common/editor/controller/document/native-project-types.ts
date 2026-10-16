@@ -18,6 +18,8 @@ import type { ScapeReplaceWriteAuthority } from '../../scape-import-transaction.
 import type { ExternalAudioDecoder, ExternalMediaResolver } from '../../scape-external-media.ts';
 import type { DawprojectImportRoutingContext } from '../../dawproject-import-structure.ts';
 import type { InterchangeProductProjection } from '../../interchange-multicamera-delivery.ts';
+import type { SampleBlockReference } from '../../storage/sample-block-source.ts';
+import type { AudacitySampleBlockStoragePlan } from '../../aup4-import-block-storage.ts';
 
 export type NativeAwaitable<Value> = PromiseLike<Value> | Value;
 export type NativeSaveState = 'dirty' | 'saved' | 'saving' | string;
@@ -125,6 +127,9 @@ export interface NativeSourceWriter {
 }
 
 export interface NativeProjectStore {
+	writeSampleBlockSource?(sourceId: string, baseSourceId: string,
+		channels: readonly (readonly SampleBlockReference[])[],
+		metadata: Readonly<Record<string, unknown>>): PromiseLike<unknown> | unknown;
 	loadProject?(projectId: string, options?: Readonly<{ signal?: AbortSignal }>): NativeAwaitable<unknown>;
 	estimateStorage(): Promise<Readonly<Partial<NativeStorageEstimate>>>;
 	beginSourceWrite(sourceId: string, metadata: Readonly<{
@@ -253,6 +258,7 @@ export interface Aup4DecodedSource {
 }
 
 export interface Aup4DecodedProject {
+	readonly sampleBlockStorage?: AudacitySampleBlockStoragePlan;
 	readonly project: unknown;
 	readonly sources: readonly Aup4DecodedSource[];
 	readonly warnings?: readonly string[];
@@ -295,7 +301,7 @@ export interface Aup4SnapshotResult extends Readonly<Record<string, unknown>> {
 
 export interface NativeAup4Client {
 	planImport?(projectId: string, options: Readonly<{
-		title: string; signal: AbortSignal; onProgress: (progress: NativeProgress) => void;
+		title: string; signal: AbortSignal; onProgress: (progress: NativeProgress) => void; preserveSampleBlocks?: boolean;
 	}>): Promise<Aup4DecodedProject>;
 	readSourceChunks?(projectId: string, sourceId: string, options: Readonly<{
 		signal: AbortSignal;

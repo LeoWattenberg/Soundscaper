@@ -5,6 +5,7 @@ import {
 	SOUNDSCAPER_OPFS_DIRECTORY_NAME,
 } from './helpers/editor-databases.js';
 import { closeWorkspacePanel } from './helpers/workspace-panel-chrome.js';
+import { playAndWaitForAdvance } from './helpers/playback-progress.js';
 
 const DATABASE_NAME = SOUNDSCAPER_DATABASE_NAME;
 const DATABASE_VERSION = 1;
@@ -139,9 +140,7 @@ function clipByName(editor, name) {
 async function seekAndPlay(editor) {
 	const ruler = editor.locator('[data-ruler]');
 	await ruler.click({ position: { x: 160, y: 8 } });
-	await editor.getByRole('button', { name: 'Play', exact: true }).click();
-	await expect(editor.getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
-	await editor.page().waitForTimeout(150);
+	await playAndWaitForAdvance(editor);
 	await editor.getByRole('button', { name: 'Stop', exact: true }).click();
 	await expect(editor.getByRole('button', { name: 'Play', exact: true })).toBeVisible();
 }

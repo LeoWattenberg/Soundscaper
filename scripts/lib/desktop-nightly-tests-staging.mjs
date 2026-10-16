@@ -38,7 +38,7 @@ export const NIGHTLY_TEST_PAYLOAD_INPUTS = Object.freeze([
 		kind: 'file', label: `${format} browser import fixture support`,
 	})),
 	...[
-		'constants.js', 'file-associations.js', 'file-capabilities.js', 'freesound-integration.js',
+		'audiocom-authorization.ts', 'audiocom-links.ts', 'constants.js', 'file-associations.js', 'file-capabilities.js', 'freesound-integration.js',
 		'main-file-capability-ipc.mjs', 'product.json', 'protocol.js', 'read-capability-admission.js',
 		'read-capability-range-stream.js', 'read-capability-request-lease.js', 'read-capability-support.js',
 		'read-selection-service.js', 'save-publication-mode.js', 'save-space.js', 'save-targets.js', 'validation.js',

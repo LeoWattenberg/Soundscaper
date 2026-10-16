@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { installDesktopSpeedWarmupManifest } from './helpers/desktop-speed-warmup-fixture.js';
 import { openNativePreferences } from './helpers/assistance-task-menu.js';
 import { expect, test } from './audio-editor-test-fixtures.js';
 import {
@@ -330,6 +331,7 @@ test('Framescaper v1 runs one cumulative accessible OpenFX Interact workflow wit
 });
 
 async function installNativeServicesFixture(page, { watchedVideo = null } = {}) {
+	await installDesktopSpeedWarmupManifest(page);
 	await page.addInitScript((watchedVideo) => {
 		const calls = [];
 		const preferences = {

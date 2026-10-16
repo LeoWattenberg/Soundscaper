@@ -63,7 +63,10 @@ test('desktop protocol isolates real stack workers and the AudioWorklet while th
 	`);
 	const environment: NodeJS.ProcessEnv = { ...process.env, SCAPE_PRODUCT: 'soundscaper' };
 	delete environment.ELECTRON_RUN_AS_NODE;
-	const outcome = spawnSync(executable, ['--no-sandbox', '--disable-gpu', '--autoplay-policy=no-user-gesture-required',
+	// Native output buffers can consume the whole worker deadline in one burst.
+	// Keep the real graph and audio thread on a paced sink with a known buffer.
+	const outcome = spawnSync(executable, ['--no-sandbox', '--disable-gpu',
+		'--disable-audio-output', '--audio-buffer-size=256', '--autoplay-policy=no-user-gesture-required',
 		`--user-data-dir=${join(temporary, 'profile')}`, join(temporary, 'main.mjs')], {
 		env: environment, encoding: 'utf8', timeout: 30000, maxBuffer: 1024 * 1024,
 	});

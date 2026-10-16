@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "ro",
 	"provenance": {
-		"machine": {"model":"gpt-6","modelDigest":"sha256:5f1dacde3e70cc36f6fd4849dcb055b76900f18769b8bc004ec7e8fd1c13ba9f","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"gpt-6","modelDigest":"sha256:370a009e82bb8aa49cbd3c2fd7927fd1a52c9608f3c4dedba18a14d0f5f76acc","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"de2e43dc13474ba712ade5ea8e47550eba0e8bfb","runId":35327911264,"artifactId":10539339149,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/35327911264","archiveName":"Audacity_locale_262610911.zip","archiveSha256":"13b1ff11c39a677c711a1d29738a394aaca7a200533927aab3f45bbd76c1ff8e","archiveByteLength":15413913,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/de2e43dc13474ba712ade5ea8e47550eba0e8bfb/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -51,6 +51,12 @@
 		"admRemove": ["machine","Remove ADM","Elimină ADM"],
 		"admRemoveObject": ["machine","Remove object","Elimină obiect"],
 		"admRouting": ["machine","Bed routing","Rutare pat"],
+		"advancedAudioServer": ["machine","audio.com API","API audio.com"],
+		"advancedAudioServerDescription": ["machine","Choose audio.com or a compatible server such as Audiocity. Custom servers must be publicly reachable; localhost works when running Soundscaper locally. Changing the server signs you out. Open Window → audio.com to connect again.","Alegeți audio.com sau un server compatibil, precum Audiocity. Serverele personalizate trebuie să fie accesibile public; localhost funcționează când Soundscaper rulează local. Schimbarea serverului vă deconectează. Deschideți Fereastră → audio.com pentru a vă conecta din nou."],
+		"advancedAudioServerInvalid": ["machine","Enter an HTTPS server URL without a path, query, or sign-in details. HTTP localhost URLs work when running Soundscaper locally.","Introduceți un URL de server HTTPS fără cale, parametri de interogare sau date de autentificare. URL-urile HTTP localhost funcționează când Soundscaper rulează local."],
+		"advancedAudioServerSave": ["machine","Save server","Salvați serverul"],
+		"advancedAudioServerUrl": ["machine","Server URL","URL server"],
+		"advancedAudioServerUseDefault": ["machine","Use audio.com","Folosiți audio.com"],
 		"advancedLocalProcessing": ["machine","Advanced Local Processing","Procesare locală avansată"],
 		"advancedOptions": ["machine","Advanced options","Opțiuni avansate"],
 		"alignEndToEnd": ["machine","Align end to end","Aliniază capăt la capăt"],
@@ -1989,6 +1995,7 @@
 		"preferenceOff": ["machine","Off","Dezactivat"],
 		"preferencePerTrack": ["machine","Per track","Pe pistă"],
 		"preferences": ["audacity","Preferences","Preferințe"],
+		"preferencesAdvanced": ["machine","Advanced","Avansate"],
 		"preferencesAudioSettings": ["machine","Audio settings","Setări audio"],
 		"preferencesEditing": ["machine","Editing","Editare"],
 		"preferencesEffects": ["machine","Effects","Efecte"],
@@ -2734,6 +2741,7 @@
 		"ui.about.videoCompositing": ["machine","Video compositing","Compoziție video"],
 		"ui.about.videoEffects": ["machine","Video effects","Efecte video"],
 		"ui.about.website": ["machine","Website","Site web"],
+		"ui.audiocom.panel": ["machine","audio.com","audio.com"],
 		"ui.clipSpreadsheet.cancelPaste": ["machine","Cancel paste","Anulează lipirea"],
 		"ui.clipSpreadsheet.channels": ["machine","Channels","Canale"],
 		"ui.clipSpreadsheet.clipboardUnavailable": ["machine","Use Ctrl/Cmd+C or Ctrl/Cmd+V to copy or paste the selected cells.","Folosește Ctrl/Cmd+C sau Ctrl/Cmd+V pentru a copia sau lipi celulele selectate."],
