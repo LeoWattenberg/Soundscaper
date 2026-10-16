@@ -9,7 +9,7 @@ import { prepareLinearDevelopMetadataCurrentV1, CURRENT_LINEAR_WORKING_BYTES_V1 
 import { withImageDevelopLinearCurrentV1 } from './image-develop-linear-current-v1.ts';
 import { readPixelFrameV1 } from './pixel-frame-contract-v1.ts';
 import { withPixelFrameWebGl2CurrentV1 } from './pixel-frame-webgl2-current-v1.ts';
-import { preparePixelFrameWebGl2GlobalsCurrentV1 } from './pixel-frame-webgl2-global-current-v1.ts';
+import { preparePixelFrameWebGl2ColorsCurrentV1, PIXEL_FRAME_WEBGL2_COLOR_SCRATCH_BYTES_CURRENT_V1 } from './pixel-frame-webgl2-color-current-v1.ts';
 import { captureRepairSignalV1, checkRepairSignalV1 } from './pixel-frame-repair-lifetime-v1.ts';
 
 export interface ImageDevelopGpuExecutionCurrentV1 { readonly backend: 'webgl2' | 'cpu'; readonly reason?: string }
@@ -32,7 +32,10 @@ export async function withImageDevelopGpuCurrentV1<Result>(value: unknown,
 	const cpu = (frame: unknown, reason: string) => withImageDevelopLinearCurrentV1({ ...request, frame },
 		(output, overlay) => consume(output, Object.freeze({ backend: 'cpu', reason }), overlay), plan.profile, ownedOptions);
 	const unsupported = plan.repairs || plan.masks.plan.bindings.length || plan.masks.references.length || request.maskOverlay
-		|| plan.stages.some(stage => stage.kind !== 'noop' && !(stage.kind === 'color' && (stage.effect.type === 'white-balance-v1' || stage.effect.type === 'tone-ladder-v1')));
+		|| plan.stages.some(stage => stage.kind !== 'noop' && stage.kind !== 'color');
+	const effects = plan.stages.flatMap(stage => stage.kind === 'color' ? [stage.effect] : []);
+	const passes = unsupported ? [] : preparePixelFrameWebGl2ColorsCurrentV1(effects);
+	const uniformBytes = passes.some(pass => pass.kind > 2) ? PIXEL_FRAME_WEBGL2_COLOR_SCRATCH_BYTES_CURRENT_V1 : 0;
 	const floatBytes = plan.descriptor.width * plan.descriptor.height * 16;
 	// An unsupported GL attempt may retain its captured source while the CPU
 	// oracle works. Admit that overlap before creating a context or snapshot.
@@ -42,12 +45,10 @@ export async function withImageDevelopGpuCurrentV1<Result>(value: unknown,
 	const physicalBytes = Number(Reflect.apply(SIZE, Reflect.apply(BUFFER, frame.pixels, []), []));
 	const outputPixels = plan.finalDescriptor.width * plan.finalDescriptor.height;
 	const presentationBytes = outputPixels * 4 + Math.min(outputPixels, 4_194_304) * 4;
-	const peak = Math.max(physicalBytes + 4 * floatBytes + presentationBytes,
+	const peak = Math.max(physicalBytes + 4 * floatBytes + presentationBytes + uniformBytes,
 		physicalBytes + plan.peakWorkingBytes - plan.sourcePlan.byteLength + floatBytes,
 		physicalBytes + floatBytes + 1024);
 	if (peak > CURRENT_LINEAR_WORKING_BYTES_V1) return cpu(frame, 'working-set');
-	const effects = plan.stages.flatMap(stage => stage.kind === 'color' ? [stage.effect] : []);
-	const passes = preparePixelFrameWebGl2GlobalsCurrentV1(effects);
 	return withPixelFrameWebGl2CurrentV1({ frame, passes, ...(signal ? { signal } : {}) }, view => {
 		if (view.backend === 'cpu') return cpu(view.source, view.reason);
 		return consume(view.frame, Object.freeze({ backend: 'webgl2' }));

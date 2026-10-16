@@ -11,6 +11,7 @@ import { withLinearPixelFrameDisplayV1 } from '../common/editor/imaging/pixel-fr
 import { createPixelFrameHistogramV1 } from '../common/editor/imaging/pixel-frame-histogram-v1.ts';
 import { withPhotoDevelopProxyCurrentV1, PHOTO_DEVELOP_PROXY_PROFILE_CURRENT_V1 } from './photo-develop-proxy-current-v1.ts';
 import { withImageDevelopGpuCurrentV1 } from '../common/editor/imaging/image-develop-gpu-current-v1.ts';
+import { preparePixelFrameWebGl2ColorsCurrentV1, PIXEL_FRAME_WEBGL2_COLOR_SCRATCH_BYTES_CURRENT_V1 } from '../common/editor/imaging/pixel-frame-webgl2-color-current-v1.ts';
 
 type CpuRender = <Result>(resolution: 'proxy' | 'full', request: unknown,
 	consume: (view: PhotoLibraryDevelopProxyViewV3) => Result | Promise<Result>) => Promise<Result>;
@@ -55,7 +56,9 @@ export async function withPhotoDevelopGpuPreviewCurrentV1<Result>(resolution: 'p
 		const floatBytes = metadata.descriptor.width * metadata.descriptor.height * 16;
 		const outputPixels = metadata.finalDescriptor.width * metadata.finalDescriptor.height;
 		const presentationBytes = outputPixels * 4 + Math.min(outputPixels, 4_194_304) * 4;
-		return Math.max(metadata.sourcePlan.byteLength + 4 * floatBytes + presentationBytes, metadata.peakWorkingBytes + floatBytes,
+		const passes = preparePixelFrameWebGl2ColorsCurrentV1(metadata.stages.flatMap(stage => stage.kind === 'color' ? [stage.effect] : []));
+		const uniformBytes = passes.some(pass => pass.kind > 2) ? PIXEL_FRAME_WEBGL2_COLOR_SCRATCH_BYTES_CURRENT_V1 : 0;
+		return Math.max(metadata.sourcePlan.byteLength + 4 * floatBytes + presentationBytes + uniformBytes, metadata.peakWorkingBytes + floatBytes,
 			metadata.sourcePlan.byteLength + floatBytes + 1024);
 	});
 }

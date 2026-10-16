@@ -1,8 +1,10 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import type { LinearWorkingPixelFrameV1 } from './image-develop-linear-frame-v1.ts';
-import { checkRepairSignalV1, RepairTaskBudgetV1 } from './pixel-frame-repair-lifetime-v1.ts';
-import { PIXEL_FRAME_WEBGL2_GLOBAL_VERTEX_CURRENT_V1 as VERTEX, PIXEL_FRAME_WEBGL2_GLOBAL_FRAGMENT_CURRENT_V1 as FRAGMENT,
-	pixelFrameWebGl2GlobalChannelCurrentV1, type PreparedPixelFrameWebGl2GlobalCurrentV1 } from './pixel-frame-webgl2-global-current-v1.ts';
+import { checkRepairSignalV1 } from './pixel-frame-repair-lifetime-v1.ts';
+import { PIXEL_FRAME_WEBGL2_GLOBAL_VERTEX_CURRENT_V1 as VERTEX, PIXEL_FRAME_WEBGL2_GLOBAL_FRAGMENT_CURRENT_V1 as FRAGMENT } from './pixel-frame-webgl2-global-current-v1.ts';
+import { PIXEL_FRAME_WEBGL2_COLOR_FRAGMENT_CURRENT_V1 as COLOR_FRAGMENT } from './pixel-frame-webgl2-color-glsl-current-v1.ts';
+import type { PreparedPixelFrameWebGl2ColorCurrentV1 } from './pixel-frame-webgl2-color-current-v1.ts';
+import { pixelFrameWebGl2NumericEligibleCurrentV1, validatePixelFrameWebGl2ColorReadbackCurrentV1 } from './pixel-frame-webgl2-numeric-current-v1.ts';
 
 const UNAVAILABLE = new WeakMap<object, string>();
 export class PixelFrameWebGl2UnavailableCurrentV1 extends Error {
@@ -17,9 +19,11 @@ const unavailable = (reason: string): never => { throw new PixelFrameWebGl2Unava
 /** Private native GL owner. The source/readback allocations belong to the outer
  * physical ledger. Probe buffers are fixed and wiped before image execution.
  * Released handles do not certify physical driver-memory erasure. */
-export async function openPixelFrameWebGl2ContextCurrentV1(frame: Readonly<LinearWorkingPixelFrameV1>, passes: readonly Readonly<PreparedPixelFrameWebGl2GlobalCurrentV1>[],
+export async function openPixelFrameWebGl2ContextCurrentV1(frame: Readonly<LinearWorkingPixelFrameV1>, passes: readonly Readonly<PreparedPixelFrameWebGl2ColorCurrentV1>[],
 	allocate: () => Float32Array<ArrayBuffer>, signal?: AbortSignal) {
 	checkRepairSignalV1(signal);
+	if (passes.some(pass => !pass.supported)) unavailable('numeric-range');
+	const extended = passes.some(pass => pass.kind > 2);
 	const canvas = typeof OffscreenCanvas === 'function' ? new OffscreenCanvas(1, 1)
 		: typeof document === 'object' ? document.createElement('canvas') : unavailable('canvas-unavailable');
 	let gl: WebGL2RenderingContext | null;
@@ -29,6 +33,7 @@ export async function openPixelFrameWebGl2ContextCurrentV1(frame: Readonly<Linea
 	const native = gl;
 	const textures: WebGLTexture[] = [], shaders: WebGLShader[] = [], programs: WebGLProgram[] = [], framebuffers: WebGLFramebuffer[] = [], arrays: WebGLVertexArrayObject[] = [];
 	const synchronizations: WebGLSync[] = [];
+	let uniforms: Float32Array<ArrayBuffer> | undefined;
 	let disposed = false;
 	const assertCurrent = () => {
 		checkRepairSignalV1(signal);
@@ -38,6 +43,7 @@ export async function openPixelFrameWebGl2ContextCurrentV1(frame: Readonly<Linea
 	const dispose = () => {
 		if (disposed) return; disposed = true; const failures: unknown[] = [];
 		const attempt = (work: () => void) => { try { work(); } catch (error) { failures.push(error); } };
+		attempt(() => { uniforms?.fill(0); });
 		// Clear live application-visible textures before deleting handles. A lost
 		// context already revokes those handles and cannot accept an overwrite.
 		if (!native.isContextLost() && framebuffers[0]) attempt(() => {
@@ -59,11 +65,12 @@ export async function openPixelFrameWebGl2ContextCurrentV1(frame: Readonly<Linea
 	};
 	try {
 		if (!native.getExtension('EXT_color_buffer_float')) unavailable('float-target-unavailable');
+		if (extended && Number(native.getParameter(native.MAX_FRAGMENT_UNIFORM_VECTORS)) < 142) unavailable('uniform-capacity');
 		const limit = Number(native.getParameter(native.MAX_TEXTURE_SIZE));
 		const viewport = native.getParameter(native.MAX_VIEWPORT_DIMS) as Int32Array;
 		if (frame.descriptor.width > limit || frame.descriptor.height > limit || frame.descriptor.width > viewport[0]! || frame.descriptor.height > viewport[1]!) unavailable('texture-capacity');
 		const program = native.createProgram(); if (!program) return unavailable('execution-unavailable'); programs.push(program);
-		for (const [kind, source] of [[native.VERTEX_SHADER, VERTEX], [native.FRAGMENT_SHADER, FRAGMENT]] as const) {
+		for (const [kind, source] of [[native.VERTEX_SHADER, VERTEX], [native.FRAGMENT_SHADER, extended ? COLOR_FRAGMENT : FRAGMENT]] as const) {
 			const shader = native.createShader(kind); if (!shader) return unavailable('execution-unavailable'); shaders.push(shader);
 			native.shaderSource(shader, source); native.compileShader(shader);
 			if (!native.getShaderParameter(shader, native.COMPILE_STATUS)) unavailable('execution-unavailable'); native.attachShader(program, shader);
@@ -71,6 +78,8 @@ export async function openPixelFrameWebGl2ContextCurrentV1(frame: Readonly<Linea
 		native.linkProgram(program); if (!native.getProgramParameter(program, native.LINK_STATUS)) unavailable('execution-unavailable');
 		const uniform = (name: string) => { const location = native.getUniformLocation(program, name); if (!location) return unavailable('execution-unavailable'); return location; };
 		const image = uniform('uImage'), kind = uniform('uKind'), params0 = uniform('uParams0'), params1 = uniform('uParams1');
+		const colorUniforms = extended ? { params2: uniform('uParams2'), bands: uniform('uBands[0]'),
+			counts: uniform('uCurveCounts'), points: uniform('uCurvePoints[0]') } : undefined;
 		for (let index = 0; index < 2; index++) {
 			const texture = native.createTexture(); if (!texture) return unavailable('execution-unavailable'); textures.push(texture);
 			native.bindTexture(native.TEXTURE_2D, texture);
@@ -86,13 +95,23 @@ export async function openPixelFrameWebGl2ContextCurrentV1(frame: Readonly<Linea
 		const upload = (index: number, width: number, height: number, pixels: Float32Array<ArrayBuffer> | null) => {
 			native.bindTexture(native.TEXTURE_2D, textures[index]!); native.texImage2D(native.TEXTURE_2D, 0, native.RGBA32F, width, height, 0, native.RGBA, native.FLOAT, pixels);
 		};
-		const draw = (input: number, output: number, width: number, height: number, pass?: Readonly<PreparedPixelFrameWebGl2GlobalCurrentV1>) => {
+		const draw = (input: number, output: number, width: number, height: number, pass?: Readonly<PreparedPixelFrameWebGl2ColorCurrentV1>) => {
 			assertCurrent(); native.bindFramebuffer(native.FRAMEBUFFER, framebuffer);
 			native.framebufferTexture2D(native.FRAMEBUFFER, native.COLOR_ATTACHMENT0, native.TEXTURE_2D, textures[output]!, 0);
 			if (native.checkFramebufferStatus(native.FRAMEBUFFER) !== native.FRAMEBUFFER_COMPLETE) unavailable('float-target-unavailable');
 			native.viewport(0, 0, width, height); native.activeTexture(native.TEXTURE0); native.bindTexture(native.TEXTURE_2D, textures[input]!);
-			native.uniform1i(kind, pass ? pass.type === 'white-balance-v1' ? 1 : 2 : 0);
-			if (pass) { native.uniform4f(params0, ...pass.params0); native.uniform4f(params1, ...pass.params1); }
+			native.uniform1i(kind, pass?.kind ?? 0);
+			if (pass) {
+				native.uniform4f(params0, ...pass.params0); native.uniform4f(params1, ...pass.params1);
+				if (colorUniforms && uniforms) {
+					native.uniform4f(colorUniforms.params2, ...pass.params2);
+					for (let band = 0; band < 8; band++) uniforms.set(pass.bands[band]!, band * 4);
+					uniforms.set(pass.curvePoints, 32);
+					native.uniform4fv(colorUniforms.bands, uniforms.subarray(0, 32));
+					native.uniform4i(colorUniforms.counts, ...pass.curveCounts);
+					native.uniform2fv(colorUniforms.points, uniforms.subarray(32));
+				}
+			}
 			native.drawArrays(native.TRIANGLES, 0, 3); assertCurrent();
 		};
 		const probe = Float32Array.of(-0, 3.5, -2, 0, 1e-30, -1e-30, MINIMUM_NORMAL, .5, 2 ** -149, -(2 ** -149), .25, 1, 1 / 65535, 2 / 65535, 3 / 65535, 2 ** -149);
@@ -111,7 +130,8 @@ export async function openPixelFrameWebGl2ContextCurrentV1(frame: Readonly<Linea
 				}
 			}
 		} finally { probe.fill(0); read.fill(0); }
-		if (!await numericEligible(frame.pixels, passes, subnormalCopy, subnormalArithmetic, assertCurrent)) unavailable('numeric-range');
+		if (!await pixelFrameWebGl2NumericEligibleCurrentV1(frame.pixels, passes, subnormalCopy, subnormalArithmetic, assertCurrent)) unavailable('numeric-range');
+		if (extended) uniforms = new Float32Array(288);
 		const { width, height } = frame.descriptor; upload(0, width, height, frame.pixels); upload(1, width, height, null); assertCurrent();
 		let current = 0;
 		for (const pass of passes) { draw(current, 1 - current, width, height, pass); current = 1 - current; }
@@ -129,7 +149,7 @@ export async function openPixelFrameWebGl2ContextCurrentV1(frame: Readonly<Linea
 		}
 		native.bindFramebuffer(native.FRAMEBUFFER, framebuffer); native.framebufferTexture2D(native.FRAMEBUFFER, native.COLOR_ATTACHMENT0, native.TEXTURE_2D, textures[current]!, 0);
 		const pixels = allocate(); native.readPixels(0, 0, width, height, native.RGBA, native.FLOAT, pixels); assertCurrent();
-		for (const value of pixels) if (!Number.isFinite(value)) throw new RangeError('Native GPU output exceeds finite Float32 range.');
+		if (!await validatePixelFrameWebGl2ColorReadbackCurrentV1(frame.pixels, pixels, passes, assertCurrent)) unavailable('numeric-range');
 		return Object.freeze({ pixels, assertCurrent, dispose });
 	} catch (error) {
 		let retirement: { error: unknown } | undefined;
@@ -138,54 +158,4 @@ export async function openPixelFrameWebGl2ContextCurrentV1(frame: Readonly<Linea
 			throw new AggregateError([error, retirement.error], 'Native GPU execution and GL retirement failed.', { cause: error });
 		throw error;
 	}
-}
-
-/** Some drivers flush denormals. Never grant an absolute-epsilon exception:
- * affected source/scale profiles take the exact whole CPU path. Nonlinear
- * near-zero arithmetic is conservatively refused until separately qualified. */
-async function numericEligible(pixels: Float32Array<ArrayBuffer>, passes: readonly Readonly<PreparedPixelFrameWebGl2GlobalCurrentV1>[], copy: boolean, arithmetic: boolean, check: () => void): Promise<boolean> {
-	const budget = new RepairTaskBudgetV1(check); check();
-	const minimum = [Infinity, Infinity, Infinity];
-	for (let offset = 0; offset < pixels.length; offset++) {
-		if (budget.visit()) await budget.yield();
-		const magnitude = Math.abs(pixels[offset]!); if (!magnitude) continue;
-		if (magnitude < MINIMUM_NORMAL && (!copy || (offset % 4 !== 3 && passes.length && !arithmetic))) return false;
-		if (offset % 4 !== 3) minimum[offset % 4] = Math.min(minimum[offset % 4]!, magnitude);
-	}
-	for (const pass of passes) {
-		const p = pass.params0, q = pass.params1;
-		const nonlinear = pass.type === 'tone-ladder-v1' && (p[1] !== 1 || p[2] !== 0 || p[3] !== 0 || q[0] !== 0 || q[1] !== 0);
-		if (nonlinear && (minimum.some(value => value < 2 ** -60) || [...p, ...q].some(value => value !== 0 && Math.abs(value) < 2 ** -60))) return false;
-		for (let channel = 0; channel < 3; channel++) {
-			const gain = pass.type === 'white-balance-v1' ? p[channel]! : p[0] * p[1];
-			minimum[channel] = Math.fround(minimum[channel]! * gain);
-			if (!arithmetic && minimum[channel]! > 0 && minimum[channel]! < MINIMUM_NORMAL) return false;
-		}
-	}
-	if (passes.some(nonlinear)) for (let offset = 0; offset < pixels.length; offset++) {
-		if (offset % 4 === 3) continue;
-		let current = pixels[offset]!;
-		for (const pass of passes) {
-			if (budget.visit()) await budget.yield();
-			const next = Math.fround(pixelFrameWebGl2GlobalChannelCurrentV1(pass, current, offset % 4 as 0 | 1 | 2));
-			if (!Number.isFinite(next)) throw new RangeError('Native GPU recipe exceeds finite Float32 range.');
-			if (nonlinear(pass)) {
-				const p = pass.params0, q = pass.params1;
-				// F32 pivot/region arithmetic may cancel where the normative CPU
-				// double intermediate retains a nonzero native sample. Refuse that
-				// ill-conditioned profile instead of accepting an absolute epsilon.
-				const scale = Math.abs(current * p[0] * p[1]) + Math.abs(.18 * (1 - p[1])) + Math.abs(p[2]) + Math.abs(p[3]) + Math.abs(q[0]) + Math.abs(q[1]);
-				const uncertainty = 32 * 2 ** -23 * scale;
-				if (uncertainty > 0 && Math.abs(next) <= uncertainty) return false;
-			}
-			if (!arithmetic && next !== 0 && Math.abs(next) < MINIMUM_NORMAL) return false;
-			current = next;
-		}
-	}
-	return true;
-}
-
-function nonlinear(pass: Readonly<PreparedPixelFrameWebGl2GlobalCurrentV1>): boolean {
-	const p = pass.params0, q = pass.params1;
-	return pass.type === 'tone-ladder-v1' && (p[1] !== 1 || p[2] !== 0 || p[3] !== 0 || q[0] !== 0 || q[1] !== 0);
 }

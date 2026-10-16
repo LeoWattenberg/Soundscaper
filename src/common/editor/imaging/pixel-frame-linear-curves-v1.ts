@@ -1,34 +1,19 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { prepareCurvesEffectV1 } from '../video-curves-v1.ts';
-import type { CurveChannelV1, PreparedCurvesEffectV1, VideoCurvePointsV1 } from '../video-curve-types-v1.ts';
+import type { CurveChannelV1, PreparedCurvesEffectV1 } from '../video-curve-types-v1.ts';
 import type { LinearColorChannelsV1 } from './pixel-frame-linear-chroma-v1.ts';
+import { prepareLinearCurveMetadataCurrentV1, type LinearCurveChannelMetadataCurrentV1 } from './linear-curve-metadata-current-v1.ts';
 
 export type PreparedLinearCurvesV1 = PreparedCurvesEffectV1;
-interface Curve { readonly points: VideoCurvePointsV1; readonly identity: boolean; }
+type Curve = Readonly<LinearCurveChannelMetadataCurrentV1>;
 type State = Readonly<Record<CurveChannelV1, Curve>>;
 const PREPARED = new WeakMap<object, State>();
-const CHANNELS = ['master', 'red', 'green', 'blue'] as const;
-const REGIONS = ['Shadows', 'Darks', 'Lights', 'Highlights'] as const;
 
 /** Reuse closed authored metadata, not the byte transfer table. Parametric
  * controls retain their existing Q16 gain; there is no sampled 256-entry LUT. */
 export function prepareLinearCurvesV1(value: unknown): PreparedLinearCurvesV1 {
-	const effect = prepareCurvesEffectV1(value), curves = {} as Record<CurveChannelV1, Curve>;
-	for (const channel of CHANNELS) {
-		let points: VideoCurvePointsV1;
-		if (effect.type === 'point-curves-v1') points = effect.params[channel];
-		else {
-			const p = effect.params, edges = [0, p.shadowSplit!, p.midtoneSplit!, p.highlightSplit!, 1];
-			points = Object.freeze([{ x: 0, y: 0 }, ...REGIONS.map((region, index) => {
-				const x = edges[index]! + (edges[index + 1]! - edges[index]!) / 2;
-				const gain = Math.round(p[`${channel}${region}`]! / 100 * 65536) / 65536;
-				return Object.freeze({ x, y: x + gain * Math.min(x, 1 - x) });
-			}), { x: 1, y: 1 }]);
-		}
-		curves[channel] = Object.freeze({ points, identity: points.every(point => point.x === point.y) });
-	}
-	PREPARED.set(effect, Object.freeze(curves)); return effect;
+	const metadata = prepareLinearCurveMetadataCurrentV1(value);
+	PREPARED.set(metadata.effect, metadata.channels); return metadata.effect;
 }
 
 function sample(curve: Curve, value: number): number {

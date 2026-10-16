@@ -6,7 +6,7 @@ import { captureLinearKernelDescriptorV1, LINEAR_KERNEL_LIMITS_V1 } from './line
 import type { LinearWorkingPixelFrameV1 } from './image-develop-linear-frame-v1.ts';
 import { LinearDevelopOwnerV1 } from './image-develop-linear-owner-v1.ts';
 import { captureRepairSignalV1, checkRepairSignalV1 } from './pixel-frame-repair-lifetime-v1.ts';
-import { readPixelFrameWebGl2GlobalCurrentV1 } from './pixel-frame-webgl2-global-current-v1.ts';
+import { readPixelFrameWebGl2ColorCurrentV1, PIXEL_FRAME_WEBGL2_COLOR_SCRATCH_BYTES_CURRENT_V1 } from './pixel-frame-webgl2-color-current-v1.ts';
 
 const MAXIMUM = 768 * 1024 * 1024;
 const BUFFER = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(Float32Array.prototype), 'buffer')!.get!;
@@ -24,11 +24,12 @@ export function planPixelFrameWebGl2CurrentV1(value: unknown) {
 		profiles: ['float32', 'unorm16'].flatMap(sampleFormat => ['srgb', 'bt709'].map(primaries => ({ sampleFormat, primaries, transfer: 'linear' }))), limits: LINEAR_KERNEL_LIMITS_V1,
 	});
 	const descriptor = captureLinearKernelDescriptorV1({ ...sourcePlan.descriptor, sampleFormat: 'float32' });
-	const passes = Object.freeze(array(field(input, 'passes', 'Native GPU request'), 'Native GPU passes', 0, 256).map(readPixelFrameWebGl2GlobalCurrentV1));
+	const passes = Object.freeze(array(field(input, 'passes', 'Native GPU request'), 'Native GPU passes', 0, 256).map(readPixelFrameWebGl2ColorCurrentV1));
 	const floatBytes = descriptor.width * descriptor.height * 16;
-	const gpuWorkingBytes = sourcePlan.byteLength + floatBytes * 4;
+	const uniformBytes = passes.some(pass => pass.kind > 2) ? PIXEL_FRAME_WEBGL2_COLOR_SCRATCH_BYTES_CURRENT_V1 : 0;
+	const gpuWorkingBytes = sourcePlan.byteLength + floatBytes * 4 + uniformBytes;
 	const peakWorkingBytes = Math.max(gpuWorkingBytes, sourcePlan.byteLength + floatBytes + 1024);
-	return Object.freeze({ raw, sourcePlan, descriptor, passes, floatBytes, gpuWorkingBytes, peakWorkingBytes, eligible: peakWorkingBytes <= MAXIMUM });
+	return Object.freeze({ raw, sourcePlan, descriptor, passes, floatBytes, uniformBytes, gpuWorkingBytes, peakWorkingBytes, eligible: peakWorkingBytes <= MAXIMUM });
 }
 
 /** A single scoped outcome. Unsupported execution lends the exact captured
@@ -46,7 +47,7 @@ export async function withPixelFrameWebGl2CurrentV1<Result>(value: unknown,
 	const borrowedBytes = Number(Reflect.apply(SIZE, Reflect.apply(BUFFER, source.pixels, []), []));
 	if (borrowedBytes + plan.floatBytes > MAXIMUM) throw new RangeError('Native GPU source capture exceeds its physical working bound.');
 	const eligible = plan.eligible && borrowedBytes + plan.peakWorkingBytes - plan.sourcePlan.byteLength <= MAXIMUM;
-	const owner = new LinearDevelopOwnerV1(borrowedBytes, MAXIMUM - (eligible ? plan.floatBytes * 2 : 0));
+	const owner = new LinearDevelopOwnerV1(borrowedBytes, MAXIMUM - (eligible ? plan.floatBytes * 2 + plan.uniformBytes : 0));
 	return owner.run(async () => {
 		const pixels = owner.floats(plan.floatBytes / 4);
 		if (source.pixels instanceof Float32Array) Float32Array.prototype.set.call(pixels, source.pixels);

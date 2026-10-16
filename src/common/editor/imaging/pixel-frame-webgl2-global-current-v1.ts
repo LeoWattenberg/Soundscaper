@@ -45,26 +45,15 @@ void main() {
 }
 `;
 
-/** Input and output textures are native linear RGBA32F. Every pass is a stage
- * store; resource ownership, finite output, numeric eligibility and readback
- * belong to the surrounding GPU owner. Only regional weights clamp here. */
-export const PIXEL_FRAME_WEBGL2_GLOBAL_FRAGMENT_CURRENT_V1 = `#version 300 es
-precision highp float;
-precision highp int;
-uniform sampler2D uImage;
-uniform int uKind;
-uniform vec4 uParams0;
-uniform vec4 uParams1;
-layout(location = 0) out vec4 outColor;
-
+/** Shared verbatim by the original global fragment and the extended color
+ * fragment. Both owners use the same uniforms and stage-rounded native math. */
+export const PIXEL_FRAME_WEBGL2_GLOBAL_FUNCTIONS_CURRENT_V1 = `
 vec3 smoothWeight(float low, float high, vec3 value) {
 	vec3 weight = clamp((value - vec3(low)) / (high - low), vec3(0.0), vec3(1.0));
 	return weight * weight * (vec3(3.0) - 2.0 * weight);
 }
 
-void main() {
-	vec4 color = texelFetch(uImage, ivec2(gl_FragCoord.xy), 0);
-	vec3 rgb = color.rgb;
+vec3 globalColorCurrentV1(vec3 rgb) {
 	if (uKind == 1) {
 		rgb = rgb * uParams0.xyz;
 	} else if (uKind == 2) {
@@ -76,6 +65,25 @@ void main() {
 			+ uParams1.x * smoothWeight(0.75, 1.0, exposed)
 			+ uParams1.y * (vec3(1.0) - smoothWeight(0.0, 0.25, exposed));
 	}
+	return rgb;
+}
+`;
+
+/** Input and output textures are native linear RGBA32F. Every pass is a stage
+ * store; resource ownership, finite output, numeric eligibility and readback
+ * belong to the surrounding GPU owner. Only regional weights clamp here. */
+export const PIXEL_FRAME_WEBGL2_GLOBAL_FRAGMENT_CURRENT_V1 = `#version 300 es
+precision highp float;
+precision highp int;
+uniform sampler2D uImage;
+uniform int uKind;
+uniform vec4 uParams0;
+uniform vec4 uParams1;
+layout(location = 0) out vec4 outColor;
+${PIXEL_FRAME_WEBGL2_GLOBAL_FUNCTIONS_CURRENT_V1}
+void main() {
+	vec4 color = texelFetch(uImage, ivec2(gl_FragCoord.xy), 0);
+	vec3 rgb = globalColorCurrentV1(color.rgb);
 	outColor = vec4(rgb, color.a);
 }
 `;

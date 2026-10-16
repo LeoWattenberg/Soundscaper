@@ -11,8 +11,11 @@ import { EAGER_CHUNK_GROUPS, resolveRelativeModule, staticRelativeDependencies }
 const ROOT = fileURLToPath(new URL('../', import.meta.url));
 const IMAGING = ROOT + 'src/common/editor/imaging/';
 const NATIVE = 'editor-native-image-develop', GPU = 'editor-image-develop-gpu';
-const HOSTS = ['image-develop-gpu-current-v1.ts', 'pixel-frame-webgl2-current-v1.ts', 'pixel-frame-webgl2-global-current-v1.ts'];
+const HOSTS = ['image-develop-gpu-current-v1.ts', 'pixel-frame-webgl2-current-v1.ts', 'pixel-frame-webgl2-global-current-v1.ts',
+	'pixel-frame-webgl2-color-current-v1.ts', 'linear-curve-metadata-current-v1.ts'];
 const CONTEXT = 'pixel-frame-webgl2-context-current-v1.ts';
+const EXECUTION = [CONTEXT, 'pixel-frame-webgl2-numeric-current-v1.ts', 'pixel-frame-webgl2-chroma-glsl-current-v1.ts',
+	'pixel-frame-webgl2-curves-glsl-current-v1.ts', 'pixel-frame-webgl2-color-glsl-current-v1.ts'];
 function source(path: string): string { return transformSync(readFileSync(path, 'utf8'), { loader: 'ts', format: 'esm' }).code; }
 function exactOwner(name: string, expected: string): void {
 	for (const path of [IMAGING + name, (IMAGING + name).replaceAll('/', '\\')]) {
@@ -39,8 +42,8 @@ test('GPU broker, native host and authenticated global preparation share the exi
 	assert.equal(chunkGroupForModulePath(IMAGING + 'image-develop-linear-metadata-current-v1.ts'), 'editor-imaging');
 });
 
-test('only the actual native WebGL2 context has the separately lazy exact GPU execution owner', () => {
-	exactOwner(CONTEXT, GPU); optional(GPU);
+test('actual native WebGL2 execution, color shaders and precision verification have the separately lazy exact GPU owner', () => {
+	for (const module of EXECUTION) exactOwner(module, GPU); optional(GPU);
 	for (const name of [...HOSTS, 'pixel-frame-webgl2-probe-current-v1.ts', 'pixel-frame-webgl2-context-v1.ts',
 		'pixel-frame-webgl2-context-current-v2.ts', 'pixel-frame-linear-global-v1.ts', 'image-develop-linear-metadata-current-v1.ts']) {
 		assert.notEqual(chunkGroupForModulePath(IMAGING + name), GPU, name);
