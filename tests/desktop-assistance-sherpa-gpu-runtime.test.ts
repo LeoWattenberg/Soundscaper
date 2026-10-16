@@ -98,7 +98,7 @@ test('Sherpa receipts require exact GPU runtime libraries, source proof, and per
 		const files: Record<string, { byteLength: number; sha256: string }> = {};
 		for (const { path, byteLength, sha256 } of closure.files) files[path] = { byteLength, sha256 };
 		for (const path of [`${prefix}sherpa-onnx-c-api.${extension}`, `${prefix}sherpa-onnx-cxx-api.${extension}`,
-			'sherpa-onnx.node', 'SHERPA_NOTICES.txt']) files[path] = fingerprint(Buffer.from('fixture'));
+			'sherpa-onnx.node', 'SHERPA_NOTICES.txt', `onnx-webgpu-device-probe${targetId.startsWith('win-') ? '.exe' : ''}`]) files[path] = fingerprint(Buffer.from('fixture'));
 		files['build-provenance.json'] = fingerprint(Buffer.from(`${JSON.stringify(provenance, null, '\t')}\n`));
 		const manifest = structuredClone(native);
 		const target = { status: 'built', executionProviders: plan.executionProviders, package: {

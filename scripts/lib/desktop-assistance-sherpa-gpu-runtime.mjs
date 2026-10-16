@@ -21,7 +21,7 @@ export { validateSherpaGpuSourceEntry, verifySherpaGpuSource };
 
 const runFile = promisify(execFile);
 const TARGETS = ['mac-arm64', 'linux-x64', 'linux-arm64', 'win-x64', 'win-arm64'];
-const BUILD_ARGS = ['--config', 'Release', '--target', 'sherpa-onnx-node', 'sherpa-onnx-cxx-api', '--parallel', '4'];
+const BUILD_ARGS = ['--config', 'Release', '--target', 'sherpa-onnx-node', 'sherpa-onnx-cxx-api', 'onnx-webgpu-device-probe', '--parallel', '4'];
 const CONFIGURE_ARGS = [
 	'-DCMAKE_BUILD_TYPE=Release', '-DBUILD_SHARED_LIBS=ON', '-DFETCHCONTENT_FULLY_DISCONNECTED=ON',
 	'-DSHERPA_ONNX_ENABLE_SPEAKER_DIARIZATION=ON', '-DSHERPA_ONNX_ENABLE_TTS=OFF',
@@ -55,7 +55,8 @@ export function desktopSherpaGpuRecipeSourceBuild() {
 
 /** Receipts may replace only the selected platform package; all other pins stay reviewed. */
 export function validateDesktopAssistanceSherpaGpuBuildReceipt(value) {
-	if (!value || value.schemaVersion !== 1 || !TARGETS.includes(value.targetId) || !value.manifest || !value.provenance) {
+	if (!value || value.schemaVersion !== 1 || !TARGETS.includes(value.targetId) || !value.manifest || !value.provenance
+		|| !same(Object.keys(value).sort(), ['manifest', 'provenance', 'schemaVersion', 'targetId'])) {
 		throw new TypeError('The Sherpa GPU build receipt identity is invalid.');
 	}
 	const { targetId } = value;
@@ -86,7 +87,11 @@ export function validateDesktopAssistanceSherpaGpuBuildReceipt(value) {
 			|| !/^[a-f\d]{64}$/u.test(file.sha256)) throw new TypeError('The Sherpa GPU file pin is invalid.');
 	}
 	const provenance = value.provenance;
-	if (provenance.schemaVersion !== 1 || provenance.recipeId !== recipe.recipeId || provenance.targetId !== targetId
+	if (!same(Object.keys(provenance).sort(), [
+		'buildArgs', 'cmakeVersion', 'compiler', 'configureArgs', 'nativeRecipeFiles', 'nodeAddonApiVersion',
+		'nodeHeadersVersion', 'onnxRuntime', 'recipeId', 'recipeSourceBuild', 'schemaVersion', 'sourceDateEpoch',
+		'sourceRevision', 'sources', 'targetId',
+	]) || provenance.schemaVersion !== 1 || provenance.recipeId !== recipe.recipeId || provenance.targetId !== targetId
 		|| provenance.sourceRevision !== recipe.sourceRevision || provenance.nodeHeadersVersion !== recipe.nodeHeadersVersion
 		|| provenance.nodeAddonApiVersion !== recipe.nodeAddonApiVersion || provenance.sourceDateEpoch !== 1786406400
 		|| !/^cmake version \d+\.\d+/u.test(provenance.cmakeVersion)
@@ -139,7 +144,7 @@ export async function prepareDesktopAssistanceSherpaGpu({
 		const addon = await locateBuildFile(build, 'sherpa-onnx.node');
 		assertSherpaGpuBinaryArchitecture(await readFile(addon), targetId);
 		await copyFile(addon, join(packageRoot, 'sherpa-onnx.node'));
-		for (const name of generatedNames(targetId).filter((name) => /\.(?:dll|dylib|so)$/u.test(name))) {
+		for (const name of generatedNames(targetId).filter((name) => /\.(?:dll|dylib|so)$/u.test(name) || name.startsWith('onnx-webgpu-device-probe'))) {
 			const compiled = await locateBuildFile(build, name);
 			assertSherpaGpuBinaryArchitecture(await readFile(compiled), targetId);
 			await copyFile(compiled, join(packageRoot, name));
@@ -174,7 +179,8 @@ function generatedNames(targetId) {
 	const extension = targetId.startsWith('win-') ? 'dll' : targetId.startsWith('mac-') ? 'dylib' : 'so';
 	const prefix = targetId.startsWith('win-') ? '' : 'lib';
 	return [`${prefix}sherpa-onnx-c-api.${extension}`, `${prefix}sherpa-onnx-cxx-api.${extension}`,
-		'sherpa-onnx.node', 'SHERPA_NOTICES.txt', 'build-provenance.json'];
+		'sherpa-onnx.node', 'SHERPA_NOTICES.txt', 'build-provenance.json',
+		`onnx-webgpu-device-probe${targetId.startsWith('win-') ? '.exe' : ''}`];
 }
 function packageName(targetId) { return `sherpa-onnx-${targetId === 'mac-arm64' ? 'darwin-arm64' : targetId}`; }
 function providers(targetId) { return targetId === 'mac-arm64' ? ['coreml', 'webgpu', 'cpu'] : ['webgpu', 'cpu']; }

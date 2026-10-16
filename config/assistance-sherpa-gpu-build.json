@@ -6,8 +6,10 @@
 	"nodeHeadersVersion": "26.5.0",
 	"nodeAddonApiVersion": "8.3.1",
 	"nativeRecipeFiles": {
-		"native/assistance-sherpa-gpu/CMakeLists.txt": "49c3365db02c40a026f4c2a211547847e35697883893d51e3a9dbea6ed3a5a99",
-		"native/assistance-sherpa-gpu/webgpu-provider.cc": "cba49305fe6fbcf9f142ddc1961642d77d4a00e6ef47824b2590d899bf8fe3ec"
+		"native/assistance-sherpa-gpu/CMakeLists.txt": "6f1b401477de27940ee46d4451f7afadbc4331f9482a9294301577b4f215260f",
+		"native/assistance-sherpa-gpu/webgpu-provider.cc": "b34c694cfb7d5b0f017d88b0f92a11507aba8fa407cae433c5adbcdb6119c67c",
+		"native/assistance-onnx-webgpu-node-api/webgpu_probe_main.cc": "fdce1055ef8a8040f147ac665369a613ff5b40cc042e2b2e7ba79015502d8571",
+		"native/assistance-onnx-webgpu-node-api/webgpu_probe.h": "a3f6adc77ccd5bb5a00d771d217df9457156b709c9ed1ad5f49d4ecf52a0c8e0"
 	},
 	"patchSourceFiles": {
 		"sherpa-onnx/csrc/provider.h": "bbdac833c579b65caaab0b782d20e05cb1d8ca69afab82fc7a84ed3c5d7b2f4a",

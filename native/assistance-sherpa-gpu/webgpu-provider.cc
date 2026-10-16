@@ -7,6 +7,7 @@
 #include <unordered_map>
 #include <vector>
 #include "onnxruntime_cxx_api.h"
+#include "webgpu_probe.h"
 #if defined(_WIN32)
 #include <windows.h>
 #else
@@ -49,17 +50,18 @@ struct WebGpuPlugin {
   Ort::Env env{ORT_LOGGING_LEVEL_ERROR, "soundscaper-sherpa-webgpu"};
   WebGpuPlugin() {
     const auto path = ProviderLibraryPath();
+#if defined(_WIN32)
+    const auto probe = path.parent_path() / "onnx-webgpu-device-probe.exe";
+#else
+    const auto probe = path.parent_path() / "onnx-webgpu-device-probe";
+#endif
+    ScapeRunWebGpuProbe(probe);
     env.RegisterExecutionProviderLibrary("soundscaper-sherpa-webgpu", path.c_str());
   }
 };
 }  // namespace
 
 void ScapeAppendWebGpuProvider(Ort::SessionOptions &options) {
-  const auto providers = Ort::GetAvailableProviders();
-  if (std::find(providers.begin(), providers.end(), "WebGpuExecutionProvider") != providers.end()) {
-    options.AppendExecutionProvider("WebGPU");
-    return;
-  }
   static WebGpuPlugin plugin;
   const auto devices = plugin.env.GetEpDevices();
   for (const auto &device : devices) {
