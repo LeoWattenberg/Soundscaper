@@ -7,6 +7,7 @@ import { dirname, isAbsolute, join, resolve } from 'node:path';
 import { promisify } from 'node:util';
 import { extract, list } from 'tar';
 import { desktopLlamaCppNotices } from './desktop-assistance-llama-notices.mjs';
+import { buildDesktopVulkanCompanion } from './desktop-assistance-vulkan-companion.mjs';
 
 const runFile = promisify(execFile);
 export const LLAMA_RUNTIME_VERSION = 'b10509';
@@ -53,9 +54,12 @@ export function desktopLlamaCppBuildPlan({ targetId, platform, architecture }) {
 	// adjacent shader library or external GPU runtime is needed. The CPU backend stays linked.
 	if (platform === 'darwin') configureArgs.push('-DCMAKE_OSX_ARCHITECTURES=arm64',
 		'-DGGML_METAL=ON', '-DGGML_METAL_EMBED_LIBRARY=ON');
-	const executionProviders = platform === 'darwin' ? ['metal', 'cpu'] : ['cpu'];
+	const executionProviders = platform === 'darwin' ? ['metal', 'cpu'] : ['vulkan', 'cpu'];
 	if (platform === 'linux') configureArgs.push('-DCMAKE_EXE_LINKER_FLAGS=-static-libgcc -static-libstdc++');
-	return { targetId, executionProviders, target: 'llama-completion', executable: platform === 'win32' ? 'llama-completion.exe' : 'llama-completion', configureArgs };
+	const executable = platform === 'win32' ? 'llama-completion.exe' : 'llama-completion';
+	return { targetId, executionProviders, target: 'llama-completion', executable, configureArgs,
+		...(platform !== 'darwin' ? { accelerationEntrypoints: { vulkan: `gpu/${executable}` },
+			vulkanConfigureArgs: configureArgs.map((flag) => flag === '-DGGML_VULKAN=OFF' ? '-DGGML_VULKAN=ON' : flag) } : {}) };
 }
 
 export async function createLlamaBuildWorkDirectory({ cacheRoot, targetId, platform = process.platform }) {
@@ -110,12 +114,17 @@ export async function stageDesktopLlamaCppRuntime({
 		const binary = await builtExecutable(build, plan.executable);
 		const compiler = await compilerIdentity(build);
 		const { archived: archivedCompiler, buildReceipt: buildCompiler } = llamaCompilerProvenance(compiler, platform);
-		const notices = await desktopLlamaCppNotices({ sourceRoot: source, platform, compiler });
+		const vulkan = plan.vulkanConfigureArgs ? await buildDesktopVulkanCompanion({ plan, source, work,
+			cacheRoot, platform, architecture, environment, run: command,
+			reproducibleFlags: `-ffile-prefix-map=${work}=/usr/src/llama-build -fno-ident` }) : undefined;
+		const notices = [...await desktopLlamaCppNotices({ sourceRoot: source, platform, compiler }),
+			...(vulkan?.notices ?? [])];
 		const provenance = {
-			schemaVersion: 1, recipeId: platform === 'darwin' ? 'llama-cpp-metal-package-build-v1' : 'llama-cpp-cpu-package-build-v1',
+			schemaVersion: 1, recipeId: platform === 'darwin' ? 'llama-cpp-metal-package-build-v1' : 'llama-cpp-vulkan-companion-package-build-v1',
 			targetId, executionProviders: plan.executionProviders,
 			source: { url: SOURCE_URL, commit: COMMIT, sha256: SOURCE_SHA256, byteLength: SOURCE_BYTES },
 			cmakeVersion, compiler: archivedCompiler, sourceDateEpoch: Number(SOURCE_DATE_EPOCH), configureArgs: plan.configureArgs,
+			...(vulkan ? { acceleration: { vulkan: vulkan.provenance } } : {}),
 			notices: notices.map(({ path, bytes, sources }) => ({ path, sources, byteLength: bytes.byteLength, sha256: hash(bytes) })),
 			patches: [{ id: 'completion-reasoning-and-json-stdout-v1', file: 'tools/completion/completion.cpp',
 				inputSha256: COMPLETION_SOURCE_SHA256, outputSha256: hash(patchedCompletion),
@@ -127,6 +136,16 @@ export async function stageDesktopLlamaCppRuntime({
 		if ((await readdir(targetRoot)).length !== 0) throw new Error('The llama.cpp destination must be empty.');
 		await copyFile(binary, join(targetRoot, plan.executable));
 		await chmod(join(targetRoot, plan.executable), 0o755);
+		const accelerationEntrypoints = plan.accelerationEntrypoints;
+		if (vulkan) {
+			await mkdir(join(targetRoot, 'gpu'));
+			await copyFile(vulkan.binary, join(targetRoot, accelerationEntrypoints.vulkan));
+			await chmod(join(targetRoot, accelerationEntrypoints.vulkan), 0o755);
+			const gpuVersion = await command(join(targetRoot, accelerationEntrypoints.vulkan), ['--version'], work, vulkan.environment);
+			if (!`${gpuVersion.stdout}\n${gpuVersion.stderr}`.includes(`build 10509, commit ${COMMIT}`)) {
+				throw new Error('The llama.cpp Vulkan executable did not report its pinned build identity.');
+			}
+		}
 		if (platform === 'darwin') await command('codesign', ['--force', '--sign', '-', join(targetRoot, plan.executable)], work, environment);
 		const version = await command(join(targetRoot, plan.executable), ['--version'], work, environment);
 		if (!`${version.stdout}\n${version.stderr}`.includes(`build 10509, commit ${COMMIT}`)) {
@@ -135,9 +154,10 @@ export async function stageDesktopLlamaCppRuntime({
 		await copyFile(join(source, 'LICENSE'), join(targetRoot, 'LICENSE'));
 		for (const notice of notices) await writeFile(join(targetRoot, notice.path), notice.bytes, { flag: 'wx' });
 		await writeFile(join(targetRoot, 'build-provenance.json'), `${JSON.stringify(provenance, null, '\t')}\n`, { flag: 'wx' });
-		const files = await Promise.all([plan.executable, 'LICENSE', 'build-provenance.json', ...notices.map(({ path }) => path)].map(async (path) => {
+		const executables = [plan.executable, ...Object.values(accelerationEntrypoints ?? {})];
+		const files = await Promise.all([...executables, 'LICENSE', 'build-provenance.json', ...notices.map(({ path }) => path)].map(async (path) => {
 			const bytes = await readFile(join(targetRoot, path));
-			return { path, byteLength: bytes.byteLength, sha256: hash(bytes), executable: path === plan.executable };
+			return { path, byteLength: bytes.byteLength, sha256: hash(bytes), executable: executables.includes(path) };
 		}));
 		return {
 			manifest: {
@@ -145,7 +165,8 @@ export async function stageDesktopLlamaCppRuntime({
 				source: { url: 'https://github.com/ggml-org/llama.cpp', revision: LLAMA_RUNTIME_VERSION },
 				executionProvider: 'cpu', runtimePrefix: `assistance/llama-cpp/${LLAMA_RUNTIME_VERSION}`,
 				targets: LLAMA_RUNTIME_BUILD_TARGETS.map((id) => id === targetId
-					? { id, status: 'authenticated', entrypoint: plan.executable, executionProviders: plan.executionProviders, files }
+					? { id, status: 'authenticated', entrypoint: plan.executable, executionProviders: plan.executionProviders,
+						...(accelerationEntrypoints ? { accelerationEntrypoints } : {}), files }
 					: { id, status: 'package-generated', packageBehavior: 'The runtime and its available execution providers are compiled and verified by its own target package build.' }),
 			},
 			summary: { familyId: 'llama-cpp', targetId, runtimeVersion: LLAMA_RUNTIME_VERSION, provenance, buildCompiler,

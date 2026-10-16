@@ -7,6 +7,7 @@ import { dirname, isAbsolute, join, resolve } from 'node:path';
 import { promisify } from 'node:util';
 import { extract, list } from 'tar';
 import { desktopWhisperCppNotices } from './desktop-assistance-whisper-notices.mjs';
+import { buildDesktopVulkanCompanion } from './desktop-assistance-vulkan-companion.mjs';
 
 const runFile = promisify(execFile);
 export const WHISPER_RUNTIME_VERSION = 'v1.9.3';
@@ -93,13 +94,18 @@ export async function stageDesktopWhisperCppRuntime({
 		const binary = await builtExecutable(build, plan.executable);
 		const compiler = await compilerIdentity(build);
 		const { archived: archivedCompiler, buildReceipt: buildCompiler } = whisperCompilerProvenance(compiler, platform);
-		const notices = await desktopWhisperCppNotices({ sourceRoot: source, platform, compiler });
+		const vulkan = plan.vulkanConfigureArgs ? await buildDesktopVulkanCompanion({ plan, source, work,
+			cacheRoot, platform, architecture, environment, run: command,
+			reproducibleFlags: `-ffile-prefix-map=${work}=/usr/src/whisper-build -fno-ident` }) : undefined;
+		const notices = [...await desktopWhisperCppNotices({ sourceRoot: source, platform, compiler }),
+			...(vulkan?.notices ?? [])];
 		const provenance = {
-			schemaVersion: 1, recipeId: platform === 'darwin' ? 'whisper-cpp-metal-package-build-v1' : 'whisper-cpp-cpu-package-build-v1',
+			schemaVersion: 1, recipeId: platform === 'darwin' ? 'whisper-cpp-metal-package-build-v1' : 'whisper-cpp-vulkan-companion-package-build-v1',
 			targetId, executionProviders: plan.executionProviders,
 			source: { url: SOURCE_URL, commit: COMMIT, sha256: SOURCE_SHA256 },
 			cmakeVersion, compiler: archivedCompiler, sourceDateEpoch: Number(environment.SOURCE_DATE_EPOCH),
 			configureArgs: plan.configureArgs,
+			...(vulkan ? { acceleration: { vulkan: vulkan.provenance } } : {}),
 			notices: notices.map(({ path, bytes, sources }) => ({ path, sources,
 				byteLength: bytes.byteLength, sha256: hash(bytes) })),
 			patches: [{ id: 'piped-json-stdout-v1', file: 'examples/cli/cli.cpp',
@@ -113,6 +119,16 @@ export async function stageDesktopWhisperCppRuntime({
 		if ((await readdir(targetRoot)).length !== 0) throw new Error('Whisper destination must be empty.');
 		await copyFile(binary, join(targetRoot, plan.executable));
 		await chmod(join(targetRoot, plan.executable), 0o755);
+		const accelerationEntrypoints = plan.accelerationEntrypoints;
+		if (vulkan) {
+			await mkdir(join(targetRoot, 'gpu'));
+			await copyFile(vulkan.binary, join(targetRoot, accelerationEntrypoints.vulkan));
+			await chmod(join(targetRoot, accelerationEntrypoints.vulkan), 0o755);
+			const gpuVersion = await command(join(targetRoot, accelerationEntrypoints.vulkan), ['--version'], work, vulkan.environment);
+			if (gpuVersion.stdout.trim() !== 'whisper.cpp version: 1.9.3') {
+				throw new Error('Whisper Vulkan executable did not report the pinned runtime version.');
+			}
+		}
 		if (platform === 'darwin') await command('codesign', ['--force', '--sign', '-',
 			join(targetRoot, plan.executable)], work, environment);
 		const version = await command(join(targetRoot, plan.executable), ['--version'], work, environment);
@@ -122,12 +138,13 @@ export async function stageDesktopWhisperCppRuntime({
 		await copyFile(join(source, 'LICENSE'), join(targetRoot, 'LICENSE'));
 		for (const notice of notices) await writeFile(join(targetRoot, notice.path), notice.bytes, { flag: 'wx' });
 		await writeFile(join(targetRoot, 'build-provenance.json'), `${JSON.stringify(provenance, null, '\t')}\n`, { flag: 'wx' });
-		const files = await Promise.all([plan.executable, 'LICENSE', 'build-provenance.json', ...notices.map(({ path }) => path)].map(async (path) => {
+		const executables = [plan.executable, ...Object.values(accelerationEntrypoints ?? {})];
+		const files = await Promise.all([...executables, 'LICENSE', 'build-provenance.json', ...notices.map(({ path }) => path)].map(async (path) => {
 			const bytes = await readFile(join(targetRoot, path));
-			return { path, byteLength: bytes.byteLength, sha256: hash(bytes), executable: path === plan.executable };
+			return { path, byteLength: bytes.byteLength, sha256: hash(bytes), executable: executables.includes(path) };
 		}));
 		const target = { id: targetId, status: 'authenticated', entrypoint: plan.executable,
-			executionProviders: plan.executionProviders, files };
+			executionProviders: plan.executionProviders, ...(accelerationEntrypoints ? { accelerationEntrypoints } : {}), files };
 		return {
 			manifest: {
 				schemaVersion: 1, familyId: 'whisper-cpp', runtimeVersion: VERSION,
@@ -173,9 +190,12 @@ export function desktopWhisperCppBuildPlan({ targetId, platform, architecture })
 	// adjacent shader library or external GPU runtime is needed. The CPU backend stays linked.
 	if (platform === 'darwin') configureArgs.push('-DCMAKE_OSX_ARCHITECTURES=arm64',
 		'-DGGML_METAL=ON', '-DGGML_METAL_EMBED_LIBRARY=ON');
-	const executionProviders = platform === 'darwin' ? ['metal', 'cpu'] : ['cpu'];
+	const executionProviders = platform === 'darwin' ? ['metal', 'cpu'] : ['vulkan', 'cpu'];
 	if (platform === 'linux') configureArgs.push('-DCMAKE_EXE_LINKER_FLAGS=-static-libgcc -static-libstdc++');
-	return { targetId, executionProviders, executable: platform === 'win32' ? 'whisper-cli.exe' : 'whisper-cli', configureArgs };
+	const executable = platform === 'win32' ? 'whisper-cli.exe' : 'whisper-cli';
+	return { targetId, executionProviders, executable, configureArgs,
+		...(platform !== 'darwin' ? { accelerationEntrypoints: { vulkan: `gpu/${executable}` },
+			vulkanConfigureArgs: configureArgs.map((flag) => flag === '-DGGML_VULKAN=OFF' ? '-DGGML_VULKAN=ON' : flag) } : {}) };
 }
 
 async function authenticatedArchive(cache) {
