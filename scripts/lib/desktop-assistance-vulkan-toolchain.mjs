@@ -2,7 +2,7 @@
 
 import { execFile } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { link, lstat, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { link, lstat, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { isAbsolute, join, resolve } from 'node:path';
 import { promisify } from 'node:util';
 import { extract, list } from 'tar';
@@ -22,6 +22,7 @@ export async function prepareDesktopVulkanBuild({
 	const plan = desktopVulkanToolchainPlan({ targetId, work, platform, architecture });
 	if (!isAbsolute(cacheRoot)) throw new TypeError('Vulkan staging requires an absolute cache root.');
 	const sourceRoots = {};
+	const configureArguments = {};
 	await mkdir(plan.root, { recursive: true });
 	for (const source of PINS.sources) {
 		const cache = resolve(cacheRoot, 'vulkan-sources', source.commit);
@@ -53,6 +54,13 @@ export async function prepareDesktopVulkanBuild({
 	const glslc = await regularFile(plan.glslc);
 	const loader = await regularFile(plan.loader);
 	const version = (await command(plan.glslc, ['--version'], plan.root, environment)).stdout.trim();
+	const compilers = {
+		shaderc: {
+			c: await readDesktopVulkanCompilerIdentity(join(plan.root, 'build-shaderc'), 'C'),
+			cxx: await readDesktopVulkanCompilerIdentity(join(plan.root, 'build-shaderc'), 'CXX'),
+		},
+		'vulkan-loader': { c: await readDesktopVulkanCompilerIdentity(join(plan.root, 'build-vulkan-loader'), 'C') },
+	};
 	const notices = await sourceNotices(sourceRoots);
 	return {
 		configureArgs: plan.configureArgs,
@@ -64,6 +72,7 @@ export async function prepareDesktopVulkanBuild({
 			recipeId: 'pinned-vulkan-toolchain-v1', sdkVersion: PINS.sdkVersion,
 			shadercVersion: PINS.shadercVersion, targetId, hostArchitecture: architecture,
 			sourceDateEpoch: Number(environment.SOURCE_DATE_EPOCH),
+			compilers, configureArguments,
 			sources: PINS.sources,
 			shaderCompiler: { version, byteLength: glslc.byteLength, sha256: hash(glslc) },
 			loaderImportLibrary: { byteLength: loader.byteLength, sha256: hash(loader) },
@@ -80,15 +89,49 @@ export async function prepareDesktopVulkanBuild({
 				'-DCMAKE_EXE_LINKER_FLAGS=/Brepro', '-DCMAKE_SHARED_LINKER_FLAGS=/Brepro']
 			: [`-DCMAKE_C_FLAGS=-ffile-prefix-map=${work}=/usr/src/vulkan-build -fno-ident`,
 				`-DCMAKE_CXX_FLAGS=-ffile-prefix-map=${work}=/usr/src/vulkan-build -fno-ident`];
-		await command('cmake', ['-S', sourceRoots[id], '-B', join(plan.root, `build-${id}`),
+		const arguments_ = ['-S', sourceRoots[id], '-B', join(plan.root, `build-${id}`),
 			...generatorArgs, '-DCMAKE_BUILD_TYPE=Release', `-DCMAKE_INSTALL_PREFIX=${plan.install}`,
 			'-DCMAKE_INSTALL_LIBDIR=lib', '-DFETCHCONTENT_FULLY_DISCONNECTED=ON',
-			...reproducible, ...args], plan.root, environment);
+			...reproducible, ...args];
+		configureArguments[id] = normalizeDesktopVulkanConfigureArguments(arguments_, work);
+		await command('cmake', arguments_, plan.root, environment);
 	}
 	async function build(id, target) {
 		await command('cmake', ['--build', join(plan.root, `build-${id}`), '--config', 'Release',
 			'--target', target, '--parallel', '4'], plan.root, environment);
 	}
+}
+
+/** Preserve the full executed recipe without embedding an ephemeral staging path. */
+export function normalizeDesktopVulkanConfigureArguments(arguments_, work) {
+	if (typeof work !== 'string' || work.length === 0 || !Array.isArray(arguments_)
+		|| !arguments_.every((argument) => typeof argument === 'string')) {
+		throw new TypeError('Vulkan configure provenance requires one work path and string arguments.');
+	}
+	return arguments_.map((argument) => argument.replaceAll(work, '<work>'));
+}
+
+/** Shaderc and the target loader may use different compilers from the engine. */
+export async function readDesktopVulkanCompilerIdentity(build, language = 'CXX') {
+	if (!['C', 'CXX'].includes(language)) throw new TypeError('Vulkan compiler provenance language is invalid.');
+	let source;
+	try {
+		const versions = (await readdir(join(build, 'CMakeFiles'), { withFileTypes: true }))
+			.filter((entry) => entry.isDirectory() && /^\d+\.\d+(?:\.\d+)*(?:-[A-Za-z\d.-]+)?$/u.test(entry.name));
+		if (versions.length !== 1) throw new Error('CMake compiler inventory is missing or ambiguous.');
+		source = await readFile(join(build, 'CMakeFiles', versions[0].name, `CMake${language}Compiler.cmake`), 'utf8');
+	} catch (cause) {
+		throw new Error('Vulkan compiler provenance could not be read.', { cause });
+	}
+	const identities = [...source.matchAll(new RegExp(`^set\\(CMAKE_${language}_COMPILER_ID "([^"\\r\\n]*)"\\)\\r?$`, 'gmu'))];
+	const versions = [...source.matchAll(new RegExp(`^set\\(CMAKE_${language}_COMPILER_VERSION "([^"\\r\\n]*)"\\)\\r?$`, 'gmu'))];
+	const id = identities[0]?.[1], version = versions[0]?.[1];
+	if (identities.length !== 1 || versions.length !== 1
+		|| !/^[A-Za-z][A-Za-z\d_]{0,63}$/u.test(id ?? '')
+		|| !/^\d+(?:\.\d+){1,3}(?:[-+][A-Za-z\d.-]+)?$/u.test(version ?? '') || version.length > 64) {
+		throw new Error('Vulkan compiler provenance contains an invalid identity or version.');
+	}
+	return { id, version };
 }
 
 /** Keep host shader tools distinct from a cross-compiled Windows ARM64 loader. */

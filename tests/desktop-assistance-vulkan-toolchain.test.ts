@@ -7,6 +7,7 @@ import { join } from 'node:path';
 import { test } from 'node:test';
 import {
 	desktopVulkanToolchainPlan, prepareDesktopVulkanBuild, validateVulkanSourceArchiveEntry, verifyVulkanSourceArchive,
+	normalizeDesktopVulkanConfigureArguments, readDesktopVulkanCompilerIdentity,
 } from '../scripts/lib/desktop-assistance-vulkan-toolchain.mjs';
 
 const root = '/tmp/desktop-vulkan-fixture';
@@ -93,5 +94,63 @@ test('Vulkan preparation authenticates cached source bytes before extraction or 
 		}), /source archive length/iu);
 	} finally {
 		await rm(fixture, { recursive: true, force: true });
+	}
+});
+
+test('Vulkan compiler provenance reads the actual host or target CMake identity', async (context) => {
+	const work = await mkdtemp(join(tmpdir(), 'desktop-vulkan-compilers-'));
+	context.after(() => rm(work, { recursive: true, force: true }));
+	for (const [build, language, id, version] of [
+		['shaderc', 'CXX', 'MSVC', '19.44.35211.0'], ['vulkan-loader', 'C', 'Clang', '22.1.0'],
+	]) {
+		const directory = join(work, build, 'CMakeFiles', '4.2.3');
+		await mkdir(directory, { recursive: true });
+		await writeFile(join(directory, `CMake${language}Compiler.cmake`),
+			`set(CMAKE_${language}_COMPILER_ID "${id}")\nset(CMAKE_${language}_COMPILER_VERSION "${version}")\n`);
+		assert.deepEqual(await readDesktopVulkanCompilerIdentity(join(work, build), language), { id, version });
+	}
+	await assert.rejects(readDesktopVulkanCompilerIdentity(join(work, 'vulkan-loader'), 'CXX'), /compiler provenance/iu);
+});
+
+test('Vulkan compiler provenance rejects absent, malformed, and ambiguous CMake identities', async (context) => {
+	const work = await mkdtemp(join(tmpdir(), 'desktop-vulkan-invalid-compilers-'));
+	context.after(() => rm(work, { recursive: true, force: true }));
+	const cmakeFiles = join(work, 'CMakeFiles');
+	await mkdir(cmakeFiles);
+	await assert.rejects(readDesktopVulkanCompilerIdentity(work), /compiler provenance/iu);
+	const directory = join(cmakeFiles, '4.2.3');
+	await mkdir(directory);
+	await assert.rejects(readDesktopVulkanCompilerIdentity(work), /compiler provenance/iu);
+	for (const body of [
+		'set(CMAKE_CXX_COMPILER_ID "GNU")',
+		'set(CMAKE_CXX_COMPILER_ID "")\nset(CMAKE_CXX_COMPILER_VERSION "13.3.0")',
+		'set(CMAKE_CXX_COMPILER_ID "/private/compiler")\nset(CMAKE_CXX_COMPILER_VERSION "13.3.0")',
+		'set(CMAKE_CXX_COMPILER_ID "GNU")\nset(CMAKE_CXX_COMPILER_VERSION "unknown")',
+		'set(CMAKE_CXX_COMPILER_ID "GNU")\nset(CMAKE_CXX_COMPILER_VERSION "13.3.0")\nset(CMAKE_CXX_COMPILER_ID "Clang")',
+	]) {
+		await writeFile(join(directory, 'CMakeCXXCompiler.cmake'), body);
+		await assert.rejects(readDesktopVulkanCompilerIdentity(work), /compiler provenance/iu);
+	}
+	await mkdir(join(cmakeFiles, '4.3.0'));
+	await assert.rejects(readDesktopVulkanCompilerIdentity(work), /compiler provenance/iu);
+});
+
+test('full Vulkan CMake configure arguments retain flags with stable work placeholders', () => {
+	for (const work of ['/home/runner/build-random', 'D:\\work\\build-random']) {
+		const separator = work.startsWith('/') ? '/' : '\\';
+		const args = ['-S', `${work}${separator}source`, '-B', `${work}${separator}build`, '-A', 'ARM64',
+			`-DCMAKE_INSTALL_PREFIX=${work}${separator}install`,
+			`-DCMAKE_CXX_FLAGS=-ffile-prefix-map=${work}=/usr/src/vulkan-build -fno-ident`,
+			'-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded', '-DSYSCONFDIR=/etc'];
+		const normalized = normalizeDesktopVulkanConfigureArguments(args, work);
+		assert.equal(normalized.length, args.length);
+		assert.equal(normalized[1], `<work>${separator}source`);
+		assert.equal(normalized[3], `<work>${separator}build`);
+		assert.equal(normalized.some((argument: string) => argument.includes(work)), false);
+		assert.ok(normalized.includes('-DCMAKE_CXX_FLAGS=-ffile-prefix-map=<work>=/usr/src/vulkan-build -fno-ident'));
+		assert.ok(normalized.includes('-A'));
+		assert.ok(normalized.includes('ARM64'));
+		assert.ok(normalized.includes('-DSYSCONFDIR=/etc'));
+		assert.deepEqual(args[1], `${work}${separator}source`, 'normalization does not mutate executed arguments');
 	}
 });
