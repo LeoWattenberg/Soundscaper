@@ -40,7 +40,7 @@ export class FramescaperScapeImageProjectPublication {
 	owns(value: object): boolean { return this.#created.has(value); }
 
 	async prepareSave(project: FramescaperProject): Promise<void> {
-		if (!project.sources.some(source => source.kind === 'image' && (source.schemaVersion === 3 || source.schemaVersion === 4))) return;
+		if (!project.sources.some(source => source.kind === 'image' && (source.schemaVersion === 3 || source.schemaVersion === 4 || source.schemaVersion === 5))) return;
 		await this.#dependencies.retention.ensureSession();
 		await prepareFramescaperTimelineImageResourceAuditV1(this.#dependencies, project);
 	}
@@ -63,7 +63,7 @@ export class FramescaperScapeImageProjectPublication {
 				pins.set(pin.key, pin);
 				const body = await media.loadAsset(source.storageKey, { expectedSize: source.assetByteLength });
 				const packed = framescaperImagePackSourceCurrentV1(source);
-				if (source.schemaVersion === 4) await (await import('./editor-scape-asset-plan-timeline-image-current.ts')).validateFramescaperRawImageAssetBodyCurrentV1(source, body);
+				if (source.schemaVersion === 4 || source.schemaVersion === 5) await (await import('../common/editor/timeline-image-native-body-current-v1.ts')).validateFramescaperNativeImageBodyCurrentV1(source, body);
 				await validateFramescaperImageAssetBodyTimelineImage(packed, body);
 				const resources = framescaperImageSourceResourceReferencesCurrentV1(source);
 				for (const reference of resources.luts) {

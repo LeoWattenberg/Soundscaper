@@ -25,6 +25,7 @@ import type { PhotoLibrarySessionPortsV2 } from '../photo-library-session-ports-
 import type { PhotoLibrarySessionPortsCurrentV1 } from '../photo-library-session-ports-current-v1.ts';
 import { assertPhotoDevelopHandoffMasksForProfileV1 } from './photo-image-handoff-model-kernel-v1.ts';
 import { preparePhotoLibraryHandoffRetainedResourcesCurrentV1 } from './photo-library-handoff-retained-resources-current-v1.ts';
+import { admitPhotoHdrHandoffWorkCurrentV1, isPhotoHdrHandoffOriginalCurrentV1, PHOTO_HDR_HANDOFF_LIMITS_CURRENT_V1 as HDR_LIMITS } from './photo-hdr-handoff-policy-current-v1.ts';
 
 type Profile = 'legacy2' | 'current3';
 type Ports = PhotoLibrarySessionPortsV2 | PhotoLibrarySessionPortsCurrentV1;
@@ -63,8 +64,10 @@ export async function withPhotoLibraryImageHandoffForProfileV1<Result>(profile: 
 		assertPhotoDevelopHandoffMasksForProfileV1('current3', selected.develop, initial.original.width, initial.original.height);
 		const collector = createPhotoResourceReachabilityCurrentV1(); collector.addDevelop(selected.develop); references = collector.finish();
 		const bytes = [...references.luts, ...references.brushes].reduce((size, reference) => size + reference.byteLength, initial.original.byteLength);
+		const hdr = isPhotoHdrHandoffOriginalCurrentV1(initial.original);
+		if (hdr) admitPhotoHdrHandoffWorkCurrentV1(selected.develop, initial.original.width, initial.original.height, initial.original.byteLength, bytes - initial.original.byteLength);
 		if (BigInt(initial.original.width) * BigInt(initial.original.height) * 4n > 64n * 1024n * 1024n
-			|| initial.original.byteLength > IMAGE_IMPORT_LIMITS.maximumFileInputBytes || bytes + 384 > 128 * 1024 * 1024
+			|| initial.original.byteLength > (hdr ? HDR_LIMITS.originalBytes : IMAGE_IMPORT_LIMITS.maximumFileInputBytes) || bytes + 384 > (hdr ? HDR_LIMITS.bodyBytes : 128 * 1024 * 1024)
 			|| references.luts.length + references.brushes.length + 1 > SCAPE_ARCHIVE_LIMITS.maximumEntryCount - 2) {
 			throw new RangeError('Image handoff bodies or canonical expansion exceed their fixed byte capacity.');
 		}
@@ -74,8 +77,9 @@ export async function withPhotoLibraryImageHandoffForProfileV1<Result>(profile: 
 		}
 	}
 	const original = initial.original, resourceBytes = [...references.luts, ...references.brushes].reduce((size, reference) => size + reference.byteLength, 0);
-	if (original.byteLength > IMAGE_IMPORT_LIMITS.maximumFileInputBytes || resourceBytes + original.byteLength > IMAGE_IMPORT_LIMITS.maximumGestureInputBytes
-		|| profile === 'current3' && (BigInt(original.width) * BigInt(original.height) * 4n > 64n * 1024n * 1024n || original.byteLength + resourceBytes + 384 > 128 * 1024 * 1024)) {
+	const hdr = profile === 'current3' && isPhotoHdrHandoffOriginalCurrentV1(original);
+	if (original.byteLength > (hdr ? HDR_LIMITS.originalBytes : IMAGE_IMPORT_LIMITS.maximumFileInputBytes) || resourceBytes + original.byteLength > (hdr ? HDR_LIMITS.bodyBytes : IMAGE_IMPORT_LIMITS.maximumGestureInputBytes)
+		|| profile === 'current3' && (BigInt(original.width) * BigInt(original.height) * 4n > 64n * 1024n * 1024n || original.byteLength + resourceBytes + 384 > (hdr ? HDR_LIMITS.bodyBytes : 128 * 1024 * 1024))) {
 		throw new RangeError('Image handoff bodies or canonical expansion exceed their fixed byte capacity.');
 	}
 	const factsJson = profile === 'legacy2' ? serializePhotoExportSidecarV1(createPhotoExportSidecarV1(initial, request))

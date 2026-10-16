@@ -5,6 +5,7 @@ import { createFramescaperMulticameraMenuItems } from './framescaper-multicamera
 import { createFramescaperCandidateAuthoringMenuItems } from './framescaper-candidate-authoring-menu.ts';
 import { createFramescaperFinishingMenuItems } from './framescaper-finishing-menu.ts';
 import { createFramescaperImageDevelopMenuItemsV1 } from './framescaper-image-develop-menu-v1.ts';
+import { createFramescaperImageHdrMergeMenuItemsCurrentV1 } from './framescaper-image-hdr-merge-menu-current-v1.ts';
 import { createFramescaperNativeServicesMenuItems } from './framescaper-native-services-menu.ts';
 import { createSoundscaperNativeServicesMenuItems } from './soundscaper-native-services-menu.ts';
 import { createSoundscaperWorkflowApplicationMenuItems } from './soundscaper-workflow-product-runtime.tsx';
@@ -68,6 +69,8 @@ export function createApplicationMenuProductItems({
 		productId, project, selectedClipId: snapshot.selectedClipId, editingBlocked: editBlocked,
 		readOnly: snapshot.readOnly === true, locale,
 	}, actions.openFramescaperImageDevelop);
+	const hdrMerge = createFramescaperImageHdrMergeMenuItemsCurrentV1({ productId, project, editingBlocked: editBlocked,
+		readOnly: snapshot.readOnly === true || snapshot.importing === true, locale }, actions.openFramescaperImageHdrMerge);
 	const nativeServices = createFramescaperNativeServicesMenuItems({
 		productId,
 		runtimeAvailable: nativeRuntime !== null,
@@ -103,7 +106,7 @@ export function createApplicationMenuProductItems({
 		tracks: Object.freeze([nestedSequences, multicamera, ...candidateAuthoring.tracks,
 			...selectedFinishing.tracks, ...soundscaperWorkflows.tracks].filter(Boolean)),
 		generate: candidateAuthoring.generate,
-		effect: Object.freeze([...candidateAuthoring.effect, ...selectedFinishing.effect, ...imageDevelop,
+		effect: Object.freeze([...candidateAuthoring.effect, ...selectedFinishing.effect, ...imageDevelop, ...hdrMerge,
 			...soundscaperWorkflows.effect, ...nativeServices.effect, ...soundscaperNativeServices.effect]),
 		analyze: Object.freeze([...selectedFinishing.analyze, ...soundscaperWorkflows.analyze,
 			...soundscaperNativeServices.analyze]),

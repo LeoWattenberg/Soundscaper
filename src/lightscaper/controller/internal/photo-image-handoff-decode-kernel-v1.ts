@@ -17,6 +17,7 @@ import { PhotoLibrarySessionLifetime } from '../photo-library-session-lifetime.t
 import { createPhotoImageHandoffSourceForProfileV1, assertHandoffProfile, type HandoffProfile, type PhotoImageHandoffSourceForProfileV1 } from './photo-image-handoff-model-kernel-v1.ts';
 import { parsePhotoExportSidecarCurrentV1, serializePhotoExportSidecarCurrentV1 } from '../../catalog/photo-export-sidecar-current-v1.ts';
 import { probeRawSourceV1 } from '../../../common/editor/raw/raw-source-v1.ts';
+import { admitPhotoHdrHandoffWorkCurrentV1, isPhotoHdrHandoffOriginalCurrentV1 } from './photo-hdr-handoff-policy-current-v1.ts';
 
 const READ = Blob.prototype.arrayBuffer;
 const SIZE = Object.getOwnPropertyDescriptor(Blob.prototype, 'size')!.get!;
@@ -46,7 +47,9 @@ export async function decodePhotoImageHandoffSourceForProfileV1(profile: Handoff
 	const original = Object.freeze({ mimeType: originalField('mimeType'), width: integer(originalField('width'), 1, 8192, 'handoff original width'),
 		height: integer(originalField('height'), 1, 8192, 'handoff original height'), hasAlpha: originalField('hasAlpha') });
 	if (typeof original.mimeType !== 'string' || typeof original.hasAlpha !== 'boolean') throw new TypeError('Photo image decode requires original MIME/alpha facts.');
-	if (facts.original.byteLength > IMAGE_IMPORT_LIMITS.maximumFileInputBytes) throw new RangeError('Photo image decode original exceeds its fixed byte capacity.');
+	const hdr = profile === 'current3' && isPhotoHdrHandoffOriginalCurrentV1(original);
+	if (hdr) admitPhotoHdrHandoffWorkCurrentV1(facts.version.develop, original.width, original.height, facts.original.byteLength);
+	else if (facts.original.byteLength > IMAGE_IMPORT_LIMITS.maximumFileInputBytes) throw new RangeError('Photo image decode original exceeds its fixed byte capacity.');
 	const body = canonicalMediaContentBlob(field(input, 'originalBlob', label));
 	if (Reflect.apply(SIZE, body, []) !== facts.original.byteLength) throw new Error('Photo image decode original Blob size changed.');
 	const ports = record(dependencies, 'Photo image decode dependencies', ['openImage'], []);
@@ -68,6 +71,13 @@ export async function decodePhotoImageHandoffSourceForProfileV1(profile: Handoff
 			try {
 				Reflect.apply(CHECK, joined, []);
 				if (bytes.byteLength !== facts.original.byteLength || bytesToHex(sha256(bytes)) !== facts.original.contentSha256) throw new Error('Photo image decode original SHA-256 binding changed.');
+				if (hdr) {
+					const { decodePhotoHdrImageHandoffPackCurrentV1 } = await import('./photo-image-handoff-hdr-current-v1.ts');
+					const result = await decodePhotoHdrImageHandoffPackCurrentV1(bytes, { ...original, mimeType: original.mimeType as string, hasAlpha: original.hasAlpha as boolean }, joined);
+					packed = result.publication.bytes; Reflect.apply(CHECK, joined, []);
+					return await createPhotoImageHandoffSourceForProfileV1(profile, { sourceId, factsJson,
+						original: { ...original, mimeType: original.mimeType as string, hasAlpha: original.hasAlpha as boolean }, pack: result.publication, hdr: result.hdr, signal: joined });
+				}
 				if (profile === 'current3' && probeRawSourceV1(bytes)) {
 					const { decodePhotoRawImageHandoffPackCurrentV1 } = await import('./photo-image-handoff-raw-current-v1.ts');
 					const result = await decodePhotoRawImageHandoffPackCurrentV1(bytes,

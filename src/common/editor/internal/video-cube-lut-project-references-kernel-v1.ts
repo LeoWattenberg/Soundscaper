@@ -31,7 +31,7 @@ export function collectCubeLutProjectResourcesForProfileV1(profile: 'legacy2' | 
 			const image = normalizeFramescaperImageSourceV1OrV2(source);
 			if (image.schemaVersion === 2) for (const reference of framescaperImageSourceResourceReferencesV2(image)) add(reference);
 		} else {
-			const image = normalizeFramescaperImageSourceCurrentV1(source); currentTransport ||= image.schemaVersion === 3 || image.schemaVersion === 4;
+			const image = normalizeFramescaperImageSourceCurrentV1(source); currentTransport ||= image.schemaVersion === 3 || image.schemaVersion === 4 || image.schemaVersion === 5;
 			if (image.schemaVersion !== 1) imageRecipes.push(image.develop);
 			const closure = framescaperImageSourceResourceReferencesCurrentV1(image);
 			for (const reference of closure.luts) add(reference);

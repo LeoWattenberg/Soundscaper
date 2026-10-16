@@ -11,8 +11,7 @@ import { collectFramescaperDurableScapeAssetReferences, planFramescaperDurableSc
 import { planFramescaperScapeImageExportAssetsTimelineImage, validateFramescaperScapeImageImportAssetsTimelineImage } from './editor-scape-asset-plan-timeline-image.ts';
 import type { FileSizeWarningOptions } from '../common/editor/controller/shared/file-size-warning.ts';
 import { framescaperImagePackSourceCurrentV1 } from '../common/editor/timeline-image-pack-source-current-v1.ts';
-import { prepareFramescaperRawImageOriginalCurrentV1 } from '../common/editor/timeline-image-raw-original-plan-current-v1.ts';
-import { canonicalMediaContentBlob } from '../common/editor/storage/media-content-digest.ts';
+import { prepareFramescaperNativeImageBodyCurrentV1, validateFramescaperNativeImageBodyCurrentV1 } from '../common/editor/timeline-image-native-body-current-v1.ts';
 
 /** A private pack-only delegate retains the exact V1 archive body/timing
  * contract. The complete selected project, including recipe and provenance,
@@ -46,13 +45,14 @@ function durableReferences(project: FramescaperProjectTimelineImage) {
 
 export async function planTimelineImageCurrentArchiveAssets(project: FramescaperProjectTimelineImage,
 	store: FramescaperDurableScapeMetadataStore, signal?: AbortSignal, warningOptions: FileSizeWarningOptions = {}) {
-	for (const source of project.sources) if (source.kind === 'image' && source.schemaVersion === 4) assertRawPackBudget(source);
+	for (const source of project.sources) if (source.kind === 'image' && (source.schemaVersion === 4 || source.schemaVersion === 5)) prepareFramescaperNativeImageBodyCurrentV1(source);
 	// Sequential ownership avoids publishing/rejecting while an independent
 	// metadata read still belongs to the same archive operation.
 	const durable = await planFramescaperDurableScapeExportAssets(durableReferences(project), store, 'finishing', signal, warningOptions);
 	const images = (await planFramescaperScapeImageExportAssetsTimelineImage(timelineImageArchivePackProjection(project), store, signal)).map(asset => {
 		const source = project.sources.find(source => source.kind === 'image' && source.storageKey === asset.storageKey);
-		return source?.kind === 'image' && source.schemaVersion === 4 ? Object.freeze({ ...asset, source: Object.freeze({ ...asset.source, rawImageSource: source }) }) : asset;
+		if (source?.kind !== 'image' || source.schemaVersion !== 4 && source.schemaVersion !== 5) return asset;
+		return Object.freeze({ ...asset, source: Object.freeze({ ...asset.source, ...(source.schemaVersion === 4 ? { rawImageSource: source } : { nativeImageSource: source }) }) });
 	});
 	const masks = await planFramescaperMaskRasterArchiveAssetsV1(project, store, signal);
 	return Object.freeze([...durable, ...images, ...masks]);
@@ -63,26 +63,14 @@ export async function planTimelineImageCurrentArchiveAssets(project: Framescaper
 export async function validateFramescaperRawImageAssetBodyCurrentV1(value: unknown, bodyValue: unknown, signal?: AbortSignal): Promise<void> {
 	const source = normalizeFramescaperImageSourceCurrentV1(value);
 	if (source.schemaVersion !== 4) throw new RangeError('Frame RAW archive proof requires an explicit Source4.');
-	const body = canonicalMediaContentBlob(bodyValue);
-	assertRawPackBudget(source);
-	const size = Number(Reflect.apply(Object.getOwnPropertyDescriptor(Blob.prototype, 'size')!.get!, body, []));
-	if (size !== source.assetByteLength) throw new RangeError('Frame RAW archive body differs from its exact native size.');
-	const slice = Blob.prototype.slice, read = Blob.prototype.arrayBuffer;
-	const { withFramescaperRawImageOriginalCurrentV1 } = await import('../common/editor/timeline-image-raw-pack-current-v1.ts');
-	await withFramescaperRawImageOriginalCurrentV1({ source, ...(signal ? { signal } : {}), read: async (offset, length) =>
-		new Uint8Array(await Reflect.apply(read, Reflect.apply(slice, body, [offset, offset + length]) as Blob, []) as ArrayBuffer) }, () => undefined);
-}
-
-function assertRawPackBudget(source: unknown): void {
-	const plan = prepareFramescaperRawImageOriginalCurrentV1(source);
-	if (BigInt(plan.source.assetByteLength) * 3n + plan.decodeWorkingBytes > 1024n * 1024n * 1024n) throw new RangeError('Frame RAW archive pack and decode exceed their 1 GiB working bound.');
+	await validateFramescaperNativeImageBodyCurrentV1(source, bodyValue, signal);
 }
 
 export function validateTimelineImageCurrentArchiveAssets(project: FramescaperProjectTimelineImage, manifest: ScapeManifest) {
 	// Admission precedes inherited staging and its generic receipt parser.
 	// Source4 binds that receipt to the exact native declaration and reserves
 	// pack retention plus the decoder maximum before any writer or body read.
-	for (const source of project.sources) if (source.kind === 'image' && source.schemaVersion === 4) assertRawPackBudget(source);
+	for (const source of project.sources) if (source.kind === 'image' && (source.schemaVersion === 4 || source.schemaVersion === 5)) prepareFramescaperNativeImageBodyCurrentV1(source);
 	return Object.freeze({ foundation: validateFramescaperDurableScapeImportAssets(durableReferences(project), manifest, 'finishing'),
 		images: validateFramescaperScapeImageImportAssetsTimelineImage(timelineImageArchivePackProjection(project), manifest),
 		masks: validateFramescaperMaskRasterArchiveAssetsV1(project, manifest) });

@@ -32,24 +32,21 @@ export async function authenticateFramescaperProjectMediaResourcesV1(port: Stora
 	const snapshot = compactProjectSourceMetadata(structuredClone(value)) as ProjectDocument;
 	const serialized = serializeScapeProjectDocument(snapshot);
 	if (snapshot.schemaFamily !== 'framescaper' || snapshot.schemaVersion !== 1 || !Array.isArray(snapshot.sources)) throw new TypeError('Current image audit requires an actual Frame project.');
-	const [sourceOwner, collector, packOwner, lutOwner, brushOwner, mediaOwner, projection, rawOwner] = await Promise.all([
+	const [sourceOwner, collector, packOwner, lutOwner, brushOwner, mediaOwner, projection, nativeOwner] = await Promise.all([
 		import('../timeline-image-model-current-v1.ts'), import('../video-cube-lut-project-references-current-v1.ts'),
 		import('../timeline-image-frame-pack-v1.ts'), import('../imaging/cube-lut-resource-v1.ts'), import('../imaging/brush-mask-resource-v1.ts'), import('./media-repository.ts'),
-		import('../timeline-image-pack-source-current-v1.ts'), import('../timeline-image-raw-pack-current-v1.ts'),
+		import('../timeline-image-pack-source-current-v1.ts'), import('../timeline-image-native-body-current-v1.ts'),
 	]);
 	const closure = collector.collectFramescaperImageProjectResourcesCurrentV1(snapshot);
 	const images = snapshot.sources.filter(source => asRecord(source)?.kind === 'image').map(sourceOwner.normalizeFramescaperImageSourceCurrentV1);
-	for (const source of images) if (source.schemaVersion === 4) {
-		if (BigInt(source.assetByteLength) * 3n + rawOwner.prepareFramescaperRawImageOriginalCurrentV1(source).decodeWorkingBytes > 1024n * 1024n * 1024n) throw new RangeError('Frame RAW native audit exceeds its 1 GiB working bound.');
-	}
+	for (const source of images) if (source.schemaVersion === 4 || source.schemaVersion === 5) nativeOwner.prepareFramescaperNativeImageBodyCurrentV1(source);
 	const native = await mediaOwner.captureMediaProjectResourceAuditReaderV1(media, port), database = native.database;
 	const pins = new Map<string, Readonly<Record<string, unknown>>>();
 	for (const source of images) {
 		const row = await pin(source.storageKey, source.assetByteLength, source.contentSha256);
 		if (row.kind !== 'timeline-image' || row.encoding !== 'framescaper-image-asset-v1' || row.mimeType !== source.mimeType) throw new Error('Frame Original native metadata differs from its immutable pack authority.');
 		const body = await bodyFor(source.storageKey, source.assetByteLength);
-		if (source.schemaVersion === 4) await rawOwner.withFramescaperRawImageOriginalCurrentV1({ source,
-			read: async (offset, length) => new Uint8Array(await Reflect.apply(READ, Reflect.apply(SLICE, body, [offset, offset + length]) as Blob, []) as ArrayBuffer) }, () => undefined);
+		if (source.schemaVersion === 4 || source.schemaVersion === 5) await nativeOwner.validateFramescaperNativeImageBodyCurrentV1(source, body);
 		const packed = projection.framescaperImagePackSourceCurrentV1(source);
 		const reader = await packOwner.openFramescaperImageFramePackV1({ source: packed,
 			read: async (offset, length) => new Uint8Array(await Reflect.apply(READ, Reflect.apply(SLICE, body, [offset, offset + length]) as Blob, []) as ArrayBuffer) });
@@ -93,7 +90,7 @@ export function captureProjectMediaResourceAuditV1(value: ProjectDocument): Read
 	const audit = ENROLLED.get(value);
 	if (!audit) {
 		if (value.schemaFamily === 'framescaper' && Array.isArray(value.sources) && value.sources.some(source => asRecord(source)?.kind === 'image'
-			&& (asRecord(source)?.schemaVersion === 3 || asRecord(source)?.schemaVersion === 4))) throw new Error('Current Frame project publication requires its genuine native body audit.');
+			&& (asRecord(source)?.schemaVersion === 3 || asRecord(source)?.schemaVersion === 4 || asRecord(source)?.schemaVersion === 5))) throw new Error('Current Frame project publication requires its genuine native body audit.');
 		return undefined;
 	}
 	if (canonical(value) !== state(audit).project) throw new Error('Native body audit is outside its exact project snapshot.'); return audit;

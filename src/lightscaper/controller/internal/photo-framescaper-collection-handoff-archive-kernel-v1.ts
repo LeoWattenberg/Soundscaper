@@ -30,6 +30,7 @@ import { createPhotoFramescaperCollectionHandoffProjectForProfileV1 } from './ph
 import { PhotoLibrarySessionLifetime } from '../photo-library-session-lifetime.ts';
 import { prepareLinearDevelopCurrentV1 } from '../../../common/editor/imaging/image-develop-linear-plan-v1.ts';
 import { PHOTO_DEVELOP_LINEAR_LIMITS_V1 } from '../../../common/editor/photo-library-develop-linear-port-v1.ts';
+import { admitPhotoHdrHandoffWorkCurrentV1, isPhotoHdrHandoffOriginalCurrentV1, PHOTO_HDR_HANDOFF_LIMITS_CURRENT_V1 as HDR_LIMITS } from './photo-hdr-handoff-policy-current-v1.ts';
 
 export interface PhotoFramescaperCollectionHandoffArchiveRequestForProfileV1 {
 	readonly capture: Readonly<PhotoLibraryCollectionHandoffPortV1 | PhotoLibraryCollectionHandoffPortV2>; readonly binding: Readonly<PhotoLibraryCollectionHandoffRequestV1>; readonly signal?: AbortSignal;
@@ -114,14 +115,15 @@ export async function exportPhotoFramescaperCollectionHandoffArchiveForProfileV1
 			if (field(original, 'exactName', label) !== facts.original.fileName || field(original, 'contentSha256', label) !== facts.original.contentSha256
 				|| field(original, 'byteLength', label) !== facts.original.byteLength) throw new Error('Collection archive original binding changed.');
 			const detached = Object.freeze({ exactName: facts.original.fileName, contentSha256: facts.original.contentSha256,
-				byteLength: integer(facts.original.byteLength, 1, 64 * 1024 * 1024, 'collection original byte length'),
+				byteLength: integer(facts.original.byteLength, 1, profile === 'current3' && field(original, 'mimeType', label) === 'image/x-lightscaper-hdr' ? HDR_LIMITS.originalBytes : 64 * 1024 * 1024, 'collection original byte length'),
 				mimeType: oneOf(field(original, 'mimeType', label), ['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/bmp',
-					...(profile === 'current3' ? ['image/x-adobe-dng', 'image/x-canon-crw'] as const : [])] as const, 'collection original MIME'),
+					...(profile === 'current3' ? ['image/x-adobe-dng', 'image/x-canon-crw', 'image/x-lightscaper-hdr'] as const : [])] as const, 'collection original MIME'),
 				width: integer(field(original, 'width', label), 1, 8192, 'original width'), height: integer(field(original, 'height', label), 1, 8192, 'original height'),
 				hasAlpha: boolean(field(original, 'hasAlpha', label), 'original alpha') });
 			assertPhotoDevelopHandoffMasksForProfileV1(profile, facts.version.develop, detached.width, detached.height);
 			if (profile === 'current3') {
-				if (detached.mimeType === 'image/x-adobe-dng' || detached.mimeType === 'image/x-canon-crw') admitRawCurrentWork(facts.version.develop, detached.width, detached.height, detached.byteLength);
+				if (isPhotoHdrHandoffOriginalCurrentV1(detached)) admitPhotoHdrHandoffWorkCurrentV1(facts.version.develop, detached.width, detached.height, detached.byteLength);
+				else if (detached.mimeType === 'image/x-adobe-dng' || detached.mimeType === 'image/x-canon-crw') admitRawCurrentWork(facts.version.develop, detached.width, detached.height, detached.byteLength);
 				else admitCurrentWork(facts.version.develop, detached.width, detached.height, detached.byteLength);
 			}
 			factsBytes += new TextEncoder().encode(JSON.stringify({ catalogId, photoId, versionId, revision, original: detached })).byteLength;
@@ -129,6 +131,8 @@ export async function exportPhotoFramescaperCollectionHandoffArchiveForProfileV1
 			closure.addDevelop(facts.version.develop);
 			return Object.freeze({ photoId, factsJson, original: detached, sourceId: id(createId(), 'collection source ID'), clipId: id(createId(), 'collection clip ID') });
 		});
+		const hdr = profile === 'current3' && photos.some(photo => isPhotoHdrHandoffOriginalCurrentV1(photo.original));
+		const maximumBodies = hdr ? HDR_LIMITS.bodyBytes : MAXIMUM_BODIES, maximumArchive = hdr ? HDR_LIMITS.archiveBytes : MAXIMUM_ARCHIVE;
 		const selectedResources = closure.finish(), references = selectedResources.luts, masks = selectedResources.brushes, captured = array(field(view, 'lutReferences', label), 'Collection LUT entries', 0, 4_094).map(normalizeVideoCubeLutReferenceV1);
 		if (photos.length + references.length + masks.length + 2 > 4_096) throw new RangeError('Collection archive exceeds its fixed entry capacity.');
 		if (JSON.stringify(references) !== JSON.stringify(captured)) throw new Error('Collection archive captured resource closure changed.');
@@ -137,10 +141,19 @@ export async function exportPhotoFramescaperCollectionHandoffArchiveForProfileV1
 			if (JSON.stringify(masks) !== JSON.stringify(capturedMasks)) throw new Error('Collection archive captured brush closure changed.');
 		}
 		let bodyBytes = [...references, ...masks].reduce((total, reference) => total + reference.byteLength, 0);
-		if (bodyBytes > MAXIMUM_BODIES) throw new RangeError('Collection archive exceeds its fixed body capacity.');
+		if (bodyBytes > maximumBodies) throw new RangeError('Collection archive exceeds its fixed body capacity.');
+		if (hdr) {
+			const retained = photos.reduce((sum, photo) => sum + photo.original.byteLength * 2 + photo.original.width * photo.original.height * 4 + 1024 * 1024, bodyBytes);
+			for (const photo of photos) {
+				const develop = parsePhotoExportSidecarCurrentV1(photo.factsJson).version.develop, original = photo.original;
+				if (isPhotoHdrHandoffOriginalCurrentV1(original)) admitPhotoHdrHandoffWorkCurrentV1(develop, original.width, original.height, original.byteLength, retained);
+				else if (original.mimeType === 'image/x-adobe-dng' || original.mimeType === 'image/x-canon-crw') admitRawCurrentWork(develop, original.width, original.height, original.byteLength, retained);
+				else admitCurrentWork(develop, original.width, original.height, original.byteLength, retained);
+			}
+		}
 		if (profile === 'current3') {
 			const minimum = photos.reduce((sum, photo) => sum + BigInt(photo.original.byteLength) + BigInt(FRAMESCAPER_IMAGE_FRAME_PACK_HEADER_BYTES + FRAMESCAPER_IMAGE_FRAME_PACK_INDEX_BYTES), BigInt(bodyBytes));
-			if (minimum > BigInt(MAXIMUM_BODIES)) throw new RangeError('Collection archive exceeds its mandatory per-photo pack body capacity.');
+			if (minimum > BigInt(maximumBodies)) throw new RangeError('Collection archive exceeds its mandatory per-photo pack body capacity.');
 		}
 		const identifiers = [projectId, sequenceId, trackId, ...photos.flatMap(photo => [photo.sourceId, photo.clipId]), ...[...references, ...masks].map(reference => reference.storageKey)];
 		if (new Set(identifiers).size !== identifiers.length) throw new Error('Collection archive identifiers must be globally distinct.');
@@ -157,7 +170,7 @@ export async function exportPhotoFramescaperCollectionHandoffArchiveForProfileV1
 					Reflect.apply(originalMethod, viewValue, [photo.photoId, consume, { signal: rawSignal }]) as Promise<unknown>,
 					originalBlob => decodePhotoImageHandoffSourceForProfileV1(profile, { factsJson: photo.factsJson, original: photo.original, originalBlob, signal }, photo.sourceId, decoder), 'Collection original');
 				check(signal); bodyBytes += Reflect.apply(SIZE, result.body, []) as number;
-				if (bodyBytes > MAXIMUM_BODIES) throw new RangeError('Collection archive exceeds its fixed generated body capacity.');
+				if (bodyBytes > maximumBodies) throw new RangeError('Collection archive exceeds its fixed generated body capacity.');
 				decoded.push(result);
 			}
 			const actualClosure = createClosure(profile); for (const result of decoded) actualClosure.addDevelop(result.source.develop);
@@ -195,8 +208,8 @@ export async function exportPhotoFramescaperCollectionHandoffArchiveForProfileV1
 				}, readSourceChunks() { throw new TypeError('Collection handoff has no audio body authority.'); } });
 			try {
 				const exported = await createFramescaperScapeNativeRuntime(PROFILE).exportScapeProject(project, adapter,
-					{ signal, maximumBlobBytes: MAXIMUM_ARCHIVE, assertCurrent: () => { check(signal); } });
-				check(signal); if (!exported.blob || Reflect.apply(SIZE, exported.blob, []) > MAXIMUM_ARCHIVE) throw new RangeError('Collection archive did not produce its bounded ZIP.');
+					{ signal, maximumBlobBytes: maximumArchive, assertCurrent: () => { check(signal); } });
+				check(signal); if (!exported.blob || Reflect.apply(SIZE, exported.blob, []) > maximumArchive) throw new RangeError('Collection archive did not produce its bounded ZIP.');
 				return Object.freeze({ blob: exported.blob, fileName: sanitizeSuggestedSaveName(title + '.fscape'), projectId, sequenceId, photoCount: photos.length });
 			} finally { open = false; }
 		}, joined); } finally { await lifetime.close(async () => undefined); }
@@ -216,11 +229,11 @@ function developResources(profile: HandoffProfile, develop: unknown) { const clo
 const RAW_METADATA_ONLY = Object.freeze({ async withBytes<Result>(): Promise<Result> {
 	throw new TypeError('Collection RAW metadata preparation cannot read a resource body.');
 } });
-function admitRawCurrentWork(develop: Readonly<ImageDevelopStateThroughV4>, width: number, height: number, originalBytes: number): void {
+function admitRawCurrentWork(develop: Readonly<ImageDevelopStateThroughV4>, width: number, height: number, originalBytes: number, retainedBytes = MAXIMUM_BODIES): void {
 	const prepared = prepareLinearDevelopCurrentV1({ frame: { descriptor: { schemaVersion: 1, width, height,
 		sampleFormat: 'unorm16', primaries: 'srgb', transfer: 'linear' } }, develop }, PHOTO_DEVELOP_LINEAR_LIMITS_V1,
 	{ source: RAW_METADATA_ONLY, maskSource: RAW_METADATA_ONLY });
-	const original = BigInt(originalBytes), retained = BigInt(MAXIMUM_BODIES), reserve = 32n * 1024n * 1024n;
+	const original = BigInt(originalBytes), retained = BigInt(retainedBytes), reserve = 32n * 1024n * 1024n;
 	const decode = retained + original * 3n + (512n + 128n) * 1024n * 1024n + reserve;
 	const render = retained + original * 2n + BigInt(prepared.peakWorkingBytes) + reserve;
 	if (decode > 1024n * 1024n * 1024n || render > 1024n * 1024n * 1024n) throw new RangeError('Collection native RAW image exceeds its working byte capacity.');
@@ -229,7 +242,7 @@ function admitRawCurrentWork(develop: Readonly<ImageDevelopStateThroughV4>, widt
 /** Pure admission of the canonical repair stage and every downstream mask,
  * geometry and declared resource. The mandatory pack prefix is a lower bound;
  * actual compressed pack bytes remain independently checked after decoding. */
-function admitCurrentWork(develop: Readonly<ImageDevelopStateThroughV4>, originalWidth: number, originalHeight: number, originalBytes: number): void {
+function admitCurrentWork(develop: Readonly<ImageDevelopStateThroughV4>, originalWidth: number, originalHeight: number, originalBytes: number, retainedBytes = 0): void {
 	const limits = { maximumSidePixels: 8_192, maximumPixels: 16_777_216, maximumBytes: 64 * 1024 * 1024 };
 	const computation = develop.processVersion === 3 || develop.processVersion === 4 ? normalizeImageDevelopStateV2({ processVersion: 2, geometry: develop.geometry,
 		effects: develop.effects, masks: develop.masks, maskBindings: develop.maskBindings }) : develop;
@@ -252,7 +265,7 @@ function admitCurrentWork(develop: Readonly<ImageDevelopStateThroughV4>, origina
 	const downstream = BigInt(originalWidth) * BigInt(originalHeight) * 4n + maximum * 4n + resourceBytes + BigInt(masks.plan.maximumWorkingBytes) + 4_096n;
 	const working = repair && BigInt(repair.stageWorkingBytes) > downstream ? BigInt(repair.stageWorkingBytes) : downstream;
 	const prefix = BigInt(originalBytes + FRAMESCAPER_IMAGE_FRAME_PACK_HEADER_BYTES + FRAMESCAPER_IMAGE_FRAME_PACK_INDEX_BYTES);
-	if (prefix * 3n + working > 512n * 1024n * 1024n) throw new RangeError('Collection editable image exceeds its working byte capacity.');
+	if (prefix * 3n + working + BigInt(retainedBytes) > BigInt(retainedBytes ? HDR_LIMITS.workingBytes : 512 * 1024 * 1024)) throw new RangeError('Collection editable image exceeds its working byte capacity.');
 }
 
 /** Pin exactly one callback delivery before entering its work, and join it

@@ -16,6 +16,7 @@ import { readPhotoDevelopSignalOptionsV2 } from '../../storage/photo-develop-pre
 import { PhotoLibrarySessionLifetime } from '../photo-library-session-lifetime.ts';
 import { preparePhotoFramescaperHandoffRawOriginalCurrentV1 } from './photo-framescaper-handoff-raw-original-current-v1.ts';
 import type { FramescaperRawImageOriginalPortsCurrentV1 } from '../../../common/editor/timeline-image-raw-pack-current-v1.ts';
+import { preparePhotoFramescaperHandoffHdrOriginalCurrentV1 } from './photo-framescaper-handoff-hdr-original-current-v1.ts';
 
 export interface PhotoFramescaperHandoffOriginalRequestForProfileV1 {
 	readonly source: Readonly<EditableSource>; readonly originalBlob: Blob;
@@ -40,6 +41,7 @@ export async function preparePhotoFramescaperHandoffOriginalForProfileV1(profile
 	assertHandoffProfile(profile); const label = 'Photo handoff original', input = record(value, label, ['source', 'originalBlob', 'canonicalFrameSha256', 'signal'], ['source', 'originalBlob', 'canonicalFrameSha256']);
 	const source = normalizeEditableSourceForProfileV1(profile, field(input, 'source', label));
 	if (profile === 'current3' && source.schemaVersion === 4) return preparePhotoFramescaperHandoffRawOriginalCurrentV1(value, dependencies);
+	if (profile === 'current3' && source.schemaVersion === 5) return preparePhotoFramescaperHandoffHdrOriginalCurrentV1(value);
 	const canonical = field(input, 'canonicalFrameSha256', label);
 	if (typeof canonical !== 'string' || !/^[a-f0-9]{64}$/u.test(canonical)) throw new TypeError('Photo handoff requires an authenticated canonical frame SHA-256.');
 	const { signal: caller } = readPhotoDevelopSignalOptionsV2(Object.hasOwn(input, 'signal') ? { signal: field(input, 'signal', label) } : {});

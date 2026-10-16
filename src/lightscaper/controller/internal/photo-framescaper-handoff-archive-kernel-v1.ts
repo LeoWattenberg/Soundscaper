@@ -21,6 +21,7 @@ import type { MaskRasterSourcePortV1 } from '../../../common/editor/imaging/mask
 import { admitPhotoImageHandoffBrushReferenceV1 } from './photo-library-image-handoff-kernel-v1.ts';
 import { createPhotoResourceReachabilityCurrentV1 } from '../../catalog/photo-resource-reachability-current-v1.ts';
 import { PhotoLibrarySessionLifetime } from '../photo-library-session-lifetime.ts';
+import { isPhotoHdrHandoffOriginalCurrentV1, PHOTO_HDR_HANDOFF_LIMITS_CURRENT_V1 as HDR_LIMITS } from './photo-hdr-handoff-policy-current-v1.ts';
 
 export interface PhotoFramescaperHandoffArchiveRequestForProfileV1 {
 	readonly capture: Readonly<PhotoLibraryImageHandoffPortV1 | PhotoLibraryImageHandoffPortV2>; readonly binding: Readonly<PhotoLibraryImageHandoffRequestV1>; readonly signal?: AbortSignal;
@@ -95,6 +96,7 @@ export async function exportPhotoFramescaperHandoffArchiveForProfileV1(profile: 
 		const factsJson = field(view, 'factsJson', label);
 		if (typeof factsJson !== 'string') throw new TypeError('Photo archive requires canonical saved facts.');
 		const original = field(view, 'original', label) as PhotoLibraryImageHandoffViewV1['original'], originalBlob = field(view, 'originalBlob', label) as Blob;
+		const hdr = profile === 'current3' && isPhotoHdrHandoffOriginalCurrentV1(original), maximumBodies = hdr ? HDR_LIMITS.bodyBytes : MAXIMUM_BODIES, maximumArchive = hdr ? HDR_LIMITS.archiveBytes : MAXIMUM_ARCHIVE;
 		const rawSignal = readPhotoDevelopSignalOptionsV2({ signal: field(view, 'signal', label) }).signal;
 		if (!rawSignal) throw new TypeError('Photo archive requires its captured native lifetime.');
 		const facts = profile === 'legacy2' ? parsePhotoExportSidecarV1(factsJson) : parsePhotoExportSidecarCurrentV1(factsJson);
@@ -113,7 +115,7 @@ export async function exportPhotoFramescaperHandoffArchiveForProfileV1(profile: 
 			if (JSON.stringify(masks) !== JSON.stringify(captured)) throw new Error('Photo archive captured brush closure changed.');
 		}
 		const resourceBytes = [...references, ...masks].reduce((total, reference) => total + reference.byteLength, 0);
-		if (resourceBytes > MAXIMUM_BODIES) throw new RangeError('Photo archive bodies exceed their fixed byte capacity.');
+		if (resourceBytes > maximumBodies) throw new RangeError('Photo archive bodies exceed their fixed byte capacity.');
 		const borrower = field(view, 'withLutBytes', label);
 		if (typeof borrower !== 'function') throw new TypeError('Photo archive requires its scoped LUT reader.');
 		const readLut = Reflect.apply(Function.prototype.bind, borrower, [viewValue]) as CubeLutSourcePortV1['withBytes'];
@@ -125,7 +127,8 @@ export async function exportPhotoFramescaperHandoffArchiveForProfileV1(profile: 
 		try { return await lifetime.operation(async signal => {
 			const decoded = await decodePhotoImageHandoffSourceForProfileV1(profile, { factsJson, original, originalBlob, signal }, sourceId, decoder);
 			check(signal);
-			if (decoded.body.size + resourceBytes > MAXIMUM_BODIES) throw new RangeError('Photo archive bodies exceed their fixed byte capacity.');
+			if (decoded.body.size + resourceBytes > maximumBodies) throw new RangeError('Photo archive bodies exceed their fixed byte capacity.');
+			if (hdr && BigInt(decoded.body.size + resourceBytes) * 2n + BigInt(originalBlob.size) + 32n * 1024n * 1024n > BigInt(HDR_LIMITS.workingBytes)) throw new RangeError('HDR archive output exceeds its physical phase bound.');
 			if (JSON.stringify(handoffResourceReferencesForProfileV1(profile, decoded.source)) !== JSON.stringify({ luts: references, brushes: masks })) throw new Error('Photo archive decoded resource closure changed.');
 			const project = createPhotoFramescaperHandoffProjectForProfileV1(profile, decoded.source, { projectId, sequenceId, trackId, clipId, now: timestamp });
 			let open = true;
@@ -153,7 +156,7 @@ export async function exportPhotoFramescaperHandoffArchiveForProfileV1(profile: 
 				}, readSourceChunks() { throw new TypeError('Photo handoff has no audio body authority.'); } });
 			try {
 				const exported = await createFramescaperScapeNativeRuntime(PROFILE).exportScapeProject(project, adapter,
-					{ signal, maximumBlobBytes: MAXIMUM_ARCHIVE, assertCurrent: () => { check(signal); } });
+					{ signal, maximumBlobBytes: maximumArchive, assertCurrent: () => { check(signal); } });
 				check(signal); if (!exported.blob) throw new Error('Photo handoff archive did not produce its bounded Blob.');
 				return Object.freeze({ blob: exported.blob, fileName: sanitizeSuggestedSaveName(facts.original.fileName.replace(/\.[^.]+$/u, '') + '.fscape'), projectId });
 			} finally { open = false; }

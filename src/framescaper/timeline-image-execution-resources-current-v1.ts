@@ -52,7 +52,7 @@ export async function admitImageExecutionResources(
 		maximumAssetBytes = maximumBigInt(maximumAssetBytes, assetBytes);
 		recipeWorkingBytes = maximumBigInt(recipeWorkingBytes, framescaperEditableImageWorkingBytes(source));
 	}
-	const nativeRaw = [...sources.values()].some(source => source.schemaVersion === 4);
+	const nativeRaw = [...sources.values()].some(source => source.schemaVersion === 4 || source.schemaVersion === 5);
 	const maximum = BigInt(nativeRaw ? FRAMESCAPER_RAW_IMAGE_WORKING_BYTES_CURRENT_V1 : MAXIMUM_IMAGE_EXECUTION_WORKING_BYTES);
 	const inputBytes = snapshotBytes + maximumAssetBytes + rangeReadChunkBytes();
 	if (recipeWorkingBytes && inputBytes + recipeWorkingBytes > maximum) throw new RangeError('Editable image recipe exceeds its export working byte bound.');

@@ -6,6 +6,8 @@ import type { FramescaperImageSourceSetCommandTimelineImage } from './editor-pro
 import { framescaperEditableImageWorkingBytes } from './timeline-image-current-frame-source.ts';
 import { normalizeFramescaperImageSourceCurrentV1 } from '../common/editor/timeline-image-model-current-v1.ts';
 import { prepareFramescaperRawImageWorkingCurrentV1 } from './internal/timeline-image-raw-working-plan-current-v1.ts';
+import { prepareFramescaperHdrImageWorkingCurrentV1 } from './internal/timeline-image-hdr-working-plan-current-v1.ts';
+import { createImageDevelopHandoffProvenanceHdrCurrentV1 } from '../common/editor/image-develop-handoff-provenance-hdr-current-v1.ts';
 import { collectFramescaperImageProjectResourcesCurrentV1 } from '../common/editor/video-cube-lut-project-references-current-v1.ts';
 import { createImageDevelopHandoffProvenanceCurrentV1 } from '../common/editor/image-develop-handoff-provenance-current-v1.ts';
 import { normalizeImageDevelopStateThroughV4, type ImageDevelopStateThroughV4 } from '../common/editor/imaging/image-develop-state-v4.ts';
@@ -31,9 +33,9 @@ export function prepareFramescaperImageDevelopSourceCurrentV1(projectValue: unkn
 	collectFramescaperImageProjectResourcesCurrentV1(project);
 	const develop = normalizeImageDevelopStateThroughV4(developValue), previous = source.schemaVersion === 1 ? defaultImageDevelopStateV1() : source.develop;
 	const unchanged = JSON.stringify(develop) === JSON.stringify(previous);
-	const nextValue = { ...source, schemaVersion: source.schemaVersion === 4 ? 4 : 3, develop,
+	const nextValue = { ...source, schemaVersion: source.schemaVersion === 4 || source.schemaVersion === 5 ? source.schemaVersion : 3, develop,
 		developed: natural(develop, source.canonical.width, source.canonical.height),
-		provenance: createImageDevelopHandoffProvenanceCurrentV1({ develop,
+		provenance: (source.schemaVersion === 5 ? createImageDevelopHandoffProvenanceHdrCurrentV1 : createImageDevelopHandoffProvenanceCurrentV1)({ develop,
 			original: { exactName: source.schemaVersion === 1 ? source.original.fileName : source.provenance.original.exactName,
 				sha256: source.original.sha256, byteLength: source.original.byteLength },
 			origin: { schemaFamily: 'framescaper', schemaVersion: 1, projectId: project.id, revision: project.revision,
@@ -43,6 +45,7 @@ export function prepareFramescaperImageDevelopSourceCurrentV1(projectValue: unkn
 	// sources and disabled/unused inputs, before the command can reach a writer.
 	collectFramescaperImageProjectResourcesCurrentV1({ ...project, sources: project.sources.map(value => value.id === source.id ? next : value) });
 	if (next.schemaVersion === 4) prepareFramescaperRawImageWorkingCurrentV1(next);
+	else if (next.schemaVersion === 5) prepareFramescaperHdrImageWorkingCurrentV1(next);
 	else if (BigInt(next.assetByteLength) * 3n + framescaperEditableImageWorkingBytes(next) > 512n * 1024n * 1024n) {
 		throw new RangeError('Image Develop exceeds its 512 MiB working byte bound.');
 	}

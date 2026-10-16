@@ -3,6 +3,9 @@
 import { readClosedDomainField as field, readClosedDomainRecord as record } from '../../../common/editor/closed-domain-value.ts';
 import { createImageDevelopHandoffProvenanceV1 } from '../../../common/editor/image-develop-handoff-provenance-v1.ts';
 import { createImageDevelopHandoffProvenanceCurrentV1 } from '../../../common/editor/image-develop-handoff-provenance-current-v1.ts';
+import { createImageDevelopHandoffProvenanceHdrCurrentV1 } from '../../../common/editor/image-develop-handoff-provenance-hdr-current-v1.ts';
+import { normalizeFramescaperHdrOriginalReceiptV1, type FramescaperHdrOriginalReceiptV1 } from '../../../common/editor/timeline-image-hdr-receipt-v1.ts';
+import { admitPhotoHdrHandoffWorkCurrentV1 } from './photo-hdr-handoff-policy-current-v1.ts';
 import { prepareImageDevelopBrushMasksV1 } from '../../../common/editor/imaging/image-develop-brush-mask-v1.ts';
 import { planImageDevelopMasksV1 } from '../../../common/editor/imaging/image-develop-mask-plan-v1.ts';
 import { planImageDevelopRepairSpotsV1 } from '../../../common/editor/imaging/image-develop-repair-plan-v1.ts';
@@ -43,7 +46,7 @@ export function normalizeEditableSourceForProfileV1(profile: HandoffProfile, val
 }
 export function handoffResourceReferencesForProfileV1(profile: HandoffProfile, source: Readonly<EditableSource>) {
 	assertHandoffProfile(profile);
-	if (source.schemaVersion === 3 || source.schemaVersion === 4) { if (profile !== 'current3') throw new RangeError('Legacy handoff refuses Current image sources.'); return framescaperImageSourceResourceReferencesCurrentV1(source); }
+	if (source.schemaVersion === 3 || source.schemaVersion === 4 || source.schemaVersion === 5) { if (profile !== 'current3') throw new RangeError('Legacy handoff refuses Current image sources.'); return framescaperImageSourceResourceReferencesCurrentV1(source); }
 	return Object.freeze({ luts: framescaperImageSourceResourceReferencesV2(source), brushes: Object.freeze([]) });
 }
 const PIXEL_LIMITS = Object.freeze({ maximumSidePixels: FRAMESCAPER_IMAGE_MODEL_LIMITS_V1.maximumDimension,
@@ -69,6 +72,7 @@ export interface PhotoImageHandoffSourceRequestV1 {
 }
 export interface PhotoImageHandoffSourceRequestCurrentV1 extends PhotoImageHandoffSourceRequestV1 {
 	readonly raw?: Readonly<FramescaperRawOriginalReceiptV1>;
+	readonly hdr?: Readonly<FramescaperHdrOriginalReceiptV1>;
 }
 export interface PhotoImageHandoffSourceForProfileV1 {
 	readonly source: Readonly<EditableSource>;
@@ -83,8 +87,10 @@ const BACKING_LENGTH = Object.getOwnPropertyDescriptor(ArrayBuffer.prototype, 'b
  * pack to the complete selected saved facts before an archive can consume it. */
 export async function createPhotoImageHandoffSourceForProfileV1(profile: HandoffProfile, value: PhotoImageHandoffSourceRequestCurrentV1): Promise<Readonly<PhotoImageHandoffSourceForProfileV1>> {
 	assertHandoffProfile(profile); const label = 'Photo image handoff source';
-	const input = record(value, label, ['sourceId', 'factsJson', 'original', 'pack', 'signal', ...(profile === 'current3' ? ['raw'] : [])], ['sourceId', 'factsJson', 'original', 'pack']);
+	const input = record(value, label, ['sourceId', 'factsJson', 'original', 'pack', 'signal', ...(profile === 'current3' ? ['raw', 'hdr'] : [])], ['sourceId', 'factsJson', 'original', 'pack']);
 	const raw = Object.hasOwn(input, 'raw') ? normalizeFramescaperRawOriginalReceiptV1(field(input, 'raw', label)) : undefined;
+	const hdr = Object.hasOwn(input, 'hdr') ? normalizeFramescaperHdrOriginalReceiptV1(field(input, 'hdr', label)) : undefined;
+	if (raw && hdr) throw new TypeError('An image handoff cannot carry two native Original identities.');
 	const caller = Object.hasOwn(input, 'signal') ? field(input, 'signal', label) : undefined;
 	if (caller !== undefined && (!(caller instanceof AbortSignal) || Object.getPrototypeOf(caller) !== AbortSignal.prototype
 		|| ['aborted', 'reason', 'throwIfAborted', 'addEventListener', 'removeEventListener'].some(key => Object.hasOwn(caller, key)))) {
@@ -109,28 +115,32 @@ export async function createPhotoImageHandoffSourceForProfileV1(profile: Handoff
 	if (read('width') !== field(original, 'width', 'Photo image original geometry') || read('height') !== field(original, 'height', 'Photo image original geometry')
 		|| read('hasAlpha') !== field(original, 'hasAlpha', 'Photo image original geometry')) throw new Error('Photo image decoded original geometry or alpha binding changed.');
 	const sourceId = field(input, 'sourceId', label), develop = facts.version.develop;
-	const successor = profile === 'current3' && (raw !== undefined || facts.photoSchemaVersion === 3 || develop.masks.some(graph => graph.inputs.length > 0));
-	const provenance = (successor ? createImageDevelopHandoffProvenanceCurrentV1 : createImageDevelopHandoffProvenanceV1)({ develop,
+	const successor = profile === 'current3' && (raw !== undefined || hdr !== undefined || facts.photoSchemaVersion === 3 || develop.masks.some(graph => graph.inputs.length > 0));
+	const provenance = (hdr ? createImageDevelopHandoffProvenanceHdrCurrentV1 : successor ? createImageDevelopHandoffProvenanceCurrentV1 : createImageDevelopHandoffProvenanceV1)({ develop,
 		original: { exactName: facts.original.fileName, sha256: facts.original.contentSha256, byteLength: facts.original.byteLength },
 		origin: { schemaFamily: 'lightscaper', schemaVersion: facts.photoSchemaVersion, catalogId: facts.binding.catalogId, photoId: facts.binding.photoId,
 			revision: facts.binding.revision, versionId: facts.version.id, versionKind: facts.version.kind, versionName: facts.version.name, versionCreatedAt: facts.version.createdAt } });
 	const mimeType = field(original, 'mimeType', 'Photo image original geometry');
-	const source = normalizeEditableSourceForProfileV1(profile, { schemaVersion: raw ? 4 : successor ? 3 : 2, kind: 'image', id: sourceId, storageKey: sourceId,
+	if (hdr && mimeType !== 'image/x-lightscaper-hdr') throw new TypeError('HDR image handoff requires its generated Original MIME.');
+	const source = normalizeEditableSourceForProfileV1(profile, { schemaVersion: hdr ? 5 : raw ? 4 : successor ? 3 : 2, kind: 'image', id: sourceId, storageKey: sourceId,
 		name: facts.version.name, mimeType: FRAMESCAPER_IMAGE_ASSET_MIME_TYPE, contentSha256: read('contentSha256'), assetByteLength: read('assetByteLength'),
 		conversionReceiptSha256: read('conversionReceiptSha256'),
-		original: { fileName: facts.original.fileName.normalize('NFC'), mimeType, recognizedFormat: raw ? rawFormat(mimeType) : format(mimeType), byteLength: facts.original.byteLength, sha256: facts.original.contentSha256 },
+		original: { fileName: facts.original.fileName.normalize('NFC'), mimeType, recognizedFormat: hdr ? 'lightscaper-hdr' : raw ? rawFormat(mimeType) : format(mimeType), byteLength: facts.original.byteLength, sha256: facts.original.contentSha256 },
 		canonical: { width: read('width'), height: read('height'), hasAlpha: read('hasAlpha'), frameCount: read('frameCount'), durationTicks: read('durationTicks'), timingMode: read('timingMode') },
-		develop, developed: natural(develop, read('width'), read('height')), provenance, ...(raw ? { raw } : {}) });
+		develop, developed: natural(develop, read('width'), read('height')), provenance, ...(raw ? { raw } : {}), ...(hdr ? { hdr } : {}) });
 	assertPhotoDevelopHandoffMasksForProfileV1(profile, develop, source.canonical.width, source.canonical.height);
 	handoffResourceReferencesForProfileV1(profile, source); // Conflicting disabled resources must also refuse.
 	const bytes = read('bytes');
 	if (!(bytes instanceof Uint8Array) || Object.getPrototypeOf(bytes) !== Uint8Array.prototype) throw new TypeError('Photo image pack requires native bytes.');
-	const byteLength = source.schemaVersion === 4 ? Number(Reflect.apply(BYTE_LENGTH, bytes, [])) : bytes.byteLength;
+	const byteLength = source.schemaVersion === 4 || source.schemaVersion === 5 ? Number(Reflect.apply(BYTE_LENGTH, bytes, [])) : bytes.byteLength;
 	if (byteLength !== source.assetByteLength) throw new RangeError('Photo image pack byte length differs from its admitted binding.');
-	const peak = source.schemaVersion === 4 ? BigInt(Reflect.apply(BACKING_LENGTH, Reflect.apply(BUFFER, bytes, []), []) as number) + BigInt(source.assetByteLength) * 2n
+	const peak = source.schemaVersion === 5 ? BigInt(Reflect.apply(BACKING_LENGTH, Reflect.apply(BUFFER, bytes, []), []) as number) + BigInt(source.assetByteLength) * 2n
+		+ BigInt(source.original.byteLength) * 4n + (256n + 32n) * 1024n * 1024n
+		: source.schemaVersion === 4 ? BigInt(Reflect.apply(BACKING_LENGTH, Reflect.apply(BUFFER, bytes, []), []) as number) + BigInt(source.assetByteLength) * 2n
 		+ BigInt(source.original.byteLength) + BigInt(source.canonical.width) * BigInt(source.canonical.height) * 8n + 32n * 1024n * 1024n
 		: BigInt(source.assetByteLength) * 3n + BigInt(source.canonical.width) * BigInt(source.canonical.height) * 8n;
-	if (peak > BigInt(source.schemaVersion === 4 ? 1024 : 512) * 1024n * 1024n) {
+	if (source.schemaVersion === 5) admitPhotoHdrHandoffWorkCurrentV1(source.develop, source.canonical.width, source.canonical.height, source.original.byteLength);
+	if (peak > BigInt(source.schemaVersion === 4 || source.schemaVersion === 5 ? 1024 : 512) * 1024n * 1024n) {
 		throw new RangeError('Photo image handoff pack exceeds its working byte bound.');
 	}
 	if (raw && bytesToHex(sha256(encodeFramescaperImageConversionReceiptV1({ schemaVersion: 1, kind: 'raw-original', raw }))) !== source.conversionReceiptSha256) {
@@ -141,6 +151,11 @@ export async function createPhotoImageHandoffSourceForProfileV1(profile: Handoff
 	const snapshot = new Uint8Array(await Blob.prototype.arrayBuffer.call(body));
 	try {
 		check();
+		if (source.schemaVersion === 5) {
+			const { withFramescaperHdrImageOriginalCurrentV1 } = await import('../../../common/editor/timeline-image-hdr-original-current-v1.ts'); check();
+			await withFramescaperHdrImageOriginalCurrentV1({ source, ...(caller ? { signal: caller as AbortSignal } : {}), read: (offset, length) => snapshot.slice(offset, offset + length) }, () => undefined);
+			check();
+		}
 		const reader = await openFramescaperImageFramePackV1({ source: framescaperImagePackSourceCurrentV1(source),
 			read: (offset, length) => { check(); return snapshot.slice(offset, offset + length); } });
 		// Our snapshot is immutable. Receive and wipe the decoded plane before
@@ -227,7 +242,7 @@ export function createPhotoFramescaperHandoffPhotoForProfileV1(profile: HandoffP
 		name: origin.schemaFamily === 'lightscaper' ? origin.versionName : frameMasterName(source.name),
 		createdAt: origin.schemaFamily === 'lightscaper' ? origin.versionCreatedAt : createdAt, develop: source.develop };
 	const versions = virtual ? [{ id: masterVersionId, kind: 'master', name: 'Original', createdAt, develop: defaultPhotoDevelopV1() }, selected] : [selected];
-	const photo = (profile === 'current3' ? normalizePhotoDocumentCurrentV1 : normalizePhotoDocumentV1OrV2)({ schemaFamily: 'lightscaper', schemaVersion: source.schemaVersion === 3 || source.schemaVersion === 4 ? 3 : source.develop.processVersion, kind: 'photo',
+	const photo = (profile === 'current3' ? normalizePhotoDocumentCurrentV1 : normalizePhotoDocumentV1OrV2)({ schemaFamily: 'lightscaper', schemaVersion: source.schemaVersion === 3 || source.schemaVersion === 4 || source.schemaVersion === 5 ? 3 : source.develop.processVersion, kind: 'photo',
 		id: photoId, catalogId: catalog.id, revision: 0,
 		original: { schemaVersion: 1, kind: 'still', id: originalId, name: source.provenance.original.exactName,
 			mimeType: source.original.mimeType, storageKey, contentSha256: source.original.sha256, byteLength: source.original.byteLength,

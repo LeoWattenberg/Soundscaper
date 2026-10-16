@@ -6,10 +6,11 @@ import { normalizeFramescaperImageSourceV2, type FramescaperImageSourceV2 } from
 import { normalizeFramescaperEditableImageSourceForProfileV1, type FramescaperEditableImageSourceForProfileV1 } from './internal/timeline-image-model-editable-kernel-v1.ts';
 import { normalizeFramescaperRawImageSourceForProfileV1, type FramescaperRawImageSourceForProfileV1 } from './internal/timeline-image-model-raw-kernel-v1.ts';
 import { createImageDevelopResourceReachabilityCurrentV1, type ImageDevelopResourceReferencesCurrentV1 } from './imaging/image-develop-resource-reachability-current-v1.ts';
+import { normalizeFramescaperHdrImageSourceCurrentV1, type FramescaperHdrImageSourceCurrentV1 } from './timeline-image-model-hdr-current-v1.ts';
 
 export type FramescaperEditableImageSourceCurrentV1 = FramescaperEditableImageSourceForProfileV1<'current4'>;
 export type FramescaperRawImageSourceCurrentV1 = FramescaperRawImageSourceForProfileV1<'current4'>;
-export type FramescaperImageSourceCurrentV1 = FramescaperImageSourceV1 | FramescaperImageSourceV2 | FramescaperEditableImageSourceCurrentV1 | FramescaperRawImageSourceCurrentV1;
+export type FramescaperImageSourceCurrentV1 = FramescaperImageSourceV1 | FramescaperImageSourceV2 | FramescaperEditableImageSourceCurrentV1 | FramescaperRawImageSourceCurrentV1 | FramescaperHdrImageSourceCurrentV1;
 /** Dispatch from inert own metadata; Source1/2 are never promoted on read. */
 export function normalizeFramescaperImageSourceCurrentV1(value: unknown): Readonly<FramescaperImageSourceCurrentV1> {
 	if (!value || typeof value !== 'object' || Array.isArray(value)) throw new TypeError('Framescaper image source requires an own version.');
@@ -18,6 +19,7 @@ export function normalizeFramescaperImageSourceCurrentV1(value: unknown): Readon
 	if (version === 2) return normalizeFramescaperImageSourceV2(value);
 	if (version === 3) return normalizeFramescaperEditableImageSourceForProfileV1('current4', value);
 	if (version === 4) return normalizeFramescaperRawImageSourceForProfileV1('current4', value);
+	if (version === 5) return normalizeFramescaperHdrImageSourceCurrentV1(value);
 	throw new RangeError('Unsupported Framescaper image source version.');
 }
 /** This current transport closure refuses unsupported input namespaces; it

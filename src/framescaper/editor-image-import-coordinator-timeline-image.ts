@@ -3,11 +3,7 @@
 import { IMAGE_IMPORT_LIMITS } from '../common/editor/image-import-admission.ts';
 import { confirmImageImportGesture } from '../common/editor/image-import-size-warnings.ts';
 import type { FileSizeWarningOptions } from '../common/editor/controller/shared/file-size-warning.ts';
-import { openFramescaperBrowserNativeImageV1 } from '../common/editor/timeline-image-browser-native-port.ts';
-import {
-	decodeFramescaperBrowserNativeImageV1,
-	type FramescaperBrowserNativeImageDecodeResultV1,
-} from '../common/editor/timeline-image-native-decode-v1.ts';
+import type { FramescaperBrowserNativeImageDecodeResultV1 } from '../common/editor/timeline-image-native-decode-v1.ts';
 import {
 	FRAMESCAPER_IMAGE_ASSET_MIME_TYPE,
 	FRAMESCAPER_IMAGE_TICKS_PER_SECOND,
@@ -195,7 +191,15 @@ export async function importFramescaperTimelineImagesTimelineImage(
 }
 
 async function defaultDecode(request: Parameters<DecodeFramescaperTimelineImageTimelineImage>[0]) {
-	return decodeFramescaperBrowserNativeImageV1({ ...request, open: openFramescaperBrowserNativeImageV1 });
+	const captured = { ...request }, signal = captured.signal;
+	const check = () => { if (signal?.aborted) throw signal.reason ?? new DOMException('Image decode was cancelled.', 'AbortError'); };
+	check();
+	const [decoder, browser] = await Promise.all([
+		import('../common/editor/timeline-image-native-decode-v1.ts'),
+		import('../common/editor/timeline-image-browser-native-port.ts'),
+	]);
+	check();
+	return decoder.decodeFramescaperBrowserNativeImageV1({ ...captured, open: browser.openFramescaperBrowserNativeImageV1 });
 }
 
 function imageSource(item: PreparedImage): FramescaperImageSourceV1 {

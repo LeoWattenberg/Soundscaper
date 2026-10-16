@@ -8,7 +8,7 @@ import type { FramescaperScapeImagePublicationDependencies } from '../editor-sca
  * and publication order. Complete metadata is checked before any body read. */
 export async function prepareFramescaperTimelineImageResourceAuditV1(dependencies: FramescaperScapeImagePublicationDependencies,
 	project: FramescaperProject): Promise<void> {
-	if (!project.sources.some(source => source.kind === 'image' && (source.schemaVersion === 3 || source.schemaVersion === 4))) return;
+	if (!project.sources.some(source => source.kind === 'image' && (source.schemaVersion === 3 || source.schemaVersion === 4 || source.schemaVersion === 5))) return;
 	collectFramescaperImageProjectResourcesCurrentV1(project);
 	await authenticateFramescaperProjectMediaResourcesV1(dependencies.port, dependencies.media, project);
 }

@@ -3,7 +3,8 @@ import { stageFramescaperMaskRasterArchiveAssetsV1 } from './timeline-image-mask
 import type { ScapeProjectAssetExtensionImportRequest } from '../common/editor/scape-project-asset-extension.ts';
 import type { FramescaperProjectTimelineImage } from './editor-project-timeline-image.ts';
 import { stageFramescaperScapeImportAssetsTimelineImage } from './editor-scape-asset-import-timeline-image.ts';
-import { timelineImageArchivePackProjection, validateTimelineImageCurrentArchiveAssets, validateFramescaperRawImageAssetBodyCurrentV1 } from './editor-scape-asset-plan-timeline-image-current.ts';
+import { timelineImageArchivePackProjection, validateTimelineImageCurrentArchiveAssets } from './editor-scape-asset-plan-timeline-image-current.ts';
+import { validateFramescaperNativeImageBodyCurrentV1 } from '../common/editor/timeline-image-native-body-current-v1.ts';
 
 /** Validate the complete V2 resource closure before staging any body, then
  * delegate exact V1 pack authentication/writes under unchanged rebound IDs. */
@@ -30,9 +31,9 @@ export async function stageTimelineImageCurrentArchiveAssets(request: Readonly<S
 	// Bodies remain provisional in the inherited import transaction. Native RAW
 	// authentication must finish before that transaction can publish a project.
 	const project = request.project as unknown as FramescaperProjectTimelineImage;
-	for (const source of project.sources) if (source.kind === 'image' && source.schemaVersion === 4) {
+	for (const source of project.sources) if (source.kind === 'image' && (source.schemaVersion === 4 || source.schemaVersion === 5)) {
 		if (typeof request.store.loadMediaAsset !== 'function') throw new TypeError('Frame RAW import requires its staged native body reader.');
 		const body = await request.store.loadMediaAsset(source.storageKey, request.signal ? { signal: request.signal } : {});
-		await validateFramescaperRawImageAssetBodyCurrentV1(source, body, request.signal);
+		await validateFramescaperNativeImageBodyCurrentV1(source, body, request.signal);
 	}
 }

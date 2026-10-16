@@ -25,10 +25,11 @@ import type { PhotoLibrarySessionPortsV2 } from '../photo-library-session-ports-
 
 import { normalizePhotoDocumentCurrentV1 } from '../../catalog/photo-document-current-v1.ts';
 import { createPhotoResourceReachabilityCurrentV1 } from '../../catalog/photo-resource-reachability-current-v1.ts';
-import { createPhotoExportSidecarCurrentV1, serializePhotoExportSidecarCurrentV1 } from '../../catalog/photo-export-sidecar-current-v1.ts';
+import { createPhotoExportSidecarCurrentV1, parsePhotoExportSidecarCurrentV1, serializePhotoExportSidecarCurrentV1 } from '../../catalog/photo-export-sidecar-current-v1.ts';
 import type { PhotoLibrarySessionPortsCurrentV1 } from '../photo-library-session-ports-current-v1.ts';
 import { assertPhotoDevelopHandoffMasksForProfileV1 } from './photo-image-handoff-model-kernel-v1.ts';
 import { preparePhotoLibraryHandoffRetainedResourcesCurrentV1 } from './photo-library-handoff-retained-resources-current-v1.ts';
+import { admitPhotoHdrHandoffWorkCurrentV1, isPhotoHdrHandoffOriginalCurrentV1, PHOTO_HDR_HANDOFF_LIMITS_CURRENT_V1 as HDR_LIMITS } from './photo-hdr-handoff-policy-current-v1.ts';
 
 type Profile = 'legacy2' | 'current3';
 type Ports = PhotoLibrarySessionPortsV2 | PhotoLibrarySessionPortsCurrentV1;
@@ -98,7 +99,7 @@ export async function withPhotoLibraryCollectionHandoffForProfileV1<Result>(
 		if (retained > LIMITS.retainedFactsBytes) throw new RangeError('Collection handoff retained facts capacity exceeded.');
 		const identity = canonicalPhotoDocumentJsonV1({ contentSha256: original.contentSha256, byteLength: original.byteLength,
 			mimeType: original.mimeType, width: original.width, height: original.height, hasAlpha: original.hasAlpha });
-		if (original.byteLength > IMAGE_IMPORT_LIMITS.maximumFileInputBytes) throw new RangeError('Collection handoff original byte capacity exceeded.');
+		if (original.byteLength > (profile === 'current3' && isPhotoHdrHandoffOriginalCurrentV1(original) ? HDR_LIMITS.originalBytes : IMAGE_IMPORT_LIMITS.maximumFileInputBytes)) throw new RangeError('Collection handoff original byte capacity exceeded.');
 		const previous = originals.get(original.storageKey);
 		if (previous && previous.identity !== identity) throw new TypeError('Collection originals disagree about a retained body key.');
 		const digestIdentity = digests.get(original.contentSha256);
@@ -116,8 +117,13 @@ export async function withPhotoLibraryCollectionHandoffForProfileV1<Result>(
 	const retainedReferences = complete?.finish(), lutReferences = references.luts;
 	retained += bytes(canonicalPhotoDocumentJsonV1(profile === 'legacy2' ? lutReferences : { selected: references, retained: retainedReferences }));
 	uniqueBytes += [...lutReferences, ...references.brushes].reduce((total, reference) => total + reference.byteLength, 0);
-	if (retained > LIMITS.retainedFactsBytes || captured.length + lutReferences.length + references.brushes.length > LIMITS.entries || uniqueBytes > LIMITS.uniqueBodyBytes) {
+	const hdr = profile === 'current3' && captured.some(photo => isPhotoHdrHandoffOriginalCurrentV1(photo.original));
+	if (retained > LIMITS.retainedFactsBytes || captured.length + lutReferences.length + references.brushes.length > LIMITS.entries || uniqueBytes > (hdr ? HDR_LIMITS.bodyBytes : LIMITS.uniqueBodyBytes)) {
 		throw new RangeError('Collection handoff whole resource capacity exceeded.');
+	}
+	if (hdr) for (const photo of captured) if (isPhotoHdrHandoffOriginalCurrentV1(photo.original)) {
+		const facts = parsePhotoExportSidecarCurrentV1(photo.view.factsJson);
+		admitPhotoHdrHandoffWorkCurrentV1(facts.version.develop, photo.original.width, photo.original.height, photo.original.byteLength, uniqueBytes);
 	}
 	if (retainedReferences && (retainedReferences.luts.length || retainedReferences.brushes.length)) {
 		if (typeof verify !== 'function') throw new TypeError('Current collection handoff requires independent complete retained-resource verification.');

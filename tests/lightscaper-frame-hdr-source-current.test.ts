@@ -52,8 +52,8 @@ test('explicit Source5 scalar owner retains opaque Float32 Original authority se
 	assert.equal(captured.schemaVersion, 5); assert.equal(captured.hdr.descriptor.sampleFormat, 'float32');
 	assert.deepEqual(captured, before); assert.deepEqual(input, before); assert.ok(Object.isFrozen(captured.hdr.descriptor));
 	assert.deepEqual(normalizeFramescaperHdrImageSourceCurrentV1(JSON.parse(JSON.stringify(captured))), captured);
-	// Global activation waits for the actual reader/archive/authoring closure.
-	assert.throws(() => normalizeFramescaperImageSourceCurrentV1(input)); assert.throws(() => normalizeFramescaperImageSourceV4(input));
+	assert.deepEqual(normalizeFramescaperImageSourceCurrentV1(input), captured);
+	assert.throws(() => normalizeFramescaperImageSourceV4(input));
 });
 
 test('native HDR receipt refuses fake RAW/byte/color identities, noncanonical digests and accessor declarations', () => {

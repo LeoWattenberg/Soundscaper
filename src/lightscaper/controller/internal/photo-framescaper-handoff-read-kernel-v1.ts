@@ -27,11 +27,14 @@ import { withPhotoImageHandoffScopedSourcesForProfileV1 } from './photo-library-
 import { sha256 } from '@noble/hashes/sha2.js';
 import { bytesToHex } from '@noble/hashes/utils.js';
 import { withFramescaperRawImageOriginalCurrentV1 } from '../../../common/editor/timeline-image-raw-pack-current-v1.ts';
+import { withFramescaperHdrImageOriginalCurrentV1 } from '../../../common/editor/timeline-image-hdr-original-current-v1.ts';
+import { prepareFramescaperNativeImageBodyCurrentV1 } from '../../../common/editor/timeline-image-native-body-current-v1.ts';
+import { PHOTO_HDR_HANDOFF_LIMITS_CURRENT_V1 as HDR_LIMITS } from './photo-hdr-handoff-policy-current-v1.ts';
 export interface PhotoFramescaperHandoffReadRequestV1 { readonly archive: Blob; readonly sourceId: string; readonly imageClipId?: string; readonly signal?: AbortSignal }
 export interface PhotoFramescaperHandoffReadViewForProfileV1 {
 	readonly schemaVersion: 1 | 2; readonly projectId: string; readonly projectRevision: number;
 	readonly source: Readonly<EditableSource>; readonly originalBlob: Blob;
-	/** Pre-recipe canonical digest: RGBA8 for raster, native RGBA16BE for RAW. */
+	/** Pre-recipe digest: RGBA8 raster, RGBA16BE RAW, stored RGBFloat32LE HDR. */
 	readonly canonicalFrameSha256: string;
 	readonly lutReferences: readonly Readonly<VideoCubeLutReferenceV1>[]; readonly signal: AbortSignal;
 	readonly withLutBytes: CubeLutSourcePortV1['withBytes'];
@@ -61,21 +64,24 @@ export async function withPhotoFramescaperHandoffReadForProfileV1<Result>(profil
 	const sourceId = id(field(input, 'sourceId', label), 'selected editable source ID'), archiveValue = field(input, 'archive', label);
 	const imageClipId = Object.hasOwn(input, 'imageClipId') ? id(field(input, 'imageClipId', label), 'selected image clip ID') : undefined;
 	const size = Number(Reflect.apply(SIZE, archiveValue, []));
-	if (size < 1 || size > MAXIMUM_ARCHIVE) throw new RangeError('Photo editable archive exceeds its fixed input byte bound.');
+	const maximumArchive = profile === 'current3' ? HDR_LIMITS.archiveBytes : MAXIMUM_ARCHIVE;
+	if (size < 1 || size > maximumArchive) throw new RangeError('Photo editable archive exceeds its fixed input byte bound.');
 	const archive = Reflect.apply(SLICE, archiveValue, [0, size]) as Blob;
 	const lifetime = new PhotoLibrarySessionLifetime();
 	try { return await lifetime.operation(async signal => {
 		let prepared: Readonly<{ facts: Omit<PhotoFramescaperHandoffReadViewForProfileV1, 'withLutBytes' | 'withMaskRasterBytes'>; bodies: ReadonlyMap<string, Blob> }>;
 		try { prepared = await withScapeProjectInput(archive, signal, async entries => {
 			const extension = createFramescaperScapeProjectAssetExtension(PROFILE);
-			const envelope = await readScapeArchiveEnvelope(entries, { maximumExpandedBytes: MAXIMUM_ARCHIVE }, signal, extension.assetKinds);
+			const envelope = await readScapeArchiveEnvelope(entries, { maximumExpandedBytes: maximumArchive }, signal, extension.assetKinds);
 			check(signal); verifyScapeAssetBytes(new TextEncoder().encode(envelope.projectText), envelope.manifest.project, 'Frame project document');
 			const admitted = loadScapeProjectDocument(envelope.projectText, envelope.manifest.project, {
 				currentProjectSchemaFamily: 'framescaper', currentProjectSchemaVersion: 1, loadProject: value => loadFramescaperProject(PROFILE, value),
 			});
 			if (admitted.readOnly) throw new RangeError('Photo editable archive requires a current Frame project.');
 			const project = cloneFramescaperProject(PROFILE, admitted.project);
-			if (profile === 'legacy2' && project.sources.some(source => source.kind === 'image' && (source.schemaVersion === 3 || source.schemaVersion === 4))) throw new RangeError('Legacy editable archive read refuses successor sources.');
+			if (profile === 'legacy2' && project.sources.some(source => source.kind === 'image' && (source.schemaVersion === 3 || source.schemaVersion === 4 || source.schemaVersion === 5))) throw new RangeError('Legacy editable archive read refuses successor sources.');
+			if (!project.sources.some(source => source.kind === 'image' && source.schemaVersion === 5)
+				&& (size > MAXIMUM_ARCHIVE || entries.reduce((sum, entry) => sum + entry.uncompressedSize, 0) > MAXIMUM_ARCHIVE)) throw new RangeError('Non-HDR editable archives retain their fixed byte capacity.');
 			const selected = project.sources.find(value => value.id === sourceId);
 			if (!selected) throw new ReferenceError('The selected editable image source is missing.');
 			const ordinary = selected.kind === 'image' && selected.schemaVersion === 1;
@@ -92,9 +98,11 @@ export async function withPhotoFramescaperHandoffReadForProfileV1<Result>(profil
 			}
 			const validation = validateTimelineImageCurrentArchiveAssets(framescaperProjectTimelineImageFoundationShapeAssistance(project), envelope.manifest);
 			const resources = editable ? handoffResourceReferencesForProfileV1(profile, editable) : { luts: [], brushes: [] }, lutReferences = resources.luts, maskRasterReferences = resources.brushes;
-			if (sourceFacts.original.byteLength > MAXIMUM_ORIGINAL || sourceFacts.assetByteLength + [...lutReferences, ...maskRasterReferences].reduce((sum, ref) => sum + ref.byteLength, 0) > MAXIMUM_BODIES) {
+			const hdr = sourceFacts.schemaVersion === 5;
+			if (sourceFacts.original.byteLength > (hdr ? HDR_LIMITS.originalBytes : MAXIMUM_ORIGINAL) || sourceFacts.assetByteLength + [...lutReferences, ...maskRasterReferences].reduce((sum, ref) => sum + ref.byteLength, 0) > (hdr ? HDR_LIMITS.bodyBytes : MAXIMUM_BODIES)) {
 				throw new RangeError('Photo editable archive selected bodies exceed their fixed byte capacity.');
 			}
+			if (hdr) assertHdrArchiveCapacity(sourceFacts, size);
 			const descriptor = validation.images.descriptorByArchiveId.get(`framescaper:image:${sourceFacts.id}`);
 			if (!descriptor) throw new Error('Photo editable archive selected pack descriptor is missing.');
 			const pack = await readBody(envelope, descriptor, signal);
@@ -106,6 +114,10 @@ export async function withPhotoFramescaperHandoffReadForProfileV1<Result>(profil
 						Object.freeze(new Blob([view.originalBytes], { type: sourceFacts.original.mimeType ?? '' })));
 					originalBlob = original; canonicalFrameSha256 = sourceFacts.raw.pixelsSha256;
 				} else {
+				if (sourceFacts.schemaVersion === 5) {
+					await withFramescaperHdrImageOriginalCurrentV1({ source: sourceFacts, signal,
+						read: (offset, length) => pack.slice(offset, offset + length) }, () => undefined); check(signal);
+				}
 				const projection = timelineImageArchivePackProjection(framescaperProjectTimelineImageFoundationShapeAssistance({ ...project, sources: [sourceFacts] }));
 				const packedSource = projection.sources[0];
 				if (packedSource?.kind !== 'image' || packedSource.schemaVersion !== 1) throw new Error('The selected editable image pack projection is missing.');
@@ -123,7 +135,7 @@ export async function withPhotoFramescaperHandoffReadForProfileV1<Result>(profil
 				finally { wipe(original); }
 				check(signal);
 				const frame = await reader.readFrame(0);
-				try { check(signal); canonicalFrameSha256 = bytesToHex(sha256(frame)); }
+				try { check(signal); canonicalFrameSha256 = sourceFacts.schemaVersion === 5 ? sourceFacts.hdr.pixelsSha256 : bytesToHex(sha256(frame)); }
 				finally { wipe(frame); }
 				}
 			} finally { wipe(pack); }
@@ -243,19 +255,22 @@ export async function inspectPhotoFramescaperHandoffSourcesForProfileV1(profile:
 	assertHandoffProfile(profile); const label = 'Photo editable archive inspection', input = record(value, label, ['archive', 'signal'], ['archive']);
 	const { signal: caller } = readPhotoDevelopSignalOptionsV2(Object.hasOwn(input, 'signal') ? { signal: field(input, 'signal', label) } : {});
 	const candidate = field(input, 'archive', label), size = Number(Reflect.apply(SIZE, candidate, []));
-	if (size < 1 || size > MAXIMUM_ARCHIVE) throw new RangeError('Photo editable archive exceeds its fixed input byte bound.');
+	const maximumArchive = profile === 'current3' ? HDR_LIMITS.archiveBytes : MAXIMUM_ARCHIVE;
+	if (size < 1 || size > maximumArchive) throw new RangeError('Photo editable archive exceeds its fixed input byte bound.');
 	const archive = Reflect.apply(SLICE, candidate, [0, size]) as Blob, lifetime = new PhotoLibrarySessionLifetime();
 	try { return await lifetime.operation(async signal => {
 		try { return await withScapeProjectInput(archive, signal, async entries => {
 			const extension = createFramescaperScapeProjectAssetExtension(PROFILE);
-			const envelope = await readScapeArchiveEnvelope(entries, { maximumExpandedBytes: MAXIMUM_ARCHIVE }, signal, extension.assetKinds);
+			const envelope = await readScapeArchiveEnvelope(entries, { maximumExpandedBytes: maximumArchive }, signal, extension.assetKinds);
 			check(signal); verifyScapeAssetBytes(new TextEncoder().encode(envelope.projectText), envelope.manifest.project, 'Frame project document');
 			const admitted = loadScapeProjectDocument(envelope.projectText, envelope.manifest.project, {
 				currentProjectSchemaFamily: 'framescaper', currentProjectSchemaVersion: 1, loadProject: project => loadFramescaperProject(PROFILE, project),
 			});
 			if (admitted.readOnly) throw new RangeError('Photo editable archive requires a current Frame project.');
 			const project = cloneFramescaperProject(PROFILE, admitted.project);
-			if (profile === 'legacy2' && project.sources.some(source => source.kind === 'image' && (source.schemaVersion === 3 || source.schemaVersion === 4))) throw new RangeError('Legacy editable archive inspection refuses successor sources.');
+			if (profile === 'legacy2' && project.sources.some(source => source.kind === 'image' && (source.schemaVersion === 3 || source.schemaVersion === 4 || source.schemaVersion === 5))) throw new RangeError('Legacy editable archive inspection refuses successor sources.');
+			if (!project.sources.some(source => source.kind === 'image' && source.schemaVersion === 5)
+				&& (size > MAXIMUM_ARCHIVE || entries.reduce((sum, entry) => sum + entry.uncompressedSize, 0) > MAXIMUM_ARCHIVE)) throw new RangeError('Non-HDR editable archives retain their fixed byte capacity.');
 			validateTimelineImageCurrentArchiveAssets(framescaperProjectTimelineImageFoundationShapeAssistance(project), envelope.manifest);
 			const sources: Readonly<PhotoFramescaperHandoffSourceChoiceForProfileV1>[] = []; let unsupportedImageCount = 0;
 			for (const candidate of project.sources) {
@@ -282,8 +297,9 @@ export async function inspectPhotoFramescaperHandoffSourcesForProfileV1(profile:
 				const lutBytes = (() => { const refs = handoffResourceReferencesForProfileV1(profile, source); return [...refs.luts, ...refs.brushes].reduce((sum, reference) => sum + reference.byteLength, 0); })();
 				try { assertPhotoDevelopHandoffMasksForProfileV1(profile, source.develop, source.canonical.width, source.canonical.height); }
 				catch { unsupportedImageCount++; continue; }
-				if (source.original.byteLength > MAXIMUM_ORIGINAL
-					|| source.assetByteLength + lutBytes > MAXIMUM_BODIES) { unsupportedImageCount++; continue; }
+				if (source.original.byteLength > (source.schemaVersion === 5 ? HDR_LIMITS.originalBytes : MAXIMUM_ORIGINAL)
+					|| source.assetByteLength + lutBytes > (source.schemaVersion === 5 ? HDR_LIMITS.bodyBytes : MAXIMUM_BODIES)) { unsupportedImageCount++; continue; }
+				if (source.schemaVersion === 5) try { assertHdrArchiveCapacity(source, size); } catch { unsupportedImageCount++; continue; }
 				sources.push(Object.freeze({ sourceId: source.id, name: source.name, originalName: source.provenance.original.exactName,
 					processVersion: source.develop.processVersion, width: source.canonical.width, height: source.canonical.height,
 					...(origin.schemaFamily === 'lightscaper' ? { versionKind: origin.versionKind } : {}) }));
@@ -292,4 +308,9 @@ export async function inspectPhotoFramescaperHandoffSourcesForProfileV1(profile:
 				sources: Object.freeze(sources), unsupportedImageCount });
 		}); } catch (error) { check(signal); throw restoreNormalizedScapeAbortReason(error); }
 	}, caller); } finally { await lifetime.close(async () => undefined); }
+}
+
+function assertHdrArchiveCapacity(source: unknown, archiveBytes: number): void {
+	const plan = prepareFramescaperNativeImageBodyCurrentV1(source);
+	if (BigInt(archiveBytes) + BigInt(plan.source.assetByteLength) * 3n + plan.decodeWorkingBytes > BigInt(HDR_LIMITS.workingBytes)) throw new RangeError('HDR archive and native proof exceed their 1 GiB working phase bound.');
 }

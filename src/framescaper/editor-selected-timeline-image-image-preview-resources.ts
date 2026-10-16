@@ -174,7 +174,7 @@ function admit(
 		+ resources.retainedFrameBytes + resources.drawableBackingBytes
 		+ resources.requestOutputBytes + resources.uniqueFrameCacheBytes
 		+ transientRangeBytes + maximumRawFrameBytes + resources.transientScaledFrameBytes;
-	const nativeRaw = [...admitted.sources.values()].some(context => context.source.schemaVersion === 4);
+	const nativeRaw = [...admitted.sources.values()].some(context => context.source.schemaVersion === 4 || context.source.schemaVersion === 5);
 	const maximum = nativeRaw ? FRAMESCAPER_RAW_IMAGE_WORKING_BYTES_CURRENT_V1 : FRAMESCAPER_IMAGE_PREVIEW_MAXIMUM_WORKING_BYTES_TIMELINE_IMAGE;
 	if (totalBytes > BigInt(maximum)) {
 		throw new RangeError(`timelineImage image ${route} exceeds its ${nativeRaw ? '1 GiB' : '512 MiB'} working byte bound.`);

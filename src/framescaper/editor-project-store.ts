@@ -14,6 +14,7 @@ import type { FramescaperProjectStoreFoundationDefinition } from './editor-proje
 import { assertFramescaperProjectRuntimeProfile } from './editor-project-runtime-profile.ts';
 import { FRAMESCAPER_PROJECT_STORAGE_PROFILE } from './editor-project-storage-profile.ts';
 import { cloneFramescaperProject } from './editor-project.ts';
+import { FramescaperTimelineImageHdrPublisherCurrentV1 } from './editor-timeline-image-hdr-publication-current-v1.ts';
 import {
 	FramescaperTimelineImagePublisherTimelineImage,
 	type FramescaperTimelineImageProjectCodecTimelineImage,
@@ -44,6 +45,7 @@ const IMAGE_PROJECT_CODEC: FramescaperTimelineImageProjectCodecTimelineImage = O
 
 export interface FramescaperProjectStoreAuthority extends FramescaperProjectStoreFoundationAuthority {
 	readonly timelineImages: FramescaperTimelineImagePublisherTimelineImage;
+	readonly hdrImages: FramescaperTimelineImageHdrPublisherCurrentV1;
 }
 
 const AUTHORITIES = new WeakMap<AudioEditorProjectStore, FramescaperProjectStoreAuthority>();
@@ -64,6 +66,7 @@ export function framescaperProjectStoreAuthority(profile: unknown, store: unknow
 	if (existing) return existing;
 	const authority = Object.freeze({
 		...base,
+		hdrImages: new FramescaperTimelineImageHdrPublisherCurrentV1(profile, { port: base.port, store: exactStore }),
 		timelineImages: new FramescaperTimelineImagePublisherTimelineImage(profile, {
 			port: base.port,
 			store: exactStore as unknown as FramescaperTimelineImagePublicationStoreTimelineImage,
