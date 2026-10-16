@@ -47,14 +47,14 @@ for (const selected of spatial) test(`${selected.type} reaches native admission 
 	assert.deepEqual(actual, expected); assert.deepEqual(pixels, before); assert.equal(calls, 1); assert.ok(borrowed?.every(n => n === 0));
 });
 
-test('a bound spatial effect still retains complete CPU masks and never omits an admitted correction', async () => {
+test('a bound spatial effect reaches native admission and retains complete CPU masks when no canvas exists', async () => {
 	const pixels = Float32Array.of(.125, .25, .5, 1, .25, .5, .125, .5, .5, .125, .25, 1), before = pixels.slice();
 	const frame = { descriptor: descriptor(3, 1), pixels }, develop = normalizeImageDevelopStateCurrentV1({
 		...state(spatial), masks: [mask], maskBindings: [{ maskId: 'local', effectId: 'texture-v1' }],
 	});
 	const expected = await withImageDevelopLinearCurrentV1({ frame, develop }, result => [...result.pixels], LIMITS);
 	await withImageDevelopGpuCurrentV1({ frame, develop }, (result, execution) => {
-		assert.equal(execution.backend, 'cpu'); assert.equal(execution.reason, 'unsupported-stage'); assert.deepEqual([...result.pixels], expected);
+		assert.equal(execution.backend, 'cpu'); assert.equal(execution.reason, 'canvas-unavailable'); assert.deepEqual([...result.pixels], expected);
 	}, LIMITS);
 	assert.deepEqual(pixels, before);
 });

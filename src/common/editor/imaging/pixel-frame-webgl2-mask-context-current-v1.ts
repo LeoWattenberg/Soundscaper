@@ -2,6 +2,7 @@
 import { readClosedDomainRecord as record, readClosedDomainField as field } from '../closed-domain-value.ts';
 import { captureRepairSignalV1, checkRepairSignalV1 } from './pixel-frame-repair-lifetime-v1.ts';
 import { readPixelFrameWebGl2MaskContextCurrentV1 } from './pixel-frame-webgl2-mask-context-plan-current-v1.ts';
+import { readImageDevelopGpuMaskPhasePlanCurrentV1 } from './image-develop-gpu-mask-phase-plan-current-v1.ts';
 import { assertMaskRasterSourceScopeV1, withMaskRasterSourceScopeWorkV1 } from './mask-raster-source-scope-v1.ts';
 import { withMaskNativeCurrentV1 } from './pixel-frame-webgl2-mask-context-native-current-v1.ts';
 import { createMaskProgramsCurrentV1 } from './pixel-frame-webgl2-mask-context-programs-current-v1.ts';
@@ -35,7 +36,7 @@ export interface PixelFrameWebGl2MaskExecutorCurrentV1 {
 		consume: (coverage: Readonly<PixelFrameWebGl2MaskCoverageCurrentV1>) => Result | Promise<Result>): Promise<Result>;
 }
 export interface PixelFrameWebGl2MaskContextRequestCurrentV1 {
-	readonly gl: WebGL2RenderingContext; readonly prepared: unknown; readonly scope?: unknown;
+	readonly gl: WebGL2RenderingContext; readonly prepared: unknown; readonly scope?: unknown; readonly phasePlan?: unknown;
 	readonly signal?: AbortSignal; readonly checkCurrent: () => void; readonly unavailable: (reason: string) => never;
 }
 const TYPED = Object.getPrototypeOf(Uint8Array.prototype) as object;
@@ -48,9 +49,12 @@ const SIZE = Object.getOwnPropertyDescriptor(ArrayBuffer.prototype, 'byteLength'
  * Captured callbacks run with their original request receiver, before awaits. */
 export async function withPixelFrameWebGl2MaskContextCurrentV1<Result>(value: Readonly<PixelFrameWebGl2MaskContextRequestCurrentV1>,
 	consume: (executor: Readonly<PixelFrameWebGl2MaskExecutorCurrentV1>) => Result | Promise<Result>): Promise<Result> {
-	const input = record(value, 'native mask context', ['gl', 'prepared', 'scope', 'signal', 'checkCurrent', 'unavailable'], ['gl', 'prepared', 'checkCurrent', 'unavailable']);
+	const input = record(value, 'native mask context', ['gl', 'prepared', 'scope', 'signal', 'checkCurrent', 'unavailable', 'phasePlan'], ['gl', 'prepared', 'checkCurrent', 'unavailable']);
 	const signal = captureRepairSignalV1(Object.hasOwn(input, 'signal') ? field(input, 'signal', 'mask context') : undefined); checkRepairSignalV1(signal);
-	const plan = readPixelFrameWebGl2MaskContextCurrentV1(field(input, 'prepared', 'mask context'));
+	const prepared = field(input, 'prepared', 'mask context'), plan = readPixelFrameWebGl2MaskContextCurrentV1(prepared);
+	const phaseValue = Object.hasOwn(input, 'phasePlan') ? field(input, 'phasePlan', 'mask context') : undefined;
+	const phase = phaseValue === undefined ? undefined : readImageDevelopGpuMaskPhasePlanCurrentV1(phaseValue);
+	if (phase && phase.contextPlan !== prepared) throw new TypeError('Mask context lost its exact complete phase authority.');
 	const gl = field(input, 'gl', 'mask context') as WebGL2RenderingContext, scope = Object.hasOwn(input, 'scope') ? field(input, 'scope', 'mask context') : undefined;
 	const checkMethod = field(input, 'checkCurrent', 'mask context'), unavailableMethod = field(input, 'unavailable', 'mask context');
 	if (typeof checkMethod !== 'function' || typeof unavailableMethod !== 'function' || typeof consume !== 'function') throw new TypeError('Mask context requires captured synchronous callbacks and a joined consumer.');
@@ -58,7 +62,9 @@ export async function withPixelFrameWebGl2MaskContextCurrentV1<Result>(value: Re
 	const unavailable = (reason: string): never => { Reflect.apply(unavailableMethod, value, [reason]); throw new TypeError('Mask unavailability callback must throw.'); };
 	check(); const references = plan.checkpointPlan.metadata.masks.references;
 	if (references.length || scope !== undefined) assertMaskRasterSourceScopeV1(scope, references);
-	if (!plan.eligible) unavailable('mask-working-set');
+	// Standalone component calls keep conservative admission. The actual full
+	// coordinator may replace that sum only with its exact private complete ledger.
+	if (!(phase?.eligible ?? plan.eligible)) unavailable('mask-working-set');
 	let live = true, busy = false, next = 0;
 	const pending = new Set<Promise<void>>(), failures: unknown[] = [];
 	const fail = (reason: unknown) => { if (!failures.some(previous => Object.is(previous, reason))) failures.push(reason); };
@@ -84,7 +90,7 @@ export async function withPixelFrameWebGl2MaskContextCurrentV1<Result>(value: Re
 						if (typeof callback !== 'function') throw new TypeError('Mask coverage requires a scoped consumer.');
 						busy = true; claimed = true;
 						const run = () => withMaskNativeCurrentV1<Output>(gl, check, unavailable, async owner => {
-							const output = await executeMaskGraphCurrentV1(entry.graph, incoming.texture, scope, owner, programs!);
+							const output = await executeMaskGraphCurrentV1(entry.graph, incoming.texture, scope, owner, programs!, phaseValue);
 							const scratch = owner.uints(16_384); let lent = true, admitting = true, projectionClaimed = false;
 							const children = new Set<Promise<void>>(), localFailures: unknown[] = [];
 							const localFail = (reason: unknown) => { if (!localFailures.some(previous => Object.is(previous, reason))) localFailures.push(reason); };

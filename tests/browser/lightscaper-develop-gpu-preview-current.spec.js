@@ -21,24 +21,27 @@ import { expect, test } from './helpers/browser-coverage-fixture.js';
 test.skip(({ browserName }) => test.info().project.name !== 'lightscaper-software-gpu' && browserName !== 'firefox',
 	'GPU Preview UI conformance requires pinned software Chromium or actual Firefox capability/fallback.');
 const PROGRAM = '/__lightscaper_develop_gpu_preview_current.js';
-let fixture, program, manifest;
+let fixture, program, manifest, maskedBroker;
+const BROKER = '/__lightscaper_gpu_mask_preview_broker_current.js';
 test.beforeAll(async () => {
 	fixture = await hdrMergeBrowserFixtureCurrentV1();
 	manifest = JSON.parse(await readFile(new URL('../../config/lightscaper-libraw-runtime-manifest.json', import.meta.url), 'utf8'));
 	expect(fixture.wasm.byteLength).toBe(manifest.runtime.byteLength); expect(createHash('sha256').update(fixture.wasm).digest('hex')).toBe(manifest.runtime.sha256);
 	program = await compileNativeImageHandoffScript('develop-gpu-preview-current.js', fileURLToPath(new URL('./helpers/lightscaper-develop-gpu-preview-current-reference.ts', import.meta.url)));
 	expect(program.assets).toEqual([]);
+	maskedBroker = await compileNativeImageHandoffScript('gpu-mask-preview-broker-current.js', fileURLToPath(new URL('./helpers/lightscaper-develop-gpu-mask-preview-broker-current-reference.ts', import.meta.url)));
+	expect(maskedBroker.assets).toEqual([]);
 });
 
-// Actual Current Photo UI integration for admitted native WB/tone. One
-// active mask binding proves that
-// this choice falls back for the whole authored stack rather than omitting it.
+// Actual Current Photo UI integration for native WB/tone and a later masked
+// spatial stage, with whole-plane reference and unchanged Original custody.
 for (const locale of ['en', 'de']) test(`${locale}: opt-in GPU Develop preview executes real native globals and keeps renderer choice outside saved RAW recipes`, async ({ page, browserName }) => {
 	expect(['chromium', 'firefox']).toContain(browserName); test.setTimeout(240_000);
 	const copy = bundledLightscaperEditorCopyForLocale(locale), words = photoDevelopCopy(locale), settings = photoDevelopSettingsCopy(locale, 'current3'), renderer = photoDevelopPreviewRendererCopy(locale);
 	const source = fixture.sources[0], original = Buffer.from(source.bytes), words16 = fixture.words[0], errors = [], workerUrls = [];
 	const beforePixels = display(words16.map((n, at) => at % 4 === 3 ? 1 : n / 65535));
-	const native = developWords(words16), expectedBits = floatBits(native), expectedPixels = display(native), texturePixels = display(await texture(native));
+	const native = developWords(words16), expectedBits = floatBits(native), expectedPixels = display(native), textured = await texture(native);
+	const texturePixels = display(textured), textureBits = floatBits(textured);
 	expect(native.some((n, at) => at % 4 === 0 && n > .5)).toBe(true);
 	page.on('pageerror', error => { errors.push(error.message); });
 	page.on('worker', worker => { if (new URL(worker.url()).pathname.includes('libraw-worker-v1')) workerUrls.push(worker.url()); });
@@ -46,6 +49,7 @@ for (const locale of ['en', 'de']) test(`${locale}: opt-in GPU Develop preview e
 		'content-type': 'application/wasm', 'access-control-allow-origin': '*', 'cross-origin-resource-policy': 'cross-origin',
 	}, body: Buffer.from(fixture.wasm) }));
 	await page.route(`**${PROGRAM}`, route => route.fulfill({ contentType: 'text/javascript', body: program.source }));
+	await page.route(`**${BROKER}`, route => route.fulfill({ contentType: 'text/javascript', body: maskedBroker.source }));
 	await page.goto(resolveBrowserProductTestUrl(`/lightscaper/${locale}/`));
 	const app = named(page, 'region', 'Lightscaper'); await expect(app).toBeVisible(); await photoAction(copy.photoImportPhotos);
 	const importer = named(page, 'dialog', copy.photoImportPhotos);
@@ -78,9 +82,9 @@ for (const locale of ['en', 'de']) test(`${locale}: opt-in GPU Develop preview e
 		assertNativeAfter(await observation()); await observe('reset');
 		await resolution('proxy'); await painted(expectedPixels); await expect(named(dialog, 'region', words.imageViewport)).toHaveCount(0);
 		assertNativeAfter(await observation()); expect(await custody()).toEqual(saved);
-		// Mask bindings still require the CPU. A real bound spatial
-		// correction appears in After through whole CPU
-		// fallback; any native Before copy is not counted as After execution.
+		// The bound spatial candidate now executes on the GPU. Compare actual
+		// native After words with the unchanged CPU masked Texture reference;
+		// a Before copy cannot satisfy this positive.
 		await add('texture-v1'); await number('videoEffectTextureAmount', '25');
 		const local = photoDevelopLocalAdjustmentsCopy(locale); await settingsMenu(); await keyboard(named(dialog, 'button', local.menu));
 		const gradient = named(page, 'dialog', local.title); await expect(gradient).toBeVisible();
@@ -92,7 +96,12 @@ for (const locale of ['en', 'de']) test(`${locale}: opt-in GPU Develop preview e
 		await binding.focus(); await expect(binding).toBeFocused(); await binding.press('Space'); await expect(binding).toBeChecked();
 		await keyboard(named(gradient, 'button', local.apply)); await expect(gradient).toHaveCount(0); await painted(texturePixels);
 		await observe('reset'); await resolution('full'); await painted(texturePixels);
-		const fallback = await observation(); expect(fallback.readbacks.filter(read => read.passes.some(pass => pass.kind === 1 || pass.kind === 2))).toEqual([]); retired(fallback);
+		const masked = await observation(); retired(masked);
+		const corrected = masked.readbacks.filter(read => read.passes.some(pass => pass.kind === 1 || pass.kind === 2));
+		const differences = corrected.map(read => nativeWordDifferences(read.bits, textureBits));
+		if (browserName === 'chromium' || masked.normalFloatSupported) {
+			expect(corrected.length).toBeGreaterThan(0);
+		} else expect(corrected).toEqual([]);
 		expect(await custody()).toEqual(saved); await keyboard(named(dialog, 'button', words.save)); await expect(named(dialog, 'button', words.save)).toBeDisabled(); await painted(texturePixels);
 		const savedSpatial = await custody(); originalUnchanged(savedSpatial); expect(savedSpatial.photo.revision).toBe(initial.photo.revision + 2);
 		expect(active(savedSpatial.photo).develop.effects.slice(0, 2)).toEqual(savedRecipe.effects);
@@ -101,6 +110,16 @@ for (const locale of ['en', 'de']) test(`${locale}: opt-in GPU Develop preview e
 		expect(maskedRecipe.masks[0].nodes).toEqual([{ id: maskedRecipe.masks[0].outputNodeId, kind: 'linear-gradient', start: { x: 0, y: 0 }, end: { x: 1, y: 0 } }]);
 		expect(maskedRecipe.maskBindings).toEqual([{ maskId: maskedRecipe.masks[0].id, effectId: maskedRecipe.effects[2].id }]);
 		expect({ ...maskedRecipe, effects: savedRecipe.effects, masks: savedRecipe.masks, maskBindings: savedRecipe.maskBindings }).toEqual(savedRecipe);
+		await observe('stop');
+		const qualified = await page.evaluate(async ({ path, words, develop }) => (await import(path)).qualifyGpuMaskPreviewBrokerCurrentV1({ words, develop }), { path: BROKER, words: words16, develop: maskedRecipe });
+		expect(qualified.callbacks).toBe(1); expect(qualified.sourceUnchanged).toBe(true); expect(qualified.sourceRetired).toBe(true); expect(qualified.outputRetired).toBe(true);
+		if (differences.some(values => values.length)) {
+			expect(qualified.backend).toBe('cpu'); expect(qualified.reason).toBe('numeric-range'); expect(qualified.bits).toEqual(textureBits);
+		} else if (browserName === 'chromium' || masked.normalFloatSupported) {
+			expect(qualified.backend).toBe('webgl2'); expect(nativeWordDifferences(qualified.bits, textureBits)).toEqual([]);
+		} else { expect(qualified.backend).toBe('cpu'); expect(qualified.bits).toEqual(textureBits); }
+		await test.info().attach('saved-masked-preview-broker', { body: JSON.stringify({ locale, browser: page.context().browser()?.version(), differences, backend: qualified.backend, reason: qualified.reason }), contentType: 'application/json' });
+		await observe('start');
 		await openRenderer(); choice = named(page, 'dialog', renderer.title); await expect(named(choice, 'combobox', renderer.renderer)).toHaveValue('gpu-preferred');
 		await keyboard(named(choice, 'button', renderer.close).last()); await expect(choice).toHaveCount(0); await painted(texturePixels); expect(await custody()).toEqual(savedSpatial);
 		await close(); await observe('stop'); await page.reload(); await expect(app).toBeVisible(); await library(); expect(await custody()).toEqual(savedSpatial);
@@ -176,6 +195,19 @@ async function texture(values) {
 function display(values) { return values.map((value, at) => { if (at % 4 === 3) return 255;
 	const n = Math.max(0, Math.min(1, value)); return Math.round(255 * (n <= .0031308 ? n * 12.92 : 1.055 * n ** (1 / 2.4) - .055)); }); }
 function floatBits(values) { return [...new Uint32Array(Float32Array.from(values).buffer)]; }
+function nativeWordDifferences(actual, expected) {
+	expect(actual).toHaveLength(expected.length);
+	const values = new Float32Array(Uint32Array.from(expected).buffer), observed = new Float32Array(Uint32Array.from(actual).buffer), mismatches = [];
+	const rank = word => word >= 0x80000000 ? 0x100000000 - word : 0x80000000 + word;
+	for (let at = 0; at < expected.length; at++) {
+		const exact = at % 4 === 3 || values[at] === 0 || Math.abs(values[at]) < 2 ** -60;
+		const matched = exact ? actual[at] === expected[at]
+			: Number.isFinite(observed[at]) && Math.abs(rank(actual[at]) - rank(expected[at])) <= 8;
+		if (!matched) mismatches.push({ at, actual: actual[at], expected: expected[at] });
+		if (mismatches.length === 16) break;
+	}
+	return mismatches;
+}
 function active(photo) { const version = photo.versions.find(value => value.id === photo.activeVersionId); expect(version).toBeTruthy(); return version; }
 function plane(canvas) { return canvas.evaluate(node => [node.width, node.height, ...(node.width && node.height ? node.getContext('2d').getImageData(0, 0, node.width, node.height).data : [])]); }
 function named(scope, role, name) { return scope.getByRole(role, { name, exact: true }); }

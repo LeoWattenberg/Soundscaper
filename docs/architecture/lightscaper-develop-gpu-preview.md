@@ -36,20 +36,40 @@ mask overlay, resource authorities, geometry and processing limits before source
 samples. The broker uses the existing native CPU engine as its whole-recipe
 fallback. An unfinished stage never disappears from a GPU result.
 
-At present, local masks, repairs or a selected mask overlay select the complete
-CPU render. Native spatial stages now enter the GPU path described below.
+Current local masks and selected overlays enter the native GPU path alongside
+color, LUT, geometry, optics and spatial stages. Clone/Heal repairs select the
+complete CPU render.
 Encoded byte sources also retain their existing CPU process and
 per-stage byte quantization. They are not implicitly promoted into the native
 Float32 process to obtain GPU execution.
 
-The mask components under qualification now execute native graph coverage,
-blend candidates and project a selected overlay through its ordered geometry
-and lens suffix. Every suffix draw stores R8UI bytes, so the next warp samples
-the previous rounded result. Projection textures and integer readback scratch
-retire before proof reads the retained GPU-derived host plane. A separate
-private stripe reader serves proof before the one external presentation borrow;
-neither reader can reopen the retired owner. The complete application broker
-and phase admission remain the next integration boundary.
+Mask checkpoints retain every authored position, including disabled or neutral
+adjustments selected for observation. Graphs sample the actual incoming native
+stage. A bound candidate preserves that incoming texture, writes its adjustment
+to a second bank and blends into a distinct third bank. Authenticated brush
+alpha is the only uploaded coverage; gradients, shapes, paths, ranges, boolean
+operations and feathering execute through native integer textures. Every
+declared brush authenticates before GL, including unused and disabled inputs.
+
+Selected coverage projects through the exact ordered geometry and lens suffix.
+Every suffix draw stores R8UI bytes, so the next warp samples the previous
+rounded result. Projection textures and integer readback scratch retire before
+proof reads the retained GPU-derived host plane. Tagged byte receipts verify
+every executed checkpoint and the selected overlay against the unchanged CPU
+process before the final native-image comparison. A separate private stripe
+reader serves proof before the one external presentation borrow; neither
+reader can reopen the retired owner. Brush, LUT and proof scopes retire before
+external delivery; the host overlay remains live until its consumer joins.
+
+The complete private phase ledger replaces conservative component sums only
+for the exact admitted checkpoint/context/overlay owners. It charges padded
+Original backings, stable capture, three image banks, two CPU oracle planes,
+independent native and canonical stripes, authenticated resources and final
+presentation. GPU graph and CPU graph storage run in separate phases. The
+2048×2048 native-word radius-64 feather witness produces accepted GPU output on
+both locally tested engines within the unchanged 64 MiB mask and 768 MiB total
+limits. A fitting direct CPU route is chosen before GPU capture when padding
+makes an attempted GPU route too large.
 
 Overlay byte proof is exact. A 4×4 gradient rotated 45 degrees exposes a
 Float32 coordinate boundary on the locally tested Firefox renderer: its byte
@@ -57,6 +77,13 @@ result differs from the unchanged CPU Double projection. The component refuses
 delivery after the mismatch and retires its native and proof storage. A
 separate noninteger rotation requires accepted native output in both tested
 browsers. No byte tolerance or CPU replacement of GPU coverage is introduced.
+The high broker also qualifies real native q128 blend cancellation: a readback
+outside the eight-ULP limit retires all attempt resources before one complete
+CPU result. Authentication, cancellation, protocol, cleanup and consumer errors
+remain fatal and never replay delivery. Menu workflows separately verify an
+accepted saved-recipe broker result, actual UI native draws/readback, exact
+overlay transport and source custody. The presenter does not retain an accepted
+backend receipt, so UI draw observations alone do not prove its final backend.
 
 GPU preferred can also choose CPU because WebGL2, float render targets, texture
 capacity, the admitted numeric profile or the working set is unavailable.

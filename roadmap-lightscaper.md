@@ -1017,8 +1017,10 @@ there.
   the conservative 4096-byte extended uniform reserve.
   Numerical, capability or capacity refusal retains the whole CPU recipe.
   This correctness check also costs CPU work and makes no acceleration claim.
-  Complete masks/brush and overlay projection, and true Clone/Heal GPU execution
-  remain unfinished, alongside full-stack combined conformance, native desktop services,
+  Current masks, authenticated brushes and selected overlays now share the
+  native preview path with complete phase admission and verified whole-CPU
+  fallback. True Clone/Heal GPU execution remains unfinished, alongside
+  full-stack combined conformance, native desktop services,
   final inter-slice QA and the L7/L8/L9 exit gates. The configured digest-pinned Chromium
   software-GPU baseline retains its Quality/Desktop Preview coverage
   dependencies. The E64 baseline configuration named ten exact specs. Recorded

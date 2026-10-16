@@ -1,14 +1,20 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import { readPixelFrameWebGl2MaskGraphCurrentV1, writePixelFrameWebGl2MaskPathEdgesCurrentV1 } from './pixel-frame-webgl2-mask-graph-current-v1.ts';
 import { scopedBrushMaskResourceV1 } from './mask-raster-source-scope-v1.ts';
+import { readImageDevelopGpuMaskPhasePlanCurrentV1 } from './image-develop-gpu-mask-phase-plan-current-v1.ts';
+import { readPixelFrameWebGl2MaskContextCurrentV1 } from './pixel-frame-webgl2-mask-context-plan-current-v1.ts';
 import type { MaskNativeCurrentV1, MaskTextureCurrentV1 } from './pixel-frame-webgl2-mask-context-native-current-v1.ts';
 import type { MaskProgramsCurrentV1 } from './pixel-frame-webgl2-mask-context-programs-current-v1.ts';
 import type { PixelFrameWebGl2MaskNodeUniformsCurrentV1 } from './pixel-frame-webgl2-mask-node-current-v1.ts';
 
 export async function executeMaskGraphCurrentV1(value: unknown, incoming: WebGLTexture, scope: unknown,
-	owner: Readonly<MaskNativeCurrentV1>, programs: Readonly<MaskProgramsCurrentV1>) {
+	owner: Readonly<MaskNativeCurrentV1>, programs: Readonly<MaskProgramsCurrentV1>, phaseValue?: unknown) {
 	const graph = readPixelFrameWebGl2MaskGraphCurrentV1(value), { width, height } = graph.descriptor, gl = owner.gl;
-	if (!graph.eligible) owner.unavailable('mask-working-set');
+	const phase = phaseValue === undefined ? undefined : readImageDevelopGpuMaskPhasePlanCurrentV1(phaseValue);
+	if (phase && !readPixelFrameWebGl2MaskContextCurrentV1(phase.contextPlan).entries.some(entry => entry.graph === graph)) {
+		throw new TypeError('Mask graph lost its exact complete phase authority.');
+	}
+	if (!(phase?.eligible ?? graph.eligible)) owner.unavailable('mask-working-set');
 	const coverage = Array.from({ length: graph.coverageTextureCount }, () => owner.texture('byte', width, height));
 	const integers = Array.from({ length: graph.integerScratchTextureCount }, () => owner.texture('uint', width, height));
 	const boolean = graph.booleanScratchBytes ? owner.texture('byte', width, height) : undefined;

@@ -17,7 +17,14 @@ const SPECS = ['lightscaper-native-gpu-current.spec.js', 'lightscaper-develop-gp
 	'lightscaper-native-gpu-lut-current.spec.js', 'lightscaper-develop-gpu-lut-current.spec.js',
 	'lightscaper-native-gpu-geometry-current.spec.js', 'lightscaper-develop-gpu-geometry-current.spec.js',
 	'lightscaper-native-gpu-optics-current.spec.js', 'lightscaper-develop-gpu-optics-current.spec.js',
-	'lightscaper-native-gpu-spatial-current.spec.js', 'lightscaper-develop-gpu-spatial-current.spec.js'];
+	'lightscaper-native-gpu-spatial-current.spec.js', 'lightscaper-develop-gpu-spatial-current.spec.js',
+	'lightscaper-native-gpu-mask-blend-current.spec.js',
+	'lightscaper-native-gpu-mask-context-current.spec.js',
+	'lightscaper-native-gpu-mask-overlay-current.spec.js',
+	'lightscaper-native-gpu-masked-context-integration-current.spec.js',
+	'lightscaper-native-gpu-mask-numeric-refusal-current.spec.js',
+	'lightscaper-native-gpu-mask-large-current.spec.js',
+	'lightscaper-develop-gpu-mask-current.spec.js'];
 const IMAGE = 'mcr.microsoft.com/playwright:v1.62.1-noble@sha256:dcc5531e97840b9b5e794f2814476b21571c5124a3fca2267d73041f56e7580e';
 const ACTIONS = new Map([
 	['actions/checkout', 'de0fac2e4500dabe0009e67214ff5f5447ce83dd'],
@@ -27,7 +34,7 @@ const ACTIONS = new Map([
 	['actions/upload-artifact', '043fb46d1a93c77aae656e7c1c64a875d1fc6a0a'],
 ]);
 
-test('Lightscaper software GPU project owns exactly color, LUT, geometry, optics and spatial conformance with one verified photo server', async () => {
+test('Lightscaper software GPU project owns exactly color, LUT, geometry, optics, spatial and mask conformance with one verified photo server', async () => {
 	const previous = { port: process.env.PLAYWRIGHT_LIGHTSCAPER_PORT, origins: process.env.SCAPE_PLAYWRIGHT_PRODUCT_ORIGINS };
 	process.env.PLAYWRIGHT_LIGHTSCAPER_PORT = '4380';
 	try {
@@ -142,7 +149,8 @@ for (const spec of SPECS) test(`${spec} admits pinned software Chromium and real
 	assert.ok(body && isArrowFunction(body));
 	assert.equal(body.parameters.length, 1, 'Playwright modifiers receive only their fixture argument');
 	const beforeAll = calls.find(call => isPropertyAccessExpression(call.expression) && call.expression.getText(ast) === 'test.beforeAll');
-	assert.ok(beforeAll && guard.pos < beforeAll.pos);
+	const preparation = beforeAll ?? calls.find(call => call.expression.getText(ast) === 'test');
+	assert.ok(preparation && guard.pos < preparation.pos, 'project admission precedes fixture preparation or direct test registration');
 	for (const [browserName, project, skipped] of [
 		['chromium', PROJECT, false], ['firefox', 'firefox', false],
 		['chromium', 'chromium', true], ['webkit', 'webkit', true], ['chromium', 'unqualified-chromium', true],

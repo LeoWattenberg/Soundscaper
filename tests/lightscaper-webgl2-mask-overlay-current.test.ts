@@ -1,5 +1,4 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
-// CACHE PROPOSAL: metadata/lifetime contracts, not native GL qualification.
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { prepareLinearDevelopMetadataCurrentV1 } from '../src/common/editor/imaging/image-develop-linear-metadata-current-v1.ts';

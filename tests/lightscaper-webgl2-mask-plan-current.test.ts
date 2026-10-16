@@ -131,20 +131,26 @@ test('observe-only pointwise masks need two CPU planes but no third candidate te
 	assert.equal(declared.graphAdmissionRequests.length, 0); assert.equal(declared.graphAdmissionComplete, true); assert.equal(declared.graphGpuBytes, 0);
 });
 
-test('proposed high planner reports known three-target/two-oracle charges and refuses incomplete graph eligibility', () => {
+test('high planner carries complete private mask admission with three targets and two CPU oracle planes', () => {
 	const source = metadata([effect('tone-ladder-v1', 'tone', { exposure: 1 })], ['tone']), plan = gpuFor(source);
 	assert.equal(plan.maskPipeline.imageTextureCount, 3); assert.equal(plan.pipeline.textureBytes, 3 * 8 * 6 * 16);
 	assert.equal(plan.pipeline.referenceBytes, 2 * 8 * 6 * 16); assert.equal(plan.pipeline.hasPlaneReference, true);
-	assert.equal(plan.workingPlanComplete, false); assert.equal(plan.eligible, false); assert.equal(plan.unsupported, true);
+	assert.equal(plan.workingPlanComplete, true); assert.equal(plan.eligible, true); assert.equal(plan.unsupported, false);
 	assert.equal(plan.maskPipeline.graphGpuBytes, null);
-	assert.equal(plan.gpuWorkingBytes, 8 * 6 * 16 * 8 + 8 * 6 * 8);
+	assert.ok(plan.maskPhase); assert.ok(plan.maskContext);
+	assert.equal(plan.maskPhase.contextPlan, plan.maskContext); assert.equal(plan.maskPhase.checkpointPlan, plan.maskPipeline);
+	assert.equal(plan.maskPhase.imageTextureBytes, 3 * 8 * 6 * 16); assert.equal(plan.maskPhase.referenceBytes, 2 * 8 * 6 * 16);
+	assert.equal(plan.gpuWorkingBytes, plan.maskPhase.peakWorkingBytes);
 });
 
 test('a bound pointwise recipe fitting two targets but not three is refused using metadata without plane allocation', () => {
 	const source = metadata([effect('tone-ladder-v1', 'tone', { exposure: 1 })], ['tone'], undefined, 4096, 1536);
 	const f = 4096 * 1536 * 16, p = gpuFor(source), presentation = 4096 * 1536 * 4 + 4_194_304 * 4;
 	assert.ok(f * 7 + presentation <= 768 * 1024 * 1024); assert.ok(f * 8 + presentation > 768 * 1024 * 1024);
-	assert.equal(p.gpuWorkingBytes, f * 8 + presentation); assert.equal(p.eligible, false); assert.equal(p.unsupported, true);
+	assert.ok(p.maskPhase); assert.ok(p.gpuWorkingBytes > 768 * 1024 * 1024);
+	assert.equal(p.maskPhase.imageTextureBytes, 3 * f); assert.equal(p.maskPhase.referenceBytes, 2 * f);
+	assert.equal(p.gpuWorkingBytes, Math.max(...p.maskPhase.phases.map(phase => phase.totalBytes)));
+	assert.equal(p.eligible, false); assert.equal(p.unsupported, false);
 });
 
 test('source and body capabilities are never opened and future caller mutations cannot retarget captured slots', () => {

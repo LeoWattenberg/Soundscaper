@@ -10,6 +10,8 @@ import { withImageDevelopLinearCurrentV1 } from './image-develop-linear-current-
 import { readPixelFrameV1 } from './pixel-frame-contract-v1.ts';
 import { withPixelFrameWebGl2CurrentV1 } from './pixel-frame-webgl2-current-v1.ts';
 import { prepareImageDevelopGpuPlanCurrentV1 } from './image-develop-gpu-plan-current-v1.ts';
+import { prepareImageDevelopGpuMaskPhasePlanCurrentV1 } from './image-develop-gpu-mask-phase-plan-current-v1.ts';
+import { withPixelFrameWebGl2MaskedHostCurrentV1 } from './pixel-frame-webgl2-masked-host-current-v1.ts';
 import { captureRepairSignalV1, checkRepairSignalV1 } from './pixel-frame-repair-lifetime-v1.ts';
 
 export interface ImageDevelopGpuExecutionCurrentV1 { readonly backend: 'webgl2' | 'cpu'; readonly reason?: string }
@@ -39,7 +41,18 @@ export async function withImageDevelopGpuCurrentV1<Result>(value: unknown,
 	if (gpu.unsupported) return cpu(frame, 'unsupported-stage');
 	const physicalBytes = Number(Reflect.apply(SIZE, Reflect.apply(BUFFER, frame.pixels, []), []));
 	const peak = gpu.peakWorkingBytes + physicalBytes - plan.sourcePlan.byteLength;
-	if (!gpu.luts.eligible || peak > CURRENT_LINEAR_WORKING_BYTES_V1) return cpu(frame, 'working-set');
+	if (!gpu.eligible || peak > CURRENT_LINEAR_WORKING_BYTES_V1) return cpu(frame, 'working-set');
+	if (gpu.maskPhase) {
+		// Rebase only physical fees; preserve the exact original passes/context/
+		// checkpoint identities. No second preparation after the first await.
+		const phase = physicalBytes === plan.sourcePlan.byteLength ? gpu.maskPhase
+			: prepareImageDevelopGpuMaskPhasePlanCurrentV1(gpu.maskPipeline, gpu.maskContext, gpu.maskOverlay, physicalBytes);
+		return withPixelFrameWebGl2MaskedHostCurrentV1({ frame, phase, ...(signal ? { signal } : {}),
+			...(gpu.luts.references.length ? { lutSource: plan.source } : {}),
+			...(plan.masks.references.length ? { maskSource: plan.maskSource } : {}),
+		}, view => view.backend === 'cpu' ? cpu(view.source, view.reason)
+			: consume(view.frame, Object.freeze({ backend: 'webgl2' }), view.overlay));
+	}
 	return withPixelFrameWebGl2CurrentV1({ frame, passes: gpu.passes,
 		...(gpu.luts.references.length ? { lutSource: plan.source } : {}), ...(signal ? { signal } : {}) }, view => {
 		if (view.backend === 'cpu') return cpu(view.source, view.reason);

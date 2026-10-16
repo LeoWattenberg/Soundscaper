@@ -156,6 +156,19 @@ function cpuReader(coverage: Uint8Array<ArrayBuffer>, width: number, height: num
 		Reflect.apply(SET, target, [new Uint8Array(backing, top * width, rows * width)]);
 	};
 }
+/** Scalar-only admission for an independently accepted native attempt scope.
+ * Reject/latch foreign or already-started scopes before any canvas or samples. */
+export function assertPixelFrameWebGl2MaskReceiptsCurrentV1(value: unknown, planValue: unknown): void {
+	const s = state(value);
+	try {
+		check(s);
+		if (s.plan !== readPixelFrameWebGl2MaskCheckpointPlanCurrentV1(planValue) || !s.admitting || s.busy || s.pending.size !== 0
+			|| s.phase !== 'gpu' || s.gpu !== 0 || s.cpu !== 0 || s.overlayGpu || s.overlayCpu) {
+			throw new TypeError('Native masked attempt requires its exact empty live receipt scope.');
+		}
+	} catch (error) { fail(s, error); throw error; }
+}
+
 export function capturePixelFrameWebGl2MaskCheckpointCurrentV1(value: unknown, checkpointValue: unknown,
 	extentValue: unknown, read: PixelFrameWebGl2MaskStripeReaderCurrentV1): Promise<void> {
 	return operation(value, async s => {

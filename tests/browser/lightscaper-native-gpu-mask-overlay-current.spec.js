@@ -21,7 +21,8 @@ async function render(page, value) {
 	await page.route(`**${BLANK}`, route => route.fulfill({ contentType: 'text/html', body: '<!doctype html><title>Native selected mask overlay</title>' }));
 	await page.goto(resolveBrowserProductTestUrl(BLANK));
 	const result = await page.evaluate(`import(${JSON.stringify(PATH)}).then(module=>module.qualifyNativeGpuMaskOverlayCurrentV1(${JSON.stringify(value)}))`);
-	if (page.context().browser()?.browserType().name() === 'chromium') expect(result.renderer).toContain('SwiftShader');
+	const browserName = page.context().browser()?.browserType().name();
+	if (browserName === 'chromium') expect(result.renderer).toContain('SwiftShader');
 	await test.info().attach('native-mask-overlay-observation', { body: JSON.stringify({ browser: page.context().browser()?.version(), result }), contentType: 'application/json' });
 	return result;
 }
