@@ -46,10 +46,10 @@ std::filesystem::path ProviderLibraryPath() {
 }
 
 struct WebGpuPlugin {
+  const std::filesystem::path path = ProviderLibraryPath();
   // ORT CreateEnv retains the process-global OrtEnv used by Sherpa's models.
   Ort::Env env{ORT_LOGGING_LEVEL_ERROR, "soundscaper-sherpa-webgpu"};
   WebGpuPlugin() {
-    const auto path = ProviderLibraryPath();
 #if defined(_WIN32)
     const auto probe = path.parent_path() / "onnx-webgpu-device-probe.exe";
 #else
@@ -65,7 +65,7 @@ void ScapeAppendWebGpuProvider(Ort::SessionOptions &options) {
   static WebGpuPlugin plugin;
   const auto devices = plugin.env.GetEpDevices();
   for (const auto &device : devices) {
-    if (std::string(device.EpName()) == "WebGpuExecutionProvider") {
+    if (ScapeIsWebGpuPluginDevice(device, plugin.path)) {
       options.AppendExecutionProvider_V2(plugin.env, {device},
                                          std::unordered_map<std::string, std::string>{});
       return;

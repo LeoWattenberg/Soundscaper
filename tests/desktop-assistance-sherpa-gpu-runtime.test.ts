@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -50,6 +51,7 @@ test('Sherpa GPU sources reject altered bytes and unsafe archive entries', () =>
 test('Sherpa source-build identity binds the canonical pinned recipe and native recipe bytes', async () => {
 	const recipe = JSON.parse(await readFile(new URL('../config/assistance-sherpa-gpu-build.json', import.meta.url), 'utf8')) as {
 		recipeId: string; sources: { id: string; byteLength: number; sha256: string }[];
+		nativeRecipeFiles: Record<string, string>;
 	};
 	const sourceBuild = desktopSherpaGpuRecipeSourceBuild();
 	assert.equal(sourceBuild.recipeId, recipe.recipeId);
@@ -64,12 +66,15 @@ test('Sherpa source-build identity binds the canonical pinned recipe and native 
 		assert.match(source.sha256, /^[a-f0-9]{64}$/u);
 		assert.ok(source.byteLength > 0);
 	}
+	for (const [path, sha256] of Object.entries(recipe.nativeRecipeFiles)) {
+		const bytes = await readFile(new URL(`../${path}`, import.meta.url));
+		assert.equal(createHash('sha256').update(bytes).digest('hex'), sha256, path);
+	}
 });
 
 test('Sherpa receipts require exact GPU runtime libraries, source proof, and per-target providers', async () => {
 	const { createDesktopAssistanceOnnxNativeClosureManifest } = await import('../scripts/lib/desktop-assistance-onnx-native-closure.mjs');
 	const { validateDesktopAssistanceSherpaGpuBuildReceipt } = await import('../scripts/lib/desktop-assistance-sherpa-gpu-runtime.mjs');
-	const { createHash } = await import('node:crypto');
 	const fingerprint = (bytes: Uint8Array) => ({ byteLength: bytes.byteLength, sha256: createHash('sha256').update(bytes).digest('hex') });
 	const recipe = JSON.parse(await readFile(new URL('../config/assistance-sherpa-gpu-build.json', import.meta.url), 'utf8')) as {
 		recipeId: string; sourceRevision: string; nodeHeadersVersion: string; nodeAddonApiVersion: string;
