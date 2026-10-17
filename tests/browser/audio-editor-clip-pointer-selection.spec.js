@@ -63,7 +63,8 @@ test('body double-click selects audio, body triple-click picks track clips, and 
 test('track panel double-click selects its audio, triple-click selects every track, and controls preserve its range', async ({ page }) => {
 	const { editor, row } = await setup(page);
 	const panel = row.locator('.track-control-panel');
-	const point = { x: 30, y: 100 };
+	// The main panel has 12px padding; x=30,y=100 lands on its Effects button.
+	const point = { x: 6, y: 100 };
 	await panel.dblclick({ position: point });
 	await expect(duration(editor)).toHaveText('00h00m08.000s');
 	await panel.getByRole('slider', { name: 'Volume', exact: true }).press('ArrowLeft');
