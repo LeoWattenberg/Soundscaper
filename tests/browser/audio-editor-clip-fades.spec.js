@@ -1,6 +1,6 @@
 import { capturePassingScreenshot } from './helpers/passing-screenshots.js';
 import { expect, test, toneA, toneB, monoTone } from './audio-editor-test-fixtures.js';
-import { bootEditor, chooseCommandAction, clipByName, closeClipProperties, collectClientErrors, importFiles, openClipProperties, registerAudioEditorHooks, setDocumentTheme, waitForEditor } from './audio-editor-test-helpers.js';
+import { bootEditor, chooseCommandAction, clipByName, closeClipProperties, collectClientErrors, commitInput, importFiles, openClipProperties, registerAudioEditorHooks, setDocumentTheme, waitForEditor } from './audio-editor-test-helpers.js';
 import { chooseTrackMenuAction } from './helpers/track-menu.js';
 
 async function selectClip(clip) {
@@ -279,10 +279,10 @@ test.describe('non-destructive clip fade handles', () => {
 		const clip = clipByName(editor, toneA.name);
 		await selectClip(clip);
 		await clip.getByRole('slider', { name: 'Fade in', exact: true }).press('0');
-		await clip.getByRole('slider', { name: 'Fade in', exact: true }).press('End');
 		await clip.getByRole('slider', { name: 'Fade out', exact: true }).press('0');
-		await clip.getByRole('slider', { name: 'Fade out', exact: true }).press('End');
 		const dialog = await openClipProperties(page, editor, clip);
+		await commitInput(dialog.getByRole('textbox', { name: 'Fade in', exact: true }), '0.4');
+		await commitInput(dialog.getByRole('textbox', { name: 'Fade out', exact: true }), '0.4');
 		await dialog.getByText('Fading', { exact: true }).click();
 		const incoming = dialog.locator('[data-clip-field="fadeInShape"]').getByRole('slider');
 		const outgoing = dialog.locator('[data-clip-field="fadeOutShape"]').getByRole('slider');
@@ -399,9 +399,11 @@ test.describe('non-destructive clip fade handles', () => {
 		const clip = clipByName(editor, toneA.name);
 		await selectClip(clip);
 		await clip.getByRole('slider', { name: 'Fade in', exact: true }).press('0');
-		await clip.getByRole('slider', { name: 'Fade in', exact: true }).press('End');
 		await clip.getByRole('slider', { name: 'Fade out', exact: true }).press('0');
-		await clip.getByRole('slider', { name: 'Fade out', exact: true }).press('End');
+		const properties = await openClipProperties(page, editor, clip);
+		await commitInput(properties.getByRole('textbox', { name: 'Fade in', exact: true }), '0.8');
+		await commitInput(properties.getByRole('textbox', { name: 'Fade out', exact: true }), '0.8');
+		await closeClipProperties(properties);
 		const incoming = clip.getByRole('slider', { name: 'Fade in shape', exact: true });
 		const outgoing = clip.getByRole('slider', { name: 'Fade out shape', exact: true });
 		const inBounds = await incoming.boundingBox();
@@ -503,7 +505,7 @@ test.describe('non-destructive clip fade handles', () => {
 		await editor.getByRole('button', { name: 'Undo', exact: true }).click();
 		await expect(firstFade).toHaveAttribute('aria-valuenow', '0.002');
 		await expect(secondFade).toHaveAttribute('aria-valuenow', '0.002');
-		await first.locator('.clip-header').click({ modifiers: ['Shift'] });
+		await first.click({ modifiers: ['Control'], position: { x: 40, y: 60 } });
 		await expect(first.locator('.clip-display')).toHaveAttribute('data-selected', 'false');
 		await expect(second.locator('.clip-display')).toHaveAttribute('data-selected', 'true');
 		await beginFadeDrag(page, firstFade, 30);
