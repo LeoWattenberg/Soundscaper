@@ -414,8 +414,9 @@ test('the layout preference accepts the three chrome modes and defaults older do
 	assert.throws(() => createAudioEditorPreferencesV1({ appearance: { layout: 'phone' } }), RangeError);
 	const saved = createAudioEditorPreferencesV1({ appearance: { theme: 'dark', clipStyle: 'classic' } });
 	delete saved.appearance.layout;
+	delete saved.appearance.labelTextSizePt;
 	assert.deepEqual(
 		loadAudioEditorPreferencesV1(saved).preferences.appearance,
-		{ skin: 'default', theme: 'dark', clipStyle: 'classic', layout: 'auto', defaultView: 'waveform' },
+		{ skin: 'default', theme: 'dark', clipStyle: 'classic', layout: 'auto', defaultView: 'waveform', labelTextSizePt: 9 },
 	);
 });

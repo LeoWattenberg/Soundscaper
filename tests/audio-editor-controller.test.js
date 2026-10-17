@@ -357,7 +357,7 @@ test('controller reverts editor preferences to product factory defaults without 
 	const projectId = controller.getSnapshot().project.id;
 
 	await controller.actions.preferences.update({
-		appearance: { skin: 'techno', theme: 'dark', clipStyle: 'classic', layout: 'compact' },
+		appearance: { skin: 'techno', theme: 'dark', clipStyle: 'classic', layout: 'compact', labelTextSizePt: 24 },
 		shortcuts: {},
 	});
 	await controller.actions.preferences.setWorkspace('music');
