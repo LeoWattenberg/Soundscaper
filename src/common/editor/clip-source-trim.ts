@@ -11,15 +11,26 @@ export interface ClipSourceTrim {
 	readonly durationFrames: number;
 }
 
+interface ClipSourceTrimMetadata {
+	readonly trimStartFrames?: number;
+	readonly trimEndFrames?: number;
+}
+
 /** Source edits retain the project anchor and every surviving marker's exact sample. */
-export function clipSourceTrimFields(project: ClipSourceTimingProject, clip: ClipSourceTimingClip, source: ClipSourceTimingSource, changes: ClipSourceTrim): ClipSourceTrim & Readonly<{ warpMap?: Readonly<AudioWarpMap>; opaqueExtensions?: Readonly<Record<string, unknown>> }> {
+export function clipSourceTrimFields(project: ClipSourceTimingProject, clip: ClipSourceTimingClip & ClipSourceTrimMetadata, source: ClipSourceTimingSource, changes: ClipSourceTrim): ClipSourceTrim & Required<ClipSourceTrimMetadata> & Readonly<{ warpMap?: Readonly<AudioWarpMap>; opaqueExtensions?: Readonly<Record<string, unknown>> }> {
 	if (clip.kind !== 'audio') throw new RangeError('Source range trimming requires an audio clip.');
 	for (const [field, value] of Object.entries(changes)) {
 		if (!Number.isSafeInteger(value) || value < (field === 'sourceStartFrame' ? 0 : 1)) throw new RangeError('Clip source range requires whole, positive sample extents.');
 	}
 	const end = changes.sourceStartFrame + changes.sourceDurationFrames;
 	if (end > source.frameCount) throw new RangeError('Clip source range exceeds the media duration.');
-	if (clip.warpMap == null) return { ...changes };
+	// The trim counters use source samples. Extending into previously hidden
+	// media consumes that edge's counter; cutting inward restores it.
+	const fields = { ...changes,
+		trimStartFrames: Math.max(0, (clip.trimStartFrames ?? 0) + (changes.sourceStartFrame - clip.sourceStartFrame)),
+		trimEndFrames: Math.max(0, (clip.trimEndFrames ?? 0) + (clip.sourceStartFrame + clip.sourceDurationFrames - end)),
+	};
+	if (clip.warpMap == null) return fields;
 	const map = clipSourceStretchMemory(project, clip, source)!;
 	const displayAtSource = (frame: number) => {
 		const outer = evaluateAudioWarpMapAtSource(map, frame);
@@ -38,5 +49,5 @@ export function clipSourceTrimFields(project: ClipSourceTimingProject, clip: Cli
 		const localFrame = Math.round(progress * changes.durationFrames);
 		return { source: point.source, outer: audioWarpOuterAtTimelineFrame(project, clip, clip.timelineStartFrame + localFrame), mode: 'forward' as const };
 	});
-	return { ...changes, warpMap: normalizeAudioWarpMap({ feature: 'audio-warp', points }), opaqueExtensions: clipSourceStretchExtensions(clip, source, map) };
+	return { ...fields, warpMap: normalizeAudioWarpMap({ feature: 'audio-warp', points }), opaqueExtensions: clipSourceStretchExtensions(clip, source, map) };
 }

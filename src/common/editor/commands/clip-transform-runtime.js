@@ -410,12 +410,18 @@ export function trimClip(project, command) {
 	const clip = normalizeInactiveClipLoop(requireClip(project, command.clipId));
 	const track = requireClipTrack(project, clip.id);
 	const loop = readClipLoop(clip);
-	if (loop && clipHasLoopRepeats(clip) && command.sourceRange === true) {
-		const updated = normalizeClipForProject(project, { ...clip, ...clipLoopUpdateFields(clip, {
-			periodFrames: command.durationFrames ?? loop.periodFrames, offsetFrames: 0,
+	const sourceTrim = command.sourceRange === true
+		? clipSourceTrimFields(project, clip, project.sources.find((source) => source.id === clip.sourceId), {
 			sourceStartFrame: command.sourceStartFrame ?? clip.sourceStartFrame,
 			sourceDurationFrames: command.sourceDurationFrames ?? clip.sourceDurationFrames,
-		}) });
+			durationFrames: command.durationFrames ?? loop?.periodFrames ?? clip.durationFrames,
+		}) : null;
+	if (loop && clipHasLoopRepeats(clip) && sourceTrim) {
+		const updated = normalizeClipForProject(project, { ...clip, ...clipLoopUpdateFields(clip, {
+			periodFrames: sourceTrim.durationFrames, offsetFrames: 0,
+			sourceStartFrame: sourceTrim.sourceStartFrame,
+			sourceDurationFrames: sourceTrim.sourceDurationFrames,
+		}), trimStartFrames: sourceTrim.trimStartFrames, trimEndFrames: sourceTrim.trimEndFrames });
 		assertClipSourceBounds(project, updated);
 		replaceClip(project, updated);
 		return;
@@ -424,12 +430,7 @@ export function trimClip(project, command) {
 		? clip.timelineStartFrame
 		: assertFrame(command.timelineStartFrame, 'clip trim destination');
 	const durationFrames = command.durationFrames ?? clip.durationFrames;
-	const warpSegment = command.sourceRange === true
-		? clipSourceTrimFields(project, clip, project.sources.find((source) => source.id === clip.sourceId), {
-			sourceStartFrame: command.sourceStartFrame ?? clip.sourceStartFrame,
-			sourceDurationFrames: command.sourceDurationFrames ?? clip.sourceDurationFrames, durationFrames,
-		})
-		: warpSegmentForTimelineRange(
+	const warpSegment = sourceTrim ?? warpSegmentForTimelineRange(
 		project,
 		clip,
 		command,
@@ -453,8 +454,8 @@ export function trimClip(project, command) {
 		durationFrames,
 		...(warpSegment?.warpMap ? { warpMap: warpSegment.warpMap } : {}),
 		...(warpSegment?.opaqueExtensions ? { opaqueExtensions: warpSegment.opaqueExtensions } : {}),
-		trimStartFrames: command.trimStartFrames ?? clip.trimStartFrames,
-		trimEndFrames: command.trimEndFrames ?? clip.trimEndFrames,
+		trimStartFrames: sourceTrim?.trimStartFrames ?? command.trimStartFrames ?? clip.trimStartFrames,
+		trimEndFrames: sourceTrim?.trimEndFrames ?? command.trimEndFrames ?? clip.trimEndFrames,
 		envelope: envelopeForTrimmedBounds(clip, timelineStartFrame, durationFrames),
 		...optionalTrimmedFade('fadeInFrames', command, clip, durationFrames),
 		...optionalTrimmedFade('fadeOutFrames', command, clip, durationFrames),
