@@ -69,7 +69,10 @@ export function audacityActionReason(id, copyOrLocale = 'en') {
 export function evaluateAudacityActionEnablement(id, context) {
 	const definition = audacityActionDefinition(id);
 	if (!definition || definition.status !== AUDACITY_ACTION_STATUS.IMPLEMENTED) return false;
-	return evaluateAudacityEnableWhen(definition.enableWhen, resolveActionContext(context));
+	const resolvedContext = resolveActionContext(context);
+	if (resolvedContext?.snapshot?.selectedLabels?.length && ['action://copy', 'action://cut', 'cut-leave-gap', 'cut-per-clip-ripple', 'cut-per-track-ripple', 'cut-all-tracks-ripple'].includes(definition.id))
+		return Boolean(resolvedContext.snapshot.project) && !selectAudioEditorEditBlock(resolvedContext.snapshot).blocked && !resolvedContext.telemetry?.recording;
+	return evaluateAudacityEnableWhen(definition.enableWhen, resolvedContext);
 }
 
 /** Evaluate one of the closed predicate vocabulary entries used by the manifest. */
@@ -323,7 +326,7 @@ function decorateMenuItem(item, localization, actionRuntime, actionContext, cano
 	} else if (!children?.length && definition?.status === AUDACITY_ACTION_STATUS.IMPLEMENTED) {
 		const hadHandler = typeof result.onClick === 'function';
 		const stateDisabled = result.disabled || (
-			actionContext !== undefined && !evaluateAudacityEnableWhen(definition.enableWhen, actionContext)
+			actionContext !== undefined && !evaluateAudacityActionEnablement(definition.id, actionContext)
 		);
 		if (stateDisabled) {
 			result.disabled = true;

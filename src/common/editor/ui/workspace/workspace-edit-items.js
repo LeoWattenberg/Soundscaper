@@ -4,15 +4,16 @@
  * The edit actions the tool toolbar and the workspace menus offer, with their
  * enablement derived from the current selection and clipboard.
  *
- * @param {{copy: Record<string, string>, editBlocked: boolean, editSelectionActive: boolean, hasClipboard: boolean, splitAvailable: boolean, pasteTargetLocked?: boolean}} input
+ * @param {{copy: Record<string, string>, editBlocked: boolean, editSelectionActive: boolean, hasClipboard: boolean, splitAvailable: boolean, pasteTargetLocked?: boolean, selectedLabels?: readonly {trackId: string, labelId: string}[]}} input
  */
-export function createWorkspaceEditItems({ copy, editBlocked, editSelectionActive, hasClipboard, splitAvailable, pasteTargetLocked = false }) {
+export function createWorkspaceEditItems({ copy, editBlocked, editSelectionActive, hasClipboard, splitAvailable, pasteTargetLocked = false, selectedLabels = [] }) {
 	const selectionDisabled = editBlocked || !editSelectionActive;
+	const clipboardDisabled = editBlocked || !(editSelectionActive || selectedLabels.length);
 	return [
-		{ action: 'cutPerTrackRipple', label: copy.cutPerTrackRipple, icon: 'cut', disabled: selectionDisabled },
-		{ action: 'cutLeaveGap', label: copy.cutLeaveGap, icon: 'cut', disabled: selectionDisabled },
-		{ action: 'cutAllTracksRipple', label: copy.cutAllTracksRipple, icon: 'cut', disabled: selectionDisabled },
-		{ action: 'copy', label: copy.copy, icon: 'copy', disabled: selectionDisabled },
+		{ action: 'cutPerTrackRipple', label: copy.cutPerTrackRipple, icon: 'cut', disabled: clipboardDisabled },
+		{ action: 'cutLeaveGap', label: copy.cutLeaveGap, icon: 'cut', disabled: clipboardDisabled },
+		{ action: 'cutAllTracksRipple', label: copy.cutAllTracksRipple, icon: 'cut', disabled: clipboardDisabled },
+		{ action: 'copy', label: copy.copy, icon: 'copy', disabled: clipboardDisabled },
 		{ action: 'paste', label: copy.paste, icon: 'paste', disabled: editBlocked || !hasClipboard || pasteTargetLocked },
 		{ action: 'split', label: copy.split, icon: 'split', disabled: editBlocked || !splitAvailable },
 		{ action: 'deletePerTrackRipple', label: copy.deletePerTrackRipple, icon: 'trash', disabled: selectionDisabled },
