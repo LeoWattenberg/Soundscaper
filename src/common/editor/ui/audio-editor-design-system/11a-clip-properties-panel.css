@@ -56,13 +56,13 @@
 	outline-offset: -2px;
 }
 
-.audio-editor-clip-properties-panel .audio-editor-clip-properties {
+:is(.audio-editor-clip-properties-panel, .audio-editor-upstream-clip-properties) .audio-editor-clip-properties {
 	display: flex;
 	flex-direction: column;
 	gap: 6px;
 }
 
-.audio-editor-clip-properties-panel .audio-editor-clip-properties__time-grid {
+:is(.audio-editor-clip-properties-panel, .audio-editor-upstream-clip-properties) .audio-editor-clip-properties__time-grid {
 	grid-template-columns: minmax(0, 1fr);
 }
 
