@@ -10,7 +10,7 @@ export async function openClipProperties(page, editor, clip, { additional = true
 	await expect(panel.locator('[data-clip-properties-panel]')).toBeVisible();
 	if (additional) {
 		const summary = panel.locator('summary').filter({ hasText: 'Additional properties' });
-		if (await summary.count()) await summary.click();
+		if (await summary.count() && await summary.locator('..').getAttribute('open') === null) await summary.click();
 	}
 	return panel;
 }
