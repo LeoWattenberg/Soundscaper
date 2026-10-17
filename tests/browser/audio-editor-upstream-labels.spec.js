@@ -1,3 +1,4 @@
+import { capturePassingScreenshot } from './helpers/passing-screenshots.js';
 import { expect, longTone, test } from './audio-editor-test-fixtures.js';
 import { bootEditor, chooseCommandAction, collectClientErrors, importFiles } from './audio-editor-test-helpers.js';
 
@@ -34,7 +35,7 @@ test('adjacent labels share a boundary that resizes both labels with one undo', 
 	expect(errors).toEqual([]);
 });
 
-test('label text sizing is available from the label menu and scales the strap', async ({ page }) => {
+test('label text sizing is available from the label menu and scales the strap', async ({ page }, testInfo) => {
 	const errors = collectClientErrors(page);
 	const editor = await bootEditor(page, '/embed/en/');
 	const { before } = await importAdjacentLabels(editor);
@@ -50,6 +51,7 @@ test('label text sizing is available from the label menu and scales the strap', 
 	await expect(before.locator('[data-label-banner]')).toHaveCSS('height', '48px');
 	await expect(before.locator('.label-marker__label-text')).toHaveCSS('font-size', '32px');
 	await expect(before.locator('[data-label-ear]').first().locator('svg')).toHaveAttribute('height', '20');
+	await capturePassingScreenshot(row, { path: testInfo.outputPath('label-text-24pt.png') });
 	await before.locator('[data-label-banner]').dblclick();
 	const title = editor.getByRole('textbox', { name: 'Edit labels: Before', exact: true });
 	await expect(title).toBeFocused();
