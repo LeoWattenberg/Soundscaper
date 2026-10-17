@@ -9,6 +9,7 @@ import {
 import { createSoundscaperProject } from '../src/soundscaper/editor-project.ts';
 import { createSoundscaperProjectHistory, executeSoundscaperProjectCommand, undoSoundscaperProjectCommand } from '../src/soundscaper/editor-project-history.ts';
 import { createAudioClip, createAudioSource, createAudioTrack } from '../src/common/editor/project-media-factory.ts';
+import { resolveRuntimeProjectProjection } from '../src/common/editor/runtime-clip-projection.ts';
 
 const clips = [
 	{ id: 'long', kind: 'audio', timelineStartFrame: 0, durationFrames: 96_000, fadeInFrames: 0, fadeOutFrames: 48_000 },
@@ -65,7 +66,7 @@ test('dialog patches preserve unspecified fields and apply both lengths without 
 
 test('numeric fade properties retain authored sub-20ms fades on every target', () => {
 	const initial = project();
-	const command = planSelectedClipFadeCommand({ ...request, clips: initial.clips,
+	const command = planSelectedClipFadeCommand({ ...request, clips: resolveRuntimeProjectProjection(initial).clips,
 		edit: { kind: 'properties', changes: { fadeInFrames: 48 } } });
 	assert.ok(command);
 	const history = executeSoundscaperProjectCommand(createSoundscaperProjectHistory(initial), command);
@@ -76,7 +77,7 @@ test('numeric fade properties retain authored sub-20ms fades on every target', (
 
 test('native batch commits the selected fade once and Undo restores every track', () => {
 	const initial = project();
-	const command = planSelectedClipFadeCommand({ clips: initial.clips, editedClipId: 'long', selectedIds,
+	const command = planSelectedClipFadeCommand({ clips: resolveRuntimeProjectProjection(initial).clips, editedClipId: 'long', selectedIds,
 		sampleRate: initial.sampleRate, edit: { kind: 'length', edge: 'in', frames: 60_000 } });
 	assert.equal(command?.type, 'batch');
 	assert.ok(command);
@@ -95,7 +96,7 @@ test('native batch clears explicit linear shapes on every selected clip', () => 
 	const shaped = executeSoundscaperProjectCommand(createSoundscaperProjectHistory(initial), {
 		type: 'batch', commands: initial.clips.map(clip => ({ type: 'clip/update', clipId: clip.id, changes: { fadeOutShape: 2 } })),
 	});
-	const command = planSelectedClipFadeCommand({ ...request, clips: shaped.present.clips,
+	const command = planSelectedClipFadeCommand({ ...request, clips: resolveRuntimeProjectProjection(shaped.present).clips,
 		edit: { kind: 'shape', edge: 'out', shape: undefined } });
 	assert.ok(command);
 	const linear = executeSoundscaperProjectCommand(shaped, command);
@@ -105,7 +106,7 @@ test('native batch clears explicit linear shapes on every selected clip', () => 
 test('a locked participant stays in the plan so native admission rejects the entire batch', () => {
 	const initial = project(true);
 	const baseline = structuredClone(initial);
-	const command = planSelectedClipFadeCommand({ clips: initial.clips, editedClipId: 'long', selectedIds,
+	const command = planSelectedClipFadeCommand({ clips: resolveRuntimeProjectProjection(initial).clips, editedClipId: 'long', selectedIds,
 		sampleRate: initial.sampleRate, edit: { kind: 'length', edge: 'in', frames: 60_000 } });
 	assert.equal(command?.commands.length, 2);
 	assert.ok(command);
