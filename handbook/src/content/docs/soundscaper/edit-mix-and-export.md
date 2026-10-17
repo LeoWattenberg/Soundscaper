@@ -59,8 +59,9 @@ of the waveform, directly below the clip header.
 Drag the left triangle inward for a fade-in, or the right triangle inward for
 a fade-out. The waveform changes as you drag, and the area above the fade
 curve becomes darker. The triangles follow the fade boundaries; dragging one
-back to its corner removes that fade. Only the clip you drag is changed, even
-when several clips are selected.
+back to its corner removes that fade. Dragging a selected clip changes every
+selected audio clip, including clips on other tracks, in one undo step. Dragging
+an unselected clip changes that clip alone.
 
 The handles disappear when the clip is neither hovered nor selected, but the
 faded waveform and shading remain. These fades preserve the original audio

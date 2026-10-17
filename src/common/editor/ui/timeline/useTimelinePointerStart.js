@@ -1,3 +1,4 @@
+import { selectedClipFadeTargets } from './selected-clip-fades.ts';
 import { resetClipPointerDrag } from './clip-pointer-selection.ts';
 import { useCallback } from 'react';
 import { clipHasLoopRepeats, normalizeInactiveClipLoop } from '../../audio-clip-loop.ts';
@@ -149,10 +150,11 @@ export function useTimelinePointerStart({
 			if (event.button !== 0 || mutationsBlocked || pointerSession.current) return;
 			const clipId = fadeShapeHandle.closest('[data-clip-id]')?.dataset.clipId;
 			const clip = project.clips.find(item => item.id === clipId);
-			if (clip?.kind !== 'audio' || clipGestureBlocked(project, [clip.id])) return;
+			const fadeTargets = selectedClipFadeTargets(project.clips, clipId, project.selection?.clipIds ?? []);
+			if (clip?.kind !== 'audio' || clipGestureBlocked(project, fadeTargets.map(target => target.id))) return;
 			const edge = fadeShapeHandle.dataset.clipFadeShapeHandle;
 			pointerSession.current = {
-				kind: 'fade-shape', edge, clipId, original: { ...clip }, startY: event.clientY,
+				kind: 'fade-shape', edge, clipId, original: { ...clip }, fadeTargets: fadeTargets.map(target => ({ ...target })), startY: event.clientY,
 				gainHeight: fadeShapeHandle.closest('.audio-editor-clip-fade')?.getBoundingClientRect().height ?? 1,
 				baseGain: Number(fadeShapeHandle.dataset.fadeShapeBaseGain),
 				startGain: Number(fadeShapeHandle.dataset.fadeShapeStartGain),
@@ -170,10 +172,11 @@ export function useTimelinePointerStart({
 			if (event.button !== 0 || mutationsBlocked || pointerSession.current) return;
 			const clipId = fadeHandle.closest('[data-clip-id]')?.dataset.clipId;
 			const clip = project.clips.find(item => item.id === clipId);
-			if (clip?.kind !== 'audio' || clipGestureBlocked(project, [clip.id])) return;
+			const fadeTargets = selectedClipFadeTargets(project.clips, clipId, project.selection?.clipIds ?? []);
+			if (clip?.kind !== 'audio' || clipGestureBlocked(project, fadeTargets.map(target => target.id))) return;
 			const edge = fadeHandle.dataset.clipFadeHandle;
 			pointerSession.current = {
-				kind: 'fade', edge, clipId, original: { ...clip }, startX: event.clientX,
+				kind: 'fade', edge, clipId, original: { ...clip }, fadeTargets: fadeTargets.map(target => ({ ...target })), startX: event.clientX,
 				pixelsPerSecond: Math.max(pixelsPerSecond, 48 * sampleRate / clip.durationFrames),
 				initial: clip[fadeField(edge)] ?? 0, pointerId: event.pointerId,
 				boundaryFrames: project.clips.filter(item => item.id !== clip.id).flatMap(item => [item.timelineStartFrame, item.timelineStartFrame + item.durationFrames]),

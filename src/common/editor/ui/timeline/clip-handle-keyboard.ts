@@ -28,7 +28,7 @@ interface Ports {
 	readonly blocked: boolean;
 	readonly selectedIds: readonly string[];
 	readonly playheadFrame: number;
-	updateFade(id: string, changes: Readonly<{ fadeInFrames?: number; fadeOutFrames?: number; fadeInShape?: number; fadeOutShape?: number }>): void;
+	updateFade(id: string, changes: Readonly<{ fadeInFrames?: number; fadeOutFrames?: number; fadeInShape?: number; fadeOutShape?: number }>, editedEdge?: ClipFadeEdge): void;
 	trim(id: string, edge: Edge, seconds: number): void;
 	stretch(id: string, edge: Edge, seconds: number): void;
 	seek(frame: number): void;
@@ -135,7 +135,7 @@ export function routeClipHandleKeyboard(event: KeyEvent, ports: Ports): boolean 
 		const edge = handle?.edge ?? (key === '[' ? 'left' : key === ']' ? 'right' : nearestClipEdge(clip, ports.playheadFrame));
 		const seconds = (edge === 'left' ? ports.playheadFrame - clip.timelineStartFrame
 			: clip.timelineStartFrame + clip.durationFrames - ports.playheadFrame) / ports.sampleRate;
-		if (key === 'f') ports.updateFade(clip.id, clipFadeLengthChange(clip, edge === 'left' ? 'in' : 'out', seconds * ports.sampleRate, ports.sampleRate));
+		if (key === 'f') ports.updateFade(clip.id, clipFadeLengthChange(clip, edge === 'left' ? 'in' : 'out', seconds * ports.sampleRate, ports.sampleRate), edge === 'left' ? 'in' : 'out');
 		else (key === 's' ? ports.stretch : ports.trim)(clip.id, edge, seconds);
 		return stop();
 	}
@@ -170,14 +170,14 @@ export function routeClipHandleKeyboard(event: KeyEvent, ports: Ports): boolean 
 	const edge: ClipFadeEdge = handle.edge === 'left' ? 'in' : 'out';
 	const field = fadeField(edge);
 	const shapeField = fadeShapeField(edge);
-	if (event.key === 'Delete' || event.key === 'Backspace') { ports.updateFade(focused.id, { [field]: 0 }); return stop(); }
+	if (event.key === 'Delete' || event.key === 'Backspace') { ports.updateFade(focused.id, { [field]: 0 }, edge); return stop(); }
 	if (/^[0-5]$/u.test(key)) {
 		ports.updateFade(focused.id, { [shapeField]: key === '0' ? 2 : END_FADE_SHAPE_PRESETS[Number(key) - 1]?.shape }); return stop();
 	}
 	if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
 		const later = event.key === 'ArrowRight';
 		const delta = Math.round(ports.sampleRate * (event.shiftKey ? 1 : 0.1)) * ((edge === 'in') === later ? 1 : -1);
-		ports.updateFade(focused.id, clipFadeLengthChange(focused, edge, (focused[field] ?? 0) + delta, ports.sampleRate)); return stop();
+		ports.updateFade(focused.id, clipFadeLengthChange(focused, edge, (focused[field] ?? 0) + delta, ports.sampleRate), edge); return stop();
 	}
 	if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
 		if ((focused[field] ?? 0) > 0) {

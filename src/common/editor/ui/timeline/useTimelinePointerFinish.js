@@ -1,3 +1,4 @@
+import { clipFadeSessionCommand } from './clip-fade-actions.ts';
 import { markClipPointerDrag } from './clip-pointer-selection.ts';
 import { previewClipFadePointer } from './clip-fade-pointer-edit.ts';
 import { useCallback, useEffect } from 'react';
@@ -123,7 +124,8 @@ export function useTimelinePointerFinish({
 				|| clip.timelineStartFrame !== session.original.timelineStartFrame
 				|| (clip[field] ?? 0) !== session.initial) return;
 			const changes = previewClipFadePointer(session, event.clientX, event.shiftKey, project, sampleRate, controller.getTelemetrySnapshot?.().positionFrame ?? 0);
-			if (changes[field] !== session.initial) run(() => controller.actions.clip.update(clip.id, changes));
+			const command = changes[field] !== session.initial && clipFadeSessionCommand(session, project, sampleRate, { kind: 'length', edge: session.edge, frames: changes[field] });
+			if (command) run(() => controller.actions.edit.commit(command));
 			return;
 		}
 		if (session.kind === 'fade-shape') {
@@ -134,7 +136,8 @@ export function useTimelinePointerFinish({
 				|| (clip[field] ?? 2) !== session.initial) return;
 			const value = fadeShapeAtPointer(session.initial, session.startY, event.clientY,
 				session.gainHeight, session.baseGain, session.startGain);
-			if (value !== session.initial) run(() => controller.actions.clip.update(clip.id, { [field]: value }));
+			const command = value !== session.initial && clipFadeSessionCommand(session, project, sampleRate, { kind: 'shape', edge: session.edge, shape: value });
+			if (command) run(() => controller.actions.edit.commit(command));
 			return;
 		}
 		if (session.kind === 'crossfade-shape') {

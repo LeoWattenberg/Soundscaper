@@ -1,3 +1,4 @@
+import { clipFadeSessionPreviews } from './clip-fade-actions.ts';
 import { clipPointerHasMoved, captureClipPointerDrag } from './clip-pointer-selection.ts';
 import { previewClipFadePointer } from './clip-fade-pointer-edit.ts';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
@@ -7,7 +8,7 @@ import { CLIP_CONTENT_OFFSET } from '@soundscaper/design-system/constants';
 
 import { secondsToFrames } from '../../design-system-adapters.js';
 import { createBoundarySnapIndex, resolveBoundarySnap, resolveClipMoveBoundarySnap } from './boundary-snap.ts';
-import { fadeField, fadeShapeAtPointer, fadeShapeField } from './clip-fade-geometry.ts';
+import { fadeField, fadeShapeAtPointer } from './clip-fade-geometry.ts';
 import { planCrossfadeRoll } from './crossfade-roll-planner.ts';
 import { crossfadeDepthShapesAtPointer } from './crossfade-visual-geometry.ts';
 import { createClipTrimPreview } from './interaction-helpers.js';
@@ -214,9 +215,7 @@ export function useTimelinePointerMove({
 		if (session?.kind === 'fade') {
 			if (session.pointerId !== event.pointerId) return;
 			const changes = previewClipFadePointer(session, event.clientX, event.shiftKey, project, sampleRate, controller.getTelemetrySnapshot?.().positionFrame ?? 0);
-			session.preview = { clipId: session.clipId, trackId: session.trackId, ...changes,
-				...(session.initial === 0 && changes[fadeField(session.edge)] > 0 && session.original[fadeShapeField(session.edge)] === undefined ? { [fadeShapeField(session.edge)]: 2 } : {}),
-			};
+			session.preview = clipFadeSessionPreviews(session, project, sampleRate, { kind: 'length', edge: session.edge, frames: changes[fadeField(session.edge)] });
 			if (fadePreviewFrame.current === null) fadePreviewFrame.current = requestAnimationFrame(() => {
 				fadePreviewFrame.current = null;
 				if (pointerSession.current === session) setClipDragPreview(session.preview);
@@ -228,7 +227,7 @@ export function useTimelinePointerMove({
 			if (session.pointerId !== event.pointerId) return;
 			const value = fadeShapeAtPointer(session.initial, session.startY, event.clientY,
 				session.gainHeight, session.baseGain, session.startGain);
-			session.preview = { clipId: session.clipId, trackId: session.trackId, [fadeShapeField(session.edge)]: value };
+			session.preview = clipFadeSessionPreviews(session, project, sampleRate, { kind: 'shape', edge: session.edge, shape: value });
 			if (fadePreviewFrame.current === null) fadePreviewFrame.current = requestAnimationFrame(() => {
 				fadePreviewFrame.current = null;
 				if (pointerSession.current === session) setClipDragPreview(session.preview);

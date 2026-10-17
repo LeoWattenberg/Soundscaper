@@ -29,7 +29,12 @@ export default function ClipFadesDialog({ clip, sampleRate, copy, blocked, onPre
 	const labels = clipInteractionCopy(copy);
 	const baseId = useId();
 	useEffect(() => { onPreview(changes); }, [changes, onPreview]);
-	const apply = () => { if (!blocked) onApply(changes); onClose(); };
+	const apply = () => {
+		const edited = (Object.keys(changes) as (keyof ClipFadeChanges)[]).some(field =>
+			(field.endsWith('Frames') ? clip[field] ?? 0 : clip[field]) !== changes[field]);
+		if (!blocked && edited) onApply(changes);
+		onClose();
+	};
 	return <AudioEditorDialogShell isOpen title={labels.fades} onClose={onClose}
 		className="audio-editor-fades-dialog" width={460}
 		footer={<DialogFooter primaryText={labels.apply} secondaryText={copy.cancel} primaryDisabled={blocked}

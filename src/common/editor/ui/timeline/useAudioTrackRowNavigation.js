@@ -1,3 +1,4 @@
+import { clipFadeChangeCommand } from './clip-fade-actions.ts';
 import { routeClipHandleKeyboard } from './clip-handle-keyboard.ts';
 import { secondsDeltaToFrames } from './geometry.ts';
 import { clipHasLoopRepeats, normalizeInactiveClipLoop } from '../../audio-clip-loop.ts';
@@ -203,7 +204,10 @@ export function useAudioTrackRowNavigation({
 			if (routeClipHandleKeyboard(event, {
 				clips: track.clipIds.map(id => clipLookup.get(id)).filter(Boolean), sampleRate, blocked,
 				selectedIds: project.selection?.clipIds ?? [], playheadFrame: controller.getTelemetrySnapshot?.().positionFrame ?? 0,
-				updateFade: (id, changes) => run(() => controller.actions.clip.update(id, changes)),
+				updateFade: (id, changes, edge) => run(() => {
+					const command = clipFadeChangeCommand(project, id, sampleRate, changes, edge);
+					if (command) controller.actions.edit.commit(command);
+				}),
 				trim: trimClipBySeconds, stretch: stretchClipBySeconds,
 				seek: frame => run(() => controller.actions.transport.seek(frame)), openFades: onEditFades,
 			})) return;

@@ -1,3 +1,4 @@
+import { clipFadeChangeCommand } from './clip-fade-actions.ts';
 import { handleClipPointerClick } from './clip-pointer-selection.ts';
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { TrackNew } from '@soundscaper/design-system/Track/TrackNew';
@@ -98,6 +99,10 @@ export function AudioTrackRow({
 }) {
 	const trackWindowRef = useRef(null);
 	const [fadeDialogId, setFadeDialogId] = useState(null), [fadeDialogPreview, setFadeDialogPreview] = useState(null);
+	const changeFades = (id, changes) => run(() => {
+		const command = clipFadeChangeCommand(project, id, sampleRate, changes);
+		if (command) controller.actions.edit.commit(command);
+	});
 	const closeFades = useCallback(() => { setFadeDialogId(null); setFadeDialogPreview(null); }, []);
 	const previewFades = useCallback(changes => setFadeDialogPreview({ clipId: fadeDialogId, trackId: track.id, ...changes }), [fadeDialogId, track.id]);
 	const fadeDialogClip = fadeDialogId && trackClips.find(clip => clip.id === fadeDialogId);
@@ -409,7 +414,7 @@ export function AudioTrackRow({
 							else focusCurrentRuler();
 						}} />
 					<ClipLoopOverlays rootRef={trackWindowRef} clips={projection.clips} selectedIds={visualSelectedClipIds} startFrame={projection.overscanStartFrame} endFrame={projection.overscanEndFrame} pixelsPerSecond={pixelsPerSecond} sampleRate={sampleRate} blocked={clipMutationsBlocked} copy={copy} onChange={(id, changes) => run(() => controller.actions.clip.update(id, changes))} />
-					{fadeDialogClip && <Suspense fallback={null}><ClipFadesDialog key={fadeDialogId} clip={fadeDialogClip} sampleRate={sampleRate} copy={copy} blocked={clipMutationsBlocked} onPreview={previewFades} onClose={closeFades} onApply={changes => run(() => controller.actions.clip.update(fadeDialogId, changes))} /></Suspense>}
+					{fadeDialogClip && <Suspense fallback={null}><ClipFadesDialog key={fadeDialogId} clip={fadeDialogClip} sampleRate={sampleRate} copy={copy} blocked={clipMutationsBlocked} onPreview={previewFades} onClose={closeFades} onApply={changes => changeFades(fadeDialogId, changes)} /></Suspense>}
 					<ClipFadeOverlays onEditFades={setFadeDialogId} rootRef={trackWindowRef} clips={projection.clips}
 						showFadeShapeHandles={showFadeShapeHandles}
 						crossfadedFadeEdges={crossfadedFadeEdges}
@@ -422,7 +427,7 @@ export function AudioTrackRow({
 							if (clips[index + 1]) focusFirst(clips[index + 1]);
 							else if (!focusCrossfadeHandle(0)) onFocusTrackRuler(trackIndex);
 						}}
-						onChange={(id, changes) => run(() => controller.actions.clip.update(id, changes))} />
+						onChange={changeFades} />
 					{automationTarget && <TrackAutomationOverlay
 						controller={controller}
 						target={automationTarget}
