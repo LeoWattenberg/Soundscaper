@@ -54,7 +54,8 @@
 .audio-editor-clip-source-editor > .audio-editor-field-error { position: absolute; bottom: 0; margin: 0; padding: 5px; background: var(--stage-raised); z-index: 10; }
 
 .audio-editor-source-waveforms > [data-source-active="true"] { opacity: 1; }
-.audio-editor-source-vertical-ruler .vertical-ruler__label { --ruler-text-primary: var(--text); --ruler-text-secondary: var(--text); }
+/* Source rulers sit on the panel, so ticks and labels use its foregrounds. */
+.audio-editor-source-vertical-ruler .vertical-ruler__ticks { --ruler-text-primary: var(--text); --ruler-text-secondary: var(--text); --ruler-tick-primary: var(--text); --ruler-tick-secondary: var(--muted); }
 
 .audio-editor-source-ruler__loop, .audio-editor-source-ruler__selection { fill: var(--accent); pointer-events: none; }
 .audio-editor-source-ruler__selection { opacity: 0.2; }
