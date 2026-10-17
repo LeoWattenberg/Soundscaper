@@ -53,8 +53,8 @@ export function createFramescaperProjectVisual(
 		},
 		tracks: recordArray(v22Options.tracks).map((track) => ({
 			...track,
-			clipIds: Array.isArray(track.clipIds)
-				? track.clipIds.filter((id) => !visualIds.has(String(id))) : track.clipIds,
+			...(Array.isArray(track.clipIds)
+				? { clipIds: track.clipIds.filter((id) => !visualIds.has(String(id))) } : {}),
 		})),
 	};
 	const project = createFramescaperProjectTransitions(

@@ -199,6 +199,7 @@ function validateTrack(
 	projectBoolean(track.collapsed, `${prefix}.collapsed`);
 	projectSafeInteger(track.height, 40, `${prefix}.height`);
 	if (track.type === 'label') {
+		if (track.color !== undefined) projectString(track.color, `${prefix}.color`);
 		if (track.laneGroupId !== null) throw new RangeError(`${prefix} cannot belong to a media lane group.`);
 		const labels = recordArray(track.labels, `${prefix}.labels`);
 		projectUniqueIds(labels, `${prefix}.labels`);

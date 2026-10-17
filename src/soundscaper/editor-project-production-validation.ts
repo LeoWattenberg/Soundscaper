@@ -88,7 +88,7 @@ const VIDEO_TRACK_FIELDS = new Set([
 	'laneGroupId', 'opaqueExtensions', 'locked',
 ])
 const LABEL_TRACK_FIELDS = new Set([
-	'id', 'type', 'name', 'labels', 'collapsed', 'height', 'opaqueExtensions',
+	'id', 'type', 'name', 'labels', 'collapsed', 'height', 'opaqueExtensions', 'color',
 	'laneGroupId', 'locked',
 ])
 

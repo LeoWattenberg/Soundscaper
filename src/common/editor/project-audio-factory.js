@@ -348,6 +348,7 @@ export function createLabelTrack(options = {}) {
 		type: 'label',
 		id: options.id || createStableId('label-track'),
 		name: String(options.name || 'Labels'),
+		...(options.color === undefined ? {} : { color: nonEmptyString(options.color, 'track.color') }),
 		labels,
 		collapsed: Boolean(options.collapsed),
 		height: safeInteger(options.height ?? 96, 40, 'track.height'),

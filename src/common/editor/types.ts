@@ -137,6 +137,7 @@ export interface EditorLabel {
 
 export interface EditorLabelTrack extends EditorTrackBase {
 	readonly type: 'label';
+	readonly color?: string;
 	readonly labels: readonly EditorLabel[];
 }
 

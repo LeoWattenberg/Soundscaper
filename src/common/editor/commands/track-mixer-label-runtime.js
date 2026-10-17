@@ -148,7 +148,7 @@ function disableAutoDuckForRemovedControlTrack(project, controlTrackId) {
 }
 
 const TRACK_UPDATE_FIELDS = {
-	label: new Set(['name', 'collapsed', 'height', 'locked']),
+	label: new Set(['name', 'collapsed', 'height', 'locked', 'color']),
 	video: new Set(['name', 'mute', 'solo', 'hidden', 'collapsed', 'height', 'locked', 'laneGroupId']),
 	audio: new Set(['name', 'gain', 'pan', 'mute', 'solo', 'armed', 'effectsActive', 'locked', 'laneGroupId',
 		'displayMode', 'halfWave', 'showRms', 'color', 'spectrogram', 'envelope', 'collapsed', 'height']),
