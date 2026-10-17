@@ -618,3 +618,9 @@ are the places where the two keyboard models meet, so a future sync should re-ch
     clipboard. New fades use upstream S-curves; existing unshaped fades retain
     their stored linear interpretation. Maintained helpers and public browser
     workflows cover these host adaptations.
+
+78. `ToolButton.css` scopes icon styles to the button's direct child so the
+    component keeps its flex centering when the shared `.musescore-icon` font
+    stylesheet loads in a later chunk. Covered by both products' light and dark
+    Sakura toolbar workflows in `tests/browser/audio-editor-sakura-buttons.spec.js`.
+    Upstream-PR candidate.

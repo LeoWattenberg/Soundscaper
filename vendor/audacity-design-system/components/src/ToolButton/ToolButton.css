@@ -26,8 +26,8 @@
   height: 20px;
 }
 
-/* Icon styles */
-.tool-button__icon {
+/* Retain flex centering when the shared icon-font CSS loads afterward. */
+.tool-button > .tool-button__icon {
   font-size: 14px;
   line-height: 0;
   color: var(--tool-icon-color);
