@@ -72,6 +72,7 @@ export function useTimelinePointerFinish({
 			&& event.pointerId !== session.pointerId) return;
 		pointerMoveFlushRef?.current?.(cancelled);
 		pointerSession.current = null;
+		releaseOwnedPointerCapture(session);
 		setDraggingClipIds(null);
 		setProjectBinDropActive(false);
 		const dragPreview = session?.preview;
@@ -358,9 +359,11 @@ export function useTimelinePointerFinish({
 	}, []);
 
 	const cancelPointerSession = useCallback(() => {
-		if (!pointerSession.current) return false;
+		const session = pointerSession.current;
+		if (!session) return false;
 		pointerMoveFlushRef?.current?.(true);
 		pointerSession.current = null;
+		releaseOwnedPointerCapture(session);
 		setDraggingClipIds(null);
 		setClipDragPreview(null);
 		setSelectionPreview(null);
@@ -450,5 +453,18 @@ export function useTimelinePointerFinish({
 		}
 	}, [cancelPointerSession, pointerSession, project]);
 
+	useEffect(() => () => {
+		const session = pointerSession.current;
+		pointerSession.current = null;
+		releaseOwnedPointerCapture(session);
+	}, [pointerSession]);
+
 	return { finishPointerSession, finishTouch, cancelPointerSession };
+}
+
+function releaseOwnedPointerCapture(session) {
+	const target = session?.captureTarget;
+	if (session?.pointerId !== undefined && target?.hasPointerCapture?.(session.pointerId)) {
+		target.releasePointerCapture?.(session.pointerId);
+	}
 }

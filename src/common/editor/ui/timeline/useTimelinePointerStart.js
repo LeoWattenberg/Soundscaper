@@ -130,7 +130,7 @@ export function useTimelinePointerStart({
 			const height = Number(crossfadeHandle.dataset.crossfadeHeight);
 			if (![initialPosition, initialGain, width, height].every(Number.isFinite) || width <= 0 || height <= 0) return;
 			pointerSession.current = {
-				kind: 'crossfade-shape', outgoingClipId, incomingClipId,
+				kind: 'crossfade-shape', captureTarget: crossfadeHandle, outgoingClipId, incomingClipId,
 				outgoingOriginal: { ...outgoing }, incomingOriginal: { ...incoming },
 				initialOutShape: outgoing.fadeOutShape ?? 1,
 				initialInShape: incoming.fadeInShape ?? 1,
@@ -142,7 +142,7 @@ export function useTimelinePointerStart({
 			crossfadeHandle.focus({ preventScroll: true });
 			event.preventDefault();
 			event.stopPropagation();
-			event.currentTarget.setPointerCapture?.(event.pointerId);
+			crossfadeHandle.setPointerCapture?.(event.pointerId);
 			return;
 		}
 		const fadeShapeHandle = event.target.closest?.('[data-clip-fade-shape-handle]');
@@ -154,7 +154,7 @@ export function useTimelinePointerStart({
 			if (clip?.kind !== 'audio' || clipGestureBlocked(project, fadeTargets.map(target => target.id))) return;
 			const edge = fadeShapeHandle.dataset.clipFadeShapeHandle;
 			pointerSession.current = {
-				kind: 'fade-shape', edge, clipId, original: { ...clip }, fadeTargets: fadeTargets.map(target => ({ ...target })), startY: event.clientY,
+				kind: 'fade-shape', captureTarget: fadeShapeHandle, edge, clipId, original: { ...clip }, fadeTargets: fadeTargets.map(target => ({ ...target })), startY: event.clientY,
 				gainHeight: fadeShapeHandle.closest('.audio-editor-clip-fade')?.getBoundingClientRect().height ?? 1,
 				baseGain: Number(fadeShapeHandle.dataset.fadeShapeBaseGain),
 				startGain: Number(fadeShapeHandle.dataset.fadeShapeStartGain),
@@ -164,7 +164,7 @@ export function useTimelinePointerStart({
 			fadeShapeHandle.focus({ preventScroll: true });
 			event.preventDefault();
 			event.stopPropagation();
-			event.currentTarget.setPointerCapture?.(event.pointerId);
+			fadeShapeHandle.setPointerCapture?.(event.pointerId);
 			return;
 		}
 		const fadeHandle = event.target.closest?.('[data-clip-fade-handle]');
@@ -176,7 +176,7 @@ export function useTimelinePointerStart({
 			if (clip?.kind !== 'audio' || clipGestureBlocked(project, fadeTargets.map(target => target.id))) return;
 			const edge = fadeHandle.dataset.clipFadeHandle;
 			pointerSession.current = {
-				kind: 'fade', edge, clipId, original: { ...clip }, fadeTargets: fadeTargets.map(target => ({ ...target })), startX: event.clientX,
+				kind: 'fade', captureTarget: fadeHandle, edge, clipId, original: { ...clip }, fadeTargets: fadeTargets.map(target => ({ ...target })), startX: event.clientX,
 				pixelsPerSecond: Math.max(pixelsPerSecond, 48 * sampleRate / clip.durationFrames),
 				initial: clip[fadeField(edge)] ?? 0, pointerId: event.pointerId,
 				boundaryFrames: project.clips.filter(item => item.id !== clip.id).flatMap(item => [item.timelineStartFrame, item.timelineStartFrame + item.durationFrames]),
@@ -185,7 +185,7 @@ export function useTimelinePointerStart({
 			fadeHandle.focus({ preventScroll: true });
 			event.preventDefault();
 			event.stopPropagation();
-			event.currentTarget.setPointerCapture?.(event.pointerId);
+			fadeHandle.setPointerCapture?.(event.pointerId);
 			return;
 		}
 		if (event.pointerType === 'touch') {
