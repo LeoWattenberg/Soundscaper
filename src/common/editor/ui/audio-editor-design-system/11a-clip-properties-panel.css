@@ -274,6 +274,7 @@
 
 .kw-audio-editor__workspace-panel-content[data-workspace-tab-panel='source-monitor']:not([hidden]) {
 	display: flex;
+	flex-direction: column;
 }
 
 .audio-editor-upstream-clip-properties {
