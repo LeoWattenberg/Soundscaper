@@ -221,11 +221,15 @@ test('an oversized root still inspects the first bounded candidate set', async (
 	assert.equal(inspected, MAXIMUM_SCAN_ENTRIES);
 });
 
-test('the helper announces scanning and routes a scan job to the scan runner', async () => {
+test('the helper announces scanning and routes a scan job to the scan runner', { timeout: 5_000 }, async () => {
 	const posted = [];
+	const completed = Promise.withResolvers();
 	const worker = createNativeHelperWorker({
 		role: 'plugin-scanner',
-		post: (message) => posted.push(message),
+		post: (message) => {
+			posted.push(message);
+			if (message.type === 'result') completed.resolve(message);
+		},
 		runDeviceJob: () => { throw new Error('a scan must never reach the device runner'); },
 		runScanJob: runner(fakeAddon(['/roots/one.scapefx'])),
 		heartbeatIntervalMs: 1_000_000,
@@ -241,9 +245,8 @@ test('the helper announces scanning and routes a scan job to the scan runner', a
 		grant: { rootPath: '/roots', format: 'fixture', identity: { dev: 1, ino: 2 } },
 		resourcePolicy: { maximumInputBytes: 1_024, maximumJobDurationMs: 60_000, maximumRssBytes: 1_024 ** 3 },
 	});
-	await new Promise((resolve_) => { setTimeout(resolve_, 20); });
-	const result = posted.find(({ type }) => type === 'result');
-	assert.ok(result, 'the scan must settle with a result');
+	const result = await completed.promise;
+	assert.equal(result.jobId, 'a'.repeat(40));
 	assert.equal(result.result.status, 'scanned');
 });
 
