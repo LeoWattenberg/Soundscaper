@@ -34,7 +34,7 @@ for (const engine of ['onnx', 'kokoro'] as const) test(`${engine} CMake builds e
 	skip: !['linux', 'win32'].includes(process.platform) ? 'Native fixture requires Linux or Windows.' : false,
 }, async context => {
 	const root = await mkdtemp(join(tmpdir(), `${engine} cmake ü `));
-	context.after(() => rm(root, { recursive: true, force: true }));
+	context.after(() => rm(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }));
 	const targetId = `${process.platform === 'win32' ? 'win' : 'linux'}-${process.arch}`;
 	const plan = engine === 'onnx' ? desktopOnnxWebGpuBindingBuildPlan({ targetId }) : desktopKokoroG2pGpuBuildPlan({ targetId });
 	const librarySource = join(root, 'library');

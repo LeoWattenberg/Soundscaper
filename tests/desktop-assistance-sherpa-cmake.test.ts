@@ -16,7 +16,7 @@ test('the root Sherpa build target includes the excluded upstream C++ library an
 	skip: !['linux', 'win32'].includes(process.platform) ? 'Native fixture requires Linux or Windows.' : false,
 }, async context => {
 	const root = await mkdtemp(join(tmpdir(), 'sherpa cmake '));
-	context.after(() => rm(root, { recursive: true, force: true }));
+	context.after(() => rm(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }));
 	const native = join(root, 'native/assistance-sherpa-gpu');
 	const upstream = join(root, 'upstream');
 	const build = join(root, 'build');
