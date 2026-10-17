@@ -59,4 +59,3 @@ export function FadeGlyph({ side, shape, title, dim }: { side: 'in' | 'out'; sha
     </svg>
   );
 }
-

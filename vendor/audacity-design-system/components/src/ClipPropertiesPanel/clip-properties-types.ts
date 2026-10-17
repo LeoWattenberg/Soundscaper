@@ -140,4 +140,3 @@ export const TOOLTIP_DELAY_MS = 350;
 
 /** Pitch limits, semitones: two octaves either way */
 export const PITCH_LIMIT_SEMITONES = 24;
-
