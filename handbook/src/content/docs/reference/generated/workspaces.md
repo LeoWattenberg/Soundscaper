@@ -30,7 +30,7 @@ Choose a workspace directly from **Window**. This menu lists open projects first
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | Project bin | `project-bin` | Left | Hidden | Visible | Hidden | Hidden | Visible |
 | Video preview | `video-preview` | Floating | Hidden | Hidden | Hidden | Hidden | Visible |
-| Source monitor | `source-monitor` | Floating | Hidden | Hidden | Hidden | Hidden | Visible |
+| Source monitor | `source-monitor` | Bottom | Hidden | Hidden | Hidden | Hidden | Visible |
 | History | `history` | Right | Hidden | Hidden | Hidden | Hidden | Hidden |
 | Labels | `labels` | Right | Hidden | Hidden | Hidden | Hidden | Hidden |
 | Markers | `markers` | Right | Hidden | Hidden | Hidden | Hidden | Hidden |
@@ -45,7 +45,7 @@ Choose a workspace directly from **Window**. This menu lists open projects first
 | Playback meter | `playback-meter` | Right | Hidden | Hidden | Hidden | Hidden | Hidden |
 | Recording meter | `recording-meter` | Right | Hidden | Hidden | Hidden | Hidden | Hidden |
 | Clock | `clock` | Floating | Hidden | Hidden | Hidden | Hidden | Hidden |
-| Clip properties | `clip-properties` | Bottom | Hidden | Hidden | Hidden | Hidden | Hidden |
+| Clip properties | `clip-properties` | Right | Hidden | Hidden | Hidden | Hidden | Hidden |
 | Clip spreadsheet | `clip-spreadsheet` | Bottom | Hidden | Hidden | Hidden | Hidden | Hidden |
 
 Open optional panels from **Window**. The **Clock**, **Playback meter**, and Soundscaper’s **Recording meter** start hidden. You can also choose **Undock timecode** in the toolbar timecode’s dropdown to move that readout into the Clock panel; **Return to toolbar** in the Clock’s dropdown puts it back.

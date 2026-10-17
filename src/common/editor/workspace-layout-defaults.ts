@@ -100,7 +100,7 @@ export const DEFAULT_PANELS = Object.freeze({
 	'video-preview': Object.freeze({ visible: false, dock: 'floating', order: 0, size: 560 }),
 	// The source monitor belongs to editing from a bin, so it is offered where
 	// that is the work and stays available but hidden everywhere else.
-	'source-monitor': Object.freeze({ visible: false, dock: 'floating', order: 1, size: 460 }),
+	'source-monitor': Object.freeze({ visible: false, dock: 'bottom', order: 1, size: 460 }),
 	history: Object.freeze({ visible: false, dock: 'right', order: 0, size: 320 }),
 	labels: Object.freeze({ visible: false, dock: 'right', order: 1, size: 320 }),
 	metadata: Object.freeze({ visible: false, dock: 'right', order: 2, size: 320 }),
@@ -116,7 +116,7 @@ export const DEFAULT_PANELS = Object.freeze({
 	'playback-meter': Object.freeze({ visible: false, dock: 'right', column: 1, order: 12, size: 260, width: METER_PANEL_MIN_WIDTH }),
 	'recording-meter': Object.freeze({ visible: false, dock: 'right', column: 2, order: 13, size: 260, width: METER_PANEL_MIN_WIDTH }),
 	clock: Object.freeze({ visible: false, dock: 'floating', order: 14, size: 640 }),
-	'clip-properties': Object.freeze({ visible: false, dock: 'bottom', order: 15, size: 400 }),
+	'clip-properties': Object.freeze({ visible: false, dock: 'right', order: 15, size: 400 }),
 	'clip-spreadsheet': Object.freeze({ visible: false, dock: 'bottom', order: 16, size: 360, width: 1000 }),
 });
 
