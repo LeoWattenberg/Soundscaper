@@ -105,6 +105,8 @@ test.describe('clip source editor', () => {
 		await expect(fadeOut).toHaveAttribute('aria-valuenow', '0');
 		await fadeOut.press('ArrowLeft');
 		await expect(fadeOut).toHaveAttribute('aria-valuenow', '0.1');
+		await fadeOut.press('Tab');
+		await expect(waveform).toBeFocused();
 		const open = async () => {
 			await fadeIn.focus();
 			await fadeIn.press('Shift+F10');

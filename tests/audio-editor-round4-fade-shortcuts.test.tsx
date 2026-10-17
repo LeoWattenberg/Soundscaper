@@ -13,11 +13,17 @@ for (const shape of [false, true]) {
 		const dom = installReactTestDom();
 		const globals = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean };
 		const priorAct = globals.IS_REACT_ACT_ENVIRONMENT;
+		const priorKeyboardEvent = Object.getOwnPropertyDescriptor(globalThis, 'KeyboardEvent');
+		Object.defineProperty(globalThis, 'KeyboardEvent', { configurable: true, value: class {
+			constructor(readonly type: string, readonly init: KeyboardEventInit) {}
+		} });
 		globals.IS_REACT_ACT_ENVIRONMENT = true;
 		const root = createRoot(dom.container as unknown as Element);
 		context.after(async () => {
 			await act(async () => root.unmount());
 			globals.IS_REACT_ACT_ENVIRONMENT = priorAct;
+			if (priorKeyboardEvent) Object.defineProperty(globalThis, 'KeyboardEvent', priorKeyboardEvent);
+			else Reflect.deleteProperty(globalThis, 'KeyboardEvent');
 			dom.restore();
 		});
 		const changes: ClipFadeChanges[] = [];
@@ -37,10 +43,13 @@ for (const shape of [false, true]) {
 		await act(async () => root.render(<Probe />));
 		const selector = shape ? '[data-clip-fade-shape-handle="in"]' : '[data-clip-fade-handle="in"]';
 		const control = dom.one(selector);
+		const clip = dom.one('[data-clip-id="recording"]');
+		const forwarded: unknown[] = [];
+		Object.defineProperty(clip, 'dispatchEvent', { value: (event: unknown) => { forwarded.push(event); return true; } });
 		for (const modifier of ['ctrlKey', 'metaKey', 'altKey']) for (const key of ['b', 'Tab']) {
 			let stopped = 0;
 			let prevented = 0;
-			await act(async () => reactProps(control).onKeyDown({ key, currentTarget: control,
+			await act(async () => reactProps(control).onKeyDown({ key, target: control, currentTarget: control,
 				ctrlKey: false, metaKey: false, altKey: false, shiftKey: false, [modifier]: true,
 				stopPropagation() { stopped += 1; }, preventDefault() { prevented += 1; } }));
 			assert.equal(stopped, 0, `${modifier} shortcuts belong to the editor`);
@@ -49,19 +58,27 @@ for (const shape of [false, true]) {
 		}
 		let stopped = 0;
 		let prevented = 0;
-		await act(async () => reactProps(control).onKeyDown({ key: 'ArrowRight', currentTarget: control,
+		await act(async () => reactProps(control).onKeyDown({ key: shape ? 'ArrowDown' : 'ArrowRight', target: control, currentTarget: control,
 			ctrlKey: false, metaKey: false, altKey: false, shiftKey: false,
 			stopPropagation() { stopped += 1; }, preventDefault() { prevented += 1; } }));
-		assert.deepEqual(changes, [shape ? { fadeInShape: 1.1 } : { fadeInFrames: 24_480 }]);
+		if (shape) {
+			assert.equal(changes.length, 1);
+			const exponent = changes[0]?.fadeInShape;
+			assert.ok(typeof exponent === 'number');
+			assert.ok(Math.abs(Math.SQRT1_2 ** exponent - (Math.SQRT1_2 - 0.05)) < 1e-9);
+		} else assert.deepEqual(changes, [{ fadeInFrames: 28_800 }]);
 		assert.equal(stopped, 1);
 		assert.equal(prevented, 1);
 		control.focus();
-		await act(async () => reactProps(control).onKeyDown({ key: 'Tab', currentTarget: control,
+		await act(async () => reactProps(control).onKeyDown({ key: 'Tab', target: control, currentTarget: control,
 			ctrlKey: false, metaKey: false, altKey: false, shiftKey: true,
 			stopPropagation() { stopped += 1; }, preventDefault() { prevented += 1; } }));
 		assert.equal(stopped, 2);
 		assert.equal(prevented, 2);
-		assert.equal(dom.container.ownerDocument.activeElement, shape
-			? dom.one('[data-clip-fade-handle="in"]') : dom.one('[data-clip-id="recording"]'));
+		assert.equal(dom.container.ownerDocument.activeElement, clip);
+		assert.equal(forwarded.length, 1, 'Tab delegates onward navigation after returning to the clip');
+		const navigation = forwarded[0] as { readonly type: string; readonly init: KeyboardEventInit };
+		assert.equal(navigation.type, 'keydown');
+		assert.deepEqual(navigation.init, { key: 'Tab', shiftKey: true, bubbles: true, cancelable: true });
 	});
 }
