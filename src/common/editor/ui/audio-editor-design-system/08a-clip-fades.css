@@ -34,7 +34,7 @@
 	opacity: 1;
 	pointer-events: auto;
 }
-[data-clip-id] [data-keyboard-handle]:focus {
+[data-clip-id] [data-keyboard-handle] {
 	visibility: visible;
 	opacity: 1;
 	pointer-events: auto;

@@ -38,7 +38,13 @@ test('transport service owns playback rate validation and publication', () => {
 	assert.equal(service.setPlayAtSpeedRate(1.25), 1.25);
 	assert.equal(fixture.state.playAtSpeedRate, 1.25);
 	assert.equal(fixture.publishes(), 1);
-	assert.throws(() => service.setPlayAtSpeedRate(2.5), /between 0.5 and 2/u);
+	assert.equal(service.setPlayAtSpeedRate(0.01), 0.01);
+	assert.equal(service.setPlayAtSpeedRate(3), 3);
+	for (const rate of [0, -1, 3.01, Number.NaN, Number.POSITIVE_INFINITY]) {
+		assert.throws(() => service.setPlayAtSpeedRate(rate), /between 0.01 and 3/u);
+	}
+	assert.equal(fixture.state.playAtSpeedRate, 3);
+	assert.equal(fixture.publishes(), 3, 'invalid rates do not publish');
 });
 
 test('transport service normalizes frames against the active project at invocation', () => {

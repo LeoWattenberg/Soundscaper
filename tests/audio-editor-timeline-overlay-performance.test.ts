@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createClipFadeGeometryReader, applyLoopTrimStyle } from '../src/common/editor/ui/timeline/clip-overlay-presentation.ts';
 
-void test('fade geometry only visits selected or faded audio clips and retains expensive curves on selection changes', () => {
+void test('fade controls visit only visible audio clips and retain expensive curves on selection changes', () => {
 	let shapeReads = 0;
 	const plain = Array.from({ length: 2000 }, (_, index) => ({ id: `plain-${index}`, kind: 'audio', timelineStartFrame: index * 100,
 		durationFrames: 100, fadeInFrames: 0, fadeOutFrames: 0, get fadeInShape(): never { throw new Error('inactive curves must not be inspected'); } }));
@@ -13,10 +13,10 @@ void test('fade geometry only visits selected or faded audio clips and retains e
 	const reader = createClipFadeGeometryReader();
 	const clips = [...plain, faded];
 	const first = reader(clips, new Set(), 0, 500, 100, 100);
-	assert.deepEqual([...first.keys()], ['faded']);
+	assert.deepEqual([...first.keys()], ['plain-0', 'plain-1', 'plain-2', 'plain-3', 'plain-4', 'faded']);
 	assert.ok(shapeReads > 0); shapeReads = 0;
 	const selected = reader(clips, new Set(['plain-1']), 0, 500, 100, 100);
-	assert.deepEqual([...selected.keys()], ['plain-1', 'faded']);
+	assert.deepEqual([...selected.keys()], [...first.keys()], 'hover and keyboard controls remain available without selecting clips');
 	assert.equal(selected.get('faded')?.geometry, first.get('faded')?.geometry);
 	assert.equal(shapeReads, 0);
 	assert.equal(reader(clips, new Set(), 10, 500, 100, 100).get('faded')?.geometry.left, 0);

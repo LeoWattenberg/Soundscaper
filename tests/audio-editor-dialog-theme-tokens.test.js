@@ -13,7 +13,7 @@ const DIALOG_STYLES = new URL('src/common/editor/ui/dialogs/', ROOT);
  * A `var()` fallback is silent: a token that exists nowhere always resolves to
  * its hardcoded literal, so a light-theme colour survives into dark theme with
  * no error anywhere. Every custom property a stylesheet reads therefore has to
- * be defined by the runtime or the editor's base stylesheet.
+ * be defined by the runtime, base stylesheet or the owning component.
  */
 test('dialog stylesheets only read defined editor theme tokens', async () => {
 	const runtime = await readFile(DESIGN_SYSTEM_RUNTIME, 'utf8');
@@ -23,11 +23,21 @@ test('dialog stylesheets only read defined editor theme tokens', async () => {
 	assert.ok(defined.size > 10, 'the runtime publishes a token palette');
 
 	const missing = [];
-	for (const entry of await readdir(DIALOG_STYLES)) {
+	const dialogFiles = await readdir(DIALOG_STYLES);
+	for (const entry of dialogFiles) {
 		if (!entry.endsWith('.css')) continue;
 		const css = await readFile(new URL(entry, DIALOG_STYLES), 'utf8');
+		const ownedTokens = new Set(defined);
+		for (const [, name] of css.matchAll(/(--[\w-]+)\s*:/gu)) ownedTokens.add(name);
+		// A dialog may map its theme palette and per-key geometry to local tokens.
+		// The stylesheet must have a matching component that actually supplies them.
+		const componentName = entry.replace(/\.css$/u, '.tsx');
+		if (dialogFiles.includes(componentName)) {
+			const component = await readFile(new URL(componentName, DIALOG_STYLES), 'utf8');
+			for (const [, name] of component.matchAll(/'(--[\w-]+)'\s*:/gu)) ownedTokens.add(name);
+		}
 		for (const [, name] of css.matchAll(/var\(\s*(--[\w-]+)/gu)) {
-			if (!defined.has(name)) missing.push(`${entry}: ${name}`);
+			if (!ownedTokens.has(name)) missing.push(`${entry}: ${name}`);
 		}
 	}
 

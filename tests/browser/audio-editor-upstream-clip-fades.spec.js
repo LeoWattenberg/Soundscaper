@@ -73,7 +73,7 @@ test.describe('upstream clip handle interaction', () => {
 		await expect(clip.getByRole('slider', { name: 'Fade in', exact: true })).toBeVisible();
 		await clip.click({ button: 'right', position: { x: 40, y: 50 } });
 		const menu = page.locator('.audio-editor-clip-context-menu');
-		const fade = menu.getByRole('menuitem', { name: /^Fade in$/u });
+		const fade = menu.getByRole('menuitem', { name: /^Fade in\b/u });
 		await fade.hover();
 		await fade.getByRole('menuitem', { name: 'Edit fade-in', exact: true }).click();
 		await expect(page.getByRole('dialog', { name: 'Fades', exact: true })).toBeVisible();

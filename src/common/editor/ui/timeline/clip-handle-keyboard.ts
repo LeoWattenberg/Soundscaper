@@ -72,11 +72,33 @@ function handleSelector(family: Family, edge: Edge): string {
 		: `.clip-display__handle--${family}-${edge}`;
 }
 
+const heldHandleRelease = new WeakMap<Document, () => void>();
+
+/** Hold a keyboard control through its menu, releasing it when focus leaves. */
+function holdKeyboardHandle(clipElement: HTMLElement, handle: HTMLElement): void {
+	const document = handle.ownerDocument;
+	heldHandleRelease.get(document)?.();
+	const release = () => {
+		delete handle.dataset.keyboardHandle;
+		delete handle.dataset.handleSecond;
+		document.removeEventListener('focusin', onFocus);
+		heldHandleRelease.delete(document);
+	};
+	const onFocus = (event: FocusEvent) => {
+		const target = event.target as Element | null;
+		if (!target || clipElement.contains(target) || target.closest('[role="menu"], [role="dialog"]')) return;
+		release();
+	};
+	heldHandleRelease.set(document, release);
+	document.addEventListener('focusin', onFocus);
+	handle.dataset.keyboardHandle = 'true';
+}
+
 /** F/T/S hold one edge at a time; the third press returns to the clip. */
 function focusHandle(clipElement: HTMLElement, family: Family, edge: Edge, second: boolean): boolean {
 	const handle = clipElement.querySelector<HTMLButtonElement>(handleSelector(family, edge));
 	if (!handle || handle.disabled) return false;
-	handle.dataset.keyboardHandle = 'true';
+	holdKeyboardHandle(clipElement, handle);
 	handle.dataset.handleSecond = second ? 'true' : 'false';
 	handle.focus({ preventScroll: true });
 	return true;
@@ -94,8 +116,8 @@ export function routeClipHandleKeyboard(event: KeyEvent, ports: Ports): boolean 
 	const key = baseKey(event);
 	const stop = () => { event.preventDefault(); event.stopPropagation(); return true; };
 	const returnToClip = () => {
-		delete target.dataset.keyboardHandle;
-			clipElement.focus({ preventScroll: true });
+		heldHandleRelease.get(target.ownerDocument)?.();
+		clipElement.focus({ preventScroll: true });
 	};
 	if (!handle && event.key === 'Enter' && !event.altKey && !event.ctrlKey && !event.metaKey && !event.shiftKey
 		&& ports.selectedIds.includes(focused.id)) { ports.seek(focused.timelineStartFrame); return stop(); }
