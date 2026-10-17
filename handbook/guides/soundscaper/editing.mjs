@@ -276,7 +276,7 @@ export const EDITING_GUIDES = Object.freeze([
 		tips: [
 			'Turn on snapping from the transport bar so a dragged clip locks to seconds, beats or frames.',
 			'Hold Shift while dragging the name bar to move every clip on its track together.',
-			'Hold Ctrl while dragging to another track to preserve the exact start time. Combine Ctrl and Shift to move the whole track without changing its timing.',
+			'Hold Ctrl (Cmd on Mac) while dragging the name bar to create a copy at the drop position. The original clip stays in place.',
 			'The clip menu also offers **Select all clips on this track** and **Move to track (preserve time)**.',
 		],
 	},

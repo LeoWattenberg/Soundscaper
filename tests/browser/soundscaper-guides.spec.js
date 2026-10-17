@@ -1,5 +1,5 @@
 import { expect, test } from './audio-editor-test-fixtures.js';
-import { chooseCommandAction, registerAudioEditorHooks } from './audio-editor-test-helpers.js';
+import { registerAudioEditorHooks } from './audio-editor-test-helpers.js';
 import { SOUNDSCAPER_GUIDES } from '../../handbook/guides/soundscaper.mjs';
 import { runGuide } from './helpers/guide-runner.js';
 import { verifyGuideTrackResults } from './helpers/guide-track-results.js';
@@ -32,10 +32,9 @@ async function verifyEditingSpan(page, id) {
 			new RegExp(`starts at ${String(start).replace('.', '\\.')} seconds?, ${String(duration).replace('.', '\\.')} seconds? long$`, 'u'));
 	}
 	if (id === 'move-clips-as-a-group') {
-		// Linked selection proves that Group clips created a group, beyond the
-		// motion two independently selected clips would already share.
+		// A completed move clears selection. Selecting one member again proves
+		// that Group clips linked their selection as well as their motion.
 		const editor = page.locator('[data-audio-editor]');
-		await chooseCommandAction(page, editor, 'Select', 'Select none');
 		await expect(editor.locator('.clip-display[data-selected="true"]')).toHaveCount(0);
 		await clips.nth(1).press('Enter');
 		await expect(editor.locator('.clip-display[data-selected="true"]')).toHaveCount(2);
