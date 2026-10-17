@@ -50,7 +50,7 @@ test('controller action facade exposes stable frozen responsibility groups', () 
 	assert.equal(Object.isFrozen(actions), true);
 	for (const group of Object.values(actions)) assert.equal(Object.isFrozen(group), true);
 	assert.equal(actions.labels, runtime.labels);
-	assert.deepEqual(Object.keys(actions.labels), ['add', 'update', 'remove', 'importFile', 'importCueFile', 'export']);
+	assert.deepEqual(Object.keys(actions.labels), ['add', 'update', 'updateMany', 'remove', 'importFile', 'importCueFile', 'export']);
 	for (const [name, action] of Object.entries(runtime.selection)) {
 		assert.equal(actions.timeline[name as keyof typeof actions.timeline], action, name);
 	}

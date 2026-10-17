@@ -34,7 +34,7 @@ function pointLabelWidth(title: string, metrics: TimelineLabelMetrics): number {
 	return Math.max(metrics.minPointWidth, Math.min(metrics.maxPointWidth, Math.ceil(textWidth) + metrics.padX * 2));
 }
 
-interface LabelLayout {
+export interface LabelLayout {
 	readonly row: number;
 	readonly width: number;
 	leftNeighbor?: TimelineLabelRange;
