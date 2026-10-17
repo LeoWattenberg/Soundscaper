@@ -2,6 +2,7 @@
 import { expect, longTone, test } from './audio-editor-test-fixtures.js';
 import { bootEditor, chooseCommandAction, clipByName, collectClientErrors, commitInput,
 	importFiles, openClipProperties, openSourceMonitor } from './audio-editor-test-helpers.js';
+import { openClipMediaSettings } from './audio-editor-clip-settings-test-helpers.js';
 
 test.use({ viewport: { width: 1440, height: 1000 } });
 
@@ -112,4 +113,38 @@ test('clip colors use the track swatch palette and can follow the track again', 
 	await expect(color).toContainText('Follow track color');
 	await chooseCommandAction(page, editor, 'Edit', 'Undo');
 	await expect(color).toContainText('Red');
+});
+
+test('Framescaper inspector menus stay above Source and release it when closed', async ({ page }) => {
+	await page.setViewportSize({ width: 1280, height: 720 });
+	const errors = collectClientErrors(page);
+	const editor = await bootEditor(page, '/framescaper/embed/en/');
+	await importFiles(editor, [longTone]);
+	await chooseCommandAction(page, editor, 'Window', 'Project bin');
+	const clip = clipByName(editor, longTone.name);
+	const source = await openSourceMonitor(page, editor, clip);
+	const panel = await openClipProperties(page, editor, clip, { additional: false });
+	const videoWorkspace = editor.getByRole('region', { name: 'Workspace: Video editor', exact: true });
+	await expect(videoWorkspace).toHaveCSS('z-index', '1');
+
+	const settings = await openClipMediaSettings(panel);
+	await settings.getByRole('menuitemcheckbox', { name: 'Timecode fields', exact: true }).click();
+	await expect(settings).toBeHidden();
+	await expect(panel.locator('[data-clip-field="startFrame"]')).toBeVisible();
+	await panel.getByRole('button', { name: 'Clip color', exact: true }).click();
+	await page.getByRole('menuitem', { name: 'Clip color: Red', exact: true }).click();
+	await expect(panel.getByRole('button', { name: 'Clip color', exact: true })).toContainText('Red');
+	await panel.getByRole('button', { name: 'Track', exact: true }).click();
+	const tracks = page.getByRole('listbox', { name: 'Track', exact: true });
+	await tracks.getByRole('option', { selected: true }).click();
+	await expect(tracks).toBeHidden();
+
+	await expect(videoWorkspace).toHaveCSS('z-index', '1');
+	await source.getByRole('region', { name: 'Source vertical ruler', exact: true }).click({ button: 'right' });
+	await page.getByRole('menuitem', { name: 'Zoom in', exact: true }).click();
+	await source.getByRole('button', { name: 'Play', exact: true }).click();
+	await expect(source.getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
+	await source.getByRole('button', { name: 'Stop', exact: true }).click();
+	await expect(source.getByRole('button', { name: 'Play', exact: true })).toBeVisible();
+	expect(errors).toEqual([]);
 });

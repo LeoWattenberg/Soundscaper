@@ -143,6 +143,12 @@
 	z-index: var(--flyout-z);
 }
 
+/* Inline inspector menus belong to their workspace's stacking context. Raise
+ * that owner while open so a sibling Source monitor cannot cover the menu. */
+.kw-audio-editor__workspace:has([data-upstream-clip-properties] .context-menu) {
+	z-index: var(--flyout-z);
+}
+
 .audio-editor-track-menu-layer {
 	display: contents;
 }
