@@ -100,9 +100,10 @@ test.describe('clip pointer edit workflows', () => {
 				drawScale: canvas.getBoundingClientRect().width / canvas.__kwWaveformPlan.pixelWidth,
 			};
 		});
-		await page.mouse.move(trimBox.x + trimBox.width / 2, trimBox.y + trimBox.height / 2);
+		const trimX = trimBox.x + trimBox.width / 2;
+		await page.mouse.move(trimX, trimBox.y + trimBox.height / 2);
 		await page.mouse.down();
-		await page.mouse.move(trimBox.x - 24, trimBox.y + trimBox.height / 2, { steps: 4 });
+		await page.mouse.move(trimX - 24, trimBox.y + trimBox.height / 2, { steps: 4 });
 		await expect.poll(async () => (await secondClip.boundingBox())?.width || 0).toBeLessThan(secondBeforeTrim.width - 10);
 		const waveformDuringTrim = await trimWaveform.evaluate((canvas) => ({
 			reusedPlan: canvas.__kwWaveformPlan === globalThis.__trimPreviewWaveformPlan,
@@ -123,9 +124,10 @@ test.describe('clip pointer edit workflows', () => {
 		expect(firstBeforeStretch).not.toBeNull();
 		expect(secondBeforeStretch).not.toBeNull();
 		expect(stretchBox).not.toBeNull();
-		await page.mouse.move(stretchBox.x + stretchBox.width / 2, stretchBox.y + stretchBox.height / 2);
+		const stretchX = stretchBox.x + stretchBox.width / 2;
+		await page.mouse.move(stretchX, stretchBox.y + stretchBox.height / 2);
 		await page.mouse.down();
-		await page.mouse.move(stretchBox.x + 24, stretchBox.y + stretchBox.height / 2, { steps: 4 });
+		await page.mouse.move(stretchX + 24, stretchBox.y + stretchBox.height / 2, { steps: 4 });
 		await page.mouse.up();
 		await expect.poll(async () => (await firstClip.boundingBox())?.width || 0).toBeGreaterThan(firstBeforeStretch.width + 10);
 		await expect.poll(async () => (await secondClip.boundingBox())?.width || 0).toBeGreaterThan(secondBeforeStretch.width + 10);
