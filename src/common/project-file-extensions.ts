@@ -13,9 +13,8 @@
 export const PROJECT_FILE_EXTENSION_BY_PRODUCT = Object.freeze({
 	soundscaper: '.sscape',
 	framescaper: '.fscape',
-	// Lightscaper is roadmap-only. Its suffix is reserved here so that the
-	// products that ship today already open what it will one day write, and so
-	// that no later product can claim it by accident.
+	// The registered photo shell reserves its suffix. Scape authoring stays
+	// disabled until the catalog archive consumer and its workflow are enabled.
 	lightscaper: '.liscape',
 } as const);
 

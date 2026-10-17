@@ -36,6 +36,7 @@ export interface ControllerDisposalDependencies {
 	readonly disposeOpenRecovery: Cleanup;
 	readonly invalidateProject: Cleanup;
 	readonly disposeVisuals: Cleanup;
+	readonly disposeProductResources?: Cleanup;
 	readonly unsubscribeEngineErrors: Cleanup;
 	readonly cancelTimedRecording: Cleanup;
 	readonly cancelRecordingStart: Cleanup;
@@ -83,11 +84,19 @@ export function createControllerDisposal(d: ControllerDisposalDependencies): Con
 	let pending: Promise<void> | undefined;
 	let sourceRetirementBlocked = false;
 	let storeCloseBlocked = false;
+	let productRetirement: Promise<void> | undefined;
 	const beginDisposal = (): void => {
 		resetDesktopOriginal(d.state);
 		d.lifetime.beginDisposal();
 		d.state.disposed = true;
 		d.state.phase = d.lifetime.phase;
+		if (!productRetirement && d.disposeProductResources) {
+			let resolve!: () => void, reject!: (error: unknown) => void;
+			productRetirement = new Promise<void>((done, fail) => { resolve = done; reject = fail; });
+			void productRetirement.catch(() => undefined);
+			try { void Promise.resolve(d.disposeProductResources()).then(() => { resolve(); }, reject); }
+			catch (error) { reject(error); }
+		}
 	};
 	const dispose = (): Promise<void> => {
 		if (pending) return pending;
@@ -169,6 +178,7 @@ export function createControllerDisposal(d: ControllerDisposalDependencies): Con
 			await cleanup(d.disposeSession);
 			await cleanup(d.disposeEngine, true);
 			await visuals;
+			if (productRetirement) await cleanup(() => productRetirement, true);
 			if (!sourceRetirementBlocked) {
 				await cleanup(d.clearSourceBuffers, true);
 				await cleanup(d.clearSourceProviders, true);

@@ -37,11 +37,18 @@ export function readClosedDomainArray(
 	maximumLength: number,
 ): readonly unknown[] {
 	if (!Array.isArray(value)) throw new TypeError(`${name} must be an array.`);
-	if (value.length < minimumLength || value.length > maximumLength) {
+	// Reflect once: ordinary property reads could invoke a caller-owned Proxy get trap.
+	const descriptor = Object.getOwnPropertyDescriptor(value, 'length');
+	const length: unknown = descriptor?.value;
+	if (!descriptor || !Object.hasOwn(descriptor, 'value') || typeof length !== 'number'
+		|| !Number.isSafeInteger(length) || length < 0) {
+		throw new TypeError(`${name} requires an own bounded integer length.`);
+	}
+	if (length < minimumLength || length > maximumLength) {
 		throw new RangeError(`${name} requires ${String(minimumLength)} through ${String(maximumLength)} entries.`);
 	}
 	const result: unknown[] = [];
-	for (let index = 0; index < value.length; index += 1) {
+	for (let index = 0; index < length; index += 1) {
 		const descriptor = Object.getOwnPropertyDescriptor(value, String(index));
 		if (!descriptor || !Object.hasOwn(descriptor, 'value') || descriptor.enumerable !== true) {
 			throw new TypeError(`${name}[${String(index)}] must be an enumerable own data property.`);
@@ -50,7 +57,7 @@ export function readClosedDomainArray(
 	}
 	for (const key of Reflect.ownKeys(value)) {
 		if (key === 'length') continue;
-		if (typeof key !== 'string' || !arrayIndex(key, value.length)) {
+		if (typeof key !== 'string' || !arrayIndex(key, length)) {
 			throw new TypeError(`${name} contains an unsupported field.`);
 		}
 	}

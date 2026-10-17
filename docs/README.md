@@ -1,7 +1,7 @@
 # Engineering documentation
 
 This directory documents the contracts a maintainer needs to understand,
-change, test, or release Soundscaper and Framescaper. It is organized by task
+change, test, or release Soundscaper, Framescaper, and Lightscaper. It is organized by task
 and subject rather than by the order in which the software was implemented.
 
 For product scope, status, and sequencing, use the
@@ -17,6 +17,81 @@ belong in Git history, not in the maintained documentation set.
 
 - [Architecture and maintainability](architecture/overview.md) explains source
   ownership, dependency directions, composition, and repository guardrails.
+- [Lightscaper application boundaries](architecture/lightscaper.md) defines
+  the separate photo application, catalog storage and history, shared image
+  evaluation, and explicit product interchange.
+- [Photo source preparation](architecture/lightscaper-import-preparation.md)
+  defines bounded source admission, shared decoding, and immutable metadata facts.
+- [Managed photo import](architecture/lightscaper-managed-import.md) defines
+  original custody, publication, digest dedupe, and interruption recovery.
+- [Photo library sessions](architecture/lightscaper-photo-library-session.md)
+  defines bounded menu-owned browsing, import bridges, and resource lifetime.
+- [Photo Develop workspace](architecture/lightscaper-develop-workspace.md)
+  defines per-version history, scoped rendering, settings selection, and durable batch receipts.
+- [Opt-in GPU Develop preview](architecture/lightscaper-develop-gpu-preview.md)
+  defines native WB/tone execution, whole-recipe CPU fallback, bounded ownership and remaining GPU scope.
+- [Full-resolution Develop inspection](architecture/lightscaper-develop-full-resolution-zoom.md)
+  defines authenticated original reads, fixed render profiles and scoped zoom presentation.
+- [Photo export sidecars](architecture/lightscaper-photo-export-sidecar.md)
+  defines the versioned saved-recipe and metadata JSON projection beside rendered images.
+- [Editable photo and still handoff](architecture/lightscaper-image-handoff.md)
+  defines authenticated archive selection, native original verification and selected-library publication.
+- [Shared Texture](architecture/video-texture.md)
+  defines deterministic alpha-weighted medium-frequency luma contrast and shared render ownership.
+- [Shared deterministic Grain](architecture/video-grain.md)
+- [Shared RGB noise reduction](architecture/video-noise-reduction.md)
+  defines reversible luma/chroma neighborhoods, integer process math and original-alpha transport.
+- [Shared Dehaze process](architecture/video-dehaze.md)
+  defines alpha-aware transmission, bounded white-atmosphere reconstruction and shared pixel ownership.
+- [Shared post-crop vignette](architecture/video-post-crop-vignette.md)
+  defines natural-stage coordinates, integer process math, and original-alpha transport.
+- [Shared color grading wheels](architecture/color-grading-wheels.md)
+  defines overlapping LGG authoring, the explicit scalar process and shared render ownership.
+- [Develop split preview](architecture/lightscaper-develop-split-preview.md)
+  defines the opted-in divider, matched viewports and joined presentation ownership.
+- [Develop preset restore](architecture/lightscaper-develop-preset-restore.md)
+  defines physical preset presence and archive restoration.
+- [Develop presets during photo import](architecture/lightscaper-develop-import-presets.md)
+  defines explicit preset selection and revision-fenced import preparation.
+- [Opt-in photo import options](architecture/lightscaper-import-options-ui.md)
+  defines authored drafts, explicit preset loading, and durable import acknowledgements.
+- [Photo batch rename](architecture/lightscaper-batch-rename.md)
+  defines bounded name plans and revision-fenced per-photo publication.
+- [Bounded batch rename presentation](architecture/lightscaper-batch-rename-ui.md)
+  defines explicit name previews, partial results and menu-owned inverse undo.
+- [Photo catalog backup snapshots](architecture/lightscaper-catalog-backup.md)
+  defines revision-fenced catalog enumeration and authenticated retained-original archive output.
+- [Photo catalog archive V5](architecture/lightscaper-catalog-archive-v5.md)
+  defines complete mixed recipe and immutable LUT transport, bounded private restoration and unchanged publication authority.
+- [Catalog backup presentation and destination lifetime](architecture/lightscaper-catalog-backup-ui.md)
+  defines menu-owned saving, joined cancellation, and final file delivery acknowledgements.
+- [Large photo-library diagnostics](architecture/lightscaper-large-library-diagnostics.md)
+  defines the pinned native catalog fixture and bounded import, scroll, filter, and search observations.
+- [Disposable photo preview preparation](architecture/lightscaper-preview-preparation.md)
+  defines shared resize recipes and bounded original-free preview bodies.
+- [Photo catalog definitions](architecture/lightscaper-catalog-definitions.md)
+  defines bounded hierarchy and collection commands, scalar pages, and revision fencing.
+- [Retained-original photo regeneration](architecture/lightscaper-original-frame-regeneration.md)
+  defines authenticated native decoding and callback-scoped pixel custody.
+- [Shared HDR exposure merge](architecture/lightscaper-hdr-merge.md) defines
+  canonical brackets, lossless generated Originals, scoped staging and guarded publication.
+- [Photo preview cache ownership](architecture/lightscaper-preview-cache.md)
+  defines disposable paired storage, bounded demand scheduling, and original-custody fences.
+- [Lightscaper editor copy](architecture/lightscaper-editor-copy.md)
+  defines the small English/German editor defaults and guarded locale-loading boundary.
+- [Translation catalog build ownership](architecture/translation-catalog-build.md)
+  defines bounded generated chunks with complete lazy-loaded catalog contents.
+- [Photo preview presentation](architecture/lightscaper-preview-presentation.md)
+  defines opt-in canvas surfaces, serial pixel custody and compound memory budgets.
+- [Photo catalog query workflows](architecture/lightscaper-catalog-workflows.md)
+  defines menu-owned search/sort/filter, bounded definition selectors and explicit index preparation.
+- [Photo catalog organization](architecture/lightscaper-catalog-organization.md)
+- [Photo library culling](architecture/lightscaper-culling.md)
+- [Photo import settings and presets](architecture/lightscaper-import-settings.md)
+  defines bounded display-name recipes, authored metadata, keyword admission and revision-fenced presets.
+- [Managed SDR pixel grading](architecture/pixel-frame-managed-sdr-grade.md)
+- [Photo catalog queries](architecture/lightscaper-catalog-query.md)
+  defines global sort order, bounded sparse scans and resumable query index migration.
 - [Time and media](architecture/time-and-media.md) defines canonical timing,
   edit, retime, proxy, and media-preservation contracts.
 - [Production and rendering](architecture/production-rendering.md) covers

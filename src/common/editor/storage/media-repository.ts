@@ -15,10 +15,14 @@ import {
 import { MediaAssetLoadRepository, type MediaAssetLoadOptions } from './media-asset-load-repository.ts';
 import { MediaAssetLifecycleCoordinator, type MediaAssetMaintenance } from './media-asset-lifecycle-coordinator.ts';
 import { MediaAssetWriteAdmission } from './media-asset-write-admission.ts';
+import { acquireMediaAssetPathLease, type MediaAssetPathLease } from './media-asset-path-staging.ts';
+import { MEDIA_ASSET_STAGING_STORE_NAME } from './media-asset-staging-schema.ts';
+import { reconcileMediaAssetOpfsStartup } from './media-asset-opfs-startup-reconciliation.ts';
+import type { MediaAssetNonBinaryDatabaseProfile } from './media-asset-opfs-startup-namespace.ts';
 import { MediaPublicationReconciliationError, sameMediaPayload } from './media-asset-owned-publication.ts';
 import { canonicalMediaContentBlob, digestMediaContent } from './media-content-digest.ts';
 import { freshVerifiedMediaContentDigest } from './media-content-provenance.ts';
-import { browserFileStorageFailure } from '../web-file-limit-failure.ts';
+import { BrowserFileStorageError } from '../web-file-limit-failure.ts';
 import {
 	MediaAssetWriteRepository,
 	type MediaAssetWriteOptions,
@@ -34,6 +38,15 @@ import type { OpfsRepository } from './opfs-repository.ts';
 import type { StorageRepositoryPort } from './repository-port.ts';
 import type { RetentionSessionGuard } from './retention-session-guard.ts';
 import { cloneStorageValue as clone } from './storage-clone.ts';
+import { MediaCatalogOriginalRepositoryV1 } from './media-catalog-original-repository.ts';
+import { CATALOG_ORIGINAL_ROOT_STORE_NAME } from './media-catalog-original-schema.ts';
+import { assertNoCatalogOriginalRoot } from './media-catalog-original-records.ts';
+import { hasStoredBinaryPathReference } from './media-binary-reference-query.ts';
+import { MediaCatalogOriginalRepairRepositoryV1 } from './media-catalog-original-repair-repository.ts';
+import { MediaCatalogOriginalInspectionRepositoryV1, type CatalogOriginalInspectionOutcomeV1 } from './media-catalog-original-inspection-repository.ts';
+import type { CatalogOriginalRepairBindingV1, CatalogOriginalRepairOptionsV1, CatalogOriginalRepairReceiptV1 } from './media-catalog-original-repair-contract.ts';
+import { BinaryDerivativeCacheRepositoryV1, type BinaryDerivativeCachePortV1,
+	type BinaryDerivativeCacheProfileV1 } from './binary-derivative-cache-repository.ts';
 import {
 	deletePairedVideoDerivativeRecords,
 	VideoDerivativeRepository,
@@ -43,6 +56,7 @@ import {
 
 const PENDING_SOURCE_RETENTION_MS = 24 * 60 * 60 * 1000;
 const throwIfAborted = createAbortGuard('Media storage was cancelled.');
+const nativeProjectAuditLoad = MediaAssetLoadRepository.prototype.load;
 
 interface MediaWriteOptions {
 	readonly signal?: AbortSignal;
@@ -59,20 +73,26 @@ interface MediaRepositoryOptions {
 }
 /** Original media containers and replaceable video derivatives. */
 export class MediaRepository {
+	readonly catalogOriginals: MediaCatalogOriginalRepositoryV1;
 	readonly #port: StorageRepositoryPort;
 	readonly #opfs: OpfsRepository;
 	readonly #sessionGuard: RetentionSessionGuard | null;
 	readonly #assetLifecycle = new MediaAssetLifecycleCoordinator();
 	readonly #assetWrites: MediaAssetWriteRepository;
 	readonly #assetLoads: MediaAssetLoadRepository;
+	readonly #originalRepairs: MediaCatalogOriginalRepairRepositoryV1;
+	readonly #originalInspections: MediaCatalogOriginalInspectionRepositoryV1;
 	readonly #derivatives: VideoDerivativeRepository;
 
 	constructor(port: StorageRepositoryPort, opfs: OpfsRepository, options: MediaRepositoryOptions = {}) {
+		this.catalogOriginals = new MediaCatalogOriginalRepositoryV1(port, this.#assetLifecycle);
 		this.#port = port;
 		this.#opfs = opfs;
 		this.#sessionGuard = options.sessionGuard ?? null;
 		this.#assetWrites = new MediaAssetWriteRepository(port, opfs, this.#assetLifecycle, options.confirmFileSizeWarning);
 		this.#assetLoads = new MediaAssetLoadRepository(port, this.#assetWrites, this.#assetLifecycle);
+		this.#originalRepairs = new MediaCatalogOriginalRepairRepositoryV1(port, opfs, this.#assetLifecycle);
+		this.#originalInspections = new MediaCatalogOriginalInspectionRepositoryV1(port, opfs, this.#assetLifecycle);
 		this.#derivatives = new VideoDerivativeRepository(port, opfs, options);
 	}
 
@@ -84,9 +104,27 @@ export class MediaRepository {
 		return this.#assetWrites.begin(sourceId, metadata, options);
 	}
 	beginAssetMaintenance(options: Readonly<{ permanent?: boolean }> = {}): MediaAssetMaintenance { return this.#assetLifecycle.beginMaintenance(options); }
+	restoreCatalogOriginalBody(binding: CatalogOriginalRepairBindingV1, selected: unknown, options: CatalogOriginalRepairOptionsV1 = {}): Promise<Readonly<CatalogOriginalRepairReceiptV1>> {
+		return this.#originalRepairs.restore(binding, selected, options);
+	}
+	inspectCatalogOriginalBody(binding: CatalogOriginalRepairBindingV1, options: CatalogOriginalRepairOptionsV1 = {}): Promise<CatalogOriginalInspectionOutcomeV1> {
+		return this.#originalInspections.inspect(binding, options);
+	}
+	createBinaryDerivativeCache(profile: BinaryDerivativeCacheProfileV1): BinaryDerivativeCachePortV1 {
+		const cache = new BinaryDerivativeCacheRepositoryV1(this.#port, this.#opfs, this.#assetLifecycle, profile);
+		return Object.freeze({ load: cache.load.bind(cache), store: cache.store.bind(cache), trim: cache.trim.bind(cache) });
+	}
 	activeAssetStaging() { return this.#assetWrites.activeStaging(); }
+	hasBinaryPathReference(path: string): Promise<boolean> { return hasStoredBinaryPathReference(this.#port, path); }
 	invalidateAssetStagingMemory() { return this.#assetWrites.invalidateStagingMemory(); }
 	invalidateAssetStagingStore(store: IDBObjectStore) { return this.#assetWrites.invalidateStagingStore(store); }
+	async reconcileOpfsStartup(factory: IDBFactory, nonBinaryProfiles: readonly MediaAssetNonBinaryDatabaseProfile[]): Promise<boolean> {
+		return reconcileMediaAssetOpfsStartup({
+			database: await this.#port.database(), factory, opfs: this.#opfs,
+			sessionGuard: this.#sessionGuard, lifecycle: this.#assetLifecycle, nonBinaryProfiles,
+		});
+	}
+
 	async writeAsset(
 		sourceId: string,
 		input: unknown,
@@ -98,8 +136,9 @@ export class MediaRepository {
 		const blob = canonicalMediaContentBlob(input);
 		const admission = new MediaAssetWriteAdmission(this.#assetLifecycle, signal);
 		let storedFile: { path: string } | null = null;
+		let pathLease: MediaAssetPathLease | null = null;
+		let stagedPath: string | null = null;
 		let attemptedPublication: StorageRecord | null = null;
-		let published = false;
 		try {
 			const previous = await this.getAssetMetadata(id);
 			admission.throwIfCancelled();
@@ -107,12 +146,23 @@ export class MediaRepository {
 			const sha256 = (await digestMediaContent(blob, { signal: admission.signal })).toLowerCase();
 			admission.throwIfCancelled();
 			const provenance = freshVerifiedMediaContentDigest(sha256);
-			storedFile = await this.#opfs.writeBlob(`media-${id}`, blob, { signal: admission.signal })
-				.catch((error: unknown) => { throw browserFileStorageFailure('OPFS media write', error); });
-			if (storedFile) admission.setIdentity({ path: storedFile.path });
-			admission.bindWriterAbort(async () => {
-				if (storedFile && !published && !attemptedPublication) await this.#opfs.deletePath(storedFile.path);
-			});
+			const database = await this.#port.database();
+			admission.throwIfCancelled();
+			const plan = database ? await this.#opfs.planBlobWrite(`media-${id}`, { signal: admission.signal }) : null;
+			admission.throwIfCancelled();
+			if (plan && database) {
+				admission.setIdentity({ path: plan.path });
+				pathLease = await acquireMediaAssetPathLease(database, id, plan.path, plan.directory);
+				if (pathLease) stagedPath = plan.path;
+				admission.throwIfCancelled();
+				if (pathLease) {
+					await plan.write(blob).catch((error: unknown) => {
+						if (admission.signal.aborted && Object.is(error, admission.signal.reason)) throw error;
+						throw new BrowserFileStorageError('OPFS media write', error);
+					});
+					storedFile = { path: plan.path };
+				}
+			}
 			admission.throwIfCancelled();
 			const record: StorageRecord = {
 				...binaryMetadata(metadata),
@@ -128,11 +178,9 @@ export class MediaRepository {
 				committedAt: new Date().toISOString(),
 				pendingProjectUntil: new Date(Date.now() + PENDING_SOURCE_RETENTION_MS).toISOString(),
 			};
-			const database = await this.#port.database();
 			admission.throwIfCancelled();
 			attemptedPublication = record;
-			await publishImmutableMediaAsset(this.#port, record, database, admission.signal);
-			published = true;
+			await publishImmutableMediaAsset(this.#port, record, database, admission.signal, pathLease);
 			admission.complete();
 			return mediaAssetMetadata(record);
 		} catch (error) {
@@ -140,17 +188,14 @@ export class MediaRepository {
 				let current: StorageRecord | null;
 				try { current = await this.assetRecord(id); }
 				catch (reconciliationError) {
-					published = true;
 					admission.complete();
 					throw new MediaPublicationReconciliationError(error, reconciliationError);
 				}
 				if (sameWrittenMediaAsset(current, attemptedPublication)) {
-					published = true;
 					admission.complete();
 					return mediaAssetMetadata(attemptedPublication);
 				}
 				if (storedFile && current?.path === storedFile.path) {
-					published = true;
 					admission.complete();
 					throw new MediaPublicationReconciliationError(
 						error, new Error('The published media path has an unexpected record identity.'),
@@ -158,12 +203,17 @@ export class MediaRepository {
 				}
 			}
 			let cleanupError: unknown;
+			let cleanupFailed = false;
 			try {
-				if (storedFile) await this.#opfs.deletePath(storedFile.path);
+				if (stagedPath) {
+					await this.#opfs.deletePathExact(stagedPath);
+					await pathLease?.release();
+				}
 			} catch (failure) {
 				cleanupError = failure;
+				cleanupFailed = true;
 			}
-			if (cleanupError !== undefined) {
+			if (cleanupFailed) {
 				admission.failCleanup(cleanupError);
 				throw new AggregateError(
 					[error, cleanupError], 'Media asset write and cleanup both failed.', { cause: error },
@@ -174,6 +224,23 @@ export class MediaRepository {
 		} finally {
 			admission.release();
 		}
+	}
+
+	/** Private branding and native backend identity prevent a substituted public
+	 * reader from minting project publication authority. Capture the original
+	 * load intrinsic at module initialization; native lifecycle ownership stays
+	 * with this repository's existing asset load owner. */
+	static async captureProjectResourceAuditReaderV1(owner: MediaRepository, port: StorageRepositoryPort) {
+		const actualPort = owner.#port, actualLoads = owner.#assetLoads, memory = actualPort.memory;
+		const actualDatabase = actualPort.database, requestedDatabase = port.database, requestedMemory = port.memory;
+		const [database, requested] = await Promise.all([
+			Reflect.apply(actualDatabase, actualPort, []) as Promise<IDBDatabase | null>,
+			Reflect.apply(requestedDatabase, port, []) as Promise<IDBDatabase | null>,
+		]);
+		if (database !== requested || memory !== requestedMemory) throw new Error('Native body reader belongs to another project backend.');
+		return Object.freeze({ database, memory, loadAsset(sourceId: string, options: MediaAssetLoadOptions = {}): Promise<BlobLike | null> {
+			return Reflect.apply(nativeProjectAuditLoad, actualLoads, [sourceId, options]) as Promise<BlobLike | null>;
+		} });
 	}
 
 	loadAsset(sourceId: string, options: MediaAssetLoadOptions = {}): Promise<BlobLike | null> {
@@ -213,9 +280,11 @@ export class MediaRepository {
 				[
 					'projects', 'revisions', 'settings',
 					'mediaAssets', VIDEO_DERIVATIVE_STORE_NAME, DERIVATIVE_CACHE_ENTRY_STORE_NAME,
+					CATALOG_ORIGINAL_ROOT_STORE_NAME,
 				],
 				'readwrite',
 				async (stores) => {
+					await assertNoCatalogOriginalRoot(stores[CATALOG_ORIGINAL_ROOT_STORE_NAME], id);
 					const [projects, revisions, otherSession] = await Promise.all([
 						request(stores.projects.getAll()),
 						request(stores.revisions.getAll()),
@@ -315,6 +384,7 @@ async function publishImmutableMediaAsset(
 	record: StorageRecord,
 	database: IDBDatabase | null,
 	signal?: AbortSignal,
+	pathLease: MediaAssetPathLease | null = null,
 ): Promise<void> {
 	const sourceId = record.sourceId as string;
 	if (!database) {
@@ -323,9 +393,17 @@ async function publishImmutableMediaAsset(
 		port.memory.mediaAssets.set(sourceId, clone(record));
 		return;
 	}
-	const created = await transact(database, 'mediaAssets', 'readwrite', ({ mediaAssets }) => {
+	const created = await transact(database, [
+		'mediaAssets', CATALOG_ORIGINAL_ROOT_STORE_NAME, ...(pathLease ? ['settings', MEDIA_ASSET_STAGING_STORE_NAME] : []),
+	], 'readwrite', async (stores) => {
 		throwIfAborted(signal);
-		return addMediaAssetIfAbsent(mediaAssets, record);
+		if (await request(stores.mediaAssets.get(sourceId))) return false;
+		await assertNoCatalogOriginalRoot(stores[CATALOG_ORIGINAL_ROOT_STORE_NAME], sourceId);
+		throwIfAborted(signal);
+		if (pathLease) await pathLease.assertInStore(stores[MEDIA_ASSET_STAGING_STORE_NAME], stores.settings);
+		const added = await addMediaAssetIfAbsent(stores.mediaAssets, record);
+		if (added && pathLease) await pathLease.completeInStore(stores[MEDIA_ASSET_STAGING_STORE_NAME], stores.settings);
+		return added;
 	});
 	if (!created) throw immutableMediaAssetError(sourceId);
 }
@@ -392,3 +470,7 @@ function nonEmptyString(value: unknown, message: string): string {
 	if (!text) throw new TypeError(message);
 	return text;
 }
+
+/** The module binding captures the original native owner before any caller can
+ * replace the public class property. Current publication imports this binding. */
+export const captureMediaProjectResourceAuditReaderV1 = MediaRepository.captureProjectResourceAuditReaderV1;

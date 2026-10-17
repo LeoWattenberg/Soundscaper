@@ -11,7 +11,7 @@ import type { VideoKeyframeExportFrameSource } from './video-keyframe-export-fra
 import { createAuthenticatedVideoKeyframeExecutionFrameSource } from './video-keyframe-execution-frame-source.ts';
 import type { VideoKeyframeRgbaFrameProducer } from './video-keyframe-encoder-stream.ts';
 import { createExactVideoKeyframeRgbaProducer } from './video-keyframe-rgba-producer-guard.ts';
-import type { VideoKeyframeWebCodecsEncode } from './video-keyframe-webcodecs-execution.ts';
+import { admitVideoKeyframeWebCodecsEncode, type VideoKeyframeWebCodecsEncode } from './video-keyframe-webcodecs-execution.ts';
 import type {
 	VideoMediabunnyMuxer,
 	VideoMediabunnyMuxRequest,
@@ -81,6 +81,7 @@ export async function executeVideoKeyframeMediabunnyEncoder(
 	request: VideoKeyframeMediabunnyExecutionRequest,
 	dependencies: VideoKeyframeMediabunnyExecutionDependencies = DEFAULT_DEPENDENCIES,
 ): Promise<VideoKeyframeMediabunnyExecutionResult> {
+	request = { ...request, webCodecs: admitVideoKeyframeWebCodecsEncode(request.webCodecs) };
 	const { workload, frameSource, producer, webCodecs } = request;
 	if (workload.videoEncoder !== 'webcodecs') {
 		throw new Error('Mediabunny execution requires a WebCodecs-admitted workload.');
@@ -136,6 +137,7 @@ export async function executeVideoKeyframeMediabunnyEncoder(
 				videoCodec: workload.format === 'mp4' ? 'h264' : 'vp9',
 				codec: webCodecs.codec,
 				bitrate: webCodecs.bitrate,
+				...(webCodecs.rgbaColorSpace === undefined ? {} : { rgbaColorSpace: webCodecs.rgbaColorSpace }),
 				...(webCodecs.hardwareAcceleration ? { hardwareAcceleration: webCodecs.hardwareAcceleration } : {}),
 				encoderClass: webCodecs.encoderClass as never,
 				videoFrameClass: webCodecs.videoFrameClass as never,

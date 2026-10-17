@@ -2,7 +2,8 @@
 
 import { createAddTrackCommand } from '../../../commands/factories.ts';
 import { preparePasteCommand } from '../../../commands/clipboard-runtime.js';
-import type { AudioEditorClipboard, AudioEditorCommand } from '../../../commands/protocol.ts';
+import type { CurrentAudioEditorClipboardDescriptor as AudioEditorClipboard, CurrentAudioEditorMutationCommandV2 as AudioEditorCommand } from '../../../commands/clipboard-command-v2.ts';
+import { preparePasteCommandV7 } from '../../../commands/clipboard-runtime-v7.ts';
 import type { ControllerTrackDuplicateCarrier, ControllerTrackDuplicateRequest } from '../../document/project-runtime.ts';
 
 interface DuplicateEffect extends Readonly<Record<string, unknown>> {
@@ -113,7 +114,10 @@ export function prepareDuplicateSelectionCommand(
 			} : {}),
 		});
 	}
-	const paste = preparePasteCommand(clipboard, { atFrame: range.startFrame, trackMap, mode: 'overlap' }, runtime.createStableId);
+	const pasteOptions = { atFrame: range.startFrame, trackMap, mode: 'overlap' as const };
+	const paste = clipboard.schemaVersion === 7
+		? preparePasteCommandV7(clipboard, pasteOptions, runtime.createStableId)
+		: preparePasteCommand(clipboard, pasteOptions, runtime.createStableId);
 	const clipIds = Object.values(paste.clipIds ?? {});
 	const trackIds = [...sourceTracks.map((track) => track.id), ...sourceTracks.map((track) => trackMap[track.id]!)];
 	commands.push(paste);

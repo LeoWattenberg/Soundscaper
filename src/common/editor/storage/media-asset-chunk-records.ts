@@ -10,9 +10,10 @@ import { canonicalMediaContentBlob } from './media-content-digest.ts';
 import {
 	MEDIA_ASSET_CHUNK_STORE_NAME,
 	MEDIA_ASSET_CHUNK_TOKEN_INDEX_NAME,
+	MEDIA_ASSET_TOKEN_REFERENCE_INDEX_NAME,
 } from './media-asset-chunk-schema.ts';
 import type { MediaAssetStagingLease } from './media-asset-staging-repository.ts';
-import { MEDIA_ASSET_STAGING_STORE_NAME } from './media-asset-staging-schema.ts';
+import { MEDIA_ASSET_STAGING_STORE_NAME, MEDIA_ASSET_STAGING_TOKEN_INDEX_NAME } from './media-asset-staging-schema.ts';
 import type { StorageRepositoryPort } from './repository-port.ts';
 
 export { MEDIA_ASSET_CHUNK_STORE_NAME, MEDIA_ASSET_CHUNK_TOKEN_INDEX_NAME };
@@ -171,8 +172,16 @@ export class MediaAssetChunkRecords {
 	async cleanupStale(retainedTokens: ReadonlySet<string>, cutoff: number): Promise<void> {
 		const database = await this.#port.database();
 		if (!database) {
+			const currentTokens = new Set(retainedTokens);
+			for (const value of this.#port.memory.mediaAssets.values()) {
+				const token = mediaChunkToken(value);
+				if (typeof token === 'string' && token) currentTokens.add(token);
+			}
+			for (const value of this.#port.memory.mediaAssetStaging.values()) {
+				if (value && typeof value === 'object' && 'token' in value && typeof value.token === 'string') currentTokens.add(value.token);
+			}
 			for (const [key, value] of this.#port.memory.mediaAssetChunks) {
-				if (isStaleUnretainedChunk(value, retainedTokens, cutoff)) {
+				if (isStaleUnretainedChunk(value, currentTokens, cutoff)) {
 					this.#port.memory.mediaAssetChunks.delete(key);
 				}
 			}
@@ -190,8 +199,23 @@ export class MediaAssetChunkRecords {
 			if (!records.length) return;
 			afterPrimaryKey = records.at(-1)?.primaryKey;
 			const stale = records.filter(({ value }) => isStaleUnretainedChunk(value, retainedTokens, cutoff));
-			if (stale.length) await transact(database, MEDIA_ASSET_CHUNK_STORE_NAME, 'readwrite', (stores) => {
-				for (const record of stale) stores[MEDIA_ASSET_CHUNK_STORE_NAME].delete(record.primaryKey);
+			if (stale.length) await transact(database,
+				[MEDIA_ASSET_CHUNK_STORE_NAME, 'mediaAssets', MEDIA_ASSET_STAGING_STORE_NAME], 'readwrite', async (stores) => {
+					for (const { primaryKey } of stale) {
+						const current: unknown = await request(stores[MEDIA_ASSET_CHUNK_STORE_NAME].get(primaryKey));
+						if (!isStaleUnretainedChunk(current, retainedTokens, cutoff)) continue;
+						const token = mediaChunkToken(current);
+						if (typeof token === 'string' && token) {
+							const indexes = [stores.mediaAssets.index(MEDIA_ASSET_TOKEN_REFERENCE_INDEX_NAME),
+								stores[MEDIA_ASSET_STAGING_STORE_NAME].index(MEDIA_ASSET_STAGING_TOKEN_INDEX_NAME)];
+							let retained = false;
+							for (const index of indexes) {
+								if ((await readCursorPage(index, { query: token, limit: 1 })).length) { retained = true; break; }
+							}
+							if (retained) continue;
+						}
+						stores[MEDIA_ASSET_CHUNK_STORE_NAME].delete(primaryKey);
+					}
 			});
 		}
 	}

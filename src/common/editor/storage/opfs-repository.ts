@@ -1,6 +1,9 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { copyUint8ArrayToArrayBuffer } from './binary-copy.ts';
+import { inspectOpfsBinaryRecord, type OpfsBinaryInspection } from './opfs-binary-inspection.ts';
+import { createOpfsBlobWritePlan, deleteOpfsBlobPathExact, type OpfsBlobWritePlan } from './opfs-blob-write-plan.ts';
+import { normalizeOpfsWorkerPath } from './opfs-sync-worker-protocol.ts';
 
 import {
 	PCM_CONTAINER_EXTENSION,
@@ -130,36 +133,35 @@ export class OpfsRepository {
 		}
 	}
 
-	async writeBlob(
+	inspectBinaryRecord(record: StorageRecord, options: Readonly<{ signal?: AbortSignal }> = {}): Promise<OpfsBinaryInspection> {
+		return inspectOpfsBinaryRecord(record, {
+			preferOpfs: this.#options.preferOpfs,
+			opfsRoot: this.#options.opfsRoot,
+			storageManager: this.#options.storageManager,
+			opfsDirectoryName: this.#options.opfsDirectoryName ?? DEFAULT_OPFS_DIRECTORY_NAME,
+		}, options.signal);
+	}
+
+	async planBlobWrite(
 		prefix: string,
-		blob: BlobLike,
-		{
-			signal,
-			operationId = 'media-asset-chunk-write',
-		}: { readonly signal?: AbortSignal; readonly operationId?: OpfsSyncOperationId } = {},
-	): Promise<{ path: string } | null> {
-		throwIfAborted(signal);
+		options: Readonly<{ signal?: AbortSignal; operationId?: OpfsSyncOperationId }> = {},
+	): Promise<OpfsBlobWritePlan | null> {
+		throwIfAborted(options.signal);
 		const directory = await this.directory();
-		throwIfAborted(signal);
-		if (!directory?.getFileHandle) return null;
-		const stem = String(prefix || 'media').replace(/[^a-z0-9._-]+/giu, '-').slice(0, 80);
-		const path = `${stem}-${createId('asset').replace(/[^a-z0-9._-]+/giu, '-')}.blob`;
-		let writable: FileSystemWritableFileStream | undefined;
-		try {
-			if (await this.#sync.writeBlob(directory, operationId, path, blob, signal)) return { path };
-			const handle = await directory.getFileHandle(path, { create: true });
-			throwIfAborted(signal);
-			writable = await handle.createWritable();
-			throwIfAborted(signal);
-			await writable.write(blob as Blob);
-			throwIfAborted(signal);
-			await writable.close();
-			throwIfAborted(signal);
-			return { path };
-		} catch {
-			try { await writable?.abort(); } catch { /* A failed OPFS write may already be closed. */ }
-			await this.deletePath(path);
-			throwIfAborted(signal);
+		throwIfAborted(options.signal);
+		return directory?.getFileHandle ? createOpfsBlobWritePlan(directory, prefix, this.#sync, options) : null;
+	}
+
+	async writeBlob(
+		prefix: string, blob: BlobLike,
+		options: Readonly<{ signal?: AbortSignal; operationId?: OpfsSyncOperationId }> = {},
+	): Promise<{ path: string } | null> {
+		const plan = await this.planBlobWrite(prefix, options);
+		if (!plan) return null;
+		try { await plan.write(blob); return { path: plan.path }; }
+		catch {
+			await this.deletePath(plan.path);
+			throwIfAborted(options.signal);
 			return null;
 		}
 	}
@@ -211,30 +213,9 @@ export class OpfsRepository {
 
 	/** Delete a durably referenced path, reconciling acknowledgement loss and surfacing retained bodies. */
 	async deletePathExact(pathValue: string): Promise<void> {
-		if (!pathValue || pathValue !== pathValue.trim() || pathValue.length > 512
-			|| /[\u0000-\u001f\u007f]/u.test(pathValue)) {
-			throw new TypeError('An exact OPFS deletion requires a valid path.');
-		}
-		this.#indexCache.delete(pathValue);
-		const directory = await this.directory();
-		if (!directory?.getFileHandle || !directory.removeEntry) {
-			throw new Error('The exact OPFS deletion backend is unavailable.');
-		}
-		let removalFailure: unknown = null;
-		try {
-			if (!await this.#sync.remove(directory, pathValue)) await directory.removeEntry(pathValue);
-		} catch (error) { removalFailure = error; }
-		try {
-			await directory.getFileHandle(pathValue);
-		} catch (error) {
-			if (isNotFoundError(error)) return;
-			if (removalFailure !== null) {
-				throw new AggregateError([removalFailure, error], 'Exact OPFS deletion could not verify its result.');
-			}
-			throw error;
-		}
-		if (removalFailure !== null) throw removalFailure;
-		throw new Error('Exact OPFS deletion left its referenced path present.');
+		const path = normalizeOpfsWorkerPath(pathValue);
+		this.#indexCache.delete(path);
+		await deleteOpfsBlobPathExact(await this.directory(), this.#sync, path);
 	}
 
 	invalidate(path: string | null | undefined): void {
@@ -369,11 +350,15 @@ export class OpfsRepository {
 		return { index: chunkIndex, frames, channels };
 	}
 
-	async cleanupOrphans(retainedPaths: ReadonlySet<string>, cutoff: number): Promise<void> {
+	async cleanupOrphans(
+		retainedPaths: ReadonlySet<string>, cutoff: number,
+		isCurrentlyRetained?: (path: string) => Promise<boolean>,
+	): Promise<void> {
 		const directory = await this.directory();
 		if (!directory?.entries) return;
 		for await (const [name, handle] of directory.entries()) {
 			if (retainedPaths.has(name) || handle.kind !== 'file') continue;
+			if (await isCurrentlyRetained?.(name)) continue;
 			try {
 				const file = await handle.getFile();
 				if (file.lastModified < cutoff) await this.deletePath(name);

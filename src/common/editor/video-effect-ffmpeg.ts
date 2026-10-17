@@ -1,5 +1,18 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { appendClarityFfmpegOperationV1 } from './video-clarity-ffmpeg-v1.ts';
+import { appendNoiseReductionFfmpegOperationV1 } from './video-noise-reduction-ffmpeg-v1.ts';
+import { appendGrainFfmpegOperationV1 } from './video-grain-ffmpeg-v1.ts';
+import { appendTextureFfmpegOperationV1 } from './video-texture-ffmpeg-v1.ts';
+import { appendDehazeFfmpegOperationV1 } from './video-dehaze-ffmpeg-v1.ts';
+import { imageGeometryVideoFfmpegFilterV1 } from './video-image-geometry-ffmpeg-v1.ts';
+import { appendPostCropVignetteFfmpegOperationV1 } from './video-post-crop-vignette-ffmpeg-v1.ts';
+import { appendDetailSharpenFfmpegOperationV1 } from './video-sharpen-ffmpeg-v1.ts';
+import { appendLensDistortionFfmpegOperationV1 } from './video-lens-distortion-ffmpeg-v1.ts';
+import { appendChromaticAberrationFfmpegOperationV1 } from './video-chromatic-aberration-ffmpeg-v1.ts';
+import { appendDefringeFfmpegOperationV1 } from './video-defringe-ffmpeg-v1.ts';
+import { appendOpticalVignetteFfmpegOperationV1 } from './video-optical-vignette-ffmpeg-v1.ts';
+
 type FilterOperation = Readonly<Record<string, unknown>>;
 
 export interface VideoEffectGraphContext {
@@ -155,12 +168,26 @@ function appendAlphaUnderlay(context: VideoEffectGraphContext): void {
 
 export function appendVideoEffectOperation(context: VideoEffectGraphContext): void {
 	const { filters, inputLabel, outputLabel, operation } = context;
+	if (operation.kind === 'optical-vignette-v1') { appendOpticalVignetteFfmpegOperationV1(context); return; }
+	if (operation.kind === 'defringe-v1') { appendDefringeFfmpegOperationV1(context); return; }
+	if (operation.kind === 'chromatic-aberration-v1') { appendChromaticAberrationFfmpegOperationV1(context); return; }
+	if (operation.kind === 'lens-distortion-v1') { appendLensDistortionFfmpegOperationV1(context); return; }
+	if (operation.kind === 'post-crop-vignette-v1') { appendPostCropVignetteFfmpegOperationV1(context); return; }
+	if (operation.kind === 'clarity-v1') { appendClarityFfmpegOperationV1(context); return; }
+	if (operation.kind === 'noise-reduction-v1') { appendNoiseReductionFfmpegOperationV1(context); return; }
+	if (operation.kind === 'grain-v1') { appendGrainFfmpegOperationV1(context); return; }
+	if (operation.kind === 'texture-v1') { appendTextureFfmpegOperationV1(context); return; }
+	if (operation.kind === 'dehaze-v1') { appendDehazeFfmpegOperationV1(context); return; }
+	if (operation.kind === 'detail-sharpen-v1') { appendDetailSharpenFfmpegOperationV1(context); return; }
 	if (typeof operation.expression === 'string') {
 		if (operation.preserveAlpha) appendPreserveAlpha(filters, inputLabel, outputLabel, operation.expression);
 		else filters.push(`[${inputLabel}]${operation.expression}[${outputLabel}]`);
 		return;
 	}
 	switch (operation.kind) {
+		case 'image-geometry-v1':
+			filters.push(`[${inputLabel}]${imageGeometryVideoFfmpegFilterV1(operation.effect, context.width, context.height)}[${outputLabel}]`);
+			return;
 		case 'preserve-alpha': {
 			if (operation.filter !== 'spill-suppression') throw new RangeError('Unsupported preserve-alpha operation.');
 			const channel = Number(operation.screen) === 0 ? 'green' : 'blue';

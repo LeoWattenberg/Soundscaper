@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import type { AudioEditorCommand } from '../common/editor/commands/protocol.ts';
+import type { CurrentAudioEditorMutationCommandV2 } from '../common/editor/commands/clipboard-command-v2.ts';
 import { assertFramescaperProjectSequenceProfile } from './editor-domain-runtime-profile.ts';
 import type { FramescaperMulticameraCommandSequence } from './editor-project-sequence-multicam.ts';
 import type { FramescaperSequenceCommandSequence } from './editor-project-sequence-sequence.ts';
@@ -40,7 +40,7 @@ export type FramescaperSubsequenceCommandSequence =
 	| Readonly<{ readonly type: 'subsequence/remove'; readonly subsequenceId: string }>;
 
 export type FramescaperProjectCommandSequence =
-	| AudioEditorCommand
+	| CurrentAudioEditorMutationCommandV2
 	| FramescaperSequenceCommandSequence
 	| FramescaperSubsequenceCommandSequence
 	| FramescaperMulticameraCommandSequence;

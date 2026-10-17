@@ -2,9 +2,10 @@
 
 import {
 	PROJECT_SCHEMA_VERSION,
+	isTimelineProjectSchemaFamily,
 	readProjectSchemaIdentity,
-	type ProjectSchemaFamily,
 	type ProjectSchemaIdentity,
+	type TimelineProjectSchemaFamily,
 } from '../editor/project-schema-identity.ts';
 import type {
 	ProjectTransferArchiveExport,
@@ -23,11 +24,11 @@ export interface CreateFamilyOwnedTransferArchiveRuntimeOptions {
 		input: unknown,
 		options: Readonly<{ signal?: AbortSignal }>,
 	) => PromiseLike<Readonly<ProjectSchemaIdentity>> | Readonly<ProjectSchemaIdentity>;
-	readonly runtimes: Readonly<Record<ProjectSchemaFamily, TransferFamilyArchiveRuntime>>;
+	readonly runtimes: Readonly<Record<TimelineProjectSchemaFamily, TransferFamilyArchiveRuntime>>;
 }
 
 /**
- * Dispatch complete archive reads and writes to the product that owns the family-v1 root.
+ * Dispatch timeline archive reads and writes to the product that owns the family-v1 root.
  * The probe is envelope-only; a product runtime is selected only after the closed tuple is known.
  */
 export function createFamilyOwnedTransferArchiveRuntime(
@@ -53,7 +54,7 @@ export function createFamilyOwnedTransferArchiveRuntime(
 }
 
 function ownerFor(
-	runtimes: Readonly<Record<ProjectSchemaFamily, TransferFamilyArchiveRuntime>>,
+	runtimes: Readonly<Record<TimelineProjectSchemaFamily, TransferFamilyArchiveRuntime>>,
 	identity: Readonly<ProjectSchemaIdentity>,
 ): TransferFamilyArchiveRuntime {
 	if (identity.schemaVersion !== PROJECT_SCHEMA_VERSION) {
@@ -61,6 +62,9 @@ function ownerFor(
 			`Family-owned transfer archive I/O requires family-v1, not ${identity.schemaFamily}`
 				+ ` schema ${String(identity.schemaVersion)}.`,
 		);
+	}
+	if (!isTimelineProjectSchemaFamily(identity.schemaFamily)) {
+		throw new RangeError(`Timeline transfer archive I/O does not own ${identity.schemaFamily} family-v1.`);
 	}
 	const runtime = runtimes[identity.schemaFamily];
 	if (!runtime || typeof runtime.exportProject !== 'function'

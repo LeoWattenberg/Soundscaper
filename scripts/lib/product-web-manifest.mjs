@@ -75,6 +75,13 @@ export const SHARE_TARGET_FILES_FIELD = 'media';
  * the declaration, and that script's `--check` holds the committed files to them.
  */
 export const INSTALL_SCREENSHOT_DIRECTORY = 'install-screenshots';
+// The initial Lightscaper surface is installable, but does not yet open
+// projects or media and has no editor workflow to capture for install artwork.
+const PRODUCT_INSTALL_FEATURES = Object.freeze({
+	soundscaper: Object.freeze({ screenshots: true, projectWorkflows: true }),
+	framescaper: Object.freeze({ screenshots: true, projectWorkflows: true }),
+	lightscaper: Object.freeze({ screenshots: false, projectWorkflows: false }),
+});
 export const INSTALL_SCREENSHOTS = Object.freeze([
 	Object.freeze({
 		formFactor: 'wide',
@@ -94,11 +101,13 @@ export const INSTALL_SCREENSHOTS = Object.freeze([
 
 /** Every screenshot file one product commits, without its directory or suffix. */
 export function productScreenshotNames(productId) {
+	if (!productInstallFeatures(productId).screenshots) return [];
 	return INSTALL_SCREENSHOTS.map(({ formFactor }) => `${productId}-${formFactor}`);
 }
 
 /** The screenshot resources one product's manifest declares, in dialog order. */
 export function productInstallScreenshots(productId) {
+	if (!productInstallFeatures(productId).screenshots) return [];
 	return INSTALL_SCREENSHOTS.map(({ formFactor, width, height, label }) => ({
 		src: `${INSTALL_SCREENSHOT_DIRECTORY}/${productId}-${formFactor}.png`,
 		sizes: `${String(width)}x${String(height)}`,
@@ -140,6 +149,7 @@ export function productIconNames(productId) {
  * jump-list shortcut both steer the window that is already running.
  */
 export function productWebManifest(product) {
+	const features = productInstallFeatures(product.id);
 	return {
 		id: `/${product.id}`,
 		name: product.name,
@@ -173,12 +183,21 @@ export function productWebManifest(product) {
 			...MANIFEST_ICON_SIZES.map((size) => manifestIcon(product.id, size, 'any')),
 			...MANIFEST_ICON_SIZES.map((size) => manifestIcon(product.id, size, 'maskable')),
 		],
-		screenshots: productInstallScreenshots(product.id),
+		...(features.screenshots ? { screenshots: productInstallScreenshots(product.id) } : {}),
 		launch_handler: { client_mode: ['navigate-existing', 'auto'] },
-		file_handlers: productFileHandlers(product),
-		share_target: productShareTarget(product),
-		shortcuts: productShortcuts(product),
+		...(features.projectWorkflows ? {
+			file_handlers: productFileHandlers(product),
+			share_target: productShareTarget(product),
+			shortcuts: productShortcuts(product),
+		} : {}),
 	};
+}
+
+function productInstallFeatures(productId) {
+	if (!Object.hasOwn(PRODUCT_INSTALL_FEATURES, productId)) {
+		throw new RangeError(`Unsupported install product: ${String(productId)}.`);
+	}
+	return PRODUCT_INSTALL_FEATURES[productId];
 }
 
 function manifestIcon(productId, size, purpose) {

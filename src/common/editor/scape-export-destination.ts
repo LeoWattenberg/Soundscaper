@@ -13,8 +13,8 @@ export const SCAPE_EXPORT_MAXIMUM_CHUNK_BYTES = 4 * 1024 * 1024;
 export interface ScapeExportDestination {
 	readonly target: BlobWriter | WritableStream<Uint8Array>;
 	readonly byteLength: number;
-	finish(writer: ScapeZipWriter, signal?: AbortSignal): Promise<Blob | null>;
-	abort(writer: ScapeZipWriter, primary: unknown): Promise<never>;
+	finish(writer: ScapeZipWriter, signal?: AbortSignal, checkAbort?: () => void): Promise<Blob | null>;
+	abort(writer: ScapeZipWriter, primary: unknown, classification?: Readonly<{ primaryIsAbort: boolean }>): Promise<never>;
 }
 
 export function createScapeExportDestination(
@@ -39,23 +39,24 @@ class BlobScapeExportDestination implements ScapeExportDestination {
 		this.target = new BlobWriter(mimeType);
 	}
 
-	async finish(writer: ScapeZipWriter, signal?: AbortSignal): Promise<Blob> {
-		throwIfScapeAborted(signal);
+	async finish(writer: ScapeZipWriter, signal?: AbortSignal, checkAbort?: () => void): Promise<Blob> {
+		const check = checkAbort ?? (() => { throwIfScapeAborted(signal); });
+		check();
 		const result = await writer.close(undefined, { zip64: true });
-		throwIfScapeAborted(signal);
+		check();
 		if (!(result instanceof Blob)) throw new TypeError('The Scape archive writer did not produce a Blob.');
 		this.#byteLength = result.size;
 		return result;
 	}
 
-	async abort(writer: ScapeZipWriter, primary: unknown): Promise<never> {
+	async abort(writer: ScapeZipWriter, primary: unknown, classification?: Readonly<{ primaryIsAbort: boolean }>): Promise<never> {
 		const cleanupErrors: unknown[] = [];
 		try {
 			await writer.close(undefined, { zip64: true });
 		} catch (error) {
 			cleanupErrors.push(error);
 		}
-		throw aggregateScapeErrors(primary, cleanupErrors, 'The Scape export and archive cleanup both failed.');
+		throw aggregateScapeErrors(primary, cleanupErrors, 'The Scape export and archive cleanup both failed.', classification);
 	}
 }
 
@@ -84,16 +85,17 @@ class ExternalScapeExportDestination implements ScapeExportDestination {
 		});
 	}
 
-	async finish(writer: ScapeZipWriter, signal?: AbortSignal): Promise<null> {
-		throwIfScapeAborted(signal);
+	async finish(writer: ScapeZipWriter, signal?: AbortSignal, checkAbort?: () => void): Promise<null> {
+		const check = checkAbort ?? (() => { throwIfScapeAborted(signal); });
+		check();
 		await writer.close(undefined, { zip64: true, preventClose: true });
-		throwIfScapeAborted(signal);
+		check();
 		await this.#writer.close();
 		this.#release();
 		return null;
 	}
 
-	async abort(writer: ScapeZipWriter, primary: unknown): Promise<never> {
+	async abort(writer: ScapeZipWriter, primary: unknown, classification?: Readonly<{ primaryIsAbort: boolean }>): Promise<never> {
 		const cleanupErrors: unknown[] = [];
 		try {
 			await this.#writer.abort(primary);
@@ -106,7 +108,7 @@ class ExternalScapeExportDestination implements ScapeExportDestination {
 			cleanupErrors.push(error);
 		}
 		this.#release();
-		throw aggregateScapeErrors(primary, cleanupErrors, 'The Scape export and destination cleanup both failed.');
+		throw aggregateScapeErrors(primary, cleanupErrors, 'The Scape export and destination cleanup both failed.', classification);
 	}
 
 	async #write(value: Uint8Array): Promise<void> {

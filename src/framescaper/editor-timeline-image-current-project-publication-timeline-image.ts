@@ -8,6 +8,8 @@ import type {
 import type { FramescaperProjectCommandTimelineImage } from './editor-project-timeline-image-commands.ts';
 import type { FramescaperProjectHistoryTimelineImage } from './editor-project-timeline-image-history.ts';
 import type { FramescaperProjectTimelineImage } from './editor-project-timeline-image.ts';
+import { readClosedDomainField as hdrField, readClosedDomainRecord as hdrRecord } from '../common/editor/closed-domain-value.ts';
+import { captureRepairSignalV1, checkRepairSignalV1 } from '../common/editor/imaging/pixel-frame-repair-lifetime-v1.ts';
 
 interface ProjectHistoryCaptureTimelineImage {
 	readonly history: FramescaperProjectHistoryTimelineImage;
@@ -133,4 +135,117 @@ function sameProject(left: unknown, right: unknown): boolean {
 
 function stale(message: string): Error {
 	return Object.assign(new Error(message), { name: 'AbortError' });
+}
+
+export interface FramescaperTimelineImageHdrAdoptionRequestCurrentV1 {
+	readonly project: FramescaperProjectTimelineImage;
+	readonly source: unknown;
+	readonly clip: unknown;
+	readonly command: FramescaperProjectCommandTimelineImage;
+	readonly body?: Blob;
+	readonly bytes?: Uint8Array<ArrayBuffer>;
+	readonly signal?: AbortSignal;
+}
+export interface FramescaperTimelineImageHdrAdoptionCurrentV1 {
+	readonly project: FramescaperProjectTimelineImage;
+	readonly notices: readonly string[];
+	readonly retirementFailure?: unknown;
+}
+
+/** HDR callers prepare and save their base through the joined preparation port. */
+export interface FramescaperTimelineImageHdrCurrentProjectPublicationDependenciesV1 extends Omit<
+	FramescaperTimelineImageCurrentProjectPublicationDependenciesTimelineImage, 'controller'
+> {
+	readonly controller: Readonly<{
+		readonly project: FramescaperTimelineImagePublicationControllerTimelineImage['project'];
+		readonly actions: Readonly<{ readonly project: Pick<FramescaperTimelineImagePublicationControllerTimelineImage['actions']['project'], 'openById'> }>;
+	}>;
+}
+
+/** Current HDR adoption keeps the exact native CAS acknowledgement even when
+ * the local history/cancellation changes immediately afterward. A committed
+ * body is never rolled back because presentation could not adopt its project. */
+export function createFramescaperTimelineImageHdrCurrentProjectPublicationV1(
+	dependencies: FramescaperTimelineImageHdrCurrentProjectPublicationDependenciesV1,
+): Readonly<{ publish(request: FramescaperTimelineImageHdrAdoptionRequestCurrentV1): Promise<Readonly<FramescaperTimelineImageHdrAdoptionCurrentV1>> }> {
+	const captured = hdrRecord(dependencies, 'Frame HDR adoption dependencies', ['controller', 'session', 'executeCommand', 'publishIfCurrent', 'now'],
+		['controller', 'session', 'executeCommand', 'publishIfCurrent']);
+	const session = hdrField(captured, 'session', 'Frame HDR adoption dependencies') as FramescaperTimelineImagePublicationSessionTimelineImage;
+	const controller = hdrField(captured, 'controller', 'Frame HDR adoption dependencies') as FramescaperTimelineImageHdrCurrentProjectPublicationDependenciesV1['controller'];
+	const capture = pin<FramescaperTimelineImagePublicationSessionTimelineImage['captureProjectHistory']>(session, 'captureProjectHistory');
+	const assert = pin<FramescaperTimelineImagePublicationSessionTimelineImage['assertProjectHistoryToken']>(session, 'assertProjectHistoryToken');
+	const update = pin<FramescaperTimelineImagePublicationSessionTimelineImage['updateProjectHistory']>(session, 'updateProjectHistory');
+	const saved = pin<FramescaperTimelineImagePublicationSessionTimelineImage['markProjectSaved']>(session, 'markProjectSaved');
+	const open = pin<FramescaperTimelineImagePublicationControllerTimelineImage['actions']['project']['openById']>(controller.actions.project, 'openById');
+	const execute = pin<FramescaperTimelineImageHdrCurrentProjectPublicationDependenciesV1['executeCommand']>(dependencies, 'executeCommand');
+	const publish = pin<FramescaperTimelineImageHdrCurrentProjectPublicationDependenciesV1['publishIfCurrent']>(dependencies, 'publishIfCurrent');
+	const now = Object.hasOwn(captured, 'now') ? pin<() => Date | string>(dependencies, 'now') : () => new Date();
+	return Object.freeze({ async publish(value: FramescaperTimelineImageHdrAdoptionRequestCurrentV1) {
+		const ownSignal = Object.getOwnPropertyDescriptor(value, 'signal');
+		if (ownSignal && !Object.hasOwn(ownSignal, 'value')) throw new TypeError('Frame HDR adoption signal requires own data.');
+		const signal = captureRepairSignalV1(ownSignal?.value), check = () => { checkRepairSignalV1(signal); }; check();
+		const input = hdrRecord(value, 'Frame HDR adoption', ['project', 'source', 'clip', 'command', 'body', 'bytes', 'signal'], ['project', 'source', 'clip', 'command']);
+		if (Object.hasOwn(input, 'body') === Object.hasOwn(input, 'bytes')) throw new TypeError('Frame HDR adoption requires exactly one owned body or byte source.');
+		const expected = hdrField(input, 'project', 'Frame HDR adoption') as FramescaperProjectTimelineImage;
+		if (!sameProject(controller.project, expected)) throw stale('The active Frame HDR project changed before publication.');
+		const history = capture(expected.id);
+		if (!sameProject(history.history.present, expected)) throw stale('The Frame HDR history changed before publication.');
+		const next = execute(history.history, hdrField(input, 'command', 'Frame HDR adoption') as FramescaperProjectCommandTimelineImage, { now: now() });
+		assert(expected.id, history.token); check();
+		let owned: Uint8Array<ArrayBuffer> | undefined, backing: ArrayBuffer | undefined, allocationLength = 0;
+		const run = async (): Promise<Readonly<FramescaperTimelineImageHdrAdoptionCurrentV1>> => {
+			const bytes = Object.hasOwn(input, 'bytes') ? hdrField(input, 'bytes', 'Frame HDR adoption') as Uint8Array<ArrayBuffer>
+				: owned = new Uint8Array(await Reflect.apply(Blob.prototype.arrayBuffer, hdrField(input, 'body', 'Frame HDR adoption'), []) as ArrayBuffer);
+			if (owned) { backing = owned.buffer; allocationLength = owned.byteLength; }
+			check(); assert(expected.id, history.token);
+			if (!sameProject(controller.project, expected)) throw stale('The Frame HDR project changed while its body was prepared.');
+			const acknowledged = await publish({ expected, project: next.present, bytes, ...(signal ? { signal } : {}) });
+			if (acknowledged === null) throw stale('The Frame HDR project was superseded before publication.');
+			if (!sameProject(acknowledged, next.present)) throw new Error('Frame HDR storage returned a conflicting project acknowledgement.');
+			// From this point the storage result is durable. No later signal or
+			// local history error can turn it into an unpublished operation.
+			try {
+				check(); assert(expected.id, history.token);
+				if (!sameProject(controller.project, expected)) throw stale('The active Frame project changed after HDR publication.');
+				update(expected.id, next, { dirty: false }); saved(expected.id);
+				await open(expected.id, { adoptSessionRevision: true });
+				if (!sameProject(controller.project, acknowledged)) throw stale('The published HDR revision was not adopted by the active editor.');
+				return Object.freeze({ project: acknowledged, notices: Object.freeze([]) });
+			} catch (retirementFailure) {
+				return Object.freeze({ project: acknowledged, notices: Object.freeze(['HDR was saved to Project Bin. Reopen the project to display its committed revision.']), retirementFailure });
+			}
+		};
+		let outcome: { value: Readonly<FramescaperTimelineImageHdrAdoptionCurrentV1> } | { error: unknown };
+		try { outcome = { value: await run() }; } catch (error) { outcome = { error }; }
+		let cleanup: { error: unknown } | undefined;
+		if (backing) try {
+			const size = Object.getOwnPropertyDescriptor(ArrayBuffer.prototype, 'byteLength')!.get!;
+			if (Reflect.apply(size, backing, []) !== allocationLength) throw new TypeError('Frame HDR adoption bytes detached before physical retirement.');
+			Reflect.apply(Uint8Array.prototype.fill, new Uint8Array(backing), [0]);
+		} catch (error) { cleanup = { error }; }
+		if ('error' in outcome) {
+			if (cleanup && !Object.is(cleanup.error, outcome.error)) throw new AggregateError([outcome.error, cleanup.error], 'Frame HDR adoption and physical retirement failed.', { cause: outcome.error });
+			throw outcome.error;
+		}
+		if (cleanup) {
+			const previous = outcome.value.retirementFailure;
+			const retirementFailure = Object.hasOwn(outcome.value, 'retirementFailure') && !Object.is(previous, cleanup.error)
+				? new AggregateError([previous, cleanup.error], 'Committed HDR adoption and retirement failed.', { cause: previous }) : cleanup.error;
+			return Object.freeze({ ...outcome.value, notices: Object.freeze([...outcome.value.notices, 'HDR was saved. Its temporary publication bytes could not be fully retired.']), retirementFailure });
+		}
+		return outcome.value;
+	} });
+}
+
+function pin<Method extends (...args: never[]) => unknown>(receiver: object, key: string): Method {
+	let owner: object | null = receiver;
+	for (let depth = 0; owner && depth < 32; depth++) {
+		const descriptor = Object.getOwnPropertyDescriptor(owner, key);
+		if (descriptor) {
+			if (!Object.hasOwn(descriptor, 'value') || typeof descriptor.value !== 'function') throw new TypeError(`Frame HDR requires inert method ${key}.`);
+			const method = descriptor.value as Method; return ((...args: Parameters<Method>) => Reflect.apply(method, receiver, args)) as Method;
+		}
+		owner = Object.getPrototypeOf(owner) as object | null;
+	}
+	throw new TypeError(`Frame HDR requires ${key}.`);
 }

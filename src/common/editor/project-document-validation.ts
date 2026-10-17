@@ -3,7 +3,7 @@
 import { validatePersistedAudioEffects } from './persisted-audio-effect-validation.ts';
 import { recordingNotesValue } from './recording-notes.ts';
 import {
-	validateProjectMedia,
+	validateProjectMedia, validateProjectMediaForFrameV2,
 	type ProjectMediaCollections,
 } from './project-media-validation.ts';
 import {
@@ -38,6 +38,12 @@ export function validateProjectDocument(
 	value: unknown,
 	audioAuthority: ProjectAudioAuthorityValidation = {},
 ): ValidatedProjectDocument {
+	return validateDocument(value, audioAuthority, false);
+}
+export function validateProjectDocumentForFrameV2(value: unknown, audioAuthority: ProjectAudioAuthorityValidation = {}): ValidatedProjectDocument {
+	return validateDocument(value, audioAuthority, true);
+}
+function validateDocument(value: unknown, audioAuthority: ProjectAudioAuthorityValidation, resourceV2: boolean): ValidatedProjectDocument {
 	const project = projectRecord(value, 'project');
 	projectString(project.id, 'project.id');
 	projectString(project.title, 'project.title');
@@ -54,7 +60,7 @@ export function validateProjectDocument(
 	validateLoop(project.loop);
 	validateView(project.view);
 	const stripEnvelopeAuthority = audioAuthority.stripEnvelopeAuthority ?? 'required';
-	const media = validateProjectMedia(project, sampleRate, { stripEnvelopeAuthority });
+	const media = (resourceV2 ? validateProjectMediaForFrameV2 : validateProjectMedia)(project, sampleRate, { stripEnvelopeAuthority });
 	validateMaster(project.master, stripEnvelopeAuthority);
 	(audioAuthority.validateMixer ?? validateMixer)(project.mixer, media.tracks);
 	return { project, metadata, media };

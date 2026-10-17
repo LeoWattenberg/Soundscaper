@@ -1,12 +1,10 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { currentAuthority, ownedPlanAuthority, executableFoundation, captureFramescaperExportSnapshot, currentFramescaperEncodeRequestV16, framescaperResourceExportNeedsV16, type ExportAuthorityFinishing } from './video-export-resource-carrier-v16.ts';
+import { createFramescaperVideoExportExactExecutionV16, type CreateFramescaperOpenFxExactExecutionV16, type CreateFramescaperSupplementalPictureExecutionV16 } from './video-export-exact-execution-v16.ts';
+import type { FramescaperVideoExportPictureDispositionV16 } from './video-export-visual-execution-v16.ts';
 import { compareCodeUnits } from '../common/editor/code-unit-order.ts';
 import type { FfmpegOutputSink } from '../common/editor/ffmpeg-output-stream.ts';
-import { assertManagedVideoColorRenderAdmissionV1 } from '../common/editor/video-color-management-v27.ts';
-import {
-	createVideoExactPictureExportFrameSource,
-	type VideoKeyframeExportFrame,
-} from '../common/editor/video-keyframe-export-frame-source.ts';
 import {
 	encodeVideoKeyframeVideo,
 	encodeVideoKeyframeVideoToSink,
@@ -14,12 +12,6 @@ import {
 	type VideoKeyframeVideoEncoderResult,
 	type VideoKeyframeVideoSinkEncoderResult,
 } from '../common/editor/video-keyframe-video-encoder.ts';
-import {
-	createVideoKeyframeOfflineEncoderRequest,
-	preflightVideoKeyframeOfflineEncoder,
-	type VideoKeyframeOfflineEncoderOptions,
-} from '../common/editor/ui/video-keyframe-offline-video-export-encoder.ts';
-import type { VideoKeyframeOfflineRgbaRenderer } from '../common/editor/ui/video-keyframe-offline-rgba-renderer.ts';
 import { createVisibleVideoTrackPredicate } from '../common/editor/video-track-visibility.js';
 import type {
 	ProductVideoExportEncodedOutput,
@@ -30,15 +22,13 @@ import type {
 	ProductVideoExportStrategyPlanRequest,
 	ProductVideoExportProjectRequest,
 } from '../common/editor/controller/export/product-video-export-strategy.ts';
-import { sameProjectSnapshot } from '../common/editor/storage/project-snapshot-equality.ts';
 import {
 	assertVideoKeyframeExportPlanV7,
 } from '../common/editor/video-keyframe-export-plan-v7.ts';
-import { framescaperProjectRetimeFoundationFinishing } from './editor-project-finishing-runtime.ts';
 import { runFramescaperFinishingEncode } from './video-export-encode-cleanup.ts';
+import { createFramescaperPictureEncoderRequest, framescaperOutputWebCodecsDecision, captureFramescaperEncodeWebCodecsRequest } from './video-export-picture-encoder-finishing.ts';
 import { assertFramescaperProjectFinishingProfile } from './editor-domain-runtime-profile.ts';
 import {
-	validateFramescaperProjectFinishing,
 	type FramescaperProjectFinishing,
 } from './editor-project-finishing.ts';
 import { FRAMESCAPER_RETIME_PROJECT_RUNTIME_PROFILE } from './editor-domain-runtime-profile.ts';
@@ -67,12 +57,6 @@ import {
 	framescaperPictureSinkResultFinishing,
 } from './video-export-picture-results-finishing.ts';
 
-interface ExportAuthorityFinishing {
-	readonly canonicalProject: Readonly<Record<string, unknown>>;
-	readonly retimeProject: Readonly<Record<string, unknown>>;
-	readonly retimeExportProject: Readonly<Record<string, unknown>>;
-}
-
 type PictureSinkEncoderFinishing = <Output>(
 	editorFfmpeg: unknown,
 	request: VideoKeyframeVideoEncoderRequest,
@@ -99,6 +83,12 @@ interface ExactExecutionDependenciesFinishing {
 	readonly createAcceleratorCanvas?: () => unknown;
 	readonly createOpenFxExecution?: CreateFramescaperOpenFxExactExecutionNativeMedia;
 	readonly createSupplementalPictureExecution?: CreateFramescaperVideoExportSupplementalPictureExecutionFinishing;
+	readonly createOpenFxExecutionV16?: CreateFramescaperOpenFxExactExecutionV16;
+	readonly createSupplementalPictureExecutionV16?: CreateFramescaperSupplementalPictureExecutionV16;
+}
+export interface FramescaperVideoExportCurrentCompanionsV16 {
+	readonly createOpenFxExecution?: CreateFramescaperOpenFxExactExecutionV16;
+	readonly createSupplementalPictureExecution?: CreateFramescaperSupplementalPictureExecutionV16;
 }
 
 const DEFAULT_PICTURE_ENCODERS = Object.freeze({
@@ -106,12 +96,12 @@ const DEFAULT_PICTURE_ENCODERS = Object.freeze({
 	encodePictureToSink: encodeVideoKeyframeVideoToSink as PictureSinkEncoderFinishing,
 });
 
-const DISPOSITIONS = new WeakMap<object, FramescaperVideoExportPictureDispositionFinishing>();
+const DISPOSITIONS = new WeakMap<object, FramescaperVideoExportPictureDispositionFinishing | FramescaperVideoExportPictureDispositionV16>();
 
 /** Read the exact post-encode node ledger retained for acceptance and reports. */
 export function framescaperVideoExportDispositionFinishingFor(
 	plan: ProductVideoExportPlan,
-): FramescaperVideoExportPictureDispositionFinishing {
+): FramescaperVideoExportPictureDispositionFinishing | FramescaperVideoExportPictureDispositionV16 {
 	const result = DISPOSITIONS.get(plan);
 	if (!result) throw new ReferenceError('The finishing picture export plan has no completed disposition.');
 	return result;
@@ -127,11 +117,12 @@ export function createFramescaperVideoExportStrategyFinishing(
 	assetStore?: FramescaperVideoExportVisualAssetStoreFinishing,
 	createOpenFxExecution?: CreateFramescaperOpenFxExactExecutionNativeMedia,
 	createSupplementalPictureExecution?: CreateFramescaperVideoExportSupplementalPictureExecutionFinishing,
+	currentCompanions: FramescaperVideoExportCurrentCompanionsV16 = {},
 ): ProductVideoExportStrategy {
 	assertFramescaperProjectFinishingProfile(profile);
 	const pictureEncoders = snapshotPictureEncoders(dependencies);
 	const exactDependencies = snapshotExactExecutionDependencies(
-		dependencies, createOpenFxExecution, createSupplementalPictureExecution,
+		dependencies, createOpenFxExecution, createSupplementalPictureExecution, currentCompanions,
 	);
 	const delegate = createFramescaperVideoExportStrategyRetime(
 		FRAMESCAPER_RETIME_PROJECT_RUNTIME_PROFILE, dependencies,
@@ -142,7 +133,8 @@ export function createFramescaperVideoExportStrategyFinishing(
 	const timingSources = new WeakMap<object, readonly string[]>();
 	return Object.freeze({
 		createExportProject(request: ProductVideoExportProjectRequest) {
-			const retimeProject = executableFoundation(profile, request.canonicalProject);
+			const canonicalSnapshot = captureFramescaperExportSnapshot(profile, request.canonicalProject);
+			const retimeProject = executableFoundation(profile, canonicalSnapshot);
 			const retimeExportProject = delegate.createExportProject({
 				canonicalProject: retimeProject,
 				delivery: request.delivery,
@@ -151,7 +143,7 @@ export function createFramescaperVideoExportStrategyFinishing(
 				request.delivery.project, 'Selected finishing browser delivery project',
 			);
 			exports.set(exportProject, Object.freeze({
-				canonicalProject: request.canonicalProject,
+				canonicalProject: request.canonicalProject, canonicalSnapshot,
 				retimeProject,
 				retimeExportProject,
 			}));
@@ -187,6 +179,7 @@ export function createFramescaperVideoExportStrategyFinishing(
 		async encode(
 			request: ProductVideoExportStrategyEncodeRequest,
 		): Promise<ProductVideoExportEncodedOutput> {
+			request = captureFramescaperEncodeWebCodecsRequest(request);
 			const authority = ownedPlanAuthority(profile, request, exports, plans);
 			if (isFramescaperVideoVisualPlanFinishing(request.plan)) {
 				return encodeVisualPicture(
@@ -201,6 +194,7 @@ export function createFramescaperVideoExportStrategyFinishing(
 			request: ProductVideoExportStrategyEncodeRequest,
 			sink: FfmpegOutputSink<Output>,
 		): Promise<ProductVideoExportSinkOutput<Output>> {
+			request = captureFramescaperEncodeWebCodecsRequest(request);
 			const authority = ownedPlanAuthority(profile, request, exports, plans);
 			if (isFramescaperVideoVisualPlanFinishing(request.plan)) {
 				return encodeVisualPictureToSink(
@@ -225,13 +219,28 @@ async function createKeyedExecution(
 	request: ProductVideoExportStrategyEncodeRequest,
 	assetStore: FramescaperVideoExportVisualAssetStoreFinishing | undefined,
 	exactDependencies: ExactExecutionDependenciesFinishing,
-): Promise<FramescaperVideoExportExactExecutionFinishing> {
+): Promise<FramescaperVideoExportExactExecutionFinishing | Awaited<ReturnType<typeof createFramescaperVideoExportExactExecutionV16>>> {
 	assertVideoKeyframeExportPlanV7(request.plan);
+	if (framescaperResourceExportNeedsV16(authority, request.plan)) {
+		return createCurrentExecution(profile, authority, request, assetStore, exactDependencies);
+	}
 	return createFramescaperVideoExportExactExecutionFinishing({
 		profile, project: authority.canonicalProject as unknown as FramescaperProjectFinishing,
 		request, ...(assetStore ? { store: assetStore } : {}),
 		...exactDependencies,
 	});
+}
+
+function createCurrentExecution(profile: unknown, authority: ExportAuthorityFinishing, request: ProductVideoExportStrategyEncodeRequest,
+	assetStore: FramescaperVideoExportVisualAssetStoreFinishing | undefined, dependencies: ExactExecutionDependenciesFinishing) {
+	if (dependencies.createOpenFxExecution && !dependencies.createOpenFxExecutionV16
+		|| dependencies.createSupplementalPictureExecution && !dependencies.createSupplementalPictureExecutionV16) throw new Error('Current16 export requires its explicit companion execution.');
+	return createFramescaperVideoExportExactExecutionV16({ profile, project: authority.canonicalSnapshot,
+		request: currentFramescaperEncodeRequestV16(authority, request), ...(assetStore ? { store: assetStore } : {}),
+		...(dependencies.captureFrame ? { captureFrame: dependencies.captureFrame } : {}),
+		...(dependencies.createOpenFxExecutionV16 ? { createOpenFxExecution: dependencies.createOpenFxExecutionV16 } : {}),
+		...(dependencies.createSupplementalPictureExecutionV16 ? { createSupplementalPictureExecution: dependencies.createSupplementalPictureExecutionV16 } : {}),
+		...(dependencies.createAcceleratorCanvas ? { createAcceleratorCanvas: dependencies.createAcceleratorCanvas } : {}) });
 }
 
 async function encodeKeyedPicture(
@@ -249,6 +258,7 @@ async function encodeKeyedPicture(
 		const result = await delegate.encode({
 			...request, canonicalProject: authority.retimeProject,
 			exportProject: authority.retimeExportProject, rgbaCompositor: execution.compositor,
+			...(request.webCodecs ? { webCodecs: framescaperOutputWebCodecsDecision(request.webCodecs, execution.outputColorSpace) } : {}),
 		});
 		DISPOSITIONS.set(request.plan, execution.disposition());
 		return result;
@@ -271,6 +281,7 @@ async function encodeKeyedPictureToSink<Output>(
 		const result = await delegate.encodeToSink({
 			...request, canonicalProject: authority.retimeProject,
 			exportProject: authority.retimeExportProject, rgbaCompositor: execution.compositor,
+			...(request.webCodecs ? { webCodecs: framescaperOutputWebCodecsDecision(request.webCodecs, execution.outputColorSpace) } : {}),
 		}, sink);
 		DISPOSITIONS.set(request.plan, execution.disposition());
 		return result;
@@ -295,47 +306,18 @@ async function createVisualExecution(
 	if (includesAudio !== (request.audioMix instanceof Blob)) {
 		throw new TypeError('Selected finishing picture-only audio must exactly match its detached plan.');
 	}
-	const exact = await createFramescaperVideoExportExactExecutionFinishing({
+	const exact = framescaperResourceExportNeedsV16(authority, request.plan)
+		? await createCurrentExecution(profile, authority, request, assetStore, exactDependencies)
+		: await createFramescaperVideoExportExactExecutionFinishing({
 		profile, project: authority.canonicalProject as unknown as FramescaperProjectFinishing,
 		request, ...(assetStore === undefined ? {} : { store: assetStore }),
 		...exactDependencies,
 	});
-	const frameSource = createVideoExactPictureExportFrameSource({
-		sampleRate: request.plan.sampleRate,
-		startFrame: request.plan.range.startFrame,
-		endFrame: request.plan.range.endFrame,
-		canvas: {
-			width: request.plan.canvas.width, height: request.plan.canvas.height,
-			frameRate: request.plan.canvas.frameRate, fit: request.plan.canvas.fit,
-			backgroundColor: request.plan.canvas.backgroundColor,
-		},
-	});
-	const renderer: VideoKeyframeOfflineRgbaRenderer = Object.freeze({
-		width: visualPlan.canvas.width, height: visualPlan.canvas.height,
-		byteLength: visualPlan.canvas.width * visualPlan.canvas.height * 4,
-		async produce(frame: VideoKeyframeExportFrame, target: Uint8Array,
-			options: Readonly<{ readonly signal: AbortSignal }>) {
-			await exact.compositor({
-				frame, layers: [], width: visualPlan.canvas.width, height: visualPlan.canvas.height,
-				rgba: target as Uint8Array<ArrayBuffer>, signal: options.signal,
-			});
-		},
-		async dispose() { await exact.dispose(); },
-	});
-	const encoderOptions: Readonly<Record<string, number>> = request.maximumOutputBytes === undefined
-		? Object.freeze({}) : Object.freeze({ maximumOutputBytes: request.maximumOutputBytes as number });
-	const options: VideoKeyframeOfflineEncoderOptions = Object.freeze({
-		format: request.plan.format,
-		quality: request.plan.quality,
-		...(request.webCodecs ? { webCodecs: request.webCodecs } : {}),
-		...(request.audioMix instanceof Blob ? { audioMix: request.audioMix } : {}),
-		encoderOptions,
-		signal: request.signal, assertCurrent: request.assertCurrent, confirmFileSizeWarning: request.confirmFileSizeWarning,
-	});
-	await preflightVideoKeyframeOfflineEncoder(options, frameSource);
-	return Object.freeze({ exact, encoderRequest: createVideoKeyframeOfflineEncoderRequest(
-		options, frameSource, renderer,
-	) });
+	try {
+		return Object.freeze({ exact, encoderRequest: await createFramescaperPictureEncoderRequest(request, visualPlan, exact) });
+	} catch (error) {
+		return runFramescaperFinishingEncode<never>(() => { throw error; }, () => exact.dispose());
+	}
 }
 
 async function encodeVisualPicture(
@@ -410,14 +392,19 @@ function snapshotExactExecutionDependencies(
 	value: FramescaperVideoExportStrategyFinishingDependencies | undefined,
 	createOpenFxExecution?: CreateFramescaperOpenFxExactExecutionNativeMedia,
 	createSupplementalPictureExecution?: CreateFramescaperVideoExportSupplementalPictureExecutionFinishing,
+	current: FramescaperVideoExportCurrentCompanionsV16 = {},
 ): ExactExecutionDependenciesFinishing {
+	const companions = { ...(current.createOpenFxExecution ? { createOpenFxExecutionV16: current.createOpenFxExecution } : {}),
+		...(current.createSupplementalPictureExecution ? { createSupplementalPictureExecutionV16: current.createSupplementalPictureExecution } : {}) };
 	if (!value) return Object.freeze({
+		...companions,
 		...(createOpenFxExecution ? { createOpenFxExecution } : {}),
 		...(createSupplementalPictureExecution ? { createSupplementalPictureExecution } : {}),
 	});
 	const captureFrame = optionalExactFunction(value, 'captureExactFrame');
 	const createAcceleratorCanvas = optionalExactFunction(value, 'createExactAcceleratorCanvas');
 	return Object.freeze({
+		...companions,
 		...(captureFrame ? { captureFrame: captureFrame as CaptureFrameFinishing } : {}),
 		...(createAcceleratorCanvas ? {
 			createAcceleratorCanvas: createAcceleratorCanvas as () => unknown,
@@ -451,54 +438,6 @@ function optionalPictureFunction(
 		throw new TypeError(`finishing picture export dependencies.${key} must be an own function.`);
 	}
 	return descriptor.value as (...arguments_: never[]) => unknown;
-}
-
-function currentAuthority(
-	profile: unknown,
-	request: Readonly<{
-		readonly canonicalProject: Readonly<Record<string, unknown>>;
-		readonly exportProject: Readonly<Record<string, unknown>>;
-	}>,
-	exports: WeakMap<object, ExportAuthorityFinishing>,
-): ExportAuthorityFinishing {
-	const authority = exports.get(request.exportProject);
-	if (!authority || authority.canonicalProject !== request.canonicalProject) {
-		throw new TypeError('The browser export projection is not owned by this exact finishing project.');
-	}
-	const current = executableFoundation(profile, request.canonicalProject);
-	if (!sameProjectSnapshot(current, authority.retimeProject)) {
-		throw new Error('The selected finishing browser export projection is stale.');
-	}
-	return authority;
-}
-
-function ownedPlanAuthority(
-	profile: unknown,
-	request: ProductVideoExportStrategyEncodeRequest,
-	exports: WeakMap<object, ExportAuthorityFinishing>,
-	plans: WeakMap<object, ExportAuthorityFinishing>,
-): ExportAuthorityFinishing {
-	const authority = currentAuthority(profile, request, exports);
-	if (plans.get(request.plan) !== authority) {
-		throw new TypeError('The finishing export plan is not owned by this exact project snapshot.');
-	}
-	return authority;
-}
-
-function executableFoundation(
-	profile: unknown,
-	projectValue: unknown,
-): Readonly<Record<string, unknown>> {
-	validateFramescaperProjectFinishing(profile, projectValue);
-	const project = projectValue as FramescaperProjectFinishing;
-	assertSupportedBrowserFinishingState(project);
-	return framescaperProjectRetimeFoundationFinishing(profile, project) as unknown as Readonly<Record<string, unknown>>;
-}
-
-function assertSupportedBrowserFinishingState(project: FramescaperProjectFinishing): void {
-	for (const interpretation of project.videoSourceColorInterpretations) {
-		assertManagedVideoColorRenderAdmissionV1(interpretation);
-	}
 }
 
 function hasVisibleVideoPicture(project: Readonly<Record<string, unknown>>): boolean {

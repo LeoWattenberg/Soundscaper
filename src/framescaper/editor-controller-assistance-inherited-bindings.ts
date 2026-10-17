@@ -23,6 +23,8 @@ import {
 	bindFramescaperCubeLutActionsFinishing,
 	createFramescaperCubeLutActionsFinishing,
 } from './editor-cube-lut-actions-finishing.ts';
+import { createFramescaperCubeLutEffectActionsFinishing } from './editor-cube-lut-effect-actions-finishing.ts';
+import { bindCubeLutEffectPortV1 } from '../common/editor/controller/clip-video/cube-lut-effect-port-v1.ts';
 import type { FramescaperEditorProjectEnvironment } from './editor-project-environment.ts';
 import {
 	framescaperNativeImageSequenceActionBridgeAvailableNativeMedia,
@@ -211,6 +213,9 @@ export function bindFramescaperInheritedProductRuntimesAssistance(options: Reado
 		owner: view as never,
 		store: environment.store,
 	}));
+	bindCubeLutEffectPortV1(controller, createFramescaperCubeLutEffectActionsFinishing({
+		owner: view as never, store: environment.store,
+	}), environment.controllerStore);
 	bindFramescaperSelectedVisualPreviewControllerAssistance({
 		controller,
 		profile: environment.runtime.profile,

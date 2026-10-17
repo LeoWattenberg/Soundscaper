@@ -37,6 +37,7 @@ module.exports = {
 		'scripts/lib/desktop-nightly-tests-dual-origin.mjs',
 		'scripts/lib/pages-site-static-server.mjs',
 		'scripts/lib/product-web-routing.mjs',
+		'src/common/product-identities.js',
 		'scripts/lib/desktop-nightly-tests-static-response.mjs',
 		'scripts/lib/static-site-content-types.mjs',
 		'scripts/lib/desktop-nightly-tests-product-sites.mjs',

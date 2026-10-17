@@ -37,6 +37,9 @@ private/
 # Provisioned by scripts/provision-interchange-conformance.mjs; reference readers, never shipped.
 /vendor/interchange-conformance/
 
+# Digest-pinned RAW qualification fixtures; provisioned separately from the app.
+/vendor/lightscaper-raw-fixtures/
+
 # Provisioned by scripts/provision-milestone-5-native-sources.mjs; ~80 MiB of pinned
 # upstream archives plus their extracted trees. Digest-pinned in
 # config/milestone-5-native-source-acquisitions.json and re-fetchable from there,

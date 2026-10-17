@@ -6,6 +6,7 @@ import {
 	offlineVideoExportDenseArray as denseArray, offlineVideoExportBoundedId as boundedId,
 } from './video-keyframe-offline-video-export-admission.ts';
 import { canonicalMediaContentBlob } from '../storage/media-content-digest.ts';
+import { captureVideoWebCodecsRgbaColorSpace } from '../video-webcodecs-producer.ts';
 import { projectForRuntimeConsumers } from '../project-current-runtime.ts';
 import { inheritTrackFolderMediaStateProjectionV12 } from '../track-folder-media-runtime.ts';
 import { cloneFrozenVideoExportProject } from '../video-export-project-snapshot.ts';
@@ -409,7 +410,7 @@ function snapshotCanvas(value: unknown): VideoKeyframeExportFrameRequest['canvas
 }
 
 function snapshotWebCodecs(value: unknown): VideoKeyframeOfflineWebCodecsDecision {
-	const decision = closedRecord(value, 'offline video export webCodecs', ['codec', 'bitrate', 'hardwareAcceleration']);
+	const decision = closedRecord(value, 'offline video export webCodecs', ['codec', 'bitrate', 'rgbaColorSpace', 'hardwareAcceleration']);
 	const codec = decision.codec;
 	const bitrate = decision.bitrate;
 	if (typeof codec !== 'string' || codec.length === 0) {
@@ -418,10 +419,11 @@ function snapshotWebCodecs(value: unknown): VideoKeyframeOfflineWebCodecsDecisio
 	if (typeof bitrate !== 'number' || !Number.isSafeInteger(bitrate) || bitrate < 1) {
 		throw new RangeError('offline video export webCodecs.bitrate must be a positive safe integer.');
 	}
+	const rgbaColorSpace = captureVideoWebCodecsRgbaColorSpace(decision);
 	if (decision.hardwareAcceleration !== undefined && decision.hardwareAcceleration !== 'prefer-hardware') {
 		throw new TypeError('offline video export webCodecs.hardwareAcceleration must be prefer-hardware.');
 	}
-	return Object.freeze({ codec, bitrate, ...(decision.hardwareAcceleration ? { hardwareAcceleration: decision.hardwareAcceleration } : {}) });
+	return Object.freeze({ codec, bitrate, ...(rgbaColorSpace === undefined ? {} : { rgbaColorSpace }), ...(decision.hardwareAcceleration ? { hardwareAcceleration: decision.hardwareAcceleration } : {}) });
 }
 
 function snapshotEditorFfmpeg(value: unknown): VideoKeyframeVideoEditorFfmpeg {

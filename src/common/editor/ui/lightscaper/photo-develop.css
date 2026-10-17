@@ -1,0 +1,40 @@
+.lightscaper-develop-dialog { width: min(96vw, 1200px); max-height: 92vh; overflow: auto; }
+.lightscaper-develop-layout { display: grid; grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr); gap: 1rem; }
+.lightscaper-develop-images { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; }
+.lightscaper-develop-images figure { margin: .5rem 0; min-width: 0; }
+.lightscaper-develop-images canvas { display: block; max-width: 100%; height: auto; background: var(--panel); }
+.lightscaper-develop-images[data-mode="split"] { display: block; position: relative; aspect-ratio: 1; background: var(--panel); }
+.lightscaper-develop-images[data-mode="split"] figure { position: absolute; inset: 0; margin: 0; }
+.lightscaper-develop-images[data-mode="split"] canvas { width: 100%; height: 100%; object-fit: contain; }
+.lightscaper-develop-images[data-mode="split"] figcaption { position: absolute; top: .25rem; left: .25rem; padding: .1rem .25rem; background: var(--panel); }
+.lightscaper-develop-images[data-mode="split"] figure + figure figcaption { left: auto; right: .25rem; }
+.lightscaper-develop-scroll { max-height: 65vh; overflow: auto; }
+.lightscaper-develop-images[data-resolution="full"] { width: max-content; grid-template-columns: repeat(2, max-content); }
+.lightscaper-develop-images[data-resolution="full"] canvas { max-width: none; }
+.lightscaper-develop-images[data-resolution="full"][data-mode="before"],
+.lightscaper-develop-images[data-resolution="full"][data-mode="after"] { grid-template-columns: max-content; }
+.lightscaper-develop-divider { position: absolute; inset-block: 0; width: 1px; background: white; box-shadow: 1px 0 0 black; pointer-events: none; }
+.lightscaper-develop-histograms { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; }
+.lightscaper-develop-images[data-mode="before"], .lightscaper-develop-images[data-mode="after"] { grid-template-columns: minmax(0, 1fr); }
+.lightscaper-develop-images[data-mode="before"] ~ .lightscaper-develop-histograms,
+.lightscaper-develop-images[data-mode="after"] ~ .lightscaper-develop-histograms { grid-template-columns: minmax(0, 1fr); }
+.lightscaper-develop-histogram svg { width: 100%; height: 100px; background: var(--panel); }
+.lightscaper-develop-histogram dl { display: grid; grid-template-columns: 1fr auto; margin: .5rem 0; font-size: .85rem; }
+.lightscaper-develop-histogram dd { margin: 0; }
+.lightscaper-develop-layout label { display: grid; gap: .25rem; margin: .5rem 0; }
+.lightscaper-develop-layout ol, .lightscaper-develop-history ul { padding-left: 1.25rem; }
+.lightscaper-develop-layout fieldset { margin: .5rem 0; min-width: 0; }
+.lightscaper-develop-history { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .75rem; margin: 1rem 0; }
+.lightscaper-develop-history label { display: grid; gap: .25rem; }
+.lightscaper-develop-actions { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: 1rem; }
+@media (max-width: 800px) { .lightscaper-develop-layout, .lightscaper-develop-history { grid-template-columns: 1fr; } }
+.lightscaper-develop-settings-menu { width: fit-content; padding: .5rem; border: 1px solid currentColor; }
+.lightscaper-develop-settings-menu[open] { display: flex; flex-direction: column; gap: .25rem; }
+.lightscaper-develop-settings-dialog fieldset { display: grid; gap: .5rem; margin-block: .75rem; }
+.lightscaper-develop-settings-dialog label { display: flex; align-items: center; gap: .5rem; }
+.lightscaper-develop-image-plane { position: relative; width: fit-content; max-width: 100%; }
+.lightscaper-develop-images .lightscaper-develop-mask-overlay { position: absolute; inset: 0; width: 100%; height: 100%; background: transparent; opacity: .45; pointer-events: none; }
+.lightscaper-develop-images .lightscaper-develop-mask-overlay[data-mode="grayscale"] { opacity: 1; }
+.lightscaper-develop-images[data-mode="split"] .lightscaper-develop-image-plane { width: 100%; height: 100%; }
+.lightscaper-develop-local-dialog fieldset { display: grid; gap: .5rem; margin-block: .75rem; }
+.lightscaper-develop-local-dialog label { display: flex; align-items: center; gap: .5rem; margin-block: .25rem; }

@@ -1,3 +1,6 @@
+import { CLOSED_VIDEO_EFFECT_DEFINITIONS_V1, isClosedVideoEffectTypeV1, hasClosedVideoEffectEnvelopeV1,
+	normalizeClosedVideoEffectParamsV1, normalizeClosedVideoEffectV1, createClosedVideoEffectFamilyV1,
+	serializeClosedVideoEffectV1 } from './video-effect-closed-families-v1.ts';
 import { createStableId } from './stable-id.js';
 
 function parameter(label, labelKey, defaultValue, minimum, maximum, step, options = {}) {
@@ -95,6 +98,7 @@ export const VIDEO_EFFECT_DEFINITIONS = Object.freeze({
 		opacity: parameter('Opacity', 'videoEffectParamOpacity', 0.6, 0, 1, 0.01),
 		color: parameter('Color', 'videoEffectParamColor', 0x000000, 0, 0xffffff, 1, { integer: true, control: 'color' }),
 	}),
+	...CLOSED_VIDEO_EFFECT_DEFINITIONS_V1,
 });
 
 export const VIDEO_EFFECT_TYPES = Object.freeze(Object.keys(VIDEO_EFFECT_DEFINITIONS));
@@ -131,6 +135,7 @@ export function videoEffectDefaults(type) {
  * validation and error naming.
  */
 export function validateVideoEffectParams(type, params, name = 'videoEffect.params') {
+	if (isClosedVideoEffectTypeV1(type)) { normalizeClosedVideoEffectParamsV1(type, params); return true; }
 	if (!params || typeof params !== 'object' || Array.isArray(params)) {
 		throw new TypeError(`${name} must be an object.`);
 	}
@@ -154,6 +159,7 @@ export function validateVideoEffectParams(type, params, name = 'videoEffect.para
 }
 
 function normalizeVideoEffectParams(type, params, name) {
+	if (isClosedVideoEffectTypeV1(type)) return normalizeClosedVideoEffectParamsV1(type, params);
 	if (params === undefined) params = {};
 	if (!params || typeof params !== 'object' || Array.isArray(params)) {
 		throw new TypeError(`${name} must be an object.`);
@@ -181,18 +187,29 @@ function normalizeVideoEffectParams(type, params, name) {
 export function createVideoEffect(type, options = {}) {
 	const stableType = nonEmptyString(type, 'videoEffect.type');
 	videoEffectDefinition(stableType);
+	const closed = createClosedVideoEffectFamilyV1(stableType, options);
+	if (closed) return closed;
 	if (options.enabled != null && typeof options.enabled !== 'boolean') {
 		throw new TypeError('videoEffect.enabled must be a boolean.');
 	}
-	return {
+	const effect = {
 		id: nonEmptyString(options.id ?? createStableId('video-effect'), 'videoEffect.id'),
 		type: stableType,
 		enabled: options.enabled !== false,
 		params: normalizeVideoEffectParams(stableType, options.params, 'videoEffect.params'),
 	};
+	if (isClosedVideoEffectTypeV1(stableType)) normalizeClosedVideoEffectV1(stableType, effect);
+	return effect;
 }
 
 export function normalizeVideoEffect(effect, name = 'videoEffect', options = {}) {
+	const typeDescriptor = Object.getOwnPropertyDescriptor(effect ?? {}, 'type');
+	if (typeDescriptor && !Object.hasOwn(typeDescriptor, 'value')) throw new TypeError(`${name}.type requires a data field.`);
+	if (hasClosedVideoEffectEnvelopeV1(typeDescriptor?.value)) {
+		const normalized = normalizeClosedVideoEffectV1(typeDescriptor.value, effect);
+		if (options.allowedTypes && !options.allowedTypes.includes(normalized.type)) throw new RangeError(`${name}.type is not supported by this schema.`);
+		return normalized;
+	}
 	if (!effect || typeof effect !== 'object' || Array.isArray(effect)) {
 		throw new TypeError(`${name} must be an object.`);
 	}
@@ -213,12 +230,14 @@ export function normalizeVideoEffect(effect, name = 'videoEffect', options = {})
 		|| typeof effect.params !== 'object'
 		|| Array.isArray(effect.params)
 	) throw new TypeError(`${name}.params must be an object.`);
-	return {
+	const normalized = {
 		id,
 		type,
 		enabled: effect.enabled,
 		params: normalizeVideoEffectParams(type, effect.params, `${name}.params`),
 	};
+	if (isClosedVideoEffectTypeV1(type)) normalizeClosedVideoEffectV1(type, normalized);
+	return normalized;
 }
 
 export function normalizeVideoEffects(effects, name = 'videoEffects', options = {}) {
@@ -248,6 +267,7 @@ export function serializeVideoEffectsToFfmpegOperations(effects, name = 'videoEf
 }
 
 function serializeVideoEffectToFfmpegOperations(effect, name) {
+	if (isClosedVideoEffectTypeV1(effect.type)) return serializeClosedVideoEffectV1(effect.type, effect);
 	const definitionValue = videoEffectDefinition(effect.type);
 	const params = effect.params;
 	switch (definitionValue.ffmpegFilter) {

@@ -5,7 +5,7 @@ import {
 	type VideoProxyAttachmentV18,
 } from '../common/editor/video-proxy-attachment-v18.ts';
 import {
-	validateAudioEditorProjectV17,
+	validateFrameResourceProjectFoundationV2,
 	type AudioEditorProjectV17ValidationOptions,
 } from '../common/editor/project-v17-validation.ts';
 import type { EditorProjectRuntimeProfile } from '../common/editor/project-runtime-profile.ts';
@@ -107,7 +107,7 @@ export function validateFramescaperProjectSequence(
 		candidate,
 	);
 	validateAttachmentRelationships(candidate, sources, normalizedAttachments);
-	validateAudioEditorProjectV17(v17Project, options);
+	validateFrameResourceProjectFoundationV2(v17Project, options);
 	validateFramescaperMulticameraGroupsSequence(
 		profile,
 		candidate,

@@ -7,6 +7,7 @@ import {
 	OpfsSyncWorkerClient,
 	type OpfsWorkerLike,
 } from '../src/common/editor/storage/opfs-sync-worker-client.ts';
+import { remainsPending, settle } from './helpers/async-test-control.ts';
 
 interface PostedMessage extends Record<string, unknown> {
 	readonly id: string;
@@ -175,17 +176,26 @@ test('OPFS sync worker client reclaims a writer returned after its open was canc
 	const abort = new AbortController();
 	const pending = client.openWriter('media-asset-chunk-write', 'late-writer.blob', abort.signal);
 	const open = worker.posted.at(-1)!;
-	abort.abort(new Error('stop open writer'));
-	await assert.rejects(pending, /stop open writer|cancelled/iu);
+	const reason = new Error('stop open writer');
+	const rejected = assert.rejects(pending, (error: unknown) => Object.is(error, reason));
+	abort.abort(reason);
+	await settle();
+	assert.equal(await remainsPending(pending), true);
 
 	worker.emit('message', {
 		data: { id: open.id, type: 'result', result: { writerId: 'writer-late' } },
 	});
+	await settle();
 	assert.deepEqual(worker.posted.at(-1), {
 		id: worker.posted.at(-1)?.id,
 		type: 'abort-writer',
 		writerId: 'writer-late',
 	});
+	assert.equal(await remainsPending(pending), true);
+	worker.emit('message', {
+		data: { id: worker.posted.at(-1)!.id, type: 'result', result: { removed: true } },
+	});
+	await rejected;
 	client.close();
 });
 

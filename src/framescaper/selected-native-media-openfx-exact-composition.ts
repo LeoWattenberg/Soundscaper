@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import type { ExactConsumerPlanCore } from '../common/editor/unified-exact-render-consumer-plan-core.ts';
 import {
 	addUnifiedExactLinearCompositionEntryV13,
 	type UnifiedExactLinearCompositionEntryV13,
@@ -7,7 +8,6 @@ import {
 } from '../common/editor/unified-exact-linear-rgba-v13.ts';
 import type { OfxContext } from '../common/editor/native-ofx-descriptor.ts';
 import type { FramescaperOpenFxFrameDispositionNativeMedia } from './editor-openfx-frame-graph-native-media.ts';
-import type { UnifiedExactRenderPlanV13 } from '../common/editor/unified-exact-render-plan.ts';
 import type { UnifiedExactRenderVisualRgbaV13 } from '../common/editor/unified-exact-render-visual-materializer-v13.ts';
 import { evaluateVideoMaskMatteRgbaV13 } from '../common/editor/video-mask-matte-rgba-v13.ts';
 import {
@@ -49,7 +49,7 @@ export interface FramescaperSelectedOpenFxCompositionNativeMedia {
 
 export function createFramescaperSelectedOpenFxCompositionNativeMedia(options: Readonly<{
 	readonly planes: FramescaperSelectedOpenFxExactPlanesNativeMedia;
-	readonly plan: UnifiedExactRenderPlanV13;
+	readonly plan: ExactConsumerPlanCore;
 	readonly outputOrdinal: number;
 	readonly transitionWeights: readonly TransitionWeight[];
 	readonly maskGraphs: ReadonlyMap<string, unknown>;
@@ -160,7 +160,7 @@ export function createFramescaperSelectedOpenFxCompositionNativeMedia(options: R
 
 function transitionEntries(options: Readonly<{
 	readonly planes: FramescaperSelectedOpenFxExactPlanesNativeMedia;
-	readonly plan: UnifiedExactRenderPlanV13;
+	readonly plan: ExactConsumerPlanCore;
 	readonly transitionWeights: readonly TransitionWeight[];
 }>) {
 	const active = new Set(options.transitionWeights.map(({ transitionId }) => transitionId));

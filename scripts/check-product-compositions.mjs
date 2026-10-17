@@ -8,7 +8,7 @@ import { productStandInAliasesFor } from './lib/product-aliases.mjs';
 import { createProductCompilerHost } from './lib/product-compiler-host.mjs';
 
 const repositoryRoot = resolve(import.meta.dirname, '..');
-const compositions = ['soundscaper-browser', 'soundscaper-desktop', 'framescaper-browser', 'framescaper-desktop'];
+const compositions = ['soundscaper-browser', 'soundscaper-desktop', 'framescaper-browser', 'framescaper-desktop', 'lightscaper-browser'];
 const selected = process.argv[2];
 
 if (selected === undefined) {

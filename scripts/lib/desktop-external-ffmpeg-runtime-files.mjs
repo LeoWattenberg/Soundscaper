@@ -114,6 +114,7 @@ const DESKTOP_EXTERNAL_FFMPEG_CONTROL_RUNTIME_FILES = Object.freeze([
 	'src/common/editor/video-keyframe-rgba-producer-guard.js',
 	'src/common/editor/video-keyframe-webcodecs-execution.js',
 	'src/common/editor/video-keyframe-video-container.js',
+	'src/common/editor/video-webcodecs-i420-frame.js',
 	'src/common/editor/video-webcodecs-producer.js',
 ]);
 

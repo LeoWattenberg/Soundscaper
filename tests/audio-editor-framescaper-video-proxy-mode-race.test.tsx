@@ -334,11 +334,17 @@ async function change(node: TestElement, value: string): Promise<void> {
 	});
 }
 
-function installTestDom() {
+interface TestDom {
+	readonly container: TestElement;
+	elements(tagName: string): TestElement[];
+	restore(): void;
+}
+
+function installTestDom(): TestDom {
 	const dom = installReactTestDom();
 	return Object.freeze({
 		container: dom.container,
-		elements: (tagName: string): TestElement[] => dom.container.querySelectorAll(tagName),
+		elements: (tagName: string) => dom.container.querySelectorAll(tagName),
 		restore: dom.restore,
 	});
 }

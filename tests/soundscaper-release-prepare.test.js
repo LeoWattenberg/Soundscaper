@@ -26,6 +26,12 @@ function documents() {
 					candidate: { version: '1.0.0-rc.1', tagPrefix: 'framescaper-v' },
 					stable: { version: '1.0.0', tagPrefix: 'framescaper-v' },
 				},
+				lightscaper: {
+					productId: 'lightscaper', applicationVersionChannel: 'candidate',
+					releaseChannel: 'deferred',
+					candidate: { version: '0.1.0-beta.1', tagPrefix: 'lightscaper-v' },
+					stable: { version: '1.0.0', tagPrefix: 'lightscaper-v' },
+				},
 			},
 		},
 		packageMetadata: { name: 'soundscaper', version: '1.0.0-rc.1', private: true },
@@ -42,7 +48,8 @@ function documents() {
 }
 
 test('release preparation selects the stable line and synchronizes version metadata', () => {
-	const prepared = createSoundscaperReleasePreparation(documents(), '1.0.0');
+	const before = documents();
+	const prepared = createSoundscaperReleasePreparation(before, '1.0.0');
 	assert.equal(prepared.releaseLines.products.soundscaper.applicationVersionChannel, 'stable');
 	assert.equal(prepared.releaseLines.products.soundscaper.releaseChannel, 'stable');
 	assert.equal(prepared.releaseLines.products.soundscaper.stable.version, '1.0.0');
@@ -53,6 +60,9 @@ test('release preparation selects the stable line and synchronizes version metad
 		schemaVersion: 1, id: 'soundscaper', applicationVersion: '1.0.0',
 		applicationVersionChannel: 'stable', releaseChannel: 'stable', updateTagPrefix: 'v',
 	});
+	for (const productId of ['framescaper', 'lightscaper']) {
+		assert.deepEqual(prepared.releaseLines.products[productId], before.releaseLines.products[productId]);
+	}
 	assert.doesNotMatch(JSON.stringify(prepared), /admission|status|review/iu);
 });
 

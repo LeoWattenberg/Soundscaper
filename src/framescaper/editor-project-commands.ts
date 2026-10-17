@@ -14,9 +14,11 @@ import {
 	type FramescaperProject,
 } from './editor-project.ts';
 import { assertFramescaperProjectRuntimeProfile } from './editor-project-runtime-profile.ts';
+import type { CurrentAudioEditorMutationCommandV2 } from '../common/editor/commands/clipboard-command-v2.ts';
 
 /** Command DTO revisions remain wire contracts; the selected document command authority is unversioned. */
-export type FramescaperProjectCommand = FramescaperProjectCommandAssistance;
+export type FramescaperProjectCommand = FramescaperProjectCommandAssistance | CurrentAudioEditorMutationCommandV2
+	| Readonly<{ type: 'batch'; commands: readonly FramescaperProjectCommand[] }>;
 export type FramescaperProjectCommandOptions = FramescaperProjectCommandOptionsAssistance;
 
 export function snapshotFramescaperProjectCommand(value: unknown): FramescaperProjectCommand {
@@ -52,7 +54,7 @@ export function prepareFramescaperVideoTransitionAllocations(
 	return prepareFramescaperVideoTransitionAllocationsAssistance(
 		profile,
 		project,
-		command,
+		snapshotFramescaperProjectCommandAssistance(command),
 		createId,
 	);
 }

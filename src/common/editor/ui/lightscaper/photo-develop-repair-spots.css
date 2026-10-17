@@ -1,0 +1,12 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+.lightscaper-repair-spots-dialog { max-width: min(960px, calc(100vw - 32px)); }
+.lightscaper-repair-original-plane { position: relative; width: fit-content; max-width: 100%; margin: 0 auto 1rem; }
+.lightscaper-repair-original-plane canvas { display: block; max-width: 100%; max-height: 45vh; width: auto; height: auto; touch-action: none; }
+.lightscaper-repair-original-plane svg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.lightscaper-repair-original-plane g { fill: none; stroke: #ffdc55; stroke-width: 1.5; vector-effect: non-scaling-stroke; }
+.lightscaper-repair-original-plane g[data-selected="true"] { stroke: #fff; }
+.lightscaper-repair-original-plane circle, .lightscaper-repair-original-plane line { vector-effect: non-scaling-stroke; }
+.lightscaper-repair-original-plane .lightscaper-repair-source { stroke-dasharray: 4 3; }
+.lightscaper-repair-controls { display: flex; flex-wrap: wrap; align-items: end; gap: .75rem; margin: .75rem 0; }
+.lightscaper-repair-controls label { display: grid; gap: .2rem; }
+.lightscaper-repair-controls input[type="number"] { width: 7rem; }

@@ -1,14 +1,16 @@
 # Lightscaper product roadmap
 
-> Grounded against the repository on 2026-08-25. Lightscaper does not exist in the tree yet: every milestone below is accepted future scope, ordered by dependency, closing only when its exit gate passes. Nothing here is a release-date promise. The [main roadmap](roadmap.md) owns the shared platform and the two existing products; this file adds Lightscaper without changing any milestone, fence, or gate there.
+> Re-grounded against the repository on 2026-10-08. Lightscaper implementation has started: milestones below remain accepted scope, ordered by dependency, closing only when their exit gates pass. Nothing here is a release-date promise. The [main roadmap](roadmap.md) owns the shared platform, Soundscaper, and Framescaper; this file adds Lightscaper without changing any milestone, fence, or gate there.
 
 Lightscaper is the third product over the shared local-first editor platform: a
 photo library and non-destructive develop editor — broadly the shape of
-Lightroom Classic — served at `/lightscaper/<locale>/` from the same origin,
-IndexedDB/OPFS media library, project locks, and Scape project format as
-Soundscaper and Framescaper. Product-unique code lives in `src/lightscaper/`;
-every operation that changes pixels lives in `src/common/` where Framescaper
-can reach it too.
+Lightroom Classic — built independently for `lightscaper.org/<locale>/`,
+following the implemented [separate-origin decision](docs/decisions/product-origins.md).
+It reuses IndexedDB/OPFS storage primitives, project-lock contracts, and the
+Scape container while owning a photo-catalog schema family and media library.
+Product composition and domain code live in `src/lightscaper/`; photo
+presentation lives in `src/common/editor/ui/lightscaper/`. Every operation that
+changes pixels lives in `src/common/` where Framescaper can reach it too.
 
 ## How to use this roadmap
 
@@ -85,8 +87,10 @@ the [quality budgets](docs/development/quality-diagnostics.md), and the owner re
   process version is an explicit, recorded decision.
 - A photo, its develop stack, and its collections round-trip through Scape;
   a developed photo opens in Framescaper as a still source with its
-  shared-effect stack intact, without copying media; and the reverse handoff
-  holds.
+  shared-effect stack intact; and the reverse handoff holds. Browser handoff
+  follows the separate-origin contract: it transfers an authenticated editable
+  copy into the destination library and leaves the sender unchanged. Shared
+  code does not grant access to another origin's media store.
 
 The following are not completion requirements:
 
@@ -130,41 +134,68 @@ platform tier states the contract the item must meet when it lands.
 
 ## Current foundation
 
-Nothing exists under `src/lightscaper/`. What Lightscaper builds on:
+Lightscaper owns a registered product composition, a durable per-photo catalog,
+managed-original storage, and menu-owned import, paged browse, metadata and
+culling workflows. Opt-in thumbnails and a selected-photo loupe use disposable
+previews; global search and sort use bounded indexed candidate pages. Menu-owned
+develop and single-photo PNG/JPEG export workflows have landed; their milestones
+remain in progress. File-menu archive handoff exports a saved editable photo and
+receives it into the selected library with authenticated Original, LUT, and brush
+bodies. Current single-photo handoff preserves repaired recipes through editable
+Frame sources, native save/reopen/export, and reverse Photo3 publication.
+RAW originals now use editable Source4, retaining native receipt and precision
+through that same menu-owned round trip and mixed collection sequences.
+The import dialog also selects an ordinary Frame still's timeline or Project Bin
+placement explicitly. Manual collections, smart collections, and saved filters
+download as editable Frame sequences in native query order. The remaining L5
+export and cross-product qualification gates are open. Current RAW menu import
+and bounded native Float32 development are implemented, including geometry,
+spatial effects, LUTs, local masks and Clone/Heal. The combined RAW workflow is
+verified in Chromium and Firefox. Current raster export retains native output
+processing and offers PNG16 with saved presets and batch recovery. Opt-in RAW
+source processing now carries canonical, linear-headroom and highlight-recovery
+choices through the Current draft, saved recipe and native rendering; external
+decoder publication, wider product qualification and desktop capabilities remain
+pending. Current PNG8/16 now offers sRGB and Display P3 target profiles; an
+existing Settings-menu dialog enables temporary output-profile/depth proofing
+without changing saved Develop state.
 
 | Area | Current capability |
 | --- | --- |
-| Product seam | Two-product registry with per-product profiles, capabilities, routes, workspaces, and desktop blocks; binary "other product" handoff; per-product PWA manifests, icons, i18n copy, CI shards, and desktop packaging. |
-| Imaging engine | Twelve shared parametric video effects; managed SDR color that renders sRGB/BT.709 sources with linear-light grade math and `.cube` LUT parse/sample, while declared Display-P3/BT.2020 primaries and PQ/HLG transfers are recognized in the schema but refused fail-closed at render admission; a mask graph with vector-shape, vector-path, raster, alpha, feather, invert, and boolean nodes; visual presets; keyframe curves. |
-| Stills | Still source/clip schema, browser `image/*` still import, PNG encode, and native (desktop) PNG/TIFF/EXR sequence decode behind an 8-bit sRGB, no-alpha admission; the Framescaper V30 "Add Images" campaign is in flight on a separate branch. |
-| Pixel interchange | 8-bit straight RGBA end to end; color math is floating-point per sample, but no 16-bit or float interchange buffer exists. |
-| Library and storage | OPFS/IndexedDB media library, id-keyed with recorded SHA-256 content digests, with retained originals and disposable derivatives, capacity preflight, single-writer project locks, Project Bin, Scape archive, and revisioned JSON commands with snapshot undo/redo. |
-| UI and platform | Vendored Audacity design system, product-profile-driven workspace/menu/dialog shells, i18n catalogs, offline application shell, and the hardened Electron wrapper. |
-| Gates | Sharded Node suite, browser workflows, coverage-union thresholds, architecture and file-size ceilings, licensing/notice/WASM audits, correctness checks, and packaged desktop smokes. Performance reports are diagnostics. |
+| Product seam | Three-product registry, separate-origin routes and independently built sites, per-product profiles/capabilities/PWA/i18n, registry-driven switching, and product-owned test shards. Lightscaper desktop wiring waits for L8. |
+| Imaging engine | Shared parametric video effects, managed SDR color with linear-light grade math and `.cube` LUTs, mask graphs, visual presets, and keyframe curves. Wider primaries/transfers remain recognized by the schema and refused at render admission. |
+| Stills | Framescaper V30 still import and timeline-image modeling landed; Lightscaper reuses shared image admission, native decode, EXIF orientation, and immutable original bindings. |
+| Pixel interchange | The unchanged descriptor carries byte, word and float samples independently of primaries/transfer. Current RAW supplies linear sRGB16 to Float32 color, geometry, spatial, LUT, mask, repair and output stages, with final PNG8/16 or JPEG8 delivery. Editable Source4 handoff regenerates native words from the authenticated Original; wide-gamut work remains open. |
+| Library and storage | Separate catalog-root and photo rows, bounded summary/membership pages, per-photo commands and history, verified retained originals with digest dedupe and custody, managed-import recovery, and catalog Scape round trips. |
+| Library queries and previews | Global filename/capture/rating indexes, resumable explicit index preparation, scalar paged definition selectors, and cancellable demand previews with disposable paired cache entries and one shared presenter owner. Current RAW culling offers a menu-selected camera preview source with neutral Original as default. |
+| Metadata | Bounded shared EXIF/IPTC readers, immutable extracted facts, authored metadata overrides, and Lightscaper's import adapter. |
+| UI and platform | Shared design-system/dialog ownership, a product-owned photo shell, opt-in menu workflows, offline application shells, and the existing hardened Electron wrappers for Soundscaper and Framescaper. |
+| Gates | Sharded Node suites including Lightscaper, browser workflows, coverage-union thresholds, architecture and file-size ceilings, licensing/notice/WASM audits, correctness checks, and existing packaged desktop smokes. Performance reports are diagnostics. |
 
-Known architectural constraints that drive the sequence:
+Architectural constraints that still drive the sequence:
 
-- the pixel path is 8-bit sRGB and the image admission refuses deeper input,
-  so raw and wide-gamut work is gated on the L2 interchange contract;
-- no EXIF, IPTC, or XMP reader exists anywhere in the tree;
-- shared history snapshots whole projects, so a six-figure-photo catalog
-  cannot be one project document without the persistence decision L2 owns;
-- the product registry, routes, shards, PWA shell, i18n copy, desktop configs,
-  and several scripts hardcode exactly two products; and
-- catalog-scale browsing has no precedent in the current library UI or its
-  recorded budgets.
+- the established byte route remains exact; Current RAW processing uses the
+  same L2 contracts, with native stage ownership and aggregate memory admission;
+  wider output and the remaining L7 qualification stay open;
+- original custody and catalog persistence have separate owners and must
+  reconcile interrupted publication before a library is exposed;
+- catalog-scale browsing uses bounded indexed pages rather than whole-project
+  history snapshots; remaining library view/filter/organization workflows and
+  hosted validation of the measured synthetic budgets remain L3 work; and
+- origins have separate storage: cross-product editing transfers an
+  authenticated editable copy under the handoff contract.
 
 ## Milestone sequence
 
 | Milestone | Status | Purpose |
 | --- | --- | --- |
-| L1. Product seam | **Planned** | Register the third product with everything off. |
-| L2. Catalog and develop contracts | **Planned** | Fix the schemas and the depth-agnostic pixel contract before any surface. |
-| L3. Photo library | **Planned** | Import, browse, cull, and organize at real-library scale. |
-| L4. Develop: global adjustments | **Planned** | Deliver the parametric develop loop on shared effects. |
-| L5. Export and handoff | **Planned** | Close the import → develop → export loop and the cross-product paths. |
-| L6. Local adjustments and repair | **Planned** | Add masked adjustments and parametric healing. |
-| L7. Raw and deep color | **Planned** | Activate deep processing, raw decode, and wide-gamut output. |
+| L1. Product seam | **Done** | Register the third product with everything off. |
+| L2. Catalog and develop contracts | **Done** | Fix the schemas and the depth-agnostic pixel contract before any surface. |
+| L3. Photo library | **In progress** | Import, browse, cull, and organize at real-library scale. |
+| L4. Develop: global adjustments | **In progress** | Deliver the parametric develop loop on shared effects. |
+| L5. Export and handoff | **In progress** | Close the import → develop → export loop and the cross-product paths. |
+| L6. Local adjustments and repair | **In progress** | Add masked adjustments and parametric healing. |
+| L7. Raw and deep color | **In progress** | Activate deep processing, raw decode, and wide-gamut output. |
 | L8. Desktop tier | **Planned** | Package the desktop product and add-in-place libraries. |
 | L9. Owner QA and diagnostics | **Planned** | Exercise the coherent product, improve diagnostics, and record optional observations without a certification gate. |
 
@@ -177,7 +208,7 @@ whose owner accepts the known issues.
 
 **Depends on:** nothing outside the tree.
 
-**Goal:** make `/lightscaper/<locale>/` a real registered product whose
+**Goal:** make the independently built Lightscaper `/<locale>/` route a real registered product whose
 surfaces are deliberately empty, without changing Soundscaper or Framescaper
 behavior.
 
@@ -187,18 +218,18 @@ the third product is new-capability work the milestone-2 rule itself assigns
 to later milestones, and this roadmap records the user's acceptance of that
 scope.
 
-- **Shared — Planned:** a `src/lightscaper/product.js` profile (identity, base
+- **Shared — Done:** a `src/lightscaper/product.js` profile (identity, base
   path, workspace, panels, import/export choices, shortcuts, capability map)
   registered in the product registry, with the new photo capability keys added
   as explicit booleans to all three profiles and the capability inventory.
-- **Shared — Planned:** retirement of every two-product assumption that "the
+- **Shared — Done:** retirement of every two-product assumption that "the
   other product" implies: product switching and handoff, route parsing,
   product bootstrap, sidebar links, and menu filters driven by the registry
   rather than by ternaries.
-- **Web Core — Planned:** static routes, PWA manifest, icons, offline
+- **Web Core — Done:** static routes, PWA manifest, icons, offline
   application shell, and per-locale product copy for every supported locale,
   within the existing Pages and chunk ceilings.
-- **Shared — Planned:** a `lightscaper` Node-test shard, workflow matrix rows,
+- **Shared — Done:** a `lightscaper` Node-test shard, workflow matrix rows,
   architecture rules for `src/lightscaper/`, and a complete
   `config/production-capabilities.json` block whose evidence paths exist.
 - **Electron Enhanced — Blocked until L8:** desktop identity, packaging, and
@@ -210,39 +241,40 @@ scope.
   Soundscaper and Framescaper suites pass unchanged.
 - The route renders product-branded with an empty library in Chromium,
   Firefox, and WebKit browser workflows.
-- The capability inventory test pins the Lightscaper claims, and every claimed
-  capability is `false` except the registered photo surface.
+- The capability inventory test pins the Lightscaper claims. Registration
+  enables only the photo surface; each later capability is activated with its
+  own maintained workflow evidence.
 - Product switching reaches all three products from each of them in a browser
   workflow.
 
 ## L2. Catalog and develop-state contracts
 
-**Depends on:** L1. The still-source model follows the Framescaper V30
-campaign once it lands on `main`; L2 references it and must not fork it.
+**Depends on:** L1 and the landed Framescaper V30 still-source model; L2
+references that model and must not fork it.
 
 **Goal:** fix the schemas everything else builds on — the catalog, the develop
 stack, and the pixel interchange — before any surface exists.
 
-- **Shared — Planned:** a photo-catalog project family over the shared media
+- **Shared — Done:** a photo-catalog project family over the shared media
   library: photo references with content digests, virtual folders whose
   operations never write the filesystem, collections and rule-based smart
   collections, ratings, flags, color labels, hierarchical
   keywords, capture-time and file metadata, and virtual copies as first-class
   versions.
-- **Shared — Planned:** the catalog persistence decision — the unit of
+- **Shared — Done:** the catalog persistence decision — the unit of
   storage, revision, and history for six-figure photo counts under the
   snapshot-history constraint — recorded in the owning plan with its budgets
   before implementation.
-- **Shared — Planned:** develop state as an ordered stack of shared-effect
+- **Shared — Done:** develop state as an ordered stack of shared-effect
   instances plus geometry and mask bindings, per photo version, carrying an
   explicit process version; deterministic serialization, validation,
   migration, clone, undo/redo, clipboard, and Scape round trip like every
   schema family.
-- **Shared — Planned:** a depth- and gamut-agnostic frame contract: buffers
+- **Shared — Done:** a depth- and gamut-agnostic frame contract: buffers
   declare sample format (`unorm8` now; `unorm16` and `float32` reserved),
   color primaries, and transfer; admission proves 8-bit sRGB is the only
   accepted profile today rather than the types assuming it.
-- **Shared — Planned:** an EXIF/IPTC read model (write stays in L5) with a
+- **Shared — Done:** an EXIF/IPTC read model (write stays in L5) with a
   bounded, fuzz-tested parser.
 
 ### Exit gate
@@ -263,27 +295,47 @@ stack, and the pixel interchange — before any surface exists.
 **Goal:** deliver the keyboard-first import → browse → cull → organize loop at
 real-library scale.
 
-- **Web Core — Planned:** import into the managed library: originals retained
+- **Web Core — In progress:** import into the managed library: originals retained
   immutable with recorded digests, digest dedupe, bounded batches, per-file
   failure reporting, rename templates, apply-during-import of keywords and
   metadata presets (develop presets once L4 lands), and interruption recovery
   to a consistent catalog.
-- **Web Core — Planned:** derivative previews as disposable artifacts in tiers
+- **Web Core — Done:** derivative previews as disposable artifacts in tiers
   (thumbnail, fit-screen), built in cancellable background batches,
   regenerated on demand, and evictable under storage pressure.
-- **Web Core — Planned:** grid, filmstrip, loupe, compare, and survey views;
+- **Web Core — In progress:** grid, filmstrip, loupe, compare, and survey views;
   ratings, flags, and labels with auto-advance culling; stacks; sort orders;
   a filter bar over text, attributes, and metadata columns; and collections
   with live smart collections.
-- **Web Core — Planned:** a metadata panel over the L2 read model,
+  Current culling captures bounded pre-edit successors across page boundaries
+  and refreshes the destination through current catalog/query indexes, including
+  saved filters and collapsed stacks. Existing page and interaction fences
+  preserve durable edits when navigation is retired or refresh fails.
+- **Web Core — In progress:** a metadata panel over the L2 read model,
   capture-time edit, batch rename, missing-media detection and relink through
   the existing relink path, and catalog snapshot/backup through Scape
   export.
-- **Shared — Planned:** a pinned synthetic large-library fixture, with its
-  import, scroll, filter, and search measurements and thresholds recorded in
-  the quality-diagnostics configuration and run in CI.
+- **Shared — Done:** a digest-pinned 20,000-photo synthetic fixture
+  measures managed import, rendered-grid scrolling, keyword filtering, and
+  distant search against recorded quality-diagnostics thresholds. All nine
+  threshold checks passed locally in Chromium and Firefox and in
+  [hosted Chromium CI](https://github.com/LeoWattenberg/Soundscaper/actions/runs/37763387640)
+  at source revision `39cd7c9b707984425731c96de2a846f7985c0a22`, with one
+  attempt and no retries. Repeated 2×2 media isolates catalog
+  scaling; this baseline does not measure large-image decoding or
+  representative camera working sets.
 - **Shared — Optional:** merge-on-import of a catalog Scape archive into an open
   catalog.
+
+The existing File → Photo batch rename and guarded Undo workflow now admits
+complete repaired Photo3 records through the named Current Session child.
+Selection, plans, receipts and inverse packets retain their bounded scalar
+wire1; the inherited V1/V2 methods stay strict. Rename preserves every retained
+develop version, history entry, snapshot, immutable Original and LUT/brush
+resource. No-op edits add no history; stale inverses stay available, and known
+native acknowledgments survive late cancellation. Native tests also verify
+mixed Photo1/2/3 publication and reopening through the query index. The broader
+L3 exit gates remain in progress.
 
 ### Exit gate
 
@@ -305,7 +357,7 @@ parallel with the rest of L3.
 **Goal:** deliver the parametric develop loop — open, adjust, compare, preset,
 sync — entirely on shared effects.
 
-- **Shared — Planned:** the Lightroom-vocabulary global set mapped onto shared
+- **Shared — In progress:** the Lightroom-vocabulary global set mapped onto shared
   effects, extending the existing catalog where an operation is missing:
   white balance; the tone ladder (exposure, contrast, highlights, shadows,
   whites, blacks); vibrance and saturation; texture, clarity, and dehaze;
@@ -314,24 +366,32 @@ sync — entirely on shared effects.
   sharpening; noise reduction; post-crop vignette; grain; and LUT profiles
   over `.cube`. Every new operation is a shared effect authorable from
   Framescaper in the same change.
-- **Web Core — Planned:** the develop workspace: a histogram with clipping
+- **Web Core — In progress:** the develop workspace: a histogram with clipping
   indicators, before/after and split views, per-version history and named
   snapshots, copy/paste with a settings picker, sync and auto-sync across
   selections, relative quick-develop batch adjustments, and full and partial
   presets on the shared preset model.
-- **Shared — Planned:** crop, straighten, rotate, flip, and aspect presets on
+- **Shared — In progress:** crop, straighten, rotate, flip, and aspect presets on
   shared geometry, plus manual perspective correction.
 - **Web Core — Optional:** geometric auto-straighten and auto/guided upright;
   the ML fence applies only to ML-based implementations.
-- **Web Core — Planned:** proxy develop: adjustments evaluated on
+- **Web Core — In progress:** proxy develop: adjustments evaluated on
   preview-resolution derivatives with the full-resolution render reserved for
-  zoom and export, within recorded latency budgets.
+  zoom and export, within recorded latency budgets. The Current
+  [native proxy path](docs/architecture/lightscaper-native-proxy.md) now samples
+  the authenticated Original into a bounded same-format proxy before evaluating
+  the unchanged recipe. Native words/floats retain their precision; spatial,
+  repair and mask operations use the declared proxy grid. Full zoom, export and
+  handoff keep natural resolution. Final publication rechecks the Photo revision
+  after joined decoder retirement. Broader latency and exit qualification remain
+  open.
 
 ### Exit gate
 
 - Every operation has golden frames proving determinism across runs and
-  byte-equal preview and export renders apart from declared output-only
-  steps.
+  byte-equal full-resolution preview and export renders apart from declared
+  output-only steps. Editing proxies retain the evaluation exception in the
+  product invariants above.
 - Every new shared effect is authorable and renderable in a Framescaper test
   in the same suite run.
 - History, snapshots, sync, and presets pass property tests over generated
@@ -347,21 +407,49 @@ sync — entirely on shared effects.
 **Goal:** close the loop: finished photos leave in repeatable recipes, and
 photo work moves between products without loss.
 
-- **Web Core — Planned:** single and batch export: JPEG and PNG everywhere and
+- **Web Core — In progress:** single and batch export: JPEG and PNG everywhere and
   TIFF where an encoder is proven; sizing by fit, long edge, megapixels, or
   percentage; resample quality; output sharpening; text and graphic
   watermarks; filename templates; metadata include/strip scopes; and export
   presets — bounded, abortable, progress-reporting, and background-queued
-  like the other delivery paths.
-- **Shared — Planned:** sidecar write: develop state and metadata serialized
-  beside exports in Lightscaper's documented sidecar schema, with no
-  Adobe-compatibility claim.
+  like the other delivery paths. Menu-owned batch graphic watermarks now retain
+  placement and file identity for explicit reselection during recovery, while
+  preserving completed image and JSON acknowledgments; see the
+  [batch graphic export contract](docs/architecture/lightscaper-batch-graphic-export.md).
+- **Shared — In progress:** sidecar write: the current menu-owned PNG/JPEG and
+  batch export dialogs offer default-off JSON containing the saved Develop
+  recipe and metadata in Lightscaper's documented sidecar schema, with no
+  Adobe-compatibility claim. Image and JSON acknowledgments remain separate,
+  with JSON-only retry/recovery; the remaining L5 export-matrix qualification
+  is separate.
+  Genuine Current Photo3 exports now use Sidecar2, preserving ordered repairs
+  and full saved provenance. Single and batch PNG/JPEG render repairs before
+  crop/flip and adjustments; explicit JSON-only retry and reopened batch
+  recovery retain native image acknowledgments. Current journal starts require
+  the caller's positive native CAS acknowledgment before downloading, and
+  unfinished hidden or replacement batches retain Develop exclusion until
+  their renderer work joins. Legacy Photo1/2 readers and Sidecar1 bytes stay
+  unchanged. Qualification includes 1,103 selected Lightscaper Node tests and
+  14 English/German Chromium/Firefox workflows covering repaired pixels,
+  metadata, sidecars, retry/recovery, and unchanged native Original custody.
 - **Shared — Deferred:** output profiles beyond sRGB and Display P3 (custom
   ICC) until the platform color-management story proves them.
-- **Shared — Planned:** handoff both ways: a developed photo opens in
+- **Shared — In progress:** handoff both ways: a developed photo opens in
   Framescaper as a still with its stack intact and renders pixel-identically;
   a Framescaper still opens in Lightscaper's develop; and a collection hands
-  to Framescaper as a sequence.
+  to Framescaper as a sequence. Menu-owned selected collection and saved-filter
+  sequences retain active saved recipes, original and LUT resources, and native
+  query order. Single-photo Current handoff preserves repaired stacks and
+  authenticated brush resources through editable Source3 and reverse Photo3
+  publication. Current collection and saved-filter sequences preserve truthful
+  Photo/process provenance through editable Source2/3, selected LUT and brush
+  declarations, and native query order. Complete retained resources are
+  authenticated before Original acquisition; inactive histories stay in the
+  sender. Current RAW single and mixed collection handoff uses Source4 with
+  exact Original, decoder receipt and selected recipe; Frame native Develop,
+  Clone/Heal, Save/reopen and reverse Photo3 regenerate native words rather than
+  developing the byte presentation cache. Full cross-product and export-matrix
+  qualification remains open.
 - **Shared — Optional:** ordering and per-photo duration presets for the
   handed-off sequence.
 
@@ -381,18 +469,350 @@ photo work moves between products without loss.
 **Goal:** make adjustments spatial — where in the frame, not only how much —
 on the shared mask graph.
 
-- **Shared — Planned:** mask-bound adjustment instances applying any subset of
+- **Shared — In progress:** mask-bound adjustment instances applying any subset of
   the global operations through a mask; linear-gradient, radial-gradient, and
   luminance/color range mask nodes added as shared node kinds beside the
   existing vector, raster, alpha, feather, invert, and boolean nodes; and
   brush masks over the raster node.
-- **Web Core — Planned:** mask management: list, rename, duplicate, overlay
+- **Web Core — In progress:** mask management: list, rename, duplicate, overlay
   visualization modes, add/subtract/intersect composition, and keyboard
   reachability.
-- **Shared — Planned:** parametric healing: clone and heal spots with
+- **Shared — In progress:** parametric healing: clone and heal spots with
   repositionable sources, re-rendered from the original on every evaluation,
   with a visualize-spots view.
 - **Shared — Optional:** red-eye correction.
+
+Menu-authored linear and radial gradients and luminance/color ranges bind
+existing adjustments through the shared renderer. Range membership samples the
+actual input of the bound adjustment, and the temporary overlay observes coverage
+through later geometry in the joined preview owner. Saved recipes retain their
+masks through editable handoff; Frame authors and renders the same range nodes.
+Brush masks have a bounded paint/erase replay kernel and immutable, authenticated
+resource storage. Catalog writes verify bodies reachable through retained
+versions, history, redo, snapshots, and disabled or unbound graphs in the
+selected media namespace. The shared renderer now accepts an explicit authenticated
+brush source, resamples linear alpha coverage at each adjustment's actual input,
+and projects the exact blended coverage into its temporary overlay. The selected
+Photo Session now lends its immutable brush bodies through its existing joined
+operation lifetime. Its cached renderer shares that source across proxy,
+full-resolution, and PNG/JPEG export, including restored catalog namespaces.
+Photo Develop's Settings menu now opens an opt-in brush mask dialog. Its bounded
+alpha grid supports pointer paint/erase, keyboard stamps, local undo/redo, and
+authenticated re-editing of installed alpha or raster-alpha masks. The grid maps
+to each bound adjustment's input; an explicitly selected overlay shows the result
+through later geometry in After. Applying installs immutable bytes in the current
+selected media owner before editing the still-current draft. Save records that
+recipe through the existing Photo history and revision check. Existing graph
+identities and unrelated masks survive re-editing; bindings can select multiple
+existing adjustments and their enabled states.
+Catalog backups now use archive schema 6 and photo pack 3 when any retained
+Photo needs brush bodies; catalogs without brushes keep schema 5. The new
+archive stores authenticated SCMASK01 bodies beside originals and LUTs, covering
+inactive versions, history, redo, snapshots, disabled or unbound masks, and
+unused declared inputs. Selected backup checks complete metadata and
+authenticates bodies serially before reading originals or opening the selected
+writable file, then verifies them again before destination Close. The scalar
+closure budget does not impose a renderer-sized aggregate body limit.
+Restore installs bodies in the freshly allocated media namespace and audits
+the exact declared, delivered, reachable, and stored inventories before and
+after promotion and at the final native publication ACK. Reader and decoder
+cleanup join before the existing one-pointer catalog selection. Original bytes,
+permanent custody, recipes, and brush identities survive restore and reopen.
+Focused Lightscaper tests and English/German native Chromium and Firefox
+workflows cover catalog backup, allocated restore, two reopens, and selected
+proxy/full rendering. The native File System Access backup witness is qualified
+in Chromium and remains skipped in Firefox, where that capability is absent.
+Archives 1–5 remain readable; direct schema 5 and pack 2 paths still refuse
+brush references before consuming their originals and join provisional rollback.
+Editable Frame handoff retains its brush refusal guards. Current preset
+transport is covered by the explicit archive 7 route described below.
+Develop's Settings menu now opens an opt-in general mask manager, listing all
+retained graphs, including composed mattes and disabled or unbound brush masks.
+Duplicate creates a fresh graph identity while preserving every node, input,
+output, and immutable source reference; the copy starts unbound. Remove prunes
+only that graph's bindings and supports removing the final graph. Binding
+checkboxes can transfer multiple existing adjustments from other graphs without
+changing their enabled states, order, or parameters. Changes stay local until
+Apply edits the current draft; Save uses the existing revision check and history.
+These management commands do not acquire, install, or delete brush bodies.
+An explicit bound adjustment selects the temporary overlay, which starts off.
+English/German native Chromium and Firefox workflows cover keyboard duplication,
+binding, removal, history restoration, reload, full preview, and PNG export,
+checking independent pixels and unchanged originals and immutable brush bodies.
+Focused mounted tests also fence retained actions after local edits, Close,
+owner replacement, same-event draft replacement, and React effect replay.
+The opt-in mask manager now supports an explicit Rename action. Typing remains
+local and does not rename until that action; Apply edits the draft and Save
+records the existing history. Named options show the label and stable graph ID.
+Duplicates inherit the label and start unbound; a blank rename clears only the
+name. Named graphs use schema 2 inside Develop process 2; an explicit rename of
+a process 1 recipe promotes it, while loading an unnamed recipe never upgrades
+it. Legacy graph and Develop readers remain strict. Names participate in recipe
+digests and survive history, snapshots, virtual copies, settings/preset 2,
+names-only archive 5, brush archive 6, and editable Frame Source 2 handoff.
+Rendering validates the name and evaluates the same graph through a computational
+view, preserving pixels, alpha, binding IDs, and immutable brush references.
+Gradient, range, and brush re-editing preserve retained names.
+The same opt-in manager now authors Add, Subtract, and Intersect compositions.
+The selected graph keeps its name, ID, and bindings; it copies the other graph's
+complete definition with collision-safe node, input, and path identities, while
+the other mask remains available. Subtraction is selected minus other coverage.
+Composition remains local until Apply and the existing Save records it in history.
+Copied range nodes sample the input of the selected mask's bound adjustment;
+brush references retain their immutable body identity and archive custody.
+The manager also offers Color overlay and Grayscale mask views after explicitly
+enabling the overlay and choosing a bound adjustment. Grayscale maps the actual
+projected coverage to opaque display intensity; color retains the existing red
+overlay. Both use the selected adjustment's input and the real geometry suffix.
+The choice is temporary, resets when reopening the manager, and changes neither
+the saved recipe nor After pixels, histograms, or exported output. Presentation
+keeps it separate from the renderer's strict mask/effect IDs and wipes its
+borrowed display plane before retirement completes.
+An internal repair foundation now defines ordered Clone and Heal spots in
+original coordinates, including movable sources, radius, feather, and opacity.
+Clone samples premultiplied linear-sRGB donors; Heal reconstructs source
+gradients against original target boundaries with a bounded screened-Poisson
+profile. Every donor and boundary reads one immutable captured frame, while
+overlapping spots blend destinations in authored order. The shared byte kernel
+preflights complete work and memory bounds before reading pixels, joins native
+cancellation and consumers, and retires its owned frames and serial patch scratch.
+This explicit pixel-frame API does not establish original provenance or admit
+repairs into existing process 1/2 recipes. A strict process 3 recipe now retains
+the ordered repair definitions alongside existing effects, geometry, masks, and
+bindings. Only an explicit repair edit promotes an older recipe; removing the
+last spot keeps process 3. The new shared current renderer accepts process 1/2/3
+and runs repairs before legacy geometry and every adjustment. It copies one
+staged frame, awaits repair snapshot/output/scratch retirement, then adopts that
+frame before borrowing brush bodies. Range masks sample the repaired input of
+each adjustment; existing strict process 1/2 readers still refuse repairs.
+Focused Lightscaper goldens cover Clone/Heal, moved sources, crop/flip/exposure,
+range/LUT ordering, authentic brush declarations, and joined native retirement.
+Strict Photo3 and workspace3 documents now retain repairs throughout versions,
+redo history, and snapshots. Explicit current owners share the bounded history,
+command, and catalog transaction logic with permanently strict legacy readers.
+Whole-photo undo/redo keeps monotonic revisions and the highest retained aggregate
+version, and virtual copies retain repaired settings without a new original.
+The current catalog checks the complete retained LUT and brush closure before
+saving; its database, memberships, and scalar query profiles stay unchanged.
+Focused Lightscaper tests cover persistence/reopen, revision conflicts, atomic
+rollback, borrowed verification, cancellation, and save acknowledgement. These
+instrumented IndexedDB tests do not establish native browser qualification.
+Explicit Current Session and Develop3 entry points now retain complete repaired
+documents through the selected default or restored library. Startup recovery
+verifies the retained LUT and brush closure before promoting original custody;
+metadata and membership receipts preserve repaired state. The Current original
+reader authenticates immutable bytes and revisions through the existing owner,
+and the Photo renderer evaluates repairs before adjustments in both resolution
+profiles. Selected Lightscaper now uses genuine Current documents throughout
+the menu-owned Develop workflow. Settings opens Repair spots for ordered Clone
+and Heal authoring, with numeric edits and target/source pointer movement on
+the authenticated Original. Visualize spots starts off and displays actual
+linear-light Original edges without changing the recipe. Existing effect,
+geometry, and local-mask edits preserve repairs. Apply changes the draft;
+Save uses the existing native revision check and history, and virtual copies
+retain repairs without another original.
+Qualification includes 1,012 passing selected Lightscaper Node tests and
+English/German Chromium and Firefox workflows for Clone/Heal, Original-edge
+visualization, pointer movement/cancellation, Save, history, virtual copies,
+and reopen. These browser checks assert repaired preview/full-resolution
+pixels and unchanged native Original bytes, hash, and custody.
+Current single and batch PNG/JPEG exports now retain repaired recipes and use
+Sidecar2 for Photo3, including a restored legacy active recipe. Current saved
+facts and the complete Original/LUT/brush closure are checked before durable
+delivery; JSON retry and reopened recovery avoid another image render or
+download. English/German Chromium and Firefox checks verify literal PNG and
+independently decoded JPEG pixels after Clone/Heal, crop/flip, and exposure,
+along with immutable Original bytes and native custody.
+Current Settings now supports repaired recipes in Copy/Paste, full and partial
+Sync, acknowledged Auto-sync, and relative Quick Develop. Copy retains the
+unsaved draft; the selected native source authenticates its full retained and
+draft resource closure before publishing a packet. Local selection includes
+the complete bound-adjustment and mask group, including unused declarations.
+Brush packets keep their exact authenticated identity within the selected
+Session; raw, cloned, foreign-Session, and unsupported external references
+cannot grant paste authority. Target saves independently authenticate their
+complete resource closure, and Originals remain unchanged. Legacy packets
+retain their grouping and leave target repairs intact; clearing repairs keeps
+process 3. Current settings and whole-recipe clipboard values have explicit
+schema 3 owners while the legacy readers remain strict.
+Current settings writes retire the active preview and keep queued old-revision
+presentations suspended through the native acknowledgments and document reload.
+English/German Chromium and Firefox workflows verify unsaved Heal/brush Copy,
+partial Sync/Auto-sync, and relative Quick Develop with literal preview/export
+pixels and the complete native Original/brush custody checks.
+Current presets now save unsaved repaired recipes through the Settings menu,
+with explicit Preset3 and mixed Row3 formats at the existing physical settings
+key. Reads preserve legacy rows; removing the final Preset3 keeps Row3. Each
+write authenticates the entire retained LUT/brush closure before native CAS.
+Rename preserves the complete settings and their authored digest. Application
+uses an actual selected native preset ID and row revision, authenticates the
+whole row, and rechecks it before each target write. Stored brush settings and
+JSON clones cannot acquire clipboard authority through a preset. Originals
+remain unchanged, and current preview retirement also fences preset application.
+English/German Chromium and Firefox workflows exercise dirty Heal/brush/LUT
+preset save, reopen, rename, application, history restoration, and sticky delete.
+Two actual native settings owners also compete for the same row: one receives
+a positive CAS acknowledgment and the other a conflict. Repair-only presets
+retain the target's geometry and local brush, with literal preview/PNG pixels
+and complete native Original, LUT, and brush custody checks.
+Current catalog backup and restore now carry complete repaired Photos and
+presets through explicit archive 7, photo pack 4, and preset pack 3 owners.
+The mixed preset row preserves its presence, revision, complete settings,
+authored digests, and sticky schema 3 after the final repaired preset is removed.
+All retained history, redo, snapshots, disabled adjustments, and unused declared
+LUT and brush inputs participate in the combined resource closure. Backup
+checks complete metadata and actual packed-entry capacity before acquiring
+resource bodies, reading Originals, or opening the destination. It authenticates
+bodies serially and checks the final native metadata fences before Close.
+Restore installs the unchanged Original bytes in a freshly allocated native
+media namespace and audits complete photo, preset, LUT, and brush inventories
+before and after promotion and at the final publication acknowledgment.
+Reader and decoder cleanup join before the existing one-pointer publication.
+A known positive native acknowledgment survives late cancellation; corruption
+and rejected publication keep the previous selected library. Wholly legacy
+backups retain their schema 5 or 6 bytes, and archive readers 1–6 remain strict.
+The selected Lightscaper Node regression run passes 1,998 cases in 237 files.
+Eight English/German native workflows pass in each of Chromium and Firefox,
+covering complete repair history, preset-only resources, two reopen cycles,
+actual preset application, late cancellation, and corruption rollback. Their
+independent observations check complete metadata, native Original chunk bytes,
+LUT and brush custody, and literal preview/PNG pixels.
+Menu-owned Current photo handoff now carries repaired recipes into editable
+Frame Source3 with explicit provenance2. Ordered Clone/Heal spots, mask names,
+geometry, disabled LUTs, and unused brush declarations remain intact. Complete
+LUT and SCMASK bodies are authenticated alongside the unchanged Original. Frame
+save, reopen, and project export preserve these bindings; Current receive
+publishes a fresh Photo3 and may reuse its authenticated Original. Source
+provenance retains the actual Photo and process versions, while wholly legacy
+handoffs retain Source2 behavior and permanent strict readers. Native Frame save
+audits actual resource bodies and checks their content tokens inside the existing
+project transaction before publication acknowledgment.
+The selected Lightscaper Node regression run passes 2,388 cases in 271 files;
+73 focused owning cases cover the final Current contracts and native lifetime,
+edit, save, reopen, archive, and render paths. Eight English/German Chromium and
+Firefox workflows verify actual Frame menu import, source rename, native
+save/reopen/export, reverse Photo3 publication, literal preview/PNG pixels,
+unchanged Originals, complete resource custody, and corruption refusal. Both
+product builds pass with the existing startup and chunk ceilings; Frame startup
+uses 100 requests and Lightscaper uses 51.
+Current collection and saved-filter handoff now uses a named Current Session
+child and explicit View2, preserving complete selected declarations, including
+disabled LUTs and unused brushes. The entire retained Photo namespace and
+resource ledger are admitted before body authentication or Original acquisition.
+Source3 provenance retains a full Photo3 even when its selected process is
+legacy; Photo2 brush recipes remain Photo2, and wholly legacy recipes keep
+Source2. Each generated source pack counts its Original independently, with
+mandatory pack-prefix and resource limits checked before scoped Original reads
+or decode, followed by exact generated-pack and ZIP bounds. The selected
+Lightscaper Node regression passes 2,442 cases in 280 files, including actual
+native Frame import, command edit, CAS save, reopen, export, literal recipe
+pixels, resource custody, and joined decode/brush cancellation. Eight
+English/German Chromium and Firefox sequence workflows pass through actual
+collection and saved-filter export, Frame menu import, edit, native save,
+reopen, and project export, with unchanged sender custody. Native OPFS reads
+serialize per path through snapshot acquisition to prevent Firefox access
+contention; cancellation, other paths, and writer dispatch remain independent.
+The existing File-menu import options now apply retained Current repair presets
+through a named Session child and the existing managed-import writer. Complete
+preset-row declarations and LUT/brush bodies are authenticated before Original
+preparation; every unpublished target rechecks the native row. Full presets
+retain geometry and local resources, while repair-only presets preserve other
+target settings. Original bytes, paths, and content tokens remain unchanged;
+deduplicated imports add their own permanent Original roots. Failed files keep
+their input positions, and acknowledged imports survive later refusal or
+cancellation. The inherited V2 preset import remains strict. The selected
+Lightscaper regression passes 2,472 cases in 284 files. Eight English/German
+Chromium and Firefox workflows verify actual menu import, per-file results,
+complete native custody, literal preview/PNG pixels, and reopen for both full
+and repair-only presets. Both product builds retain the startup and chunk
+ceilings.
+Direct Frame static-image Clone/Heal and mask-name editing now use opt-in
+entries in the existing Effect menu. The editor joins accepted visual preview
+work before borrowing the authenticated raw canonical frame, and joins and
+wipes its borrowed pixels before preview resumes. Every retained LUT and brush
+body is authenticated before the editing session is delivered. Apply uses the
+existing image-source command and history: unchanged recipes keep their exact
+source and provenance, while changed recipes become Source3 with truthful
+Frame provenance and the same immutable pack and Original. Selection, read-only
+state, the complete project snapshot, cancellation and byte bounds fence each
+borrow and edit. Mask names remain scalar recipe metadata; Frame mask overlay
+presentation remains outside this completed authoring slice.
+The selected Lightscaper regression passes 2,545 cases in 291 files, including
+native pack lifetime, physical detachment refusal, joined dismissal, and the
+complete menu path. Four English/German Chromium and Firefox workflows verify
+raw Original pixels, unchanged Apply, Clone, Undo/Redo, mask naming, native
+Save/reopen, archive bytes, and immutable sender/resource custody. Chromium
+also verifies the ready WebGL preview; Firefox verifies the resolved visual
+Session and native recipe pixels when its headless platform lacks WebGL2.
+Both product builds preserve the existing startup and chunk ceilings. Remaining
+L3–L6 exit gates still require completion; L7–L9 remain incomplete. Final
+inter-slice qualification follows completion of the implementation milestones.
+
+The opted-in Frame mask manager now renders its complete local draft with
+temporary color or grayscale coverage. Coverage starts off, requires a bound
+adjustment, samples that adjustment's actual repaired input after preceding
+effects, and follows subsequent geometry. Composition and binding edits render
+without publishing; display choices never enter the recipe or history. Every
+draft authenticates the complete retained LUT and brush namespace, including
+disabled and unused declarations, before borrowing canonical pixels. Raw and
+rendered work share one exclusive native scope. Replacement, Apply and Close
+join physical retirement, and failed previews keep Close usable while blocking
+Apply. The [Frame mask presentation contract](docs/architecture/lightscaper-frame-mask-overlay.md)
+records those bounds and ownership rules. The selected Lightscaper regression
+passes 2,598 cases in 298 files. Twelve English/German Chromium and Firefox
+workflows verify literal stage coverage, crop/flip transport, boolean brush
+composition, keyboard controls, unchanged Apply, cancellation, native
+Save/reopen, immutable custody and actual peer-lease takeover. Optional display
+allocation and mode admission share the existing presentation chunk owner;
+both builds preserve the startup and chunk ceilings (100 Frame requests,
+52 Lightscaper requests). L3–L6 exit gates remain in progress; L7–L9 and final
+inter-slice qualification remain pending.
+
+Direct Frame brush creation and re-editing now have an optional Effect-menu
+entry. The shared neutral authoring owner and controls retain Photo's strict
+catalog acknowledgement while Frame uses its actual selected native project
+writer and project acknowledgement. Local paint, erase, undo and redo borrow
+an authenticated temporary brush for repaired, effect-aligned After and optional
+color/grayscale coverage; they create no native body or history entry. Apply
+joins preview work, installs the immutable body and uses the existing Frame
+source command. Re-editing preserves graph identity, names, alpha/raster-alpha
+shape, bindings and enabled flags; global history retains predecessor resources.
+Close joins pending work and remains usable after preview failure, stale
+currentness and same-generation parent refreshes. Complete retained resources
+authenticate before native reads or writes, including disabled LUTs and unused
+brushes. The [Frame brush authoring contract](docs/architecture/lightscaper-frame-brush-authoring.md)
+records the unchanged 512 MiB admission, private body capture, native ACK and
+physical retirement rules. The selected Lightscaper regression passes 2,634
+cases in 302 files. Twenty current English/German Chromium and Firefox
+workflows verify Frame brush creation/re-edit, existing Frame mask overlays and
+repaired Photo brush editing with native saved history and reload. Browser
+qualification caught and fixed the actual workspace dispatch guard and pointer
+admission through Frame's effects overlay. Both builds preserve the startup
+and chunk ceilings (100 Frame requests, 52 Lightscaper requests). An older
+Photo brush browser spec still requests the retired legacy Settings caption
+before opening the editor; that broader legacy qualification remains deferred.
+L3–L6 exit gates remain in progress; L7–L9 and final inter-slice qualification
+remain pending.
+
+Current3 Develop qualification now includes nine bounded, seeded properties
+with 230 generated trials over native history, snapshots, undo/redo, selective
+sync, preset JSON and fragmented preset packs, colliding local identities,
+native preset reopening, malformed metadata and retained LUT/brush custody.
+A 50-case matrix covers every current adjustment family across its supported
+process versions, comparing repeated Photo proxy rendering, full resolution,
+lossless PNG export and the authenticated Frame adapter. Process3 independently
+checks original-space Clone ordering before each operation; source alpha
+includes zero, one, partial and opaque samples. Forty Current3 raster cases
+combine PNG/JPEG, five sizing modes, capture/strip metadata and sidecar off/on,
+with literal pixel/dimension expectations, delivered metadata and Sidecar2
+readback, unchanged originals and joined buffer retirement. The focused
+qualification passes 198 cases in 15 Lightscaper test files. Node JPEG encoder
+input is exact, but its controlled canvas returns structural bytes; the full
+native browser codec/settings matrix remains separate L5 qualification.
+The [Current conformance contract](docs/architecture/lightscaper-current-conformance.md)
+records the scope and limits. L3–L6 exit gates remain in progress; L7–L9 and
+final inter-slice qualification remain unfinished, with the first L7 foundation
+now in progress below.
 
 ### Exit gate
 
@@ -413,33 +833,317 @@ raw decode, and wide-gamut output, all through the contracts L2 fixed —
 export widens through the existing L5 paths without new milestone scope
 there.
 
-- **Shared — Planned:** `unorm16` and `float32` admitted through the L2
+- **Shared — In progress:** `unorm16` and `float32` admitted through the L2
   contract with a linear working space for the develop stack; goldens
   re-pinned at depth; the 8-bit path remains the conformance baseline within
   declared tolerances; no schema change occurs, by design.
-- **Web Core — Planned:** raw decode through a licensed WASM decoder
-  (candidate: LibRaw, subject to the licensing review) as a pinned runtime
-  asset outside the Pages bundle on the FFmpeg-runtime pattern — pinned
-  hashes, corresponding-source archive, notices — with demosaic, neutral
-  camera baseline rendering, highlight recovery, and an embedded-preview fast
-  path for culling before full decode.
-- **Web Enhanced — Planned:** GPU evaluation of the develop stack where
-  capability-detected, with the CPU path as the conformance oracle under
-  recorded tolerance budgets.
+  The first [linear working route](docs/architecture/lightscaper-linear-working.md)
+  directly normalizes native words or copies native floats into one bounded
+  Float32 plane, implements identity, white balance and the full tone ladder,
+  and preserves signed/HDR and tiny normal/subnormal values. Current byte
+  presentation and permanent legacy routes keep their existing contracts.
+  Current RAW ingestion now supplies genuine native words to a separate
+  Float32 route: white balance, tone, chroma, black-and-white mix, HSL,
+  point/parametric curves and color wheels. Conversion to encoded RGBA8 occurs
+  at the disposable display boundary. Original bytes and scalar history remain
+  separate; byte FramePack1 keeps its existing meaning.
+  The Current route also implements native premultiplied-linear geometry,
+  all seven existing spatial families, verified cube LUTs, procedural/range/brush
+  masks and Original-space Clone/Heal. Repairs run before geometry, range masks
+  read the incoming adjustment stage, and selected observed coverage projects
+  through remaining geometry. The opted-in Current Develop Settings repair
+  entry previews the native Original and applies local edits to the draft;
+  Save retains the existing durable recipe/history command. Coverage and
+  overlay mode stay temporary, with the overlay off by default.
+  The original white-balance/tone foundation retains its 512 MiB contract;
+  the new multistage Current owner plans the borrowed source, at most two live
+  Float32 planes and mask/resource/repair/display scratch under 768 MiB.
+  Scalar planning precedes pixel admission, and the complete physical borrowed
+  backing, including view padding, is charged before private allocation.
+  Active LUTs reserve twice their declared bytes plus 128 MiB for
+  parser/transient work, without claiming an exact JavaScript heap bound.
+  Oversized combinations refuse. The byte helpers retain their existing
+  arithmetic; a factored shared coverage generator keeps the byte wrapper's
+  profile unchanged. The native export qualification passed 2,970 cases in
+  335 files. Chromium and Firefox pass the real RAW menu workflow through Clone,
+  masked tone, sharpening, rotated crop, Save and reload, with full-plane pixel
+  comparisons and unchanged authenticated Originals. Together with import and
+  native worker and raster export checks, ten RAW browser cases are qualified.
+  [Current native raster export](docs/architecture/lightscaper-native-raster-export.md)
+  keeps resizing, output sharpening, graphic and glyph compositing in Float32.
+  PNG8/JPEG receive the final encoded byte plane; explicit PNG16 streams final
+  sRGB words without an encoded working-plane detour. Current nested Output2
+  preserves depth through presets, batch plans and reviewed recovery, while
+  permanent legacy readers stay strict. Capture EXIF supports fresh PNG16
+  through an explicit Current container policy. The output owner charges held
+  Original/rendered/resource storage, replacing planes and the codec under a
+  one-GiB aggregate bound and enforces the reduced codec return capacity.
+  [Editable RAW handoff](docs/architecture/lightscaper-raw-image-handoff.md)
+  now preserves process1/2/3 in Source4 and re-proves the retained Original,
+  same-instance native orientation and opaque RGBA16 word digest before Frame
+  Develop, archive/native publication and reverse Photo3 receive. FramePack1
+  remains unchanged; its RGBA8 cache never supplies native authoring inputs.
+  Single and mixed RAW/raster sequences retain complete LUT/brush closure,
+  selected order and separate placement, with phasewise one-GiB admission.
+  Scalar import preflight binds exact receipt and memory bounds before staging.
+  The selected Lightscaper regression passes 3,030 cases in 347 files. Two real
+  Chromium/Firefox round trips cover a named Process2 mask, native Frame
+  preview, explicit Process3 Clone, Project Bin thumbnails, Save/reopen and
+  reverse Photo3 with unchanged Original bytes and custody. Separate product
+  builds preserve the existing ceilings at 53 Lightscaper and 100 Framescaper
+  ready-graph requests, each with six initial requests. Current culling
+  integration is recorded below; wider output remains unfinished.
+  The first foundation qualified 2,776 cases in 311 files, with four
+  English/German Chromium/Firefox workflows retaining native repaired Photo
+  preview, brush editing, saved history and reload. The preceding RAW/global
+  build used a 53-request product graph, six initial requests and the existing
+  chunk ceilings.
+- **Web Core — In progress:** the
+  [RAW decoder foundation](docs/architecture/lightscaper-raw-decoder.md) builds
+  pinned LibRaw 0.22.2 under its LGPL-2.1 option into an 876,336-byte WASM
+  artifact outside the Pages bundle. The source bundle reproduces that exact
+  artifact. Bounded private workers provide actual linear RGB16 demosaic and
+  separate embedded-preview extraction, retire native heaps before consumption,
+  and wipe scoped output. Focused tests decode an owned Bayer DNG with genuine
+  greater-than-byte precision/orientation and a digest-pinned CC0 Canon CRW
+  with its real embedded JPEG. The fixed neutral baseline is native linear
+  sRGB16; it does not claim unclipped camera HDR or broad camera support.
+  File → Import now admits signature-qualified DNG and CRW into the selected
+  Current library, preserving exact Original bodies, hashes, custody and native
+  oriented dimensions. Authenticated Original reads regenerate native RGBA16;
+  no deep plane is stored in byte FramePack1. Chromium and Firefox workflows
+  prove actual menu import, thumbnails, native-depth white balance/exposure,
+  Save and reload with unchanged Original bytes. The preceding RAW/global
+  qualification passed six RAW browser cases: two full-menu workflows and four
+  native-worker cases across those browsers. Its selected Lightscaper Node
+  regression passed 2,845 cases in 319 files, including pinned Canon CRW import
+  through the actual native worker. The browser decoder
+  fetch uses the exact pinned artifact; external asset publication is still
+  pending. Current [RAW culling](docs/architecture/lightscaper-culling.md#current-raw-preview-source)
+  now offers View → RAW preview source, with neutral Original as default and
+  camera embedded JPEG by explicit choice. Camera dimensions and crop remain
+  independent of the Original; missing or explicitly unsupported previews fall
+  back sequentially. Both choices share the bounded queue and presenter, while
+  distinct cache recipes retain the existing paired storage and custody limits.
+  Develop, export and handoff keep their authenticated native Original readers.
+  The selected Lightscaper regression passes 3068 cases in 353 files; four
+  English/German Chromium/Firefox workflows qualify actual camera pixels,
+  cache reuse, culling saves, native Develop and reload. The Lightscaper build
+  retains 53 ready-graph requests and six initial requests within existing
+  ceilings. Broader camera coverage, complete GPU/native execution, reviewed
+  lens/camera profiles, L8 and L9 remain unfinished. Current native
+  Develop and raster export qualification is recorded above; remaining L3–L6
+  exit gates and L7 completion remain open.
+  A separate [RAW recovery decoder foundation](docs/architecture/lightscaper-raw-recovery.md)
+  now provides fixed headroom and highlight-reconstruction profiles with signed
+  linear Float32 capture before RGB16 clipping. Its 871,145-byte ABI2 artifact
+  reproduces exactly from the separate corresponding-source archive in a fresh
+  pinned compiler container. Owned sensor controls prove recovered channel
+  variation, stable midtones and retained headroom through the actual native
+  decoder and production worker. The selected Lightscaper regression passes
+  3,329 checks in 383 files, including 27 recovery checks. ABI1 and canonical
+  Source4 receipts remain unchanged. The subsequent
+  [Current source-processing integration](docs/architecture/lightscaper-raw-source-processing.md)
+  offers Canonical Original, Linear headroom and Highlight recovery through
+  Develop → Settings → RAW source processing. Its explicit process4 recipe
+  retains every existing adjustment group; Current Packet4/Preset4, history,
+  native rendering, raster delivery and editable Source4 carry that policy.
+  Before retains the canonical Original; After authenticates and lends the
+  selected ABI2 plane separately. Eight English/German Chromium/Firefox checks
+  qualify the actual menu, canonical Before, recovery/headroom After, repair,
+  Save/reload, PNG16 and Sidecar2 with complete native-plane comparisons and
+  unchanged Original custody. Focused Frame owner tests cover native saved and
+  draft rendering through the actual repair/mask/brush surfaces. Archive8 now
+  preserves native Row4, complete history, retained resource bodies and Original
+  custody through backup, restore and selected-session reopen. The broader
+  product qualification remains in progress; this
+  does not close the full L7 exit gate.
+- **Web Enhanced — In progress:** [opt-in GPU Develop preview](docs/architecture/lightscaper-develop-gpu-preview.md)
+  wires all eight native color families through Develop's existing Settings
+  menu: white balance, the full tone ladder, chroma, black-and-white mix, HSL,
+  point/parametric curves and wheels. Their recorded local software-GPU corpus
+  passed. Authenticated cube-LUT GPU stages also pass their recorded local
+  software-GPU and Firefox corpus. Stable Original capture precedes sequential
+  unique resource reads, and full body SHA/length/size/domain authentication
+  precedes GL. Private Double tables retain the existing CPU sampler separately
+  from the rounded upload. One maximum-size 3D texture and one upload bank
+  preserve authored order, input-domain clamp, signed/HDR output and exact alpha.
+  Distinct table/parser/execution/whole-CPU phases retain the 768-MiB ceiling,
+  including padded borrowed backings; Double tables retire before the final GPU
+  consumer. CPU remains the default; GPU preferred is temporary proxy/Full presentation
+  policy. Natural-extent GPU geometry passes the recorded local software-GPU and
+  Firefox corpus: legacy geometry stays first and authored geometry retains its
+  actual effect position. Up to 257 private passes bind the complete changing
+  descriptor chain; each viewport and the final readback use their admitted
+  extent. Ping-pong textures clear prior storage before resizing. Exact integer
+  inverse sampling handles integer crops/quarter turns; generic four-tap
+  premultiplied-linear filtering clamps crop edges, divides by unrounded alpha
+  and clears pixels outside the aperture. Identity geometry remains real
+  filtering, including hidden-RGB/zero canonicalization. Every GPU delivery is
+  checked against the normative CPU operation with
+  per-stage Float32 rounding: alpha, zeros, tiny samples below `2^-60` and final
+  unchanged components remain exact; other finite normal RGB permits at most
+  eight ULPs. Identity-knot rounding can legitimately select the complete CPU
+  route. Geometry uses a sequential whole-plane CPU reference with at most two
+  maximum-extent planes and exact normative output alpha; pointwise recipes
+  keep their streamed reference without those planes. CPU coordinate drift can
+  require whole CPU even for integer geometry. Capture, two maximum-extent
+  textures, final readback, reference planes, LUT resources and presentation,
+  plus distinct parser/fallback phases, retain the 768-MiB ceiling. Double LUT
+  tables stay scoped through validation and retire before consumer delivery.
+  Four private same-aperture optics kinds pass the recorded local software-GPU
+  and Firefox corpus: lens distortion, CA, defringe and optical vignette.
+  Lens/CA use stable signed displacement and per-tap zero-extension; lens computes
+  filtered alpha, while CA reconstructs active channels and copies Green/alpha
+  and raw-zero controls exactly. Raw activity survives rounded coefficients.
+  Defringe uses continuous alpha-weighted opponent differences and exact bypasses;
+  optical vignette applies incoming-aperture linear gain. They retain authored
+  order, per-stage Float32 and the existing two-plane CPU reference, without a
+  provenance image or invented unique ancestry after reconstruction. Source
+  validation yields before oracle allocation; source custody and the complete
+  physical 768-MiB phase ceiling remain unchanged. The non-dyadic lens one-ULP
+  alpha witness remains a required exact-CPU refusal; dyadic fractional-alpha
+  positives and tiny CA support refusal have separate recorded proofs.
+  E65 wires seven additional private same-aperture spatial kinds 14–20:
+  detail sharpening, post-crop vignette, clarity, noise reduction, grain, texture
+  and dehaze. Existing menu-owned authoring remains unchanged. Direct immutable
+  3×3/5×5/7×7 neighborhoods retain the native CPU formulas and per-stage Float32;
+  Q8/Q16 controls, unsigned seeded grain arithmetic with signed floor division,
+  and discrete vignette coverage remain explicit. No encoded image plane or
+  spatial image-sized scratch is introduced. Neighborhoods invalidate Original
+  coincidence ancestry; coupled grain/protected dark post-crop branches propagate
+  prior channel invalidation, while copy/independent policies never restore it.
+  The same two-plane native reference and 768-MiB physical ledger apply, including
+  the conservative 4096-byte extended uniform reserve.
+  Numerical, capability or capacity refusal retains the whole CPU recipe.
+  This correctness check also costs CPU work and makes no acceleration claim.
+  Current masks, authenticated brushes and selected overlays now share the
+  native preview path with complete phase admission and verified whole-CPU
+  fallback. Original-space Clone and screened-Poisson Heal now share that
+  native preview path and pass the recorded local software-GPU and Firefox corpus.
+  Remaining work includes full-stack conformance, native desktop services,
+  final inter-slice QA and the L7/L8/L9 exit gates. The configured digest-pinned Chromium
+  software-GPU baseline retains its Quality/Desktop Preview coverage
+  dependencies. The E64 baseline configuration named ten exact specs. Recorded
+  E64 local qualification passed all 86 software-Chromium cases and all 86 Firefox
+  compatibility cases, including ten coverage-enabled English/German UI
+  profiles. Compaction retained 116 scripts and 116 source maps with exact pins
+  for 23 processing, presentation and UI owners; 508 selected Lightscaper Node
+  cases passed in 67 files. Rapid numeric handoffs
+  preserve crop, rotation and flip through Save, with stale/disabled edits and
+  invalid-value cancellation covered. Those E64 browser UI workflows confirmed
+  focus before select-all and used separate per-key locator actions after bulk
+  insertion was observed to change DOM values without a native input event;
+  that test correction changed no application UI behavior.
+  Positive color/LUT/geometry/optics delivery and exact
+  whole-CPU precision fallback are independently witnessed. GPU fallback can
+  re-read SHA-bound LUT bytes through the same pinned resource method after
+  resource retirement, while the Original remains captured once. Authentication,
+  cancellation and cleanup failures never cause replay. No assistance or native
+  decoder runtime closure changes; no manual **Update AI assets** run is needed.
+  Hosted CI success and final inter-slice QA are not claimed.
+  E65 source/domain strict types and Lightscaper/canonical/Frame builds pass;
+  575 selected Lightscaper Node cases in 74 files and the separate 33-case native
+  spatial software corpus pass, including mandatory GPU positives for all seven
+  spatial families.
+  <!-- E65_INPUT_DELIVERY_CORRECTION -->
+  E65 also fixes a real preview loading-status bug: each publication belongs to
+  its accepted request interaction, so an older ready snapshot cannot label a
+  changed recipe, resolution, temporary policy or source owner ready. Current
+  readiness follows joined Original/render retirement. The preserved pinned
+  Chromium diagnostic archive proves native-input suppression during a debugger
+  pause and records Worker-checkpoint pointer-event loss; it does not establish
+  every causal step of the full UI failure or a universal browser/GPU defect.
+  Conformance workflows retain all worker coverage hooks and wait for the
+  corrected current view between keyboard actions. Rapid pending-work PNG
+  bursts remain a separate unprofiled workflow with literal pixels, Save/reopen
+  and custody checks; both English/German cases pass without profiling. Native
+  pixel oracles, source authority and coverage floors stay unchanged.
+  <!-- E65_VERIFIED_ROADMAP_BROWSER -->
+  The final E65 twelve-spec corpus passes all 121 software-Chromium cases and
+  all 121 Firefox compatibility cases. Its twelve English/German UI profiles
+  retain all worker coverage checkpoints; realtime profiling opt-outs stay exact.
+  <!-- E65_VERIFIED_RAPID_INTERACTION -->
+  The separate unprofiled English/German PNG proxy burst run passes both cases,
+  including trusted edits while prior work is pending, latest-output pixels,
+  Save/reopen and cancellation/custody.
+  <!-- E65_VERIFIED_ROADMAP_COVERAGE -->
+  Twelve E65 raw English/German UI profiles compact to 116 scripts and 116 source
+  maps. All 27 mapped processing/presentation/UI owners match their current
+  SHA-256 and have positive containing-script ranges. This is mapped-source and
+  containing-script evidence, not per-line GLSL coverage or a full-union coverage
+  floor pass; no floor tightening is claimed. E64 counts above remain predecessor
+  evidence. Hosted CI success remains pending.
 - **Electron Enhanced — Planned:** native raw decode and preview services
   through the milestone-5 helper architecture, fail-closed, with the WASM
   path as fallback.
-- **Shared — Planned:** manual lens corrections (distortion, chromatic
-  aberration, defringe, vignette) as shared effects.
+- **Shared — Done:** manual lens corrections (distortion, chromatic
+  aberration, defringe, vignette) as shared effects. The first
+  [manual distortion family](docs/architecture/lightscaper-lens-distortion.md)
+  has bounded radial sampling, native linear and byte execution, ordered
+  Current mask coverage transport and existing Photo/Frame authoring entry
+  points. Full-resolution delivery preserves the unchanged recipe and Original;
+  proxy editing uses its declared reduced grid. Shared video preview and FFmpeg
+  have explicit execution routes. Both Lightscaper and Frame builds retain the
+  existing graph and chunk ceilings.
+  [Manual chromatic correction](docs/architecture/lightscaper-chromatic-aberration.md)
+  now adds independent red/blue radial controls while retaining the green/alpha
+  reference grid. Current byte/native execution, local masks, PNG delivery and
+  editable Source2/3/4 handoffs preserve the authored recipe and Original.
+  Signed-displacement sampling retains tiny supported weights; exact WebGL2
+  texel reads avoid filtered alpha leakage. Its finite GPU corpus has recorded
+  preview precision limits; complete Photo Develop GPU conformance remains open.
+  [Manual defringe](docs/architecture/lightscaper-defringe.md) now adds separate
+  purple/green strengths and an edge threshold. Immutable alpha-supported
+  neighborhood statistics suppress local color excess while retaining flat
+  regions, alpha, transparent hidden color and unchanged native components.
+  Current byte/native processing, masks, PNG delivery, RAW Develop and editable
+  Source2/3/4 handoffs retain the authored recipe and Original. Proxy editing
+  evaluates its declared reduced neighborhood grid; Full/export use natural
+  resolution. [Manual optical vignette](docs/architecture/lightscaper-optical-vignette.md)
+  now multiplies linear RGB by a smooth radial gain, retaining black, signed
+  native values and exact alpha. It uses its authored incoming-stage extent:
+  effect-list crop order is preserved, and legacy geometry still runs first.
+  Byte/native Current processing, masks, PNG, RAW and editable Source2/3/4
+  delivery share that contract; the existing artistic post-crop vignette keeps
+  its separate behavior. Current qualification passes 3,302 selected
+  Lightscaper cases in 379 files, including 44 focused optical checks, and 34
+  Chromium/Firefox browser cases across all four manual lens families.
+  Reviewed profile corrections and complete Photo Develop GPU conformance
+  remain open.
 - **Shared — Blocked on licensing:** profile-based lens corrections until a
   lens-profile database passes the licensing review.
 - **Shared — Blocked on licensing:** camera-matching color profiles until a
   camera-profile source passes the licensing review; L7 ships neutral camera
   baseline rendering meanwhile.
-- **Shared — Planned:** wide-gamut output (Display P3) where the platform
-  proves it, and soft proofing against the export profile.
-- **Shared — Planned:** HDR exposure merge to a floating-point working image
-  with alignment and deghosting.
+- **Shared — Done:** [Display P3 PNG8/16 output and temporary soft proof](docs/architecture/lightscaper-output-color-profiles.md).
+  Shared final-output conversion follows Develop, resizing, output sharpening
+  and watermarks; native signed/HDR samples convert before target clipping.
+  Current Output3 retains the selected profile/depth through presets, batches,
+  journals and reviewed recovery, while old sRGB bytes and readers stay exact.
+  PNG cICP and Capture EXIF agree with the actual target samples; Strip retains
+  color declarations. P3 JPEG explicitly refuses pending a matching ICC path.
+  Develop's existing Settings menu owns temporary profile/depth proofing;
+  canonical Before, saved recipes, history and Original custody stay unchanged.
+  Actual native canvas/readback qualification enables P3 proof in the tested
+  Chromium and refuses it in the tested Firefox, which still supports sRGB
+  proof and truthful P3 file export. Qualification passes 516 selected
+  Lightscaper cases, four English/German Chromium/Firefox RAW workflows and
+  17 historical sRGB byte comparisons. Custom ICC profiles, physical-monitor
+  calibration, HDR delivery and the remaining L7 exit gates stay outside this
+  completed output-profile packet.
+- **Shared — Done:** [HDR exposure merge](docs/architecture/lightscaper-hdr-merge.md).
+  Existing Photo and Frame menus merge 2–9 canonical Originals with explicit
+  reference-relative exposures, integer Ward-MTB alignment and reference
+  deghosting. Scoped Preview clips only for sRGB display; the generated Original
+  retains signed Float32 radiance and hashed bracket provenance. Bounded staging
+  and native source-CAS publication preserve custody. Current Photo and editable
+  Frame Source5 retain native authority through Develop, save/reopen, Scape
+  archives and forward/reverse handoff; FramePack1 bytes remain presentation
+  cache. Qualification passes 185 selected Lightscaper tests and eight
+  English/German Chromium/Firefox creation and editable-handoff workflows.
+  Full Photo Develop GPU evaluation, native desktop services and the broader
+  L7/L8/L9 exit gates remain open.
 - **Shared — Deferred:** panorama stitching.
 - **Shared — Optional:** DNG output.
 

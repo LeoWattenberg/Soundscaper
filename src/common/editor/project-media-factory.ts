@@ -42,7 +42,7 @@ import {
 	validateBreakpointMap,
 	videoFrameRangeToSampleRange,
 } from './timeline-time.ts';
-import { normalizeVideoEffects } from './video-effects.js';
+import { createFoundationVideoClip, createFoundationVideoClipV2 } from './project-video-clip-factory-core.ts';
 import { normalizeVideoTimingAssetReference } from './video-timing-asset-reference.ts';
 
 export {
@@ -200,6 +200,16 @@ export function createVideoClip(
 	options: MediaFactoryInput = {}, context?: Readonly<VideoClipContext>,
 ): Record<string, unknown> {
 	if (!context) return { ...clone(options), ...createFoundationVideoClip(options), kind: 'video' };
+	return createTimedVideoClip(options, context, false);
+}
+
+/** Explicit current Frame leaf; the no-context fixture API stays V1. */
+export function createVideoClipV2<const Options extends MediaFactoryInput>(options: Options,
+	context: Readonly<VideoClipContext>): MediaFactoryResult<Options, VideoClipLeaf> {
+	if (!context) throw new TypeError('A current Frame clip requires its timing context.');
+	return createTimedVideoClip(options, context, true) as MediaFactoryResult<Options, VideoClipLeaf>;
+}
+function createTimedVideoClip(options: MediaFactoryInput, context: Readonly<VideoClipContext>, resourceV2: boolean): Record<string, unknown> {
 	const sampleRate = normalizeProjectSampleRate(context.projectSampleRate);
 	const sequenceRate = rationalRate(context.sequence.rate, 'sequence.rate');
 	const sourceRate = rationalRate(context.source.frameRate, 'source.frameRate');
@@ -250,7 +260,7 @@ export function createVideoClip(
 		sourceRate,
 		sampleRate,
 	);
-	const legacy = createFoundationVideoClip({
+	const legacy = (resourceV2 ? createFoundationVideoClipV2 : createFoundationVideoClip)({
 		...options,
 		timelineStartFrame: resolved.startFrame,
 		durationFrames: resolved.durationFrames,
@@ -283,6 +293,13 @@ export function createMediaClip<const Options extends MediaFactoryInput>(
 ): MediaClipLeafFor<Options> {
 	return options.kind === 'video'
 		? createVideoClip(options, context) as unknown as MediaClipLeafFor<Options>
+		: createAudioClip(options, context) as MediaClipLeafFor<Options>;
+}
+
+/** Current Frame foundation opts in without widening the legacy media factory. */
+export function createMediaClipV2<const Options extends MediaFactoryInput>(options: Options,
+	context: Readonly<MediaClipContext>): MediaClipLeafFor<Options> {
+	return options.kind === 'video' ? createVideoClipV2(options, context) as MediaClipLeafFor<Options>
 		: createAudioClip(options, context) as MediaClipLeafFor<Options>;
 }
 
@@ -396,36 +413,6 @@ function createFoundationVideoSource(
 		posterStorageKey: optionalString(options.posterStorageKey, 'source.posterStorageKey'),
 		thumbnailStorageKey: optionalString(options.thumbnailStorageKey, 'source.thumbnailStorageKey'),
 		opaqueExtensions: clone(options.opaqueExtensions ?? {}),
-	};
-}
-
-function createFoundationVideoClip(options: Record<string, unknown>): Record<string, unknown> {
-	const durationFrames = safeInteger(options.durationFrames, 1, 'clip.durationFrames');
-	return {
-		kind: 'video',
-		id: options.id || createStableId('video-clip'),
-		sourceId: nonEmptyString(options.sourceId, 'clip.sourceId'),
-		title: String(options.title || 'Video clip'),
-		timelineStartFrame: safeInteger(options.timelineStartFrame ?? 0, 0, 'clip.timelineStartFrame'),
-		sourceStartFrame: safeInteger(options.sourceStartFrame ?? 0, 0, 'clip.sourceStartFrame'),
-		sourceDurationFrames: safeInteger(
-			options.sourceDurationFrames ?? durationFrames,
-			1,
-			'clip.sourceDurationFrames',
-		),
-		durationFrames,
-		trimStartFrames: safeInteger(options.trimStartFrames ?? 0, 0, 'clip.trimStartFrames'),
-		trimEndFrames: safeInteger(options.trimEndFrames ?? 0, 0, 'clip.trimEndFrames'),
-		groupId: optionalId(options.groupId, 'clip.groupId'),
-		color: nonEmptyString(options.color || 'auto', 'clip.color'),
-		speedRatio: positiveFinite(options.speedRatio ?? 1, 'clip.speedRatio'),
-		avLinkId: optionalId(options.avLinkId, 'clip.avLinkId'),
-		binItemId: optionalId(options.binItemId, 'clip.binItemId'),
-		opaqueExtensions: clone(options.opaqueExtensions ?? {}),
-		videoEffects: normalizeVideoEffects(
-			Object.hasOwn(options, 'videoEffects') ? options.videoEffects : [],
-			'clip.videoEffects',
-		),
 	};
 }
 

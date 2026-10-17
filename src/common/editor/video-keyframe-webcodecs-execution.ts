@@ -31,7 +31,8 @@ import {
 	type VideoKeyframeExecutionProductionContext,
 } from './video-keyframe-execution-engine.ts';
 import { createExactVideoKeyframeRgbaProducer } from './video-keyframe-rgba-producer-guard.ts';
-import { produceVideoWebCodecsStream } from './video-webcodecs-producer.ts';
+import { produceVideoWebCodecsStream, type VideoWebCodecsRgbaColorSpace } from './video-webcodecs-producer.ts';
+import { validateVideoKeyframeWebCodecsDecision } from './video-keyframe-webcodecs-decision.ts';
 
 /** What the capability probe decided, carried down to the encoder that runs. */
 export interface VideoKeyframeWebCodecsEncode {
@@ -39,8 +40,14 @@ export interface VideoKeyframeWebCodecsEncode {
 	/** The full codec string `VideoEncoder.isConfigSupported` accepted. */
 	readonly codec: string;
 	readonly bitrate: number;
+	readonly rgbaColorSpace?: VideoWebCodecsRgbaColorSpace;
 	readonly encoderClass: unknown;
 	readonly videoFrameClass: unknown;
+}
+
+/** The private decision snapshot is taken before audio, leases, muxers or native construction. */
+export function admitVideoKeyframeWebCodecsEncode(input: unknown): VideoKeyframeWebCodecsEncode {
+	return validateVideoKeyframeWebCodecsDecision(input);
 }
 
 export interface VideoKeyframeWebCodecsExecutionRequest {
@@ -60,6 +67,7 @@ export interface VideoKeyframeWebCodecsExecutionRequest {
 export async function executeVideoKeyframeWebCodecsEncoder(
 	request: VideoKeyframeWebCodecsExecutionRequest,
 ): Promise<VideoKeyframeEncoderResult> {
+	request = { ...request, webCodecs: admitVideoKeyframeWebCodecsEncode(request.webCodecs) };
 	const { workload, webCodecs } = request;
 	if (workload.videoEncoder !== 'webcodecs') {
 		throw new Error('A WebCodecs keyed encode requires a WebCodecs-admitted workload.');
@@ -117,6 +125,7 @@ async function writeEncodedStream(
 		videoCodec: workload.elementaryFormat === 'ivf' ? 'vp9' : 'h264',
 		codec: webCodecs.codec,
 		bitrate: webCodecs.bitrate,
+		...(webCodecs.rgbaColorSpace === undefined ? {} : { rgbaColorSpace: webCodecs.rgbaColorSpace }),
 		...(webCodecs.hardwareAcceleration ? { hardwareAcceleration: webCodecs.hardwareAcceleration } : {}),
 		encoderClass: webCodecs.encoderClass as never,
 		videoFrameClass: webCodecs.videoFrameClass as never,

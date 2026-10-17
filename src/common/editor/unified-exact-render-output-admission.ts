@@ -16,7 +16,7 @@ import {
 } from './native-media-v14-native-dispatch.ts';
 
 interface UnifiedOutputAdmission {
-	readonly version: 9 | 10 | 11 | 12 | 13 | 14 | 15;
+	readonly version: 9 | 10 | 11 | 12 | 13 | 14 | 15 | 16;
 	readonly deliveryProfile?: NativeMediaV14EncodeProfileId;
 	readonly format: Readonly<{ readonly container: 'mp4' | 'webm' | 'mov' | 'mxf' | 'matroska' | 'image2' }>;
 	readonly codecs: Readonly<{

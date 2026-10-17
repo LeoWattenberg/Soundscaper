@@ -1,0 +1,80 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+
+.lightscaper-compare {
+	min-width: 0;
+}
+
+.lightscaper-compare-pair {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 1rem;
+}
+
+.lightscaper-compare-side {
+	min-width: 0;
+	padding: 0.75rem;
+	border: 1px solid currentColor;
+	border-radius: 0.375rem;
+}
+
+.lightscaper-compare-side:focus-visible,
+.lightscaper-compare-side:focus-within {
+	outline: 3px solid currentColor;
+	outline-offset: 2px;
+}
+
+.lightscaper-compare-side h3 {
+	margin: 0 0 0.5rem;
+}
+
+.lightscaper-compare-file {
+	display: block;
+	overflow-wrap: anywhere;
+}
+
+.lightscaper-compare-fit {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	min-height: 12rem;
+	margin-top: 0.75rem;
+}
+
+.lightscaper-compare-fit canvas {
+	display: block;
+	max-width: 100%;
+	max-height: min(48vh, 32rem);
+	object-fit: contain;
+}
+
+.lightscaper-compare-facts,
+.lightscaper-compare-keys {
+	font-size: 0.875em;
+	overflow-wrap: anywhere;
+}
+
+.lightscaper-compare-controls,
+.lightscaper-compare-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.75rem;
+}
+
+.lightscaper-compare-controls label {
+	display: grid;
+	gap: 0.25rem;
+}
+
+.lightscaper-compare-actions {
+	justify-content: flex-end;
+	margin-top: 1rem;
+}
+
+@media (max-width: 600px) {
+	.lightscaper-compare-pair {
+		grid-template-columns: minmax(0, 1fr);
+	}
+	.lightscaper-compare-fit {
+		min-height: 8rem;
+	}
+}

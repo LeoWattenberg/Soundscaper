@@ -7,6 +7,9 @@ import {
 	chooseDropdown, closeEffectsPanel, disableNativeSavePicker, openExportDialog,
 } from './audio-editor-test-helpers.js';
 
+// Live worklet checks share the audio clock's start deadline, which precise V8 coverage can delay.
+const realtimeTest = test.extend({ browserCoverage: false });
+
 test.describe('de-esser and multiband compressor', () => {
 	registerAudioEditorHooks();
 	for (const effect of [
@@ -32,7 +35,7 @@ test.describe('de-esser and multiband compressor', () => {
 			expect(errors).toEqual([]);
 		});
 
-		test(`${effect.name} loads its worklet and retains rack settings after reload`, async ({ page }) => {
+		realtimeTest(`${effect.name} loads its worklet and retains rack settings after reload`, async ({ page }) => {
 			const errors = collectClientErrors(page);
 			const editor = await bootEditor(page, '/embed/en/');
 			await importFiles(editor, [monoTone]);
@@ -86,7 +89,7 @@ test.describe('de-esser and multiband compressor', () => {
 		});
 	}
 
-	test('multiband compressor reuses the live compressor input and output graph', async ({ page }) => {
+	realtimeTest('multiband compressor reuses the live compressor input and output graph', async ({ page }) => {
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');
 		await importFiles(editor, [longTone]);

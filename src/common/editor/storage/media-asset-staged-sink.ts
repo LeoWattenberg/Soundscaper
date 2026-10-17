@@ -17,6 +17,8 @@ import type { OpfsBinaryWriter, OpfsRepository } from './opfs-repository.ts';
 import { copyUint8ArrayToArrayBuffer } from './binary-copy.ts';
 
 const throwIfAborted = createAbortGuard('Media storage was cancelled.');
+const nativeAborted = Object.getOwnPropertyDescriptor(AbortSignal.prototype, 'aborted')!.get!;
+const nativeReason = Object.getOwnPropertyDescriptor(AbortSignal.prototype, 'reason')!.get!;
 
 export interface StagedMediaSink {
 	readonly storage: string;
@@ -42,6 +44,7 @@ export async function prepareMediaAssetStaging({
 	opfs,
 	signal,
 	confirmFileSizeWarning,
+	discardStagedPath,
 }: Readonly<{
 	sourceId: string;
 	expectedBytes: number;
@@ -52,19 +55,22 @@ export async function prepareMediaAssetStaging({
 	opfs: OpfsRepository;
 	signal?: AbortSignal;
 	confirmFileSizeWarning?: FileSizeWarningConfirmation;
+	/** Strict owners verify failed plan paths before giving up their durable lease. */
+	discardStagedPath?: (path: string) => Promise<void>;
 }>): Promise<PreparedMediaAssetStaging> {
 	const plan = database ? await opfs.planBinaryWriter(`media-${sourceId}`, { signal })
-		.catch((error: unknown) => { throw browserFileStorageFailure('OPFS media planning', error); }) : null;
+		.catch((error: unknown) => { throw storageFailure('OPFS media planning', error, signal); }) : null;
 	if (plan) {
 		const lease = await staging.acquire(sourceId, { path: plan.path }, database);
 		let writer: OpfsBinaryWriter | null;
 		try {
 			writer = await plan.open();
 		} catch (error) {
-			return releaseLeaseAfterFailure(lease, browserFileStorageFailure('OPFS media admission', error));
+			if (discardStagedPath) await discardFailedPlan(plan.path, discardStagedPath, error);
+			return releaseLeaseAfterFailure(lease, storageFailure('OPFS media admission', error, signal));
 		}
 		if (writer) {
-			const sink = opfsSink(writer, lease);
+			const sink = opfsSink(writer, lease, discardStagedPath);
 			try {
 				await lease.checkpoint();
 			} catch (error) {
@@ -72,6 +78,7 @@ export async function prepareMediaAssetStaging({
 			}
 			return { sink, lease };
 		}
+		if (discardStagedPath) await discardFailedPlan(plan.path, discardStagedPath);
 		try {
 			await lease.release();
 		} catch (cleanupError) {
@@ -137,24 +144,46 @@ function chunkSink(
 	};
 }
 
-function opfsSink(writer: OpfsBinaryWriter, lease: MediaAssetStagingLease): StagedMediaSink {
+function opfsSink(writer: OpfsBinaryWriter, lease: MediaAssetStagingLease, discardStagedPath?: (path: string) => Promise<void>): StagedMediaSink {
 	return {
 		storage: 'opfs',
 		path: writer.path,
 		write: async (bytes, _index, signal) => {
 			await lease.checkpoint();
 			try { await writer.write(bytes, { signal }); }
-			catch (error) { throw browserFileStorageFailure('OPFS media write', error); }
+			catch (error) { throw storageFailure('OPFS media write', error, signal); }
 			await lease.checkpoint();
 		},
 		close: async (signal) => {
 			await lease.checkpoint();
 			try { await writer.close({ signal }); }
-			catch (error) { throw browserFileStorageFailure('OPFS media close', error); }
+			catch (error) { throw storageFailure('OPFS media close', error, signal); }
 			await lease.checkpoint();
 		},
-		abort: () => writer.abort(),
+		abort: async () => {
+			if (!discardStagedPath) return writer.abort();
+			const errors: unknown[] = [];
+			try { await writer.abort(); } catch (error) { errors.push(error); }
+			try { await discardStagedPath(writer.path); } catch (error) { errors.push(error); }
+			if (errors.length) throw new MediaAssetCleanupError(errors, 'Strict staged OPFS cleanup failed.');
+		},
 	};
+}
+
+function storageFailure(operation: string, primary: unknown, signal?: AbortSignal): unknown {
+	if (signal && (Reflect.apply(nativeAborted, signal, []) as boolean)
+		&& Object.is(Reflect.apply(nativeReason, signal, []), primary)) return primary;
+	return browserFileStorageFailure(operation, primary);
+}
+
+async function discardFailedPlan(path: string, discard: (path: string) => Promise<void>, primary?: unknown): Promise<void> {
+	try { await discard(path); }
+	catch (cleanup) {
+		// The caller intentionally keeps the durable path lease if no verified
+		// absence can be established; chunk fallback must not hide an owned body.
+		throw new MediaAssetCleanupError(primary === undefined ? [cleanup] : [primary, cleanup],
+			'Failed OPFS plan cleanup could not verify path removal.');
+	}
 }
 
 async function abortStagingAfterFailure(

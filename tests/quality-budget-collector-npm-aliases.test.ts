@@ -40,7 +40,10 @@ test('collector aliases live under the quality namespace and invoke node directl
 	assert.ok(aliases.length >= collectorScripts().length, 'Each collector needs at least one alias.');
 	for (const [name, command] of aliases) {
 		assert.match(name, /^quality:collect:/u, `${name} must be a diagnostic collector alias.`);
-		assert.match(command, /^node scripts\/collect-/u, `${name} must invoke its collector with node.`);
+		// The browser collector imports maintained TypeScript fixture owners.
+		const pattern = name === 'quality:collect:ci-diagnostics'
+			? /^node --import tsx scripts\/collect-ci-diagnostics\.mjs$/u : /^node scripts\/collect-/u;
+		assert.match(command, pattern, `${name} must invoke its collector with node.`);
 	}
 	assert.equal(Object.keys(scripts).some((name) => name.startsWith('quality:cohort:')), false);
 });

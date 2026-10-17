@@ -159,7 +159,7 @@ export default function createApplicationMenus({
 		editingBlocked: editBlocked,
 		copy, actions,
 	});
-	const productItems = createApplicationMenuProductItems({ productId, capabilities, project, snapshot, editBlocked, copy, actions });
+	const productItems = createApplicationMenuProductItems({ productId, capabilities, project, snapshot, editBlocked, copy, actions, locale });
 	const clipSelectionNavigationMenus = createClipSelectionNavigationMenuModel({ project, selectedTrackId: snapshot.selectedTrackId ?? null, blocked, copy, selectionActive: editSelectionActive }, selectionMenu);
 	const structuralMenus = createTrackStructuralOperationMenuModel({ copy, editingBlocked: editBlocked,
 		hasTracks: Boolean(project?.tracks.length),

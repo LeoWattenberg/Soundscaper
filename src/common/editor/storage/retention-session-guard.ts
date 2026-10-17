@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { request, transact } from './indexeddb-backend.ts';
+import { readClosedDomainField, readClosedDomainRecord } from '../closed-domain-value.ts';
+import { readCursorPage, request, transact } from './indexeddb-backend.ts';
 import type { EditorMemoryDatabase } from './memory-backend.ts';
 import { createProjectStoreId } from './project-store-defaults.ts';
 import type { StorageRepositoryPort } from './repository-port.ts';
@@ -134,6 +135,53 @@ export class RetentionSessionGuard {
 			if (other) return { admitted: false } as const;
 			return { admitted: true, value: await operation() } as const;
 		});
+	}
+
+	/** Hold global registration admission while bounded native inventories prove ownership. */
+	async withStartupSoleSession<Value>(
+		database: IDBDatabase,
+		operation: (inspect: (candidate: IDBDatabase) => Promise<boolean>) => Promise<Value>,
+	): Promise<Readonly<{ admitted: false } | { admitted: true; value: Value }>> {
+		if (this.#released || !this.#locks || !this.#releaseLock) return { admitted: false };
+		const requestLock = this.#locks.request.bind(this.#locks);
+		const inspect = (candidate: IDBDatabase) => this.#startupSessions(candidate, candidate.name === database.name, requestLock);
+		return requestLock(SESSION_ADMISSION_LOCK, { mode: 'exclusive' }, async lock => {
+			if (!lock || !await inspect(database)) return { admitted: false } as const;
+			return { admitted: true, value: await operation(inspect) } as const;
+		});
+	}
+
+	async #startupSessions(database: IDBDatabase, own: boolean, requestLock: LockManager['request']): Promise<boolean> {
+		if (this.#released || !this.#releaseLock) return false;
+		const records = await transact(database, 'settings', 'readonly', async ({ settings }) => {
+			const query = IDBKeyRange.bound(SESSION_KEY_PREFIX, 'audio-editor-retention-session-v1;', false, true);
+			const project = (value: unknown, key: IDBValidKey) => ({ key, value });
+			const page = await readCursorPage(settings, { query, limit: 64, project });
+			if (page.length === 64 && (await readCursorPage(settings,
+				{ query, limit: 1, afterPrimaryKey: page[63]!.key, project })).length) return null;
+			return page;
+		});
+		if (!records) return false;
+		let foundOwn = false;
+		for (const entry of records) {
+			let key: string;
+			try {
+				const wrapper = readClosedDomainRecord(entry.value, 'retained session', ['key', 'value']);
+				const storedKey = readClosedDomainField(wrapper, 'key', 'retained session');
+				const marker = readClosedDomainRecord(readClosedDomainField(wrapper, 'value', 'retained session'),
+					'retained session marker', ['version', 'owner', 'webLock']);
+				if (typeof storedKey !== 'string' || storedKey !== entry.key || !storedKey.startsWith(SESSION_KEY_PREFIX)
+					|| readClosedDomainField(marker, 'version', 'retained session marker') !== 1
+					|| readClosedDomainField(marker, 'owner', 'retained session marker') !== storedKey
+					|| readClosedDomainField(marker, 'webLock', 'retained session marker') !== true) return false;
+				key = storedKey;
+			} catch { return false; }
+			if (own && key === this.#key) { foundOwn = true; continue; }
+			try {
+				if (!await requestLock(key, { mode: 'exclusive', ifAvailable: true }, lock => Boolean(lock))) return false;
+			} catch { return false; }
+		}
+		return !this.#released && (!own || foundOwn);
 	}
 
 	/** Confirm browser-released owners before the separate atomic prune transaction. */

@@ -12,6 +12,7 @@ import type { AudioEditorClipboard, CommandObject } from './protocol.ts';
 
 type DataRecord = Record<string, unknown>;
 type IdFactory = (prefix: string) => string;
+type AdmittedClipboardTakeContent = Pick<AudioEditorClipboard, 'tracks' | 'takeGroups' | 'durationFrames' | 'sampleRate'>;
 
 interface ClipboardTakeLane {
 	readonly key: string;
@@ -192,6 +193,13 @@ export function prepareTakeCompClipboardPasteIds(
 	idFactory: IdFactory,
 ): void {
 	if (clipboard.schemaVersion !== 4 && clipboard.schemaVersion !== 5 && clipboard.schemaVersion !== 6) return;
+	prepareTakeCompClipboardPasteIdsFromAdmittedContent(clipboard, command, idFactory);
+}
+
+/** Versionless take content after the fixed clipboard owner has admitted it. */
+export function prepareTakeCompClipboardPasteIdsFromAdmittedContent(
+	clipboard: AdmittedClipboardTakeContent, command: MutablePasteCommand, idFactory: IdFactory,
+): void {
 	const groups = normalizeTakeCompClipboardGroups(clipboard.takeGroups);
 	const takeGroupIds = nullRecord();
 	const takeLaneIds = nullRecord();
@@ -226,6 +234,16 @@ export function stageTakeCompClipboardPaste(
 		}
 		return () => undefined;
 	}
+	return stageTakeCompClipboardPasteFromAdmittedContent(project, clipboard, command, mode, scale, geometry);
+}
+
+/** The current wrapper joins the same take capability and projected publication. */
+export function stageTakeCompClipboardPasteFromAdmittedContent(
+	projectValue: unknown, clipboard: AdmittedClipboardTakeContent, commandValue: unknown,
+	mode: string, scale: number, geometry: PasteGeometry,
+): () => void {
+	const project = record(projectValue, 'project');
+	const command = record(commandValue, 'clipboard paste command') as MutablePasteCommand;
 	if (!isTakeCompProjectSchema(project)) {
 		throw new RangeError('Take-comp clipboard paste requires schema 17.');
 	}
@@ -417,7 +435,7 @@ function scaledTakeBoundaries(
 
 function assertInsertPreservesTakeGroups(
 	project: DataRecord,
-	clipboard: AudioEditorClipboard,
+	clipboard: AdmittedClipboardTakeContent,
 	command: MutablePasteCommand,
 	mode: string,
 ): void {

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import type { AudioEditorCommand } from './protocol.ts';
+import type { CurrentAudioEditorMutationCommandV2 } from './clipboard-command-v2.ts';
 import {
 	resolveRuntimeClipProjection,
 	type RuntimeClipProject,
@@ -38,7 +38,7 @@ interface RetimeBaseline {
 }
 
 export interface VideoRetimePreservationAdmission {
-	beforeCommand(project: unknown, command: AudioEditorCommand): void;
+	beforeCommand(project: unknown, command: CurrentAudioEditorMutationCommandV2): void;
 	afterCommand(project: unknown): void;
 	assertPersistedResult(project: unknown): void;
 }
@@ -77,7 +77,7 @@ export function createVideoRetimePreservationAdmission(
 		return entry ? stableId(dataValue(entry.clip, 'sourceId'), `clip ${id}.sourceId`) : '';
 	}).filter(Boolean));
 
-	function beforeCommand(_projectValue: unknown, command: AudioEditorCommand): void {
+	function beforeCommand(_projectValue: unknown, command: CurrentAudioEditorMutationCommandV2): void {
 		if (commandIntroducesRetimeState(command)) refuseSet();
 		const subject = protectedCommandSubject(command, baselines, protectedSourceIds);
 		if (subject !== null) refuse(subject);
@@ -105,7 +105,7 @@ export function createVideoRetimePreservationAdmission(
 	return Object.freeze({ beforeCommand, afterCommand, assertPersistedResult });
 }
 
-function commandIntroducesRetimeState(command: AudioEditorCommand): boolean {
+function commandIntroducesRetimeState(command: CurrentAudioEditorMutationCommandV2): boolean {
 	switch (command.type) {
 		case 'clip/add':
 		case 'project-bin/add':
@@ -269,7 +269,7 @@ function assertSameProtectedIds(
 }
 
 function protectedCommandSubject(
-	command: AudioEditorCommand,
+	command: CurrentAudioEditorMutationCommandV2,
 	clips: ReadonlyMap<string, RetimeBaseline>,
 	sources: ReadonlySet<string>,
 ): string | null {

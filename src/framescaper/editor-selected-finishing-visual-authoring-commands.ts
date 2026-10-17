@@ -24,6 +24,7 @@ import {
 } from '../common/editor/video-visual-presentation-v27.ts';
 import {
 	assertFramescaperSelectedVisualAuthoringFenceFinishing,
+	createFramescaperMaskNodeFinishing,
 	createFramescaperSelectedVisualAuthoringModelFinishing,
 	type FramescaperSelectedVisualAuthoringFenceFinishing,
 	type FramescaperSelectedVisualAuthoringSurfaceFinishing,
@@ -67,6 +68,10 @@ export interface FramescaperSelectedVisualAuthoringRequestFinishing {
 	readonly shape?: string;
 	readonly width?: number;
 	readonly height?: number;
+	readonly startX?: number; readonly startY?: number; readonly endX?: number; readonly endY?: number;
+	readonly centerX?: number; readonly centerY?: number; readonly radiusX?: number; readonly radiusY?: number; readonly innerFraction?: number;
+	readonly lower?: number; readonly upper?: number; readonly falloff?: number;
+	readonly red?: number; readonly green?: number; readonly blue?: number; readonly radius?: number;
 	readonly presetId?: string | null;
 	readonly name?: string;
 	readonly playheadSample?: number;
@@ -156,43 +161,27 @@ function maskCommand(project: Data, request: Data): unknown {
 			throw new Error('The selected mask attachment is stale. Reopen the dialog.');
 		}
 		const mask = requireById(records(project.videoMaskMattes, 'video masks'), requestedMaskId, 'selected mask');
-		const presentation = normalizeVideoVisualPresentationV1({
-			...currentPresentation,
-			maskMatteIds: currentPresentation.maskMatteIds.filter((id) => id !== requestedMaskId),
-		});
+		const presentation = normalizeVideoVisualPresentationV1({ ...currentPresentation,
+			maskMatteIds: currentPresentation.maskMatteIds.filter((id) => id !== requestedMaskId) });
 		const referencedElsewhere = records(project.videoVisualPresentations, 'visual presentations')
 			.some((value) => value.id !== currentPresentation.id && Array.isArray(value.maskMatteIds)
 				&& value.maskMatteIds.includes(requestedMaskId));
-		return batch([
-			presentationSet(currentPresentation, presentation),
-			...(referencedElsewhere ? [] : [{
-				type: 'video-mask-matte/set', maskMatteId: requestedMaskId,
-				expectedMaskMatte: mask, maskMatte: null,
-			}]),
+		return batch([presentationSet(currentPresentation, presentation),
+			...(referencedElsewhere ? [] : [{ type: 'video-mask-matte/set', maskMatteId: requestedMaskId,
+				expectedMaskMatte: mask, maskMatte: null }]),
 		]);
 	}
 	const maskId = requestedMaskId ?? createStableId('mask-matte');
-	const currentMask = requestedMaskId === null ? null
-		: requireById(records(project.videoMaskMattes, 'video masks'), maskId, 'selected mask');
-	const shape = oneOf(request.shape, ['rectangle', 'ellipse', 'line'] as const, 'mask shape');
-	const width = bounded(request.width, 0.01, 1, 'mask width');
-	const height = bounded(request.height, 0.01, 1, 'mask height');
-	const nodeId = currentMask && Array.isArray(currentMask.nodes)
-		? stableId(record(currentMask.nodes[0], 'mask node').id, 'mask node ID')
+	const currentMask = requestedMaskId === null ? null : requireById(records(project.videoMaskMattes, 'video masks'), maskId, 'selected mask');
+	const nodeId = currentMask ? stableId(currentMask.outputNodeId, 'mask node ID')
 		: createStableId('mask-node');
-	const mask = normalizeVideoMaskMatteGraphV1({
-		schemaVersion: 1, id: maskId, kind: 'mask', inputs: [],
-		nodes: [{ id: nodeId, kind: 'vector-shape', shape,
-			x: (1 - width) / 2, y: (1 - height) / 2, width, height }],
-		outputNodeId: nodeId,
-	});
+	const node = createFramescaperMaskNodeFinishing(request, nodeId);
+	const mask = normalizeVideoMaskMatteGraphV1({ schemaVersion: 1, id: maskId, kind: currentMask?.kind ?? 'mask', inputs: [], nodes: [node], outputNodeId: nodeId });
 	const presentation = currentPresentation
-		? normalizeVideoVisualPresentationV1({ ...currentPresentation,
-			maskMatteIds: [...new Set([...currentPresentation.maskMatteIds, maskId])] })
+		? normalizeVideoVisualPresentationV1({ ...currentPresentation, maskMatteIds: [...new Set([...currentPresentation.maskMatteIds, maskId])] })
 		: defaultPresentation(stableId(clip.id, 'selected clip ID'), [maskId]);
 	return batch([
-		{ type: 'video-mask-matte/set', maskMatteId: maskId,
-			expectedMaskMatte: currentMask, maskMatte: mask },
+		{ type: 'video-mask-matte/set', maskMatteId: maskId, expectedMaskMatte: currentMask, maskMatte: mask },
 		...(currentPresentation?.maskMatteIds.includes(maskId) ? [] : [presentationSet(currentPresentation, presentation)]),
 	]);
 }

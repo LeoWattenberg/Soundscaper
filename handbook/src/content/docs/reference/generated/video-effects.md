@@ -12,22 +12,45 @@ Video effects are registered by Framescaper. They are stacked on a clip, an adju
 
 One definition owns each effect’s parameters, and the preview and the export both read it, so an effect that is visible in the preview is the effect the export renders.
 
+Color grading wheels use the explicit `srgb-scalar-lgg-wheels-v1` process. Shadows, midtones and highlights control overlapping lift, gamma and gain. Each straight encoded sRGB channel decodes to linear Rec.709, applies lift → gain → gamma, clips, encodes sRGB and rounds half up to a byte. Alpha stays unchanged. Only nine numeric controls persist; lookup tables are derived when the current CPU stage or native upload needs them.
+This scalar process preserves its own exact byte contract. Legacy managed GradeV1 retains its existing luminance recombination and rounding; the two processes can differ at half-byte boundaries.
+
 ## Effects
 
 | Effect | Effect ID | Parameters |
 | --- | --- | --- |
+| Black-and-white mix | `black-white-mix-v1` | 8 |
 | Chroma Key | `chroma-key` | 3 |
+| Chromatic aberration | `chromatic-aberration-v1` | 2 |
+| Clarity | `clarity-v1` | 1 |
 | Color Adjust | `color-adjust` | 5 |
+| Color grading wheels | `color-wheels-v1` | 9 |
+| Crop and perspective (contain) | `develop-geometry-v1` | 17 |
+| Defringe | `defringe-v1` | 3 |
+| Dehaze | `dehaze-v1` | 1 |
+| Detail sharpening | `detail-sharpen-v1` | 2 |
 | Drop Shadow | `drop-shadow` | 5 |
 | Gaussian Blur | `gaussian-blur` | 1 |
 | Glow | `glow` | 3 |
+| Grain | `grain-v1` | 4 |
+| HSL mixer | `hsl-mixer-v1` | 24 |
+| Lens distortion | `lens-distortion-v1` | 1 |
 | Luma Key | `luma-key` | 3 |
+| Noise reduction | `noise-reduction-v1` | 6 |
+| Optical vignette | `optical-vignette-v1` | 1 |
 | Outline | `outline` | 3 |
+| Parametric curves | `parametric-curves-v1` | 19 |
 | Pixelate | `pixelate` | 1 |
+| Point curves | `point-curves-v1` | 4 |
+| Post-crop vignette | `post-crop-vignette-v1` | 5 |
 | RGB Split | `rgb-split` | 2 |
 | Sharpen | `sharpen` | 1 |
 | Spill Suppression | `spill-suppression` | 2 |
+| Texture | `texture-v1` | 1 |
+| Tone | `tone-ladder-v1` | 6 |
+| Vibrance and saturation | `chroma-v1` | 2 |
 | Vignette | `vignette` | 1 |
+| White balance | `white-balance-v1` | 2 |
 
 ## Parameters
 
@@ -35,14 +58,57 @@ Defaults and limits come from the same definitions the editor validates against.
 
 | Effect | Parameter | Default | Range | Unit |
 | --- | --- | --- | --- | --- |
+| Black-and-white mix | Red | 0 | -100 to 100 | — |
+| Black-and-white mix | Orange | 0 | -100 to 100 | — |
+| Black-and-white mix | Yellow | 0 | -100 to 100 | — |
+| Black-and-white mix | Green | 0 | -100 to 100 | — |
+| Black-and-white mix | Aqua | 0 | -100 to 100 | — |
+| Black-and-white mix | Blue | 0 | -100 to 100 | — |
+| Black-and-white mix | Purple | 0 | -100 to 100 | — |
+| Black-and-white mix | Magenta | 0 | -100 to 100 | — |
 | Chroma Key | Key color | `#00ff00` | Any RGB color | — |
 | Chroma Key | Similarity | 0.1 | 0.01 to 1 | — |
 | Chroma Key | Softness | 0.1 | 0 to 1 | — |
+| Chromatic aberration | Red | 0 | -100 to 100 | — |
+| Chromatic aberration | Blue | 0 | -100 to 100 | — |
+| Clarity | Amount | 0 | -100 to 100 | — |
 | Color Adjust | Brightness | 0 | -1 to 1 | — |
 | Color Adjust | Contrast | 1 | 0 to 2 | — |
 | Color Adjust | Saturation | 1 | 0 to 3 | — |
 | Color Adjust | Gamma | 1 | 0.25 to 4 | — |
 | Color Adjust | Hue | 0 | -180 to 180 | degrees |
+| Color grading wheels | Shadows hue | 0 | -180 to 180 | — |
+| Color grading wheels | Shadows saturation | 0 | 0 to 100 | — |
+| Color grading wheels | Shadows luminance | 0 | -100 to 100 | — |
+| Color grading wheels | Midtones hue | 0 | -180 to 180 | — |
+| Color grading wheels | Midtones saturation | 0 | 0 to 100 | — |
+| Color grading wheels | Midtones luminance | 0 | -100 to 100 | — |
+| Color grading wheels | Highlights hue | 0 | -180 to 180 | — |
+| Color grading wheels | Highlights saturation | 0 | 0 to 100 | — |
+| Color grading wheels | Highlights luminance | 0 | -100 to 100 | — |
+| Crop and perspective (contain) | Crop left | 0 | 0 to 1 | — |
+| Crop and perspective (contain) | Crop top | 0 | 0 to 1 | — |
+| Crop and perspective (contain) | Crop width | 1 | 0.001 to 1 | — |
+| Crop and perspective (contain) | Crop height | 1 | 0.001 to 1 | — |
+| Crop and perspective (contain) | Crop aspect | free | free; source; 1:1; 4:3; 3:2; 16:9; 9:16 | — |
+| Crop and perspective (contain) | Clockwise rotation | 0 | -180 to 180 | — |
+| Crop and perspective (contain) | Flip horizontally | Off | Off; On | — |
+| Crop and perspective (contain) | Flip vertically | Off | Off; On | — |
+| Crop and perspective (contain) | Rectify source quad | Off | Off; On | — |
+| Crop and perspective (contain) | Top left X | 0 | 0 to 1 | — |
+| Crop and perspective (contain) | Top left Y | 0 | 0 to 1 | — |
+| Crop and perspective (contain) | Top right X | 1 | 0 to 1 | — |
+| Crop and perspective (contain) | Top right Y | 0 | 0 to 1 | — |
+| Crop and perspective (contain) | Bottom right X | 1 | 0 to 1 | — |
+| Crop and perspective (contain) | Bottom right Y | 1 | 0 to 1 | — |
+| Crop and perspective (contain) | Bottom left X | 0 | 0 to 1 | — |
+| Crop and perspective (contain) | Bottom left Y | 1 | 0 to 1 | — |
+| Defringe | Purple | 0 | 0 to 100 | — |
+| Defringe | Green | 0 | 0 to 100 | — |
+| Defringe | Edge threshold | 25 | 0 to 100 | — |
+| Dehaze | Amount | 0 | -100 to 100 | — |
+| Detail sharpening | Amount | 100 | 0 to 200 | — |
+| Detail sharpening | Threshold | 0 | 0 to 255 | — |
 | Drop Shadow | Horizontal offset | 8 | -64 to 64 | pixels |
 | Drop Shadow | Vertical offset | 8 | -64 to 64 | pixels |
 | Drop Shadow | Radius | 6 | 0 to 20 | pixels |
@@ -52,16 +118,91 @@ Defaults and limits come from the same definitions the editor validates against.
 | Glow | Threshold | 0.7 | 0 to 1 | — |
 | Glow | Radius | 8 | 0 to 20 | pixels |
 | Glow | Intensity | 0.5 | 0 to 1 | — |
+| Grain | Amount | 0 | 0 to 100 | — |
+| Grain | Size | 1 | 1 to 8 | — |
+| Grain | Roughness | 50 | 0 to 100 | — |
+| Grain | Seed | 0 | 0 to 65520 | — |
+| HSL mixer | Red hue | 0 | -180 to 180 | — |
+| HSL mixer | Orange hue | 0 | -180 to 180 | — |
+| HSL mixer | Yellow hue | 0 | -180 to 180 | — |
+| HSL mixer | Green hue | 0 | -180 to 180 | — |
+| HSL mixer | Aqua hue | 0 | -180 to 180 | — |
+| HSL mixer | Blue hue | 0 | -180 to 180 | — |
+| HSL mixer | Purple hue | 0 | -180 to 180 | — |
+| HSL mixer | Magenta hue | 0 | -180 to 180 | — |
+| HSL mixer | Red saturation | 0 | -100 to 100 | — |
+| HSL mixer | Orange saturation | 0 | -100 to 100 | — |
+| HSL mixer | Yellow saturation | 0 | -100 to 100 | — |
+| HSL mixer | Green saturation | 0 | -100 to 100 | — |
+| HSL mixer | Aqua saturation | 0 | -100 to 100 | — |
+| HSL mixer | Blue saturation | 0 | -100 to 100 | — |
+| HSL mixer | Purple saturation | 0 | -100 to 100 | — |
+| HSL mixer | Magenta saturation | 0 | -100 to 100 | — |
+| HSL mixer | Red lightness | 0 | -100 to 100 | — |
+| HSL mixer | Orange lightness | 0 | -100 to 100 | — |
+| HSL mixer | Yellow lightness | 0 | -100 to 100 | — |
+| HSL mixer | Green lightness | 0 | -100 to 100 | — |
+| HSL mixer | Aqua lightness | 0 | -100 to 100 | — |
+| HSL mixer | Blue lightness | 0 | -100 to 100 | — |
+| HSL mixer | Purple lightness | 0 | -100 to 100 | — |
+| HSL mixer | Magenta lightness | 0 | -100 to 100 | — |
+| Lens distortion | Amount | 0 | -100 to 100 | — |
 | Luma Key | Mode | Dark | Dark; Bright | — |
 | Luma Key | Cutoff | 0.2 | 0 to 1 | — |
 | Luma Key | Softness | 0.1 | 0 to 1 | — |
+| Noise reduction | Luminance | 0 | 0 to 100 | — |
+| Noise reduction | Luminance detail | 50 | 0 to 100 | — |
+| Noise reduction | Luminance contrast | 0 | 0 to 100 | — |
+| Noise reduction | Color | 0 | 0 to 100 | — |
+| Noise reduction | Color detail | 50 | 0 to 100 | — |
+| Noise reduction | Color smoothness | 50 | 0 to 100 | — |
+| Optical vignette | Amount | 0 | -100 to 100 | — |
 | Outline | Width | 4 | 0 to 16 | pixels |
 | Outline | Color | `#ffffff` | Any RGB color | — |
 | Outline | Opacity | 1 | 0 to 1 | — |
+| Parametric curves | Master shadows | 0 | -100 to 100 | — |
+| Parametric curves | Master darks | 0 | -100 to 100 | — |
+| Parametric curves | Master lights | 0 | -100 to 100 | — |
+| Parametric curves | Master highlights | 0 | -100 to 100 | — |
+| Parametric curves | Red shadows | 0 | -100 to 100 | — |
+| Parametric curves | Red darks | 0 | -100 to 100 | — |
+| Parametric curves | Red lights | 0 | -100 to 100 | — |
+| Parametric curves | Red highlights | 0 | -100 to 100 | — |
+| Parametric curves | Green shadows | 0 | -100 to 100 | — |
+| Parametric curves | Green darks | 0 | -100 to 100 | — |
+| Parametric curves | Green lights | 0 | -100 to 100 | — |
+| Parametric curves | Green highlights | 0 | -100 to 100 | — |
+| Parametric curves | Blue shadows | 0 | -100 to 100 | — |
+| Parametric curves | Blue darks | 0 | -100 to 100 | — |
+| Parametric curves | Blue lights | 0 | -100 to 100 | — |
+| Parametric curves | Blue highlights | 0 | -100 to 100 | — |
+| Parametric curves | Shadow split | 0.25 | 0 to 1 | — |
+| Parametric curves | Midtone split | 0.5 | 0 to 1 | — |
+| Parametric curves | Highlight split | 0.75 | 0 to 1 | — |
 | Pixelate | Block size | 16 | 2 to 128 | pixels |
+| Point curves | Master | (0, 0); (1, 1) | 2–32 points; input/output 0–1; strictly increasing inputs, endpoints 0 and 1 | — |
+| Point curves | Red | (0, 0); (1, 1) | 2–32 points; input/output 0–1; strictly increasing inputs, endpoints 0 and 1 | — |
+| Point curves | Green | (0, 0); (1, 1) | 2–32 points; input/output 0–1; strictly increasing inputs, endpoints 0 and 1 | — |
+| Point curves | Blue | (0, 0); (1, 1) | 2–32 points; input/output 0–1; strictly increasing inputs, endpoints 0 and 1 | — |
+| Post-crop vignette | Amount | 0 | -100 to 100 | — |
+| Post-crop vignette | Midpoint | 50 | 0 to 100 | — |
+| Post-crop vignette | Roundness | 0 | -100 to 100 | — |
+| Post-crop vignette | Feather | 50 | 0 to 100 | — |
+| Post-crop vignette | Highlights | 0 | 0 to 100 | — |
 | RGB Split | Horizontal offset | 6 | -64 to 64 | pixels |
 | RGB Split | Vertical offset | 0 | -64 to 64 | pixels |
 | Sharpen | Amount | 0.5 | 0 to 2 | — |
 | Spill Suppression | Screen color | Green | Green; Blue | — |
 | Spill Suppression | Strength | 0.5 | 0 to 1 | — |
+| Texture | Amount | 0 | -100 to 100 | — |
+| Tone | Exposure (stops) | 0 | -5 to 5 | — |
+| Tone | Contrast | 0 | -100 to 100 | — |
+| Tone | Highlights | 0 | -100 to 100 | — |
+| Tone | Shadows | 0 | -100 to 100 | — |
+| Tone | Whites | 0 | -100 to 100 | — |
+| Tone | Blacks | 0 | -100 to 100 | — |
+| Vibrance and saturation | Saturation | 0 | -100 to 100 | — |
+| Vibrance and saturation | Vibrance | 0 | -100 to 100 | — |
 | Vignette | Amount | 0.5 | 0 to 1 | — |
+| White balance | Temperature (relative) | 0 | -100 to 100 | — |
+| White balance | Tint (relative) | 0 | -100 to 100 | — |

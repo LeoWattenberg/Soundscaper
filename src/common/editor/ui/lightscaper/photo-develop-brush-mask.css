@@ -1,0 +1,11 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+.lightscaper-brush-mask-dialog { max-width: min(56rem, 96vw); }
+.lightscaper-brush-mask-dialog fieldset { margin-block: .75rem; }
+.lightscaper-brush-mask-controls { display: flex; flex-wrap: wrap; gap: .75rem; align-items: end; }
+.lightscaper-brush-mask-controls label { display: grid; gap: .25rem; }
+.lightscaper-brush-mask-controls input { width: 6rem; }
+.lightscaper-brush-mask-grid { display: block; width: min(100%, 28rem); height: auto; max-height: 55vh; margin: .75rem auto;
+	image-rendering: pixelated; touch-action: none; cursor: crosshair; border: 1px solid currentColor;
+	background: repeating-conic-gradient(#bbb 0% 25%, #eee 0% 50%) 0 / 1rem 1rem; }
+.lightscaper-brush-mask-bindings { display: grid; gap: .5rem; }
+.lightscaper-brush-mask-bindings > div { display: flex; gap: 1rem; flex-wrap: wrap; }

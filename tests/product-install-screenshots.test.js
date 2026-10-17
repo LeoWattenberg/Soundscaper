@@ -158,6 +158,7 @@ async function productShell(context, productId) {
 		'assets/framescaper-core.js': 'export const framescaper = 1;',
 		'logo/framescaper.svg': '<svg viewBox="0 0 1 1" />',
 		'logo/soundscaper.svg': '<svg viewBox="0 0 1 1" />',
+		'logo/lightscaper.svg': '<svg viewBox="0 0 1 1" />',
 		'logo/mindscaper.svg': '<svg viewBox="0 0 1 1" />',
 		'.offline-build-manifest.json': JSON.stringify({
 			'index.html': {

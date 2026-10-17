@@ -13,6 +13,7 @@ import {
 	type VideoKeyframeVideoEncoderRequest,
 } from '../video-keyframe-video-encoder.ts';
 import type { VideoDeliveryQuality } from '../video-delivery-quality.ts';
+import { captureVideoWebCodecsRgbaColorSpace, type VideoWebCodecsRgbaColorSpace } from '../video-webcodecs-producer.ts';
 import type { VideoKeyframeOfflineRgbaRenderer } from './video-keyframe-offline-rgba-renderer.ts';
 
 /**
@@ -26,6 +27,7 @@ export interface VideoKeyframeOfflineWebCodecsDecision {
 	readonly hardwareAcceleration?: 'prefer-hardware';
 	readonly codec: string;
 	readonly bitrate: number;
+	readonly rgbaColorSpace?: VideoWebCodecsRgbaColorSpace;
 }
 
 export interface VideoKeyframeOfflineEncoderOptions {
@@ -62,6 +64,7 @@ export async function preflightVideoKeyframeOfflineEncoder(
 	request: VideoKeyframeOfflineEncoderOptions,
 	frameSource: VideoKeyframeExportFrameSource,
 ): Promise<void> {
+	if (request.webCodecs) captureVideoWebCodecsRgbaColorSpace(request.webCodecs);
 	const workload: Record<string, unknown> = {
 		frameSource,
 		format: request.format,
@@ -116,6 +119,7 @@ export async function preflightVideoKeyframeOfflineEncoder(
  * delivery report says this one ran.
  */
 function webCodecsEncode(decision: VideoKeyframeOfflineWebCodecsDecision) {
+	const rgbaColorSpace = captureVideoWebCodecsRgbaColorSpace(decision);
 	const encoderClass = (globalThis as Record<string, unknown>).VideoEncoder;
 	const videoFrameClass = (globalThis as Record<string, unknown>).VideoFrame;
 	if (typeof encoderClass !== 'function' || typeof videoFrameClass !== 'function') {
@@ -124,6 +128,7 @@ function webCodecsEncode(decision: VideoKeyframeOfflineWebCodecsDecision) {
 	return Object.freeze({
 		codec: decision.codec,
 		bitrate: decision.bitrate,
+		...(rgbaColorSpace === undefined ? {} : { rgbaColorSpace }),
 		...(decision.hardwareAcceleration ? { hardwareAcceleration: decision.hardwareAcceleration } : {}),
 		encoderClass,
 		videoFrameClass,

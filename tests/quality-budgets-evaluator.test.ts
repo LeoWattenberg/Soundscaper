@@ -45,6 +45,7 @@ test('quality budget evaluator refuses incomplete, extra, and non-finite measure
 		{ 'parity.omissions': 0 },
 		{ 'parity.omissions': 0, 'preview.frameIntervalP95Ms': 20, extra: 1 },
 		{ 'parity.omissions': Number.NaN, 'preview.frameIntervalP95Ms': 20 },
+		...([Number.NaN, Infinity, -Infinity, null, '20', undefined]).map(value => ({ 'parity.omissions': 0, 'preview.frameIntervalP95Ms': value })),
 	]) {
 		const evaluation = evaluateQualityBudget(thresholds, metrics);
 		assert.equal(evaluation.passed, false);

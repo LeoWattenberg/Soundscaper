@@ -4,7 +4,7 @@ import { localeLanguage } from '../i18n/locale.js';
 import { DEFAULT_LOCALE_TAGS, getLocaleDescriptor, ROUTE_LOCALES } from '../i18n/locales.js';
 import { TRANSLATION_CATALOG_LOCALES } from '../i18n/translations/index.js';
 import { useSiteCopy } from './use-site-copy.js';
-import { otherProductId, productIdentity } from '../product-identities.js';
+import { otherProductIds, productIdentity } from '../product-identities.js';
 import { productHref, productWebOrigin } from '../product-web-links.js';
 import { storeDocumentTheme } from './document-theme.js';
 import { SidebarIcon } from './SidebarIcon.tsx';
@@ -13,9 +13,11 @@ import {
 	privacyPolicyUrl,
 } from './privacy-policy-links.js';
 
+const SIDEBAR_LINK_CLASS = 'website-sidebar-link';
+
 export default function BrandSidebar({ locale, productId = 'soundscaper' }) {
 	const profile = productIdentity(productId);
-	const otherProduct = productIdentity(otherProductId(productId));
+	const otherProducts = otherProductIds(productId);
 	const localeDescriptor = getLocaleDescriptor(locale);
 	if (!localeDescriptor) throw new Error(`Unknown editor locale: ${locale}`);
 	const parentSite = localeLanguage(localeDescriptor.locale) === 'de' ? 'https://mindscaper.org/de/' : 'https://mindscaper.org/';
@@ -81,9 +83,8 @@ export default function BrandSidebar({ locale, productId = 'soundscaper' }) {
 	};
 	const workspaces = workspace.workspaces.length ? workspace.workspaces : defaultWorkspaces(productId, copy);
 	const productMark = `/logo/${productId}.svg`;
-	const otherProductMark = `/logo/${otherProduct.id}.svg`;
-	const editorLabel = productId === 'framescaper' ? copy.videoEditor : copy.audioEditor;
-	const otherEditorLabel = otherProduct.id === 'framescaper' ? copy.videoEditor : copy.audioEditor;
+	const editorLabels = { soundscaper: copy.audioEditor, framescaper: copy.videoEditor, lightscaper: copy.photoEditor };
+	const editorLabel = editorLabels[productId];
 
 	return (
 		<aside className="website-site-sidebar" data-sidebar data-product={productId} data-locale={localeDescriptor.locale} data-collapsed={String(collapsed)} aria-label={copy.label}>
@@ -99,12 +100,17 @@ export default function BrandSidebar({ locale, productId = 'soundscaper' }) {
 			<div className="website-sidebar-content" data-sidebar-content>
 				<nav className="website-sidebar-nav" aria-label={copy.label}>
 						<a className="website-sidebar-link website-is-active" href={productHref(productId, locale)} aria-current="page"><img src={productMark} alt="" width="24" height="24" />{editorLabel}</a>
-						<a className="website-sidebar-link" href={productHref(otherProduct.id, locale)}><img src={otherProductMark} alt="" width="24" height="24" />{otherEditorLabel}</a>
-						<a className="website-sidebar-link" href={parentSite}><img src="/logo/mindscaper.svg" alt="" width="24" height="24" />{copy.joinUs}</a>
-						<a className="website-sidebar-link" href={`${productWebOrigin(productId)}/download/desktop/`} target="_blank" rel="noreferrer"><SidebarIcon icon="download" />{copy.download}</a>
-						<a className="website-sidebar-link" href={privacyPolicyUrl(productId, locale)} onClick={openPrivacyPolicy}><SidebarIcon icon="document" />{copy.legal}</a>
-						<a className="website-sidebar-link" href="https://github.com/LeoWattenberg/Soundscaper/issues/new" target="_blank" rel="noreferrer"><SidebarIcon icon="bug" />{copy.reportIssue}</a>
-						<a className="website-sidebar-link" href="https://github.com/LeoWattenberg/Soundscaper" target="_blank" rel="noreferrer"><SidebarIcon icon="github" />{copy.github}</a>
+						<details data-product-menu>
+							<summary className={SIDEBAR_LINK_CLASS}>{copy.editors}</summary>
+							{otherProducts.map((id) => <a key={id} className={SIDEBAR_LINK_CLASS} href={productHref(id, locale)}>
+								<img src={`/logo/${id}.svg`} alt="" width="24" height="24" />{editorLabels[id]}
+							</a>)}
+						</details>
+						<a className={SIDEBAR_LINK_CLASS} href={parentSite}><img src="/logo/mindscaper.svg" alt="" width="24" height="24" />{copy.joinUs}</a>
+						<a className={SIDEBAR_LINK_CLASS} href={`${productWebOrigin(productId)}/download/desktop/`} target="_blank" rel="noreferrer"><SidebarIcon icon="download" />{copy.download}</a>
+						<a className={SIDEBAR_LINK_CLASS} href={privacyPolicyUrl(productId, locale)} onClick={openPrivacyPolicy}><SidebarIcon icon="document" />{copy.legal}</a>
+						<a className={SIDEBAR_LINK_CLASS} href="https://github.com/LeoWattenberg/Soundscaper/issues/new" target="_blank" rel="noreferrer"><SidebarIcon icon="bug" />{copy.reportIssue}</a>
+						<a className={SIDEBAR_LINK_CLASS} href="https://github.com/LeoWattenberg/Soundscaper" target="_blank" rel="noreferrer"><SidebarIcon icon="github" />{copy.github}</a>
 				</nav>
 				<section className="website-sidebar-settings" aria-labelledby="sidebar-settings-title">
 					<h2 id="sidebar-settings-title">{copy.settings}</h2>
@@ -141,6 +147,7 @@ function storedCollapsed(productId) {
 }
 
 function defaultWorkspaces(productId, copy) {
+	if (productId === 'lightscaper') return [{ id: 'photo-library', name: copy.workspacePhoto }];
 	return productId === 'framescaper'
 		? [{ id: 'video-editor', name: copy.workspaceVideo }]
 		: [
@@ -156,6 +163,9 @@ function sidebarCopy(catalog) {
 		label: catalog.sidebarNavigation,
 		audioEditor: catalog.audioEditorLink,
 		videoEditor: catalog.workspaceVideo,
+		photoEditor: catalog.photoEditor,
+		workspacePhoto: catalog.workspacePhoto,
+		editors: catalog.productEditors,
 		joinUs: catalog.joinUsLink,
 		download: catalog.downloadLink,
 		legal: catalog.legalLink,

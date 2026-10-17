@@ -19,6 +19,7 @@ import {
 import { authoredWildcardResponseHeaders } from './scripts/lib/static-response-headers.mjs';
 import { enforceStartupGraphBudgets } from './scripts/lib/startup-graph-budget.mjs';
 import { createTranslationCatalogBundlePlugin } from './scripts/lib/translation-catalog-bundle.mjs';
+import { translationCatalogPreloadDependencies } from './scripts/lib/build-chunk-translation-catalogs.mjs';
 import layerAudacityDesignSystemCss, {
 	getLayeredDesignSystemFiles,
 	isDesignSystemCssFile,
@@ -33,6 +34,9 @@ const applicationVersion = resolveProductApplicationVersion(
 	productId, readProductReleaseLinesSync(import.meta.dirname),
 );
 const desktopCodecComposition = process.env.SCAPE_DESKTOP_CODEC_RUNTIME === 'main-process';
+if (productId === 'lightscaper' && desktopCodecComposition) {
+	throw new Error('Lightscaper desktop composition is deferred until L8.');
+}
 // Off by default, and `hidden` when asked for: the emitted JavaScript never gains
 // a `sourceMappingURL` comment, and the plugin below moves the maps out of the
 // output directory, so a build with SCAPE_BUILD_SOURCE_MAPS=1 ships the same
@@ -50,7 +54,7 @@ const buildSourceMaps = buildSourceMapsRequested(process.env);
  * quietly emitting a Soundscaper bundle and deploying it to the other origin.
  *
  * @param {string | undefined} value
- * @returns {'soundscaper' | 'framescaper'}
+ * @returns {'soundscaper' | 'framescaper' | 'lightscaper'}
  */
 function resolveBuiltProductId(value) {
 	const requested = value === undefined || value === '' ? 'soundscaper' : value;
@@ -60,8 +64,8 @@ function resolveBuiltProductId(value) {
 		);
 	}
 	// `normalizeProductId` re-admits the id against the shared product table; the
-	// cast only narrows its `string` return to the two ids just checked above.
-	return /** @type {'soundscaper' | 'framescaper'} */ (normalizeProductId(requested));
+	// cast only narrows its `string` return to the registered ids just checked above.
+	return /** @type {'soundscaper' | 'framescaper' | 'lightscaper'} */ (normalizeProductId(requested));
 }
 
 /** @returns {import('vite').Plugin} */
@@ -151,6 +155,7 @@ export default defineConfig({
 		},
 	},
 	build: {
+		modulePreload: { resolveDependencies: translationCatalogPreloadDependencies },
 		manifest: '.offline-build-manifest.json',
 		assetsInlineLimit: 0,
 		sourcemap: buildSourceMaps ? 'hidden' : false,

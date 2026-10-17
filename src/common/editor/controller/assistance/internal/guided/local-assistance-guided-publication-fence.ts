@@ -16,6 +16,9 @@ import { serializeAssistanceWorkflowSettingsV1 } from '../../../../assistance/wo
 import { createLocalAssistanceGuidedAggregateFenceV1 } from './local-assistance-guided-fence.ts';
 import { prepareLocalAssistanceGuidedTranscriptInput } from
 	'./local-assistance-guided-transcript-context.ts';
+import {
+	PROJECT_SCHEMA_VERSION, isTimelineProjectSchemaFamily, readProjectSchemaIdentity,
+} from '../../../../project-schema-identity.ts';
 
 interface SelectedPublicationAuthorityPort {
 	listSelectedMedia(): Promise<unknown>;
@@ -69,9 +72,17 @@ export function createLocalAssistanceGuidedPublicationFenceResolver(
 			throw new TypeError('Guided publication fence resolution requires one cancellation signal.');
 		}
 		const workflow = validateAssistanceWorkflow(workflowValue);
+		const preflightIdentity = readProjectSchemaIdentity(dependencies.getProject());
+		if (!isTimelineProjectSchemaFamily(preflightIdentity.schemaFamily) || preflightIdentity.schemaVersion !== PROJECT_SCHEMA_VERSION) {
+			throw new RangeError('Guided publication requires the current timeline project schema.');
+		}
 		const token = dependencies.captureProject();
 		signal.throwIfAborted();
 		const project = dataRecord(dependencies.getProject(), 'current publication project');
+		const identity = readProjectSchemaIdentity(project);
+		if (!isTimelineProjectSchemaFamily(identity.schemaFamily) || identity.schemaVersion !== PROJECT_SCHEMA_VERSION) {
+			throw new RangeError('Guided publication requires the current timeline project schema.');
+		}
 		const primitiveFences = await resolveWorkflowFences(workflow, signal);
 		if (workflow.fence.transcriptBodySha256 !== null) {
 			await assertTranscriptBodies(project, primitiveFences,

@@ -1,0 +1,117 @@
+.lightscaper-app {
+	display: flex;
+	flex: 1;
+	flex-direction: column;
+	min-height: 0;
+	overflow: auto;
+	color: CanvasText;
+	background: Canvas;
+	border: 1px solid color-mix(in srgb, CanvasText 18%, Canvas);
+	border-radius: 8px;
+}
+
+.lightscaper-header {
+	flex: none;
+	--header-bg: Canvas;
+	--header-border: color-mix(in srgb, CanvasText 18%, Canvas);
+	--header-text: CanvasText;
+	--header-menu-hover: color-mix(in srgb, CanvasText 12%, Canvas);
+	padding: 16px 24px;
+	border-bottom: 1px solid color-mix(in srgb, CanvasText 18%, Canvas);
+}
+
+.lightscaper-header h2 { margin: 0 0 12px; font-size: 18px; }
+.lightscaper-menus { display: flex; gap: 24px; }
+.lightscaper-menus details { position: relative; }
+.lightscaper-menus summary { cursor: pointer; }
+
+.lightscaper-menu-items {
+	position: absolute;
+	z-index: 10;
+	min-width: 200px;
+	padding: 8px;
+	background: Canvas;
+	border: 1px solid color-mix(in srgb, CanvasText 30%, Canvas);
+	border-radius: 4px;
+	box-shadow: 0 4px 16px #0003;
+}
+
+.lightscaper-menu-items a, .lightscaper-menu-items button {
+	display: block;
+	width: 100%;
+	padding: 8px;
+	border: 0;
+	text-align: start;
+	font: inherit;
+	color: inherit;
+	background: transparent;
+	text-decoration: none;
+	cursor: pointer;
+}
+
+.lightscaper-menu-items :is(a, button):is(:hover, :focus-visible) {
+	background: color-mix(in srgb, CanvasText 12%, Canvas);
+}
+
+.lightscaper-photo-submenu > summary { padding: 8px; }
+.lightscaper-photo-submenu > .lightscaper-menu-items { position: static; box-shadow: none; }
+
+.lightscaper-library { padding: 24px; }
+
+.lightscaper-photo-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+	gap: 12px;
+	padding: 0;
+	list-style: none;
+}
+.lightscaper-photo-grid button {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	width: 100%;
+	padding: 16px;
+	font: inherit;
+	text-align: start;
+	color: inherit;
+	background: Canvas;
+	border: 1px solid color-mix(in srgb, CanvasText 30%, Canvas);
+	border-radius: 4px;
+	white-space: normal;
+	overflow-wrap: anywhere;
+}
+.lightscaper-photo-grid button[aria-pressed=true] { border: 2px solid Highlight; padding: 15px; }
+.lightscaper-photo-grid button:focus-visible { outline: 2px solid Highlight; outline-offset: 3px; }
+.lightscaper-import-results { overflow-wrap: anywhere; }
+.lightscaper-dialog-backdrop {
+	position: fixed;
+	inset: 0;
+	z-index: 1000;
+	display: grid;
+	place-items: center;
+	background: #0008;
+}
+.lightscaper-dialog {
+	position: relative;
+	max-height: calc(100vh - 32px);
+	overflow: auto;
+	color: CanvasText;
+	background: Canvas;
+	border: 1px solid CanvasText;
+	border-radius: 8px;
+}
+.lightscaper-dialog form { padding: 24px; }
+.lightscaper-dialog label { display: grid; gap: 12px; }
+.lightscaper-dialog-actions { display: flex; justify-content: end; gap: 12px; margin-top: 24px; }
+.lightscaper-dialog button, .lightscaper-dialog input { font: inherit; }
+
+.lightscaper-dialog fieldset { display: grid; gap: 16px; border: 0; padding: 0; }
+.lightscaper-dialog input, .lightscaper-dialog textarea { min-width: 0; width: 100%; box-sizing: border-box; }
+.lightscaper-dialog textarea { font: inherit; }
+.lightscaper-dialog dl { max-width: 60ch; overflow-wrap: anywhere; white-space: pre-wrap; }
+
+.lightscaper-smart-query-examples pre {
+	max-inline-size: 60ch;
+	white-space: pre-wrap;
+	overflow-wrap: anywhere;
+}

@@ -1,9 +1,13 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { sha256 } from '@noble/hashes/sha2.js';
-
 import type { ScapeArchiveEntry, ScapeDescriptor } from './scape-archive-envelope.ts';
 import { aggregateScapeErrors, awaitScapeOperation, throwIfScapeAborted } from './scape-abort.ts';
+import {
+	createScapeDigest,
+	digestScapeBytes,
+	scapeHex,
+	type ScapeDigestWriter as DigestWriter,
+} from './scape-byte-stream.ts';
 import {
 	ScapeAudioChunkBudget,
 	SCAPE_MAXIMUM_AUDIO_CHUNKS,
@@ -17,11 +21,7 @@ import {
 
 export const SCAPE_MAXIMUM_PENDING_AUDIO_BYTES = 4 + WAVPACK_PCM_MAXIMUM_RAW_BYTES;
 export { SCAPE_MAXIMUM_AUDIO_CHUNKS };
-
-interface DigestWriter {
-	update(bytes: Uint8Array): unknown;
-	digest(): Uint8Array;
-}
+export { createScapeDigest, digestScapeBytes, scapeHex, scapeBytesStream } from './scape-byte-stream.ts';
 
 export interface ScapeAudioSource {
 	readonly kind?: string;
@@ -78,10 +78,6 @@ export function safeScapeEntryId(value: unknown): string {
 	if (encoded === '.') return '_2E';
 	if (encoded === '..') return '_2E_2E';
 	return encoded;
-}
-
-export function scapeBytesStream(bytes: Uint8Array): ReadableStream<Uint8Array> {
-	return new Blob([exactArrayBuffer(bytes)]).stream();
 }
 
 export function scapeHashingStream(
@@ -234,7 +230,7 @@ export async function extractScapeAudio(
 ): Promise<ScapeExtractedAsset> {
 	if (typeof entry.getData !== 'function') throw new Error(`The Scape archive is missing ${entry.filename}.`);
 	const sourceGeometry = scapeAudioSourceLayout(source);
-	const digest = sha256.create();
+	const digest = createScapeDigest();
 	let size = 0;
 	const header = new Uint8Array(4);
 	let headerBytes = 0;
@@ -321,18 +317,6 @@ export function verifyScapeExtractedAsset(
 	if (digest !== descriptor.sha256) throw new Error(`${label} failed SHA-256 verification.`);
 }
 
-export function digestScapeBytes(bytes: Uint8Array): string {
-	return scapeHex(sha256(bytes));
-}
-
-export function createScapeDigest(): DigestWriter {
-	return sha256.create();
-}
-
-export function scapeHex(bytes: Uint8Array): string {
-	return Array.from(bytes, (value) => value.toString(16).padStart(2, '0')).join('');
-}
-
 function toBytes(value: unknown): Uint8Array {
 	if (value instanceof Uint8Array) return value;
 	if (value instanceof ArrayBuffer) return new Uint8Array(value);
@@ -353,12 +337,6 @@ function assertScapeEntryEmissionComplete(entry: ScapeArchiveEntry, emittedBytes
 	if (emittedBytes !== entry.uncompressedSize) {
 		throw new Error(`${entry.filename} emitted bytes that do not match its archive metadata.`);
 	}
-}
-
-function exactArrayBuffer(bytes: Uint8Array): ArrayBuffer {
-	const copy = new Uint8Array(bytes.byteLength);
-	copy.set(bytes);
-	return copy.buffer;
 }
 
 function float32LittleEndianBytes(channel: Float32Array): Uint8Array {

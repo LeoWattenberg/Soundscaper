@@ -29,6 +29,7 @@ import {
 } from './transfer-store-federation.ts';
 import {
 	ProjectReimportRequiredError,
+	isTimelineProjectSchemaFamily,
 	readProjectSchemaIdentity,
 	SOUNDSCAPER_PROJECT_SCHEMA_FAMILY,
 	type ProjectSchemaFamily,
@@ -272,6 +273,9 @@ async function transferArchiveHome(
 ): Promise<TransferStoreHome | null> {
 	if (!routesTransferArchivesHome(store)) return null;
 	const identity = await transferArchiveSchemaIdentity(inspectProject, input, options);
+	if (!isTimelineProjectSchemaFamily(identity.schemaFamily)) {
+		throw new TransferArchiveHomeError('Lightscaper catalogs cannot use this timeline transfer page.', identity);
+	}
 	const home = await transferStoreHomeForSchema(store, identity);
 	if (!home) {
 		throw new TransferArchiveHomeError(

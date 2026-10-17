@@ -16,7 +16,7 @@ import type { LocalAssistanceGuidedPreparationUnavailableReason } from
 	'../../../../assistance/local-assistance-preparation.ts';
 import type { LocalAssistanceGuidedPrimitiveFence } from
 	'./local-assistance-guided-transcript-context.ts';
-import { readProjectSchemaIdentity } from '../../../../project-schema-identity.ts';
+import { isTimelineProjectSchemaFamily, readProjectSchemaIdentity } from '../../../../project-schema-identity.ts';
 
 const SHA256 = /^[a-f\d]{64}$/u;
 
@@ -36,10 +36,12 @@ export function createLocalAssistanceGuidedAggregateFenceV1(options: Readonly<{
 	models: readonly AssistanceWorkflowModelBindingV1[];
 }>): AssistanceWorkflowFenceV1 {
 	const { project, primitiveFences, stages, settingsBody, models } = options;
+	const identity = readProjectSchemaIdentity(project);
+	if (!isTimelineProjectSchemaFamily(identity.schemaFamily) || identity.schemaVersion !== 1) {
+		unavailable('source-custody-unavailable');
+	}
 	if (primitiveFences.length < 1) unavailable('source-custody-unavailable');
 	assertCompatibleAuthorities(project, primitiveFences);
-	const identity = readProjectSchemaIdentity(project);
-	if (identity.schemaVersion !== 1) unavailable('source-custody-unavailable');
 	const sourceRanges = sourceRangeInventory(project, primitiveFences);
 	return Object.freeze({
 		fenceVersion: 1,

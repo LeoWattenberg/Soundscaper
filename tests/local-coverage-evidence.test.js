@@ -17,6 +17,7 @@ const PRODUCTION_PATHS = [
 	'desktop/main.mjs',
 	'src/framescaper/model.ts',
 	'src/soundscaper/model.ts',
+	'src/lightscaper/model.ts',
 	'src/common/transfer/session.ts',
 	'src/common/site/route.js',
 	'src/common/i18n/runtime.js',

@@ -2,14 +2,17 @@
 
 export const SOUNDSCAPER_PROJECT_SCHEMA_FAMILY = 'soundscaper' as const;
 export const FRAMESCAPER_PROJECT_SCHEMA_FAMILY = 'framescaper' as const;
+export const LIGHTSCAPER_PROJECT_SCHEMA_FAMILY = 'lightscaper' as const;
 export const PROJECT_SCHEMA_VERSION = 1 as const;
 
 export const PROJECT_SCHEMA_FAMILIES = Object.freeze([
 	SOUNDSCAPER_PROJECT_SCHEMA_FAMILY,
 	FRAMESCAPER_PROJECT_SCHEMA_FAMILY,
+	LIGHTSCAPER_PROJECT_SCHEMA_FAMILY,
 ] as const);
 
 export type ProjectSchemaFamily = (typeof PROJECT_SCHEMA_FAMILIES)[number];
+export type TimelineProjectSchemaFamily = Exclude<ProjectSchemaFamily, 'lightscaper'>;
 
 export interface ProjectSchemaIdentity {
 	readonly schemaFamily: ProjectSchemaFamily;
@@ -63,7 +66,7 @@ export function readProjectSchemaIdentity(value: unknown): Readonly<ProjectSchem
 	const schemaFamily = requiredEnumerableDataValue(schemaFamilyDescriptor, 'schemaFamily');
 	const schemaVersion = requiredEnumerableDataValue(schemaVersionDescriptor, 'schemaVersion');
 	if (!isProjectSchemaFamily(schemaFamily)) {
-		throw new RangeError(`Unsupported project schema family: ${String(schemaFamily)}.`);
+		throw new RangeError(`Unsupported project schema family: ${typeof schemaFamily === 'string' ? schemaFamily : typeof schemaFamily}.`);
 	}
 	if (typeof schemaVersion !== 'number'
 		|| !Number.isSafeInteger(schemaVersion) || schemaVersion < 1) {
@@ -99,7 +102,13 @@ export function isCurrentProjectSchemaIdentity(
 
 export function isProjectSchemaFamily(value: unknown): value is ProjectSchemaFamily {
 	return value === SOUNDSCAPER_PROJECT_SCHEMA_FAMILY
-		|| value === FRAMESCAPER_PROJECT_SCHEMA_FAMILY;
+		|| value === FRAMESCAPER_PROJECT_SCHEMA_FAMILY
+		|| value === LIGHTSCAPER_PROJECT_SCHEMA_FAMILY;
+}
+
+/** Timeline services retain their own authority when another family registers. */
+export function isTimelineProjectSchemaFamily(value: unknown): value is TimelineProjectSchemaFamily {
+	return value === SOUNDSCAPER_PROJECT_SCHEMA_FAMILY || value === FRAMESCAPER_PROJECT_SCHEMA_FAMILY;
 }
 
 function requiredEnumerableDataValue(

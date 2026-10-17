@@ -2,12 +2,13 @@
 
 import type { AudioEditorCommand } from '../../commands/protocol.ts';
 import type { createAudioEditorSessionController } from '../../session.js';
+import type { createAudioEditorSessionControllerV2 } from '../../session-v2.ts';
 import type { DocumentHistory, DocumentProject } from '../document/document-composition-types.ts';
 import type { FramescaperCaptureAppBindingOptions } from './framescaper-capture-app-binding.ts';
 import { admitFramescaperCaptureProject } from './internal/framescaper-capture-project-admission.ts';
 import { admitControllerSessionHistory } from '../document/session-history-admission.ts';
 
-type Session = ReturnType<typeof createAudioEditorSessionController>;
+type Session = ReturnType<typeof createAudioEditorSessionController | typeof createAudioEditorSessionControllerV2>;
 type CaptureDocumentPorts = Pick<FramescaperCaptureAppBindingOptions,
 	'adminInterlock' | 'projectRuntime' | 'sessionController' | 'getActiveProject' | 'getActiveHistory'
 	| 'setActiveProject' | 'setActiveHistory' | 'synchronizeProject'>;

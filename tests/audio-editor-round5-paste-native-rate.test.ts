@@ -62,7 +62,11 @@ async function join(nativeSide: 'copied' | 'existing' | 'neutral', reversed = fa
 	};
 	await commitPasteIntoExistingClipCommand({ command, project, derivedSources,
 		preflightStorage: () => Promise.resolve(), assertCurrent: () => undefined,
-		commit(prepared) { commits.push(prepared); return applyEditorCommand(document, prepared); } });
+		commit(prepared) {
+			// This fixture supplies only the legacy audio clipboard command above.
+			const audioCommand = prepared as AudioEditorCommand;
+			commits.push(audioCommand); return applyEditorCommand(document, audioCommand);
+		} });
 	assert.equal(commits.length, 1);
 	assert.equal(rendered.length, 1);
 	assert.deepEqual([...channels.values()], before, 'the original immutable PCM remains intact');

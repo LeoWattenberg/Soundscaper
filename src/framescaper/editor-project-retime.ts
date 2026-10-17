@@ -1,10 +1,10 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import {
-	createDefaultVideoKeyframeCurves,
-	normalizeVideoKeyframeCurves,
+	createDefaultVideoKeyframeCurvesV2 as createDefaultVideoKeyframeCurves,
+	normalizeVideoKeyframeCurvesV2 as normalizeVideoKeyframeCurves,
 	type VideoKeyframeCurves,
-} from '../common/editor/video-keyframe-curves.ts';
+} from '../common/editor/video-keyframe-curves-v2.ts';
 import {
 	reconcileFramescaperProjectFeatureRequirementsRetime,
 } from './editor-project-feature-requirements-retime.ts';

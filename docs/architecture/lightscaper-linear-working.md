@@ -1,0 +1,298 @@
+# Lightscaper linear working frames
+
+The Current Photo renderer evaluates the develop stack from native linear
+word or float samples. It uses the unchanged PixelFrameDescriptorV1,
+PixelFrameV1 and Current Develop recipe contracts. The original white-balance
+and tone foundation remains a separate fixed API. Existing byte renderers and
+their admission policies remain unchanged.
+
+## Admission and delivery
+
+`createPhotoDevelopRenderRuntimeV3().withLinearWorkingFrame()` retains the
+shared `withImageDevelopLinearFrameV1` foundation. It accepts native Uint16Array or
+Float32Array samples, linear transfer and sRGB or BT.709 primaries. These two
+primary declarations share the same chromaticities; their supplied declaration
+is retained. Other transfer functions and primaries require later routes.
+
+That fixed foundation supports identity, white balance and all six tone-ladder
+controls. Every retained effect is admitted, including disabled effects. Other
+families, geometry, masks, bindings and nonempty repair lists refuse before
+source samples are inspected. This is an explicit processing foundation,
+not an alternate byte fallback for an unsupported deep stack.
+
+Delivery borrows one native Float32 linear RGBA plane. Uint16 values normalize
+directly by 65535; Float32 source bits copy directly from the exact admitted
+span. No transfer curve, byte lookup or integer quantizer intervenes. The
+complete source snapshot finishes synchronously before an asynchronous stage
+can yield. The same allocation then holds the working state and output.
+
+## Arithmetic and precision
+
+White balance uses the existing normalized temperature/tint gains directly in
+linear RGB. Exposure and contrast use the stable affine expression
+`sample * exposureGain * contrastGain + 0.18 * (1 - contrastGain)`.
+Subtracting and re-adding the pivot first would erase very small float values
+even with neutral contrast; normal and subnormal regressions pin that case.
+
+Highlights, shadows, whites and blacks use the existing smooth region weights
+and coefficients. Only region weights clamp to their domains. The working RGB
+signal remains signed and can exceed one; straight alpha is preserved. Every
+effect writes into actual Float32 storage, so stage rounding is explicit.
+Results outside finite Float32 range refuse before consumer delivery.
+
+The existing 8-bit process remains the exact conformance baseline. Tests
+compare independently presented linear results with that process where its
+intermediate clipping does not alter the recipe. Extended-range linear
+processing deliberately retains information that a byte stage would clip.
+Family-specific tests distinguish continuous results from intermediate byte
+clipping; a universal tolerance bound for arbitrary stacks is not claimed.
+
+## Bounds and ownership
+
+The Photo linear profile admits up to 8192 pixels per side and 16,777,216
+pixels, with 268,435,456 bytes per source or rendered plane. Before samples are
+read, the shared owner plans the native source and sixteen-byte-per-pixel
+output and charges their combined declared size against 512 MiB.
+
+Native cancellation checks bound effect work in chunks. A pending consumer is
+joined before output retirement. The owner pins the allocation, offset and
+length independently of borrowed view properties and wipes its physical bytes
+on success or failure. A transferred output cannot certify retirement and
+therefore refuses; a distinct consumer failure and retirement failure both
+survive, with the exact consumer failure first. Caller source storage remains
+unchanged. No working plane enters the catalog or history.
+
+## Current multistage processing
+
+The active `createPhotoDevelopRenderRuntimeCurrentV1` composition delegates
+byte input to the unchanged V3 renderer and sends native linear word or float
+input to `withImageDevelopLinearCurrentV1`. Its complete recipe and resource
+plan finishes before source pixels are read. Disabled stages still undergo
+closed metadata admission.
+
+Those methods remain the default and export renderers. The additive Current
+`withGpuPreview` method is selected only by the temporary Develop Settings
+preview preference. Its native linear word/Float32 color paths include white
+balance, the full tone ladder, chroma, black-and-white mix, HSL, point/parametric
+curves and wheels. The recorded local software-GPU corpus qualifies these paths
+and their numerical fallback. Authenticated cube-LUT GPU stages also pass their
+recorded local software-GPU and Firefox corpus. Native geometry also passes that
+local corpus: legacy geometry stays first and authored
+geometry retains its effect position and natural output descriptor. The four
+manual optics GPU kinds also pass the recorded local software-GPU and Firefox
+corpus, with mandatory accepted GPU positives and distinct exact-CPU
+numerical-refusal witnesses.
+E65 now wires all seven spatial families into the optional native GPU renderer.
+Their private kinds 14–20 retain the existing prepared Q8/Q16 controls,
+deterministic grain/coverage definitions and continuous immutable-input spatial
+math without an encoded image plane or image-sized scratch. Existing menus
+remain the entry point.
+<!-- E65_INPUT_DELIVERY_CORRECTION -->
+E65 preview status now belongs to the accepted request interaction: a changed
+recipe, resolution, temporary policy or source owner shows pending immediately,
+and predecessor readiness cannot certify it. Genuine current ready follows
+joined Original/render retirement. The conformance menu workflows keep all
+worker coverage hooks and wait for that current view between keyboard actions;
+the separate unprofiled English/German PNG burst run passes both cases. Preserved
+pinned
+Chromium diagnostics show native-input suppression during debugger pauses, with
+limits on attributing every application failure to that mechanism. Native pixel
+math, saved settings and custody assertions remain unchanged.
+<!-- E65_VERIFIED_LOCAL_SPATIAL_QUALIFICATION -->
+E65 local qualification passes 575 selected Node cases in 74 files, all 121
+software-Chromium cases, all 121 Firefox compatibility cases and both unprofiled
+English/German rapid PNG proxy cases. Twelve UI coverage profiles compact to
+116 scripts and 116 source maps; 27 mapped source owners match current SHA-256
+pins with positive containing-script ranges. This is not per-line GLSL coverage
+or a coverage-floor pass, and no floor tightening is claimed. Hosted CI remains
+pending;
+the recorded color/LUT/geometry/optics qualification above is the E64 baseline.
+The E65 totals are predecessor evidence. Current masks and selected overlays
+have since entered the native GPU path. E67 now wires Original-space Clone and
+genuine screened-Poisson Heal before legacy geometry, all adjustments and mask
+checkpoints. Its recorded local large-image, menu and combined software-GPU
+and Firefox corpus passes; hosted CI and complete milestone exits remain open.
+Unsupported GPU numeric, capability or working-set profiles take the entire
+existing CPU route.
+Stages are never silently omitted. GPU stages store
+linear RGBA32F and return scoped Float32 readback checked against the normative
+CPU operation before delivery. Exact unchanged-component rules can select CPU
+even when a rounded identity curve differs by only a few ULPs. This conformance
+check also costs CPU work and makes no speed claim. Pointwise stacks use the
+streamed scalar reference; geometry/optics/spatial stacks use up to two maximum-extent CPU
+reference planes, with Float32 stores after each native stage and
+exact normative output alpha. Repair replay uses the unchanged Float64 CPU
+writer inside that same two-plane owner. Serial Heal scratch is 105 bytes per
+halo cell plus 4096 bytes and retires before later authored stages. The GPU
+prefix instead uses 129 bytes per halo cell and the existing stable source/O
+plus two ordered destination banks, reused afterward for masks; there is one
+source upload and no CPU-computed repair upload. GPU halo and CPU repair scratch
+occupy disjoint phases under the same 768-MiB ceiling. Active spatial neighborhoods invalidate any
+same-index Original coincidence witness. Grain and protected dark post-crop
+vignette propagate prior cross-channel invalidation; copy and independent
+pointwise policies retain eligibility without restoring it. Alpha-zero and
+unchanged-component bypasses retain native bits. The same 768-MiB physical
+ledger includes both reference planes and the conservative 4096-byte extended
+uniform reserve. Canonical Before and the
+final display, proof and histogram boundaries retain their existing policies.
+Complete GPU stack coverage, broader native conformance and hosted CI parity
+remain open.
+
+The GPU LUT route authenticates complete body SHA/length/size/domain bindings
+sequentially after the stable Original capture and before GL. A private Double
+table supplies the unchanged CPU trilinear sampler independently of the rounded
+Float32 upload. Input-domain clamp, signed/HDR output, per-stage Float32 stores
+and exact alpha retain their CPU meanings. Double tables retire before final
+GPU delivery; GL and its upload bank stay owned through the joined consumer.
+Numeric/capability refusal can re-read SHA-bound LUT resources through the same
+pinned source method for whole CPU fallback, without reopening the Original.
+Authentication, cancellation and cleanup failures never replay. The
+[GPU ownership plan](lightscaper-develop-gpu-preview.md#working-set-and-retirement)
+charges all unique tables, reusable upload/texture storage and the padded
+physical parser phase under the unchanged 768-MiB ceiling.
+
+The GPU geometry program uses each stage's admitted viewport and resizes its
+two ping-pong textures after clearing prior storage. Its exact integer inverse
+handles integer crops and quarter turns; explicit identity geometry still clears
+hidden alpha-zero RGB and canonicalizes RGB zeros as the CPU filter does.
+Fractional/perspective geometry uses four crop-clamped taps, premultiplied linear
+RGB and division by unrounded alpha, with transparent pixels outside the aperture.
+It retains signed/HDR values. CPU mapper drift or Float32 coordinate precision
+can require complete CPU fallback without changing the eight-ULP/exact guards.
+Double LUT tables remain scoped through whole-plane validation and retire before
+the final consumer. Metadata admits at most 257 passes, including legacy geometry.
+The preferred phase charges the full physical source, capture, two maximum-size
+textures, final readback, both reference planes, LUT resources and presentation;
+the distinct parser and fallback phases keep the same 768-MiB ceiling.
+
+Private kinds10–13 bind native lens, CA, defringe and optical-vignette CPU plans
+to the incoming same-extent descriptor. Lens/CA retain signed displacement
+fractions and zero-extend individual outside taps; they do not use geometry's
+crop-edge clamp. Lens normalizes premultiplied RGBA by unrounded alpha. CA instead
+normalizes each corrected channel's own supported alpha, while Green, reference
+alpha and raw-zero-controlled channels copy exactly. Raw activity flags remain
+independent of rounded coefficients. Defringe uses continuous encoded opponent
+differences over positive-alpha logical neighbors, retaining exact zero-weight,
+unchanged-channel and alpha-zero bypasses. Optical vignette multiplies linear
+light by an incoming-aperture gain and keeps exact zero/gain-one/hidden bypasses.
+The existing two-plane reference supplies normative output without a provenance
+image or false unique ancestry after reconstruction. Exact-alpha coefficient
+rounding and tiny CA support can select whole CPU; dyadic fractional-alpha lens
+positives complement the retained non-dyadic precision-refusal witness. The
+source, default CPU renderer and saved recipes remain unchanged.
+
+The shared execution order is:
+
+1. Clone and screened-Poisson Heal in Original coordinates, with every donor
+   and Heal boundary sampled from the immutable normalized Original.
+2. Any legacy top-level crop, rotation and flips.
+3. Effects in authored order, including geometry at its actual stack position.
+
+The color stages include white balance, the full tone ladder, saturation and
+vibrance, black-and-white mix, HSL, point and parametric curves, color wheels,
+and the authenticated cube-LUT profile. White balance, tone, wheels and the
+managed LUT grade operate in linear RGB. The encoded-domain color families
+use sign-symmetric extended sRGB transfer, continuous arithmetic and an inverse
+transfer. No byte lookup or byte working plane intervenes. Curves evaluate
+authored segments directly and extrapolate their endpoint segments; parametric
+curve gains retain their authored Q16 definition. Neutral stages and unchanged
+channels avoid transfer round trips.
+
+Geometry reuses the admitted crop, perspective, rotation and flip plan. Its
+Float32 kernel filters premultiplied linear RGB and alpha, restores straight
+RGB, extends crop edges and leaves rotated corners transparent. The seven
+spatial families have native Float32 stages: post-crop vignette, clarity,
+noise reduction, grain, texture, dehaze and detail sharpening. They retain their
+authored encoded-domain formulas with continuous RGB and neighborhood means.
+Existing Q8 controls, deterministic grain lattice and vignette shape weights
+remain explicit. Neighborhoods read one immutable stage input; output does not
+feed subsequent taps in that stage. These kernels use caller-owned destination
+planes and no frame-sized spatial scratch.
+
+LUT bodies pass the existing digest, byte length, lattice geometry and parser
+authentication before any destination write. Native managed exposure,
+contrast, lift/gain/gamma and saturation precede red-fastest trilinear sampling.
+The LUT's declared input domain clamps sampling coordinates. Its output and
+the managed grade retain signed/HDR values; they are not clipped to display
+range. Every completed stage rounds into finite Float32 storage.
+
+## Native local adjustments and repair UI
+
+The Current [Develop proxy path](lightscaper-native-proxy.md) samples native words
+or floats before these stages. Proxy-grid evaluation preserves the complete
+recipe and resource authority; full zoom, export and handoff retain natural
+resolution. No full Float32 source capture is needed to create the proxy.
+
+Procedural, luminance-range, color-range and authenticated brush masks use the
+shared graph calculations. Only coverage uses the existing byte mask planes.
+Luminance and color selection sample the incoming Float32 adjustment stage
+directly, without an RGBA8 proxy. Adjustments blend in linear RGB and retain
+source alpha. Named and composed graphs keep their existing recipe and body
+authority. Factoring the shared coverage generator preserves the permanent
+byte wrapper's profile and mathematics.
+
+An explicitly selected mask/effect pair can observe that incoming coverage.
+Remaining geometry projects it into final output coordinates. Color/grayscale
+overlay presentation starts off and remains temporary UI state; neither the
+overlay nor its display mode enters Source, history or the catalog.
+
+The Current Develop Settings menu opens the shared repair editor explicitly.
+Its native-depth Original preview and local Clone/Heal changes remain scoped
+until Apply updates the draft. Save performs the existing recipe/history
+command. Cancel and Close join accepted preview work and discard the local
+edit. The permanent legacy repair wrapper keeps its byte contract.
+
+## Multistage bounds and retirement
+
+The fixed foundation's combined source/output limit remains 512 MiB. The new
+Current multistage owner has a separate 768 MiB aggregate working budget. Its
+scalar plan charges the borrowed native source, at most two live Float32 stage
+planes, mask and projected coverage, resource residency, repair scratch and
+display work before pixels or resource bodies are acquired. Replaced stage
+planes retire immediately; stages and resource borrows run serially.
+Native plane admission also charges the borrowed source's full underlying
+fixed backing, including padding outside a valid view, before private frame
+allocation. A small admitted span cannot hide a larger physical source cost.
+
+Each active CPU LUT charges twice its declared byte length plus a conservative
+128 MiB parser/transient reserve. This is a planning reserve, not an exact
+bound on JavaScript engine string or array overhead. Oversized combinations of
+natural geometry, masks, resources and scratch refuse before sample access;
+admitting a per-plane extent does not promise that every stack at that extent
+fits the aggregate budget. Shared kernel admission requires dedicated fixed,
+nonshared native planes, distinct input/output backings and exact scratch.
+
+Cancellation is checked at task yields. The owner joins rendering, resource
+callbacks and the final consumer before physical retirement. It pins allocation
+geometry independently of delivered views, wipes all owned planes on either
+outcome, and preserves a primary failure together with distinct cleanup
+failures. Working pixels, coverage and scratch are never persisted.
+
+## RAW activation and remaining work
+
+The [Current RAW workflow](lightscaper-raw-decoder.md) uses the existing File
+menu to retain DNG/CRW Original bytes and supply authenticated native RGBA16 to
+development. Native decoder workers retire before the Float32 render starts.
+The final thumbnail/histogram/canvas boundary transfers linear samples to
+encoded RGBA8; those display bytes never feed the deep Develop stack. Save and
+reload retain recipes beside the immutable Original. [Current native raster
+export](lightscaper-native-raster-export.md) keeps Float32 samples through output
+stages and encodes PNG8, PNG16 or JPEG only at delivery. [Editable RAW Frame
+handoff](lightscaper-raw-image-handoff.md) retains the Original, native receipt
+and unchanged recipe as Source4. Frame regenerates authenticated native words
+before Develop; byte FramePack1 remains unchanged and carries a presentation
+cache rather than a persisted deep plane. The earlier Chromium and Firefox
+qualification covers the actual menu → import → white balance/exposure →
+Save/reload loop. Qualification of the expanded multistage workflow is in
+progress; this document does not claim its final suite or browser result.
+
+[RAW camera culling](lightscaper-culling.md#current-raw-preview-source) uses a
+separate opt-in display source; it never supplies this working stack. Complete
+GPU stack coverage and conformance, native desktop services and reviewed
+lens/camera profiles remain unfinished.
+External RAW runtime/source publication, broader camera qualification, the
+remaining L3–L6 gates, L7 exit, desktop L8 and owner-QA L9 remain open.
+
+No assistance runtime closure changes. A manual **Update AI assets** run is
+not required. RAW corresponding-source packaging remains part of the decoder's
+separate reproduction and publication workflow.

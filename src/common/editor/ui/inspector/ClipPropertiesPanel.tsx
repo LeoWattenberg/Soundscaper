@@ -46,13 +46,14 @@ export default function ClipPropertiesPanel({ controller, snapshot, copy, focusR
 	const bodyId = `${baseId}-properties`;
 	const tabId = (clipId: string) => `${baseId}-clip-${encodeURIComponent(clipId)}`;
 	const multiple = selection.clips.length > 1;
+	const activationPending = snapshot.ready === false || Boolean(snapshot.projectActivationPending);
 
 	useEffect(() => {
 		setStoredTarget((previous) => previous.projectId === selection.projectId && previous.clipId === activeClipId
 			? previous : { projectId: selection.projectId, clipId: activeClipId });
 	}, [selection.projectId, activeClipId]);
 	useEffect(() => {
-		if (!panelActive || !focusRequest || handledFocus.current === focusRequest) return;
+		if (!panelActive || activationPending || !focusRequest || handledFocus.current === focusRequest) return;
 		const acknowledge = () => { handledFocus.current = focusRequest; focusRequest.onHandled?.(); };
 		const wrongProject = focusRequest.projectId !== undefined && focusRequest.projectId !== selection.projectId;
 		const removedClip = focusRequest.clipId !== null && !selection.clips.some(({ id }) => id === focusRequest.clipId);
@@ -65,7 +66,7 @@ export default function ClipPropertiesPanel({ controller, snapshot, copy, focusR
 		if (!focusTarget) return;
 		focusTarget.focus();
 		acknowledge();
-	}, [focusRequest, panelActive, activeClipId, selection.projectId, selection.clips]);
+	}, [focusRequest, panelActive, activationPending, activeClipId, selection.projectId, selection.clips]);
 
 	const activateTab = (clipId: string) => setStoredTarget({ projectId: selection.projectId, clipId });
 	const handleTabKey = (event: KeyboardEvent<HTMLButtonElement>, index: number) => {
@@ -96,7 +97,7 @@ export default function ClipPropertiesPanel({ controller, snapshot, copy, focusR
 		return track.locked === true && activeClipId !== null && track.clipIds?.includes(activeClipId);
 	}) === true;
 	const mutationBlocked = ownerLocked || selectAudioEditorEditBlock(snapshot as Parameters<typeof selectAudioEditorEditBlock>[0]).blocked;
-	const hasSourceEditor = panelActive && sourceClip?.kind === 'audio' && sourceController.actions?.clipSourcePreview
+	const hasSourceEditor = panelActive && !activationPending && sourceClip?.kind === 'audio' && sourceController.actions?.clipSourcePreview
 		&& sourceProject?.sources.some(source => source.id === sourceClip.sourceId);
 	const handlePlaybackKey = (event: KeyboardEvent<HTMLDivElement>) => {
 		if (!hasSourceEditor || !activeClipId || event.defaultPrevented || event.code !== 'Space' || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
@@ -116,7 +117,10 @@ export default function ClipPropertiesPanel({ controller, snapshot, copy, focusR
 				ref={(node) => { if (node) tabRefs.current.set(clip.id, node); else tabRefs.current.delete(clip.id); }}
 				onClick={() => activateTab(clip.id)} onKeyDown={(event) => handleTabKey(event, index)}>{clip.label}</button>)}
 		</div>}
-		{activeClipId ? <div ref={bodyRef} id={bodyId} role={multiple ? 'tabpanel' : undefined}
+		{activeClipId && activationPending ? <div id={bodyId} role={multiple ? 'tabpanel' : undefined}
+			aria-labelledby={multiple ? tabId(activeClipId) : undefined}>
+			<p className="audio-editor-panel-hint" role="status">{copy.loading}</p></div>
+			: activeClipId ? <div ref={bodyRef} id={bodyId} role={multiple ? 'tabpanel' : undefined}
 			aria-labelledby={multiple ? tabId(activeClipId) : undefined} tabIndex={-1} data-clip-properties-active-clip={activeClipId}
 			onKeyDown={handlePlaybackKey}
 			onFocusCapture={() => { if (hasSourceEditor && activeClipId) sourceController.actions.clipSourcePreview.focus(activeClipId); }}>

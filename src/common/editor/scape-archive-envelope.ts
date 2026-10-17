@@ -8,25 +8,29 @@ import {
 import { parseOpaqueScapeProjectDocument } from './scape-project-document.ts';
 import { ScapeExpandedByteBudget } from './scape-expanded-byte-budget.ts';
 import { confirmFileSizeWarning, type FileSizeWarningOptions } from './controller/shared/file-size-warning.ts';
+import { PHOTO_CATALOG_PACK_ASSET_KIND } from './scape-photo-catalog-pack.ts';
+import { PHOTO_STACK_PACK_ASSET_KIND } from './scape-photo-stack-pack.ts';
+import { PHOTO_SMART_COLLECTION_PACK_ASSET_KIND } from './scape-photo-smart-collection-pack.ts';
+import { PHOTO_DEVELOP_PRESET_PACK_ASSET_KIND } from './scape-photo-develop-preset-pack.ts';
+import { PHOTO_CUBE_LUT_ASSET_KIND } from './scape-photo-cube-lut.ts';
+import { PHOTO_MASK_RASTER_ASSET_KIND_V1 } from './scape-photo-mask-raster-v1.ts';
+import {
+	SCAPE_FORMAT,
+	SCAPE_FORMAT_VERSION,
+	SCAPE_MANIFEST_ENTRY,
+	SCAPE_PROJECT_ENTRY,
+	SCAPE_ARCHIVE_LIMITS,
+	type ScapeArchiveLimits,
+} from './scape-archive-limits.ts';
 
-export const SCAPE_FORMAT = 'scape-project';
-export const SCAPE_FORMAT_VERSION = 1;
-export const SCAPE_MANIFEST_ENTRY = 'manifest.json';
-export const SCAPE_PROJECT_ENTRY = 'project.json';
-
-export interface ScapeArchiveLimits {
-	maximumEntryCount: number;
-	maximumManifestBytes: number;
-	maximumProjectBytes: number;
-	maximumExpandedBytes: number;
-}
-
-export const SCAPE_ARCHIVE_LIMITS: Readonly<ScapeArchiveLimits> = Object.freeze({
-	maximumEntryCount: 4_096,
-	maximumManifestBytes: 32 * 1024 * 1024,
-	maximumProjectBytes: 256 * 1024 * 1024,
-	maximumExpandedBytes: 64 * 1024 * 1024 * 1024,
-});
+export {
+	SCAPE_FORMAT,
+	SCAPE_FORMAT_VERSION,
+	SCAPE_MANIFEST_ENTRY,
+	SCAPE_PROJECT_ENTRY,
+	SCAPE_ARCHIVE_LIMITS,
+	type ScapeArchiveLimits,
+} from './scape-archive-limits.ts';
 
 export interface ScapeArchiveEntry {
 	filename: string;
@@ -291,8 +295,8 @@ function parseScapeManifest(text: string, additionalAssetKinds: readonly string[
 		throw new TypeError('The Scape manifest is incomplete.');
 	}
 	validateDescriptor(value.project);
-	readProjectSchemaIdentity(value.project);
-	const assetKinds = allowedAssetKinds(additionalAssetKinds);
+	const identity = readProjectSchemaIdentity(value.project);
+	const assetKinds = allowedAssetKinds(additionalAssetKinds, identity.schemaFamily);
 	for (const asset of value.assets) {
 		if (!isRecord(asset)) throw new TypeError('A Scape asset descriptor is invalid.');
 		validateDescriptor(asset);
@@ -309,16 +313,30 @@ function parseScapeManifest(text: string, additionalAssetKinds: readonly string[
 	return value as unknown as ScapeManifest;
 }
 
-function allowedAssetKinds(additional: readonly string[]): ReadonlySet<string> {
+function allowedAssetKinds(additional: readonly string[], family: ProjectSchemaFamily): ReadonlySet<string> {
 	if (!Array.isArray(additional) || additional.length > 64) {
 		throw new TypeError('Additional Scape asset kinds must be a bounded array.');
 	}
 	const result = new Set(['audio', 'video', 'video-timing']);
+	if (family === 'lightscaper') result.add(PHOTO_CATALOG_PACK_ASSET_KIND);
+	if (family === 'lightscaper') result.add(PHOTO_STACK_PACK_ASSET_KIND);
+	if (family === 'lightscaper') result.add(PHOTO_SMART_COLLECTION_PACK_ASSET_KIND);
+	if (family === 'lightscaper') result.add(PHOTO_DEVELOP_PRESET_PACK_ASSET_KIND);
+	if (family === 'lightscaper') result.add(PHOTO_CUBE_LUT_ASSET_KIND);
+	if (family === 'lightscaper') result.add(PHOTO_MASK_RASTER_ASSET_KIND_V1);
 	for (const kind of additional) {
 		if (typeof kind !== 'string' || !/^[a-z][a-z0-9-]{0,63}$/u.test(kind)) {
 			throw new TypeError(`An additional Scape asset kind is invalid: ${String(kind)}.`);
 		}
 		if (result.has(kind)) throw new Error(`Duplicate Scape asset kind: ${kind}.`);
+		// The selected Frame image extension independently closes and authenticates
+		// Source3 mask declarations; catalog/preset/root kinds keep their own family.
+		if (family === 'framescaper' && kind === PHOTO_MASK_RASTER_ASSET_KIND_V1) { result.add(kind); continue; }
+		if (kind === PHOTO_CATALOG_PACK_ASSET_KIND || kind === PHOTO_STACK_PACK_ASSET_KIND
+			|| kind === PHOTO_SMART_COLLECTION_PACK_ASSET_KIND || kind === PHOTO_DEVELOP_PRESET_PACK_ASSET_KIND
+			|| kind === PHOTO_CUBE_LUT_ASSET_KIND || kind === PHOTO_MASK_RASTER_ASSET_KIND_V1) {
+			throw new TypeError('Photo catalog packs require their registered project family.');
+		}
 		result.add(kind);
 	}
 	return result;

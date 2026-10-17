@@ -1,0 +1,24 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+const EN = Object.freeze({ title: 'Download selected photos', description: 'This queue is retained in this library. Reopen Export queue after a reload and authorize remaining downloads. A started download may already exist; review it before retrying.',
+	empty: 'No export queue is retained. Select photos to create one.', continue: 'Authorize remaining downloads', needsReview: 'Download may have started. Check your browser before retrying.',
+	stale: 'The saved photo, version or resources changed. This member cannot be resumed.', review: 'I checked my downloads and want to retry {name}', replaceCompleted: 'Replace completed queue and start new downloads',
+	discardWarning: 'Forgetting this queue removes its recovery history. Downloads that may already have started remain in your browser.', discardReview: 'I reviewed the queue and want to forget its remaining work', discard: 'Forget unfinished queue', discarding: 'Forgetting the queue…', discardFailed: 'The queue changed or could not be forgotten. Reload the library to review the current queue.',
+	graphicPreparing: 'Preparing the graphic file…', graphicInvalid: 'Choose a valid graphic. To resume this queue, select the exact previously used file.',
+	graphicRecovery: 'Reselect the same graphic file to finish image downloads. The saved placement is retained.', graphicReselect: 'Reselect graphic file',
+	graphicSidecarOnly: 'The images were delivered. Remaining sidecars do not need the graphic file.',
+	start: 'Start downloads', hide: 'Hide queue', pause: 'Pause queue', resume: 'Resume queue', cancel: 'Cancel queue', cancelMember: 'Cancel photo',
+	format: 'Format', png: 'PNG', jpeg: 'JPEG', preparing: 'Preparing selected versions…', failed: 'Some photos could not be downloaded. Completed downloads remain available in your browser.',
+	idle: 'Ready', queued: 'Queued', running: 'Exporting…', saved: 'Delivered', downloaded: 'Download started: {name}. Check your browser’s downloads.',
+	cancelled: 'Cancelled', memberFailed: 'Failed', settled: 'Queue finished', paused: 'Queue paused' });
+const DE = Object.freeze({ title: 'Ausgewählte Fotos herunterladen', description: 'Diese Warteschlange bleibt in dieser Bibliothek erhalten. Nach dem Neuladen „Exportwarteschlange“ öffnen und verbleibende Downloads neu bestätigen. Ein gestarteter Download kann bereits vorliegen; vor einem erneuten Versuch prüfen.',
+	empty: 'Keine Exportwarteschlange gespeichert. Fotos auswählen, um eine zu erstellen.', continue: 'Verbleibende Downloads bestätigen', needsReview: 'Der Download könnte gestartet sein. Vor einem erneuten Versuch die Browser-Downloads prüfen.',
+	stale: 'Gespeichertes Foto, Version oder Ressourcen haben sich geändert. Dieses Foto kann nicht fortgesetzt werden.', review: 'Ich habe meine Downloads geprüft und möchte {name} erneut herunterladen', replaceCompleted: 'Abgeschlossene Warteschlange ersetzen und neue Downloads starten',
+	discardWarning: 'Beim Vergessen dieser Warteschlange wird ihr Wiederherstellungsverlauf entfernt. Downloads, die bereits gestartet sein könnten, bleiben im Browser.', discardReview: 'Ich habe die Warteschlange geprüft und möchte ihre verbleibende Arbeit vergessen', discard: 'Unfertige Warteschlange vergessen', discarding: 'Warteschlange wird vergessen…', discardFailed: 'Die Warteschlange wurde geändert oder konnte nicht vergessen werden. Die Bibliothek neu laden, um die aktuelle Warteschlange zu prüfen.',
+	graphicPreparing: 'Grafikdatei wird vorbereitet…', graphicInvalid: 'Wählen Sie eine gültige Grafik. Zum Fortsetzen dieser Warteschlange dieselbe zuvor verwendete Datei auswählen.',
+	graphicRecovery: 'Wählen Sie dieselbe Grafikdatei erneut, um die Bilddownloads abzuschließen. Die gespeicherte Position bleibt erhalten.', graphicReselect: 'Grafikdatei erneut auswählen',
+	graphicSidecarOnly: 'Die Bilder wurden übergeben. Für verbleibende Begleitdateien wird die Grafikdatei nicht benötigt.',
+	start: 'Downloads starten', hide: 'Warteschlange ausblenden', pause: 'Warteschlange pausieren', resume: 'Warteschlange fortsetzen', cancel: 'Warteschlange abbrechen', cancelMember: 'Foto abbrechen',
+	format: 'Format', png: 'PNG', jpeg: 'JPEG', preparing: 'Ausgewählte Versionen werden vorbereitet…', failed: 'Einige Fotos konnten nicht heruntergeladen werden. Abgeschlossene Downloads bleiben in Ihrem Browser verfügbar.',
+	idle: 'Bereit', queued: 'Geplant', running: 'Wird exportiert…', saved: 'Übergeben', downloaded: 'Download gestartet: {name}. Prüfen Sie die Downloads Ihres Browsers.',
+	cancelled: 'Abgebrochen', memberFailed: 'Fehlgeschlagen', settled: 'Warteschlange abgeschlossen', paused: 'Warteschlange pausiert' });
+export function photoBatchExportCopy(locale: string) { return locale.toLowerCase().split('-')[0] === 'de' ? DE : EN; }

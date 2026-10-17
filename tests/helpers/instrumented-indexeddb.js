@@ -1,6 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { blobReadStats } from './instrumented-indexeddb-blob-stats.js';
+import { matchesInstrumentedQuery } from './instrumented-indexeddb-keys.ts';
+import { checkInstrumentedUniqueIndexes, instrumentedIndexEntries } from './instrumented-indexeddb-indexes.ts';
 import { createRequestFailurePlan } from './instrumented-indexeddb-failures.js';
 import {
 	cancelableErrorEvent,
@@ -25,6 +27,7 @@ export function createInstrumentedIndexedDB({ supportsContinuePrimaryKey = true 
 		keyCursorRequests: [],
 		getAllRequests: [],
 		getRequests: [],
+		countRequests: [],
 		takeGetObserver: (storeName) => pendingGetObservers.get(storeName),
 		sourceChunkGetAllCalls: 0,
 		supportsContinuePrimaryKey,
@@ -248,6 +251,7 @@ class FakeObjectStore {
 			const failure = this.transaction.database.takeRequestFailure('put', this.data.name);
 			if (failure) throw failure;
 			const stored = clone(value);
+			checkInstrumentedUniqueIndexes(this.data.indexes, this.data.records, stored[this.data.keyPath], stored);
 			this.data.records.set(stored[this.data.keyPath], stored);
 			return cloneKey(stored[this.data.keyPath]);
 		});
@@ -262,14 +266,16 @@ class FakeObjectStore {
 			if (this.data.records.has(key)) {
 				throw new DOMException(`Store ${this.data.name} already contains ${String(key)}.`, 'ConstraintError');
 			}
+			checkInstrumentedUniqueIndexes(this.data.indexes, this.data.records, key, stored);
 			this.data.records.set(key, stored);
 			return cloneKey(key);
 		});
 	}
 
-	createIndex(name, keyPath) {
+	createIndex(name, keyPath, { unique = false, multiEntry = false } = {}) {
 		if (this.data.indexes.has(name)) throw new DOMException(`Index ${name} already exists.`, 'ConstraintError');
-		this.data.indexes.set(name, keyPath);
+		if (multiEntry && Array.isArray(keyPath)) throw new DOMException('Compound indexes cannot be multiEntry.', 'InvalidAccessError');
+		this.data.indexes.set(name, { keyPath, unique, multiEntry });
 		return new FakeIndex(this.transaction, this.data, name);
 	}
 
@@ -293,7 +299,10 @@ class FakeObjectStore {
 		return fakeGetAllRequest(this.transaction, this.data, null, query, count, valuesForStore(this.data, query));
 	}
 	count(query) {
-		return fakeRequest(this.transaction, () => valuesForStore(this.data, query).length);
+		return fakeRequest(this.transaction, () => {
+			this.transaction.database.stats.countRequests.push({ store: this.data.name, index: null, query });
+			return valuesForStore(this.data, query).length;
+		});
 	}
 	delete(key) {
 		return fakeRequest(this.transaction, () => {
@@ -309,13 +318,14 @@ class FakeObjectStore {
 		return new FakeIndex(this.transaction, this.data, name);
 	}
 
-	openCursor(query) {
+	openCursor(query, direction = 'next') {
 		const entries = entriesForStore(this.data, query).map(([primaryKey, value]) => ({
 			key: primaryKey,
 			primaryKey,
 			value,
 		}));
-		return fakeCursorRequest(this.transaction, this.data, entries, { index: null, query });
+		if (direction === 'prev') entries.reverse();
+		return fakeCursorRequest(this.transaction, this.data, entries, { index: null, query, direction });
 	}
 
 	openKeyCursor(query, direction = 'next') {
@@ -333,17 +343,31 @@ class FakeIndex {
 		this.transaction = transaction;
 		this.data = data;
 		this.name = name;
-		this.keyPath = data.indexes.get(name);
+		this.definition = data.indexes.get(name);
+		if (!this.definition) throw new DOMException(`Index ${name} does not exist.`, 'NotFoundError');
+		this.keyPath = this.definition.keyPath;
+		this.unique = this.definition.unique;
+		this.multiEntry = this.definition.multiEntry;
 		this.objectStore = new FakeObjectStore(transaction, data);
+	}
+	get(query) {
+		return fakeRequest(this.transaction, () => clone(this.entries(query)[0]?.value));
+	}
+	getKey(query) {
+		return fakeRequest(this.transaction, () => cloneKey(this.entries(query)[0]?.primaryKey));
 	}
 	getAll(query, count) {
 		if (this.data.name === 'sourceChunks') this.transaction.database.stats.sourceChunkGetAllCalls += 1;
 		return fakeGetAllRequest(this.transaction, this.data, this.name, query, count, this.values(query));
 	}
-	count(query) { return fakeRequest(this.transaction, () => this.values(query).length); }
-	openCursor(query) {
+	count(query) { return fakeRequest(this.transaction, () => {
+		this.transaction.database.stats.countRequests.push({ store: this.data.name, index: this.name, query });
+		return this.values(query).length;
+	}); }
+	openCursor(query, direction = 'next') {
 		const entries = this.entries(query);
-		return fakeCursorRequest(this.transaction, this.data, entries, { index: this.name, query });
+		if (direction === 'prev') entries.reverse();
+		return fakeCursorRequest(this.transaction, this.data, entries, { index: this.name, query, direction });
 	}
 	openKeyCursor(query) {
 		const entries = this.entries(query).map(({ key, primaryKey }) => ({ key, primaryKey }));
@@ -356,17 +380,13 @@ class FakeIndex {
 	}
 
 	entries(query) {
-		return [...this.data.records.entries()]
-			.map(([primaryKey, value]) => ({ key: value[this.keyPath], primaryKey, value }))
-			.filter(({ key }) => query === undefined || key === query)
-			.sort((left, right) => compareKeys(left.key, right.key)
-				|| compareKeys(left.primaryKey, right.primaryKey));
+		return instrumentedIndexEntries(this.data.records, this.definition, query);
 	}
 }
 
 function entriesForStore(data, query) {
 	return [...data.records.entries()]
-		.filter(([primaryKey]) => query === undefined || primaryKey === query)
+		.filter(([primaryKey]) => matchesInstrumentedQuery(primaryKey, query))
 		.sort(([left], [right]) => compareKeys(left, right));
 }
 

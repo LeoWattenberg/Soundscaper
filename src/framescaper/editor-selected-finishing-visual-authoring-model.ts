@@ -3,7 +3,8 @@
 import { selectedAdjustmentEffectId } from './editor-adjustment-effect-membership.ts';
 
 import { normalizeVideoVisualPresetV1 } from '../common/editor/video-visual-preset-v24.ts';
-import { normalizeVideoMaskMatteGraphV1 } from '../common/editor/video-mask-matte-v24.ts';
+import { normalizeVideoMaskMatteGraphV1, type VideoLinearGradientMaskNodeV1, type VideoMaskMatteNodeV1 } from '../common/editor/video-mask-matte-v24.ts';
+import { readClosedDomainField } from '../common/editor/closed-domain-value.ts';
 import {
 	normalizeVideoFinishingPresetV1,
 	normalizeVideoVisualPresentationV1,
@@ -19,6 +20,53 @@ export const createFramescaperSelectedVisualAuthoringModel =
 	createFramescaperSelectedVisualAuthoringModelFinishing;
 
 type Data = Readonly<Record<string, unknown>>;
+
+export type FramescaperSelectedMaskDraftFinishing = Readonly<{ id: string; shape: 'rectangle' | 'ellipse'; width: number; height: number }>
+	| Readonly<{ id: string; shape: 'linear-gradient'; startX: number; startY: number; endX: number; endY: number }>
+	| Readonly<{ id: string; shape: 'radial-gradient'; centerX: number; centerY: number; radiusX: number; radiusY: number; innerFraction: number }>
+	| Readonly<{ id: string; shape: 'luminance-range'; lower: number; upper: number; falloff: number }>
+	| Readonly<{ id: string; shape: 'color-range'; red: number; green: number; blue: number; radius: number; falloff: number }>;
+
+/** Only new gradient endpoint fields use closed own-data admission; legacy
+ * selected shape authoring keeps its existing request semantics. */
+export function createFramescaperLinearGradientMaskNodeFinishing(request: Data, nodeId: string): Readonly<VideoLinearGradientMaskNodeV1> {
+	const field = (key: string) => readClosedDomainField(request, key, 'linear-gradient authoring');
+	const graph = normalizeVideoMaskMatteGraphV1({ schemaVersion: 1, id: nodeId, kind: 'mask', inputs: [], outputNodeId: nodeId,
+		nodes: [{ id: nodeId, kind: 'linear-gradient', start: { x: field('startX'), y: field('startY') }, end: { x: field('endX'), y: field('endY') } }] });
+	const node = graph.nodes[0]!;
+	if (node.kind !== 'linear-gradient') throw new Error('Gradient authoring produced a different node.');
+	return node;
+}
+
+/** The command delegates shape construction here without widening legacy
+ * request admission. Gradient scalar fields alone require inert own data. */
+export function createFramescaperMaskNodeFinishing(request: Data, nodeId: string): Readonly<VideoMaskMatteNodeV1> {
+	const shape = request.shape;
+	if (shape === 'linear-gradient') return createFramescaperLinearGradientMaskNodeFinishing(request, nodeId);
+	let node: unknown;
+	if (shape === 'radial-gradient') {
+		const field = (key: string) => readClosedDomainField(request, key, 'radial-gradient authoring');
+		node = { id: nodeId, kind: 'radial-gradient', center: { x: field('centerX'), y: field('centerY') },
+			radius: { x: field('radiusX'), y: field('radiusY') }, innerFraction: field('innerFraction') };
+	} else if (shape === 'luminance-range') {
+		const field = (key: string) => readClosedDomainField(request, key, 'luminance-range authoring');
+		node = { id: nodeId, kind: 'luminance-range', lower: field('lower'), upper: field('upper'), falloff: field('falloff') };
+	} else if (shape === 'color-range') {
+		const field = (key: string) => readClosedDomainField(request, key, 'color-range authoring');
+		node = { id: nodeId, kind: 'color-range', color: { r: field('red'), g: field('green'), b: field('blue') },
+			radius: field('radius'), falloff: field('falloff') };
+	} else {
+		if (shape !== 'rectangle' && shape !== 'ellipse' && shape !== 'line') throw new RangeError('mask shape is unsupported.');
+		const width = maskSize(request.width, 'mask width'), height = maskSize(request.height, 'mask height');
+		node = { id: nodeId, kind: 'vector-shape', shape, x: (1 - width) / 2, y: (1 - height) / 2, width, height };
+	}
+	return normalizeVideoMaskMatteGraphV1({ schemaVersion: 1, id: nodeId, kind: 'mask', inputs: [], nodes: [node], outputNodeId: nodeId }).nodes[0]!;
+}
+
+function maskSize(value: unknown, name: string): number {
+	if (typeof value !== 'number' || !Number.isFinite(value) || value < 0.01 || value > 1) throw new RangeError(`${name} is outside its finite bound.`);
+	return value;
+}
 
 export const FRAMESCAPER_SELECTED_FINISHING_DIALOG_AUTHORING_SURFACES = Object.freeze([
 	'video-transition', 'video-transition-dissolve', 'video-adjustment-layer',
@@ -64,10 +112,7 @@ export interface FramescaperSelectedVisualAuthoringModelFinishing {
 	readonly adjustmentBrightness: number;
 	readonly attachedMaskIds: readonly string[];
 	readonly selectedMaskId: string | null;
-	readonly maskDrafts: readonly Readonly<{
-		readonly id: string; readonly shape: 'rectangle' | 'ellipse';
-		readonly width: number; readonly height: number;
-	}>[];
+	readonly maskDrafts: readonly FramescaperSelectedMaskDraftFinishing[];
 	readonly visualPresets: readonly Readonly<{
 		readonly id: string; readonly name: string; readonly modelKind: string;
 	}>[];
@@ -122,8 +167,15 @@ export function createFramescaperSelectedVisualAuthoringModelFinishing(input: Re
 		selectedMaskId: attachedMaskIds[0] ?? null,
 		maskDrafts: Object.freeze(records(project.videoMaskMattes, 'video masks')
 			.filter(({ id }) => attachedMaskIds.includes(String(id)))
-			.map(normalizeVideoMaskMatteGraphV1).flatMap((mask) => {
+			.map(normalizeVideoMaskMatteGraphV1).flatMap<FramescaperSelectedMaskDraftFinishing>((mask) => {
 				const node = mask.nodes.find(({ id }) => id === mask.outputNodeId);
+				if (node?.kind === 'linear-gradient') return [Object.freeze({ id: mask.id, shape: 'linear-gradient',
+					startX: node.start.x, startY: node.start.y, endX: node.end.x, endY: node.end.y })];
+				if (node?.kind === 'radial-gradient') return [Object.freeze({ id: mask.id, shape: 'radial-gradient', centerX: node.center.x,
+					centerY: node.center.y, radiusX: node.radius.x, radiusY: node.radius.y, innerFraction: node.innerFraction })];
+				if (node?.kind === 'luminance-range') return [Object.freeze({ id: mask.id, shape: 'luminance-range', lower: node.lower, upper: node.upper, falloff: node.falloff })];
+				if (node?.kind === 'color-range') return [Object.freeze({ id: mask.id, shape: 'color-range', red: node.color.r,
+					green: node.color.g, blue: node.color.b, radius: node.radius, falloff: node.falloff })];
 				return node?.kind === 'vector-shape' ? [Object.freeze({ id: mask.id,
 					shape: node.shape, width: node.width, height: node.height })] : [];
 			})),

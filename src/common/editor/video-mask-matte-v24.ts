@@ -53,6 +53,37 @@ export interface VideoVectorPathMaskNodeV1 {
 	readonly paths: readonly VideoMaskPathV1[];
 }
 
+export interface VideoLinearGradientMaskNodeV1 {
+	readonly id: string;
+	readonly kind: 'linear-gradient';
+	readonly start: VideoMaskCoordinateV1;
+	readonly end: VideoMaskCoordinateV1;
+}
+
+export interface VideoRadialGradientMaskNodeV1 {
+	readonly id: string;
+	readonly kind: 'radial-gradient';
+	readonly center: VideoMaskCoordinateV1;
+	readonly radius: VideoMaskCoordinateV1;
+	readonly innerFraction: number;
+}
+
+export interface VideoLuminanceRangeMaskNodeV1 {
+	readonly id: string;
+	readonly kind: 'luminance-range';
+	readonly lower: number;
+	readonly upper: number;
+	readonly falloff: number;
+}
+
+export interface VideoColorRangeMaskNodeV1 {
+	readonly id: string;
+	readonly kind: 'color-range';
+	readonly color: Readonly<{ r: number; g: number; b: number }>;
+	readonly radius: number;
+	readonly falloff: number;
+}
+
 export interface VideoRasterMaskNodeV1 {
 	readonly id: string;
 	readonly kind: 'raster';
@@ -89,6 +120,10 @@ export interface VideoBooleanMaskNodeV1 {
 export type VideoMaskMatteNodeV1 =
 	| VideoVectorShapeMaskNodeV1
 	| VideoVectorPathMaskNodeV1
+	| VideoLinearGradientMaskNodeV1
+	| VideoRadialGradientMaskNodeV1
+	| VideoLuminanceRangeMaskNodeV1
+	| VideoColorRangeMaskNodeV1
 	| VideoRasterMaskNodeV1
 	| VideoAlphaMaskNodeV1
 	| VideoFeatherMaskNodeV1
@@ -108,6 +143,11 @@ const GRAPH_FIELDS = Object.freeze(['schemaVersion', 'id', 'kind', 'inputs', 'no
 const INPUT_FIELDS = Object.freeze(['name', 'sourceRef', 'kind']);
 const SHAPE_FIELDS = Object.freeze(['id', 'kind', 'shape', 'x', 'y', 'width', 'height']);
 const PATH_NODE_FIELDS = Object.freeze(['id', 'kind', 'fillRule', 'paths']);
+const GRADIENT_FIELDS = Object.freeze(['id', 'kind', 'start', 'end']);
+const RADIAL_FIELDS = Object.freeze(['id', 'kind', 'center', 'radius', 'innerFraction']);
+const LUMINANCE_FIELDS = Object.freeze(['id', 'kind', 'lower', 'upper', 'falloff']);
+const COLOR_FIELDS = Object.freeze(['id', 'kind', 'color', 'radius', 'falloff']);
+const COLOR_CHANNEL_FIELDS = Object.freeze(['r', 'g', 'b']);
 const PATH_FIELDS = Object.freeze(['id', 'closed', 'points']);
 const POINT_FIELDS = Object.freeze(['position', 'inHandle', 'outHandle']);
 const COORDINATE_FIELDS = Object.freeze(['x', 'y']);
@@ -118,7 +158,7 @@ const INVERT_FIELDS = Object.freeze(['id', 'kind', 'inputNodeId']);
 const BOOLEAN_FIELDS = Object.freeze(['id', 'kind', 'operation', 'inputNodeIds']);
 const ALL_NODE_FIELDS = Object.freeze([...new Set([
 	...SHAPE_FIELDS, ...PATH_NODE_FIELDS, ...RASTER_FIELDS, ...ALPHA_FIELDS,
-	...FEATHER_FIELDS, ...INVERT_FIELDS, ...BOOLEAN_FIELDS,
+	...FEATHER_FIELDS, ...INVERT_FIELDS, ...BOOLEAN_FIELDS, ...GRADIENT_FIELDS, ...RADIAL_FIELDS, ...LUMINANCE_FIELDS, ...COLOR_FIELDS,
 ])]);
 const STABLE_ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/u;
 const INPUT_NAME = /^[A-Za-z][A-Za-z0-9_-]{0,63}$/u;
@@ -186,6 +226,10 @@ function normalizeNodes(value: unknown): readonly VideoMaskMatteNodeV1[] {
 		const id = stableId(field(record, 'id', name), `${name}.id`);
 		const kind = field(record, 'kind', name);
 		if (kind === 'vector-shape') return vectorShape(candidate, name, id);
+		if (kind === 'linear-gradient') return linearGradient(candidate, name, id);
+		if (kind === 'radial-gradient') return radialGradient(candidate, name, id);
+		if (kind === 'luminance-range') return luminanceRange(candidate, name, id);
+		if (kind === 'color-range') return colorRange(candidate, name, id);
 		if (kind === 'vector-path') {
 			const result = vectorPath(candidate, name, id, pathIds);
 			pointCount += result.pointCount;
@@ -263,6 +307,64 @@ function normalizePoint(value: unknown, name: string): VideoMaskPointV1 {
 function normalizeCoordinate(value: unknown, name: string): VideoMaskCoordinateV1 {
 	const record = readClosedDomainRecord(value, name, COORDINATE_FIELDS);
 	return Object.freeze({ x: coordinate(field(record, 'x', name), `${name}.x`), y: coordinate(field(record, 'y', name), `${name}.y`) });
+}
+
+function linearGradient(value: unknown, name: string, id: string): VideoLinearGradientMaskNodeV1 {
+	const record = readClosedDomainRecord(value, name, GRADIENT_FIELDS);
+	const start = normalizeCoordinate(field(record, 'start', name), `${name}.start`);
+	const end = normalizeCoordinate(field(record, 'end', name), `${name}.end`);
+	if (start.x === end.x && start.y === end.y) throw new RangeError('Linear gradient endpoints must be distinct.');
+	return Object.freeze({ id, kind: 'linear-gradient', start, end });
+}
+
+function radialGradient(value: unknown, name: string, id: string): VideoRadialGradientMaskNodeV1 {
+	const record = readClosedDomainRecord(value, name, RADIAL_FIELDS);
+	const center = normalizeCoordinate(field(record, 'center', name), `${name}.center`);
+	const radiusValue = readClosedDomainRecord(field(record, 'radius', name), `${name}.radius`, COORDINATE_FIELDS);
+	const radius = Object.freeze({ x: positiveCoordinate(field(radiusValue, 'x', name), `${name}.radius.x`),
+		y: positiveCoordinate(field(radiusValue, 'y', name), `${name}.radius.y`) });
+	const innerFraction = boundedFinite(field(record, 'innerFraction', name), 0, 1, `${name}.innerFraction`);
+	if (innerFraction === 1) throw new RangeError('Radial gradient innerFraction must be below one.');
+	return Object.freeze({ id, kind: 'radial-gradient', center, radius, innerFraction });
+}
+
+export const VIDEO_MASK_MATTE_WORKING_LIMIT_V1 = 64 * 1024 * 1024;
+
+function luminanceRange(value: unknown, name: string, id: string): VideoLuminanceRangeMaskNodeV1 {
+	const record = readClosedDomainRecord(value, name, LUMINANCE_FIELDS);
+	const lower = boundedFinite(field(record, 'lower', name), 0, 1, `${name}.lower`);
+	const upper = boundedFinite(field(record, 'upper', name), 0, 1, `${name}.upper`);
+	const falloff = boundedFinite(field(record, 'falloff', name), 0, 1, `${name}.falloff`);
+	if (lower > upper) throw new RangeError('Luminance range lower must not exceed upper.');
+	return Object.freeze({ id, kind: 'luminance-range', lower, upper, falloff });
+}
+
+function colorRange(value: unknown, name: string, id: string): VideoColorRangeMaskNodeV1 {
+	const record = readClosedDomainRecord(value, name, COLOR_FIELDS);
+	const target = readClosedDomainRecord(field(record, 'color', name), `${name}.color`, COLOR_CHANNEL_FIELDS);
+	const color = Object.freeze({ r: boundedFinite(field(target, 'r', name), 0, 1, `${name}.color.r`),
+		g: boundedFinite(field(target, 'g', name), 0, 1, `${name}.color.g`), b: boundedFinite(field(target, 'b', name), 0, 1, `${name}.color.b`) });
+	return Object.freeze({ id, kind: 'color-range', color, radius: boundedFinite(field(record, 'radius', name), 0, 1, `${name}.radius`),
+		falloff: boundedFinite(field(record, 'falloff', name), 0, 1, `${name}.falloff`) });
+}
+
+/** A scoped evaluator caches only reachable coverage and one feather scratch span. */
+export function videoMaskMatteWorkingBytesV1(graph: Readonly<VideoMaskMatteGraphV1>, width: number, height: number): number {
+	const nodes = new Map(graph.nodes.map(node => [node.id, node]));
+	const reached = new Set<string>();
+	let feather = false, currentFrame = false;
+	const visit = (id: string): void => {
+		if (reached.has(id)) return; reached.add(id);
+		const node = nodes.get(id)!;
+		currentFrame ||= node.kind === 'luminance-range' || node.kind === 'color-range';
+		if (node.kind === 'feather') { feather ||= node.radius > 0; visit(node.inputNodeId); }
+		else if (node.kind === 'invert') visit(node.inputNodeId);
+		else if (node.kind === 'boolean') for (const input of node.inputNodeIds) visit(input);
+	};
+	visit(graph.outputNodeId);
+	const bytes = BigInt(width) * BigInt(height) * BigInt(reached.size + (feather ? 8 : 0) + (currentFrame ? 4 : 0));
+	if (bytes > BigInt(VIDEO_MASK_MATTE_WORKING_LIMIT_V1)) throw new RangeError('Develop mask coverage exceeds its 64 MiB working budget.');
+	return Number(bytes);
 }
 
 function optionalCoordinate(value: unknown, name: string): VideoMaskCoordinateV1 | null {

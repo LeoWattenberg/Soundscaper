@@ -128,6 +128,8 @@
 		,
 		{ "path": "scripts/lib/e2e-v8-topology.mjs", "kind": "upstream-contract", "justification": "e2e-v8-topology.mjs validates the upstream V8 coverage topology and does not identify project schema." }
 		,
+		{ "path": "scripts/lib/lightscaper-large-library-diagnostics-v1.ts", "kind": "external-contract", "justification": "Version 1 closed browser observations bind the pinned photo-library fixture and measured trials to hosted CI diagnostics independently of product schemas." }
+		,
 		{ "path": "scripts/lib/m5b-quality-observations-v2.mjs", "kind": "external-contract", "justification": "m5b-quality-observations-v2.mjs names the retained quality-evidence pipeline revision consumed by repository automation." }
 		,
 		{ "path": "scripts/lib/m5b-quality-pipeline-v2.mjs", "kind": "external-contract", "justification": "m5b-quality-pipeline-v2.mjs names the retained quality-evidence pipeline revision consumed by repository automation." }
@@ -278,11 +280,67 @@
 		,
 		{ "path": "src/common/editor/bounded-json-structure-v1.ts", "kind": "persisted-contract", "justification": "bounded-json-structure-v1.ts is a persisted domain-component or render-contract revision independent of product schema." }
 		,
+		{ "path": "src/common/editor/commands/clipboard-codec-v7.ts", "kind": "ipc-contract", "justification": "Descriptor V7 fully admits the current Frame clipboard wire format with complete resource effects and keyframes while the named legacy descriptors retain their original closed vocabulary." }
+		,
+		{ "path": "src/common/editor/commands/clipboard-command-v2.ts", "kind": "helper-contract", "justification": "Version 2 command types distinguish fully admitted descriptor V7 paste and recursive current command batches from the unchanged legacy command protocol." }
+		,
+		{ "path": "src/common/editor/commands/clipboard-runtime-v7.ts", "kind": "helper-contract", "justification": "The named descriptor V7 clipboard runtime captures and pastes only privately admitted current Frame command projections, preserving complete resource effects and version 2 keyframe carriers." }
+		,
+		{ "path": "src/common/editor/commands/frame-resource-command-carriers-v2.ts", "kind": "helper-contract", "justification": "A private version 2 command-project brand selects current resource-aware effect and keyframe carriers only after complete Frame admission; persisted JSON and spread copies convey no authority." }
+		,
+		{ "path": "src/common/editor/commands/frame-resource-command-clip-factory-v2.ts", "kind": "helper-contract", "justification": "Version 2 clip construction selects the current media factory solely from the private admitted Frame command-project brand while retaining the legacy factory for other command owners." }
+		,
+		{ "path": "src/common/editor/commands/frame-resource-command-v2.ts", "kind": "helper-contract", "justification": "The explicit current Frame command transaction admits resource-capable foundations, applies shared command invariants, and reconciles the persisted result without widening the legacy public command boundary." }
+		,
+		{ "path": "src/common/editor/commands/video-keyframe-carrier-v2.ts", "kind": "helper-contract", "justification": "Version 2 current command carriers preserve keyframe editing operations through the resource-aware curve owner while the legacy carrier remains independently selected." }
+		,
+		{ "path": "src/common/editor/controller/clip-video/cube-lut-effect-port-v1.ts", "kind": "helper-contract", "justification": "Version 1 scalar Cube LUT effect ports borrow immutable resource storage, capture method receivers, and join bound action retirement without placing resource bodies in effect parameters." }
+		,
 		{ "path": "src/common/editor/controller/export/internal/delivery/soundscaper-delivery-publication-v1.ts", "kind": "persisted-contract", "justification": "soundscaper-delivery-publication-v1.ts is a persisted domain-component or render-contract revision independent of product schema." }
 		,
 		{ "path": "src/common/editor/controller/export/internal/delivery/soundscaper-persistent-delivery-adapter-v1.ts", "kind": "persisted-contract", "justification": "soundscaper-persistent-delivery-adapter-v1.ts is a persisted domain-component or render-contract revision independent of product schema." }
 		,
 		{ "path": "src/common/editor/controller/shared/isolated-track-render-project-v21.ts", "kind": "persisted-contract", "justification": "isolated-track-render-project-v21.ts is a persisted domain-component or render-contract revision independent of product schema." }
+		,
+		{ "path": "src/common/editor/controller/shared/photo-library-backup-save-v1.ts", "kind": "helper-contract", "justification": "Version 1 opt-in catalog saving owns one prepared destination through joined cancellation and final delivery, exposing only bounded scalar acknowledgements without retaining archive bodies." }
+		,
+		{ "path": "src/common/editor/controller/shared/photo-library-compare-v1.ts", "kind": "helper-contract", "justification": "Version 1 opt-in comparison owns a bounded selected subset and distinct reference/candidate IDs, borrows one existing catalog save, and reconciles exact page receipts while preserving durable acknowledgement through joined retirement." }
+		,
+		{"path": "src/common/editor/controller/shared/photo-library-cull-advance-v1.ts", "kind": "helper-contract", "justification": "Version 1 ephemeral culling lookahead captures at most 64 inert successor IDs under one joined save callback and original selection, page, query and lifetime fences without widening stored cursors or receipts."}
+		,
+		{"path": "src/common/editor/controller/shared/photo-library-culling-v1.ts", "kind": "helper-contract", "justification": "Version1 durable culling receipts fence one pending scalar edit observer and identity-based auto advance."}
+		,
+		{"path": "src/common/editor/controller/shared/photo-library-culling-workflow-v1.ts", "kind": "helper-contract", "justification": "Version 1 current culling coordination borrows one selected Session operation, captures bounded pre-edit successors and semantic query context, and preserves durable saves while freshly reading and publishing an authenticated destination page."}
+		,
+		{"path": "src/common/editor/controller/shared/photo-library-develop-command-v2.ts", "kind": "helper-contract", "justification": "Version 2 current Develop transport detaches full strict process1/process2 recipes and pins scalar authoring capabilities without resource or Session ownership."}
+		,
+		{ "path": "src/common/editor/controller/shared/photo-library-develop-presentation-v1.ts", "kind": "helper-contract", "justification": "Version 1 opted-in Develop presentation joins one authenticated source, shared proxy and canvas consumer through replacement and retirement, retaining only scalar histograms." }
+		,
+		{ "path": "src/common/editor/controller/shared/photo-library-develop-presentation-v2.ts", "kind": "helper-contract", "justification": "Version 2 opted-in Develop presentation admits complete mixed recipes, captures externally bound renderer capabilities, and joins authenticated proxy or original scopes through current canvas publication and retirement." }
+		,
+		{"path": "src/common/editor/controller/shared/photo-library-develop-settings-intent-v2.ts", "kind": "helper-contract", "justification": "Version 2 current settings intent closes schema2 source identity and mixed authored settings before borrowing the selected Session."}
+		,
+		{ "path": "src/common/editor/controller/shared/photo-library-develop-settings-workflow-v1.ts", "kind": "helper-contract", "justification": "Version 1 menu-owned settings and preset coordination borrows the existing Session writer, retains one copied packet and scalar target/menu authority, and preserves every acknowledged batch outcome through joined retirement." }
+		,
+		{"path": "src/common/editor/controller/shared/photo-library-develop-settings-workflow-v2.ts", "kind": "helper-contract", "justification": "Version 2 current settings and preset coordination preserves closed LUT references, selected group and revision authority, serial batch acknowledgments and joined retirement."}
+		,
+		{ "path": "src/common/editor/controller/shared/photo-library-develop-workflow-v1.ts", "kind": "helper-contract", "justification": "Version 1 opted-in Develop coordination borrows the existing Session, detaches complete recipes before acquisition and fences explicit photo versions and durable revision acknowledgements." }
+		,
+		{"path": "src/common/editor/controller/shared/photo-library-develop-workflow-v2.ts", "kind": "helper-contract", "justification": "Version 2 current Develop coordination uses explicit schema2 authoring capabilities and mixed process1/process2 drafts while retaining gestures, version history and durable acknowledgments."}
+		,
+		{"path": "src/common/editor/controller/shared/photo-library-import-gesture-v1.ts", "kind": "helper-contract", "justification": "Version 1 authored import snapshots and source-name-bound scalar acknowledgement collection retain at most 64 selected receipts without File or original bodies."}
+		,
+		{ "path": "src/common/editor/controller/shared/photo-library-original-recovery-v1.ts", "kind": "helper-contract", "justification": "Version 1 opted-in original inspection and restoration borrow one catalog session, retain bounded scalar pages and durable receipts, and join cancellation without retaining selected bodies after settlement." }
+		,
+		{"path": "src/common/editor/controller/shared/photo-library-restore-v1.ts", "kind": "helper-contract", "justification": "Version 1 opt-in library restore joins retirement and one runtime demand while retaining scalar publication receipts independently of Session replacement."}
+		,
+		{"path": "src/common/editor/controller/shared/photo-library-selection-v1.ts", "kind": "helper-contract", "justification": "Version1 page-local selection owns at most64 detached photo IDs and opaque page and generation identities."}
+		,
+		{ "path": "src/common/editor/controller/shared/photo-library-survey-v1.ts", "kind": "helper-contract", "justification": "Version 1 opted-in survey captures a bounded ordered selection, borrows the existing culling writer and retires preview ownership through joined cancellation without changing catalog or photo schemas." }
+		,
+		{"path": "src/common/editor/controller/shared/photo-library-workflow-slot-v2.ts", "kind": "helper-contract", "justification": "Current selected-library UI generation pins its Session close and constructs the renderer with that Session resource source; replacement joins admitted factories and native cleanup."}
+		,
+		{"path": "src/common/editor/controller/shared/pixel-preview-presentation-v1.ts", "kind": "helper-contract", "justification": "Version1 serial scalar preview demand owns bounded canvas targets, generation cancellation and joined frame staging without original custody."}
 		,
 		{ "path": "src/common/editor/controller/track-audio/internal/mix-render/mix-render-snapshot-v21.ts", "kind": "persisted-contract", "justification": "mix-render-snapshot-v21.ts projects production mixer and automation authority for a persisted render-contract revision independent of product schema." }
 		,
@@ -321,6 +379,126 @@
 		{ "path": "src/common/editor/framescaper-native-live-render-role-v1.ts", "kind": "ipc-contract", "justification": "framescaper-native-live-render-role-v1.ts names which of a live render stage's two inputs a carrier chunk belongs to; the renderer bridge and the desktop main process both read it, so it is an independently versioned cross-process carrier contract." }
 		,
 		{ "path": "src/common/editor/gray-video-frame-sampling-v1.ts", "kind": "persisted-contract", "justification": "gray-video-frame-sampling-v1.ts is a persisted video sampling contract revision shared by motion-processing consumers." }
+		,
+		{"path": "src/common/editor/image-develop-handoff-provenance-v1.ts", "kind": "persisted-contract", "justification": "Named image handoff provenance preserves exact original spelling and SHA-256/length, binds one explicit Photo or Frame origin and a normalized typed develop recipe digest, and carries no body or storage authority."}
+		,
+		{ "path": "src/common/editor/image-export-filename-v1.ts", "kind": "helper-contract", "justification": "Version 1 bounded photo-export filename templates bind original stems and stable one-based batch indices to PNG or JPEG suffixes, reuse the shared save-name sanitizer, and refuse unknown tokens or oversized expansion without truncation." }
+		,
+		{"path": "src/common/editor/image-export-text-v1.ts", "kind": "helper-contract", "justification": "Version 1 output-only text admission captures one safe NFC Latin line, pinned font identity, color and delivery-relative placement without retaining browser resources or allowing fallback glyphs."}
+		,
+		{ "path": "src/common/editor/imaging/cube-lut-resource-v1.ts", "kind": "helper-contract", "justification": "Version 1 scoped cube resource owns a bounded raw byte copy, reuses private V27 parsing and exact reference verification, joins intrinsic native cancellation and the borrowed-body consumer, and wipes its owned raw bytes without claiming frozen parser floats are wipeable." }
+		,
+		{ "path": "src/common/editor/imaging/cube-lut-source-port-v1.ts", "kind": "helper-contract", "justification": "Version 1 runtime-only cube LUT source borrows bounded bytes through a joined consumer, carries no recipe body or cache, and requires the renderer to authenticate the full digest and private V27 parser independently of storage custody." }
+		,
+		{ "path": "src/common/editor/imaging/exif-capture-time-v1.ts", "kind": "helper-contract", "justification": "Bounded EXIF capture-time interpretation for the immutable image metadata version 1 model." }
+		,
+		{ "path": "src/common/editor/imaging/exif-color-admission-v1.ts", "kind": "helper-contract", "justification": "EXIF declarations admitted by the initial photo source color profile, independently of persisted gamut descriptors." }
+		,
+		{ "path": "src/common/editor/imaging/exif-entry-traversal-v1.ts", "kind": "helper-contract", "justification": "Bounded TIFF directory visitor shared by metadata extraction and photo color admission." }
+		,
+		{ "path": "src/common/editor/imaging/exif-metadata-reader-v1.ts", "kind": "helper-contract", "justification": "EXIF container interpretation into the immutable image metadata version 1 read model." }
+		,
+		{ "path": "src/common/editor/imaging/exif-metadata-writer-v1.ts", "kind": "helper-contract", "justification": "Bounded classic TIFF metadata writing selects normalized capture or descriptive facts, preserves recorded partial times, and binds upright sRGB dimensions without copying original opaque tags or container bytes." }
+		,
+		{ "path": "src/common/editor/imaging/image-develop-contract-v1.ts", "kind": "persisted-contract", "justification": "Product-neutral process-1 develop state and scalar limits preserve the existing Photo geometry, ordered shared effects and coherent mask bindings." }
+		,
+		{ "path": "src/common/editor/imaging/image-develop-effects-v1.ts", "kind": "helper-contract", "justification": "Version 1 inert develop effect capture shares the existing bounded closed envelope and delegates nested parameters to owning families. Normalized process-1 values remain numeric or owning curve arrays after future shared resource-family registration." }
+		,
+		{ "path": "src/common/editor/imaging/image-develop-envelope-v1.ts", "kind": "helper-contract", "justification": "Version 1 shared geometry and mask admission preserves original validation order and bytes using real normalized effect identities. This component does not admit effects, process versions or complete develop states." }
+		,
+		{"path": "src/common/editor/imaging/image-develop-frame-v2.ts", "kind": "helper-contract", "justification": "Product-neutral process1/2 natural-size recipe evaluator preserves the Photo resource preflight, original source receiver, fixed host profiles and joined scoped pixel retirement without widening the legacy process owner."}
+		,
+		{ "path": "src/common/editor/imaging/image-develop-preset-v1.ts", "kind": "persisted-contract", "justification": "Version 1 full and partial preset bodies bind canonical selected settings to the existing shared digest-bound visual preset identity without photo or external media authority." }
+		,
+		{"path": "src/common/editor/imaging/image-develop-preset-v2.ts", "kind": "persisted-contract", "justification": "Explicit version 2 preset bodies bind complete selected numeric, curve and nullable LUT-reference recipes through the unchanged scalar visual identity digest. Closed V1-or-V2 dispatch preserves old body bytes and does not confer body custody or render authority."}
+		,
+		{ "path": "src/common/editor/imaging/image-develop-settings-contract-v1.ts", "kind": "persisted-contract", "justification": "Product-neutral settings selection and packet types preserve the existing photo-develop-settings wire kind and explicit process version." }
+		,
+		{"path": "src/common/editor/imaging/image-develop-settings-contract-v2.ts", "kind": "persisted-contract", "justification": "Explicit version 2 settings bodies retain strict process-1 or process-2 states and unchanged selected-group fields. This type-only successor does not widen the old settings contract or provide raw resource bodies."}
+		,
+		{"path": "src/common/editor/imaging/image-develop-settings-groups-v1.ts", "kind": "helper-contract", "justification": "Version 1 pure group copy and merge algorithms preserve authored order and real effect and mask identities for both owning settings versions. Nested parameters and complete states remain admitted only by their respective owners."}
+		,
+		{ "path": "src/common/editor/imaging/image-develop-settings-v1.ts", "kind": "helper-contract", "justification": "Version 1 shared selection, partial merge and relative delta evaluation retain the established effect-order and mask-identity rules behind unchanged Photo API aliases." }
+		,
+		{"path": "src/common/editor/imaging/image-develop-settings-v2.ts", "kind": "helper-contract", "justification": "Version 2 settings copy, partial merge and relative scalar edits retain closed LUT references and exact group closure under unchanged two-MiB bounds. Legacy dispatch preserves schema-1 bytes; process-1 targets promote only when the merged authored recipe contains the exact resource profile."}
+		,
+		{ "path": "src/common/editor/imaging/image-develop-state-v1.ts", "kind": "helper-contract", "justification": "Closed product-neutral process-1 develop normalization preserves existing Photo recipe bytes and delegates effects and masks to their shared owning models." }
+		,
+		{ "path": "src/common/editor/imaging/image-develop-state-v2.ts", "kind": "helper-contract", "justification": "Explicit process-2 develop admission adds only the owning nullable cube LUT profile beside unchanged numeric and curve families. The closed V1-or-V2 dispatcher requires consumer opt-in; geometry, mask identities, ordering and fixed limits remain shared, and recipe references do not authorize body custody or rendering." }
+		,
+		{ "path": "src/common/editor/imaging/image-exif-container-v1.ts", "kind": "helper-contract", "justification": "Version 1 scoped PNG eXIf or JPEG APP1 composition selects normalized fresh TIFF facts under current dimensions, validates bounded codec containers without decoding, preserves compressed pixels and native profiles, and joins consumers before wiping independent output." }
+		,
+		{ "path": "src/common/editor/imaging/image-export-graphic-source-v1.ts", "kind": "helper-contract", "justification": "Version 1 selected graphic custody admits an immutable static SDR source and joins native read, decode, close and scoped canonical pixels under a captured encoded-plus-two-plane capacity without creating catalog or frame-pack authority." }
+		,
+		{ "path": "src/common/editor/imaging/image-export-size-v1.ts", "kind": "helper-contract", "justification": "Version 1 allocation-free export sizing plans fit, long-edge, conservative megapixels and percentage dimensions under one captured frame capacity, preserving declared depth and color without codec admission or cropping." }
+		,
+		{"path": "src/common/editor/imaging/image-export-text-font-v1.ts", "kind": "helper-contract", "justification": "Version 1 text font custody verifies the exact installed Inter Latin asset, joins bounded streamed transport and private native FontFace loading, preserves cleanup failures and removes only the owned face."}
+		,
+		{"path": "src/common/editor/imaging/image-export-text-frame-v1.ts", "kind": "helper-contract", "justification": "Version 1 scoped output text materialization uses real pinned native glyph drawing, bounds independent straight-alpha sRGB mask planes, closes native font and canvas owners before the joined consumer and wipes owned output after settlement."}
+		,
+		{"path": "src/common/editor/imaging/image-geometry-plan-v1.ts", "kind": "helper-contract", "justification": "Version 1 crop, projective rectification and rotation plans bind inverse pixel mapping, exact quarter-turn extents and explicit fixed Frame contain delivery."}
+		,
+		{"path": "src/common/editor/imaging/image-geometry-v1.ts", "kind": "persisted-contract", "justification": "Version 1 shared image geometry is a closed immutable successor recipe with crop, rotation, flips and a convex source quad; existing PhotoGeometryV1 and timeline mask crops remain unchanged."}
+		,
+		{ "path": "src/common/editor/imaging/image-metadata-model-v1.ts", "kind": "persisted-contract", "justification": "Immutable extracted image facts stored beside photo originals in the family version 1 catalog." }
+		,
+		{ "path": "src/common/editor/imaging/image-metadata-normalizer-v1.ts", "kind": "helper-contract", "justification": "Closed validation and canonicalization of the persisted immutable image metadata version 1 model." }
+		,
+		{ "path": "src/common/editor/imaging/image-metadata-reader-v1.ts", "kind": "helper-contract", "justification": "Bounded format dispatch and metadata extraction for the immutable image metadata version 1 model." }
+		,
+		{ "path": "src/common/editor/imaging/iptc-metadata-reader-v1.ts", "kind": "helper-contract", "justification": "IPTC IIM interpretation into the immutable image metadata version 1 read model." }
+		,
+		{ "path": "src/common/editor/imaging/linear-rgba-composite-v1.ts", "kind": "helper-contract", "justification": "Version 1 shared packed premultiplied linear RGBA spans retain the existing Frame exact compositor's normal and registered blend equations without acquiring frames or allocating image buffers." }
+		,
+		{ "path": "src/common/editor/imaging/pixel-frame-admission-v1.ts", "kind": "ipc-contract", "justification": "Version-1 pixel interchange admission binds declared sample and color profiles to explicit processor support without changing the persisted descriptor." }
+		,
+		{"path": "src/common/editor/imaging/pixel-frame-body-v1.ts", "kind": "helper-contract", "justification": "Version1 callback-scoped pixel body admission binds genuine Blob geometry, profile, length and output digest to one wiped bounded staging buffer."}
+		,
+		{ "path": "src/common/editor/imaging/pixel-frame-canonical-rgba8-v1.ts", "kind": "helper-contract", "justification": "Version 1 native RGBA8 snapshot and fully transparent RGB canonicalization shared by Frame imports and authenticated photo regeneration." }
+		,
+		{"path": "src/common/editor/imaging/pixel-frame-canvas-presenter-v1.ts", "kind": "helper-contract", "justification": "Version1 shared canvas presentation admits current profiles, preserves oriented straight-alpha pixels and deterministically releases bounded backing."}
+		,
+		{"path": "src/common/editor/imaging/pixel-frame-clarity-v1.ts", "kind": "helper-contract", "justification": "Version 1 scoped Clarity owns one bounded encoded-sRGB source snapshot and one output, applies replicated-edge alpha-weighted seven-by-seven binomial luma neighborhoods with exact signed Q8 midtone contrast, and joins cancellation and consumer settlement before wiping both owned backings."}
+		,
+		{ "path": "src/common/editor/imaging/pixel-frame-contract-v1.ts", "kind": "ipc-contract", "justification": "Version-1 transient RGBA frame interchange declares sample format, color primaries, transfer, and bounded geometry across image processing and worker boundaries." }
+		,
+		{ "path": "src/common/editor/imaging/pixel-frame-cube-lut-profile-v1.ts", "kind": "helper-contract", "justification": "Version 1 scoped cube profile preserves the V27 linear Rec709 and trilinear process, bypasses disabled or null references without resource access, captures one current-stage source callback, and joins output and source cleanup with intrinsic cancellation and opaque failure identity." }
+		,
+		{ "path": "src/common/editor/imaging/pixel-frame-cube-lut-v1.ts", "kind": "helper-contract", "justification": "Version 1 scoped encoded-sRGB LUT evaluation reuses the V27 linear Rec709 grade and trilinear kernel with one bounded output, borrowed immutable source and verified resource, task yields and intrinsic transfer fences, joining consumer settlement before wiping owned byte buffers." }
+		,
+		{ "path": "src/common/editor/imaging/pixel-frame-dehaze-v1.ts", "kind": "helper-contract", "justification": "Version 1 scoped Dehaze owns one immutable encoded-sRGB snapshot and one output, estimates white-atmosphere transmission from replicated-edge alpha-aware three-by-three dark neighborhoods, joins native cancellation and consumer settlement, and wipes captured backings including second allocation refusal." }
+		,
+		{ "path": "src/common/editor/imaging/pixel-frame-export-resize-v1.ts", "kind": "helper-contract", "justification": "Version 1 scoped output-only photo resizing reuses nearest and premultiplied bilinear sampling under one captured frame capacity, preserves exact unchanged-size bytes, and joins consumer settlement before wiping the owned output." }
+		,
+		{"path": "src/common/editor/imaging/pixel-frame-geometry-v1.ts", "kind": "helper-contract", "justification": "Version 1 scoped image geometry evaluates encoded sRGB through bounded premultiplied bilinear samples, joins cancellation and wipes owned output after the consumer settles."}
+		,
+		{ "path": "src/common/editor/imaging/pixel-frame-global-develop-v1.ts", "kind": "helper-contract", "justification": "Version 1 callback-scoped global develop evaluation applies fixed shared process math to an owned bounded frame snapshot and wipes output after the consumer settles." }
+		,
+		{"path": "src/common/editor/imaging/pixel-frame-grain-v1.ts", "kind": "helper-contract", "justification": "Version 1 scoped Grain owns one original straight encoded-sRGB snapshot and one output, evaluates deterministic current natural-output lattice centers, joins captured native cancellation and consumer settlement, and wipes both captured backings on every retirement path."}
+		,
+		{ "path": "src/common/editor/imaging/pixel-frame-graphic-watermark-v1.ts", "kind": "helper-contract", "justification": "Version 1 scoped output-only graphic placement reuses shared resizing and Frame linear source-over spans under a captured output, graphic and tile capacity, preserves borrowed straight-sRGB originals and joins cancellation and consumer settlement before wiping owned workspace." }
+		,
+		{ "path": "src/common/editor/imaging/pixel-frame-histogram-v1.ts", "kind": "helper-contract", "justification": "Version 1 bounded RGB histogram and clipping diagnostics admit encoded sRGB bytes and publish immutable counts only after complete joined evaluation." }
+		,
+		{ "path": "src/common/editor/imaging/pixel-frame-jpeg-v1.ts", "kind": "helper-contract", "justification": "Version 1 native JPEG encoding admits opaque encoded-sRGB UNORM8 frames, bounds owned pixel/output bytes, preserves explicit quality and borrowed offsets, joins codec settlement through cancellation and refuses wrong MIME, markers or dimensions without converting color or alpha." }
+		,
+		{"path": "src/common/editor/imaging/pixel-frame-managed-sdr-grade-v1.ts", "kind": "helper-contract", "justification": "Version1 callback-scoped managed SDR grading reuses prepared color math with bounded borrowed chunks and wiped output."}
+		,
+		{ "path": "src/common/editor/imaging/pixel-frame-noise-reduction-v1.ts", "kind": "helper-contract", "justification": "Version 1 scoped RGB noise reduction owns one original encoded-sRGB snapshot and one output, evaluates alpha-weighted replicated-edge reversible-luma and chroma neighborhoods, joins native cancellation and consumer settlement, and wipes both backings on every retirement path." }
+		,
+		{ "path": "src/common/editor/imaging/pixel-frame-png-v1.ts", "kind": "helper-contract", "justification": "Version 1 deterministic PNG encoding borrows the existing transient RGBA frame, explicitly admits UNORM8 sRGB without conversion, bounds chunk and final-output storage, preserves straight alpha and hidden RGB, and joins native cancellation while wiping owned scratch." }
+		,
+		{"path": "src/common/editor/imaging/pixel-frame-post-crop-vignette-v1.ts", "kind": "helper-contract", "justification": "Version 1 callback-scoped post-crop vignette snapshots one bounded straight-sRGB output, evaluates current natural coordinates through exact integer scalar math without lookup or mask arrays, joins native cancellation and consumer settlement, and wipes the captured backing on every retirement path."}
+		,
+		{ "path": "src/common/editor/imaging/pixel-frame-resize-v1.ts", "kind": "helper-contract", "justification": "Version 1 deterministic nearest-neighbour RGBA sampling and bounded fit geometry shared by Framescaper and photo preview preparation." }
+		,
+		{ "path": "src/common/editor/imaging/pixel-frame-sharpen-v1.ts", "kind": "helper-contract", "justification": "Version 1 scoped detail sharpening snapshots bounded straight encoded-sRGB pixels, evaluates alpha-weighted replicated-edge three-by-three binomial neighborhoods with exact Q8 gain, joins cancellation and wipes both owned backings after consumer settlement or failed allocation." }
+		,
+		{"path": "src/common/editor/imaging/pixel-frame-texture-v1.ts", "kind": "helper-contract", "justification": "Version 1 scoped Texture owns one immutable encoded-sRGB source snapshot and one output, evaluates separately rounded alpha-weighted three/five binomial luma means with a protected coarse-edge gate, joins processing yields and consumer settlement, and wipes both captured backings on success or refusal."}
+		,
+		{ "path": "src/common/editor/imaging/static-image-native-port-v1.ts", "kind": "helper-contract", "justification": "Version 1 shared static native port preserves original-oriented geometry and canonical RGBA extraction with explicit receiver-bound cleanup and opaque admission-plus-close failure retention." }
+		,
+		{ "path": "src/common/editor/imaging/static-image-source-admission-v1.ts", "kind": "helper-contract", "justification": "Version 1 shared static image header admission preserves bounded Photo signature, topology, precision and SDR profile validation before a native decoder can open." }
 		,
 		{ "path": "src/common/editor/macro-script/generated-module-wrapper-v1.js", "kind": "external-contract", "justification": "generated-module-wrapper-v1.js is the byte-authenticated generated-module wrapper revision shared by macro execution and E2E coverage admission." }
 		,
@@ -366,6 +544,68 @@
 		,
 		{ "path": "src/common/editor/parameter-automation-gesture-adapter-v21.ts", "kind": "persisted-contract", "justification": "parameter-automation-gesture-adapter-v21.ts is a persisted domain-component or render-contract revision independent of product schema." }
 		,
+		{ "path": "src/common/editor/photo-library-backup-port-v1.ts", "kind": "helper-contract", "justification": "Version 1 bounded scalar backup result and destination options preserve completed output custody without exposing catalog documents or original bodies." }
+		,
+		{ "path": "src/common/editor/photo-library-batch-rename-port-v1.ts", "kind": "helper-contract", "justification": "Version 1 scalar selection, rename plan, durable partial receipts and bounded revision-fenced inverse without media or catalog documents." }
+		,
+		{ "path": "src/common/editor/photo-library-collection-handoff-port-v1.ts", "kind": "helper-contract", "justification": "Version 1 whole-collection handoff authenticates the selected manual, root-smart or saved Query2 definition, complete ordered active Photo versions and unique original and disabled LUT bodies under one joined selected Session operation without archive or publication authority." }
+		,
+		{"path": "src/common/editor/photo-library-cube-lut-port-v1.ts", "kind": "helper-contract", "justification": "Fixed current selected-library composition binds complete Photo1/2 admission, current Develop and preset envelopes, and immutable LUT resource capabilities without widening named legacy owners or persisted original/root/receipt profiles."}
+		,
+		{"path": "src/common/editor/photo-library-culling-navigation-port-v1.ts", "kind": "helper-contract", "justification": "Version 1 body-free indexed culling navigation selects plain, transient query or saved-query scope and reads a bounded fresh page inclusively from a current matching destination without external continuation authority."}
+		,
+		{ "path": "src/common/editor/photo-library-develop-full-resolution-port-v1.ts", "kind": "helper-contract", "justification": "Version 1 fixed full-resolution profile bounds admitted original frames and natural geometry output independently of the unchanged derivative proxy limits." }
+		,
+		{ "path": "src/common/editor/photo-library-develop-import-port-v1.ts", "kind": "helper-contract", "justification": "Version 1 optional Develop import capability carries a closed scalar preset choice and bounded current-catalog menu while retaining the existing import settings and acknowledgement contract." }
+		,
+		{"path": "src/common/editor/photo-library-develop-import-port-v2.ts", "kind": "helper-contract", "justification": "Fixed current selected-library composition binds complete Photo1/2 admission, current Develop and preset envelopes, and immutable LUT resource capabilities without widening named legacy owners or persisted original/root/receipt profiles."}
+		,
+		{ "path": "src/common/editor/photo-library-develop-original-port-v1.ts", "kind": "helper-contract", "justification": "Version 1 scoped original pixel reading names the expected photo revision and lends authenticated oriented frames without exposing original locators or retained media bodies." }
+		,
+		{ "path": "src/common/editor/photo-library-develop-port-v1.ts", "kind": "helper-contract", "justification": "Version 1 Develop presentation carries current shared-effect settings, scalar version/history/snapshot summaries and explicit revision-fenced commands without catalog documents or original custody." }
+		,
+		{"path": "src/common/editor/photo-library-develop-port-v2.ts", "kind": "helper-contract", "justification": "Fixed current Develop envelopes explicitly carry schema2 and admit real mixed process1/2 recipes with scalar version/history acknowledgements; the original pixel presentation contract remains unchanged."}
+		,
+		{ "path": "src/common/editor/photo-library-develop-presets-port-v1.ts", "kind": "helper-contract", "justification": "Version 1 optional preset capability exposes scalar catalog-bound menus, explicit revision-fenced selected bodies and acknowledged settings-row writes through the existing Session lifetime." }
+		,
+		{"path": "src/common/editor/photo-library-develop-presets-port-v2.ts", "kind": "helper-contract", "justification": "Current schema2 preset menu and selected-body requests retain mixed strict preset1/2 identities and explicit revision authority through the existing writer."}
+		,
+		{ "path": "src/common/editor/photo-library-develop-proxy-port-v1.ts", "kind": "helper-contract", "justification": "Version 1 Develop proxy lends an admitted frame and complete shared recipe to a scoped renderer, exposing borrowed output pixels and scalar histograms without original custody." }
+		,
+		{"path": "src/common/editor/photo-library-develop-proxy-port-v2.ts", "kind": "helper-contract", "justification": "Version 2 current scoped Photo renderer admits exact process1/2 recipes while keeping resource capabilities in selected runtime composition and retaining the fixed proxy/full-resolution profiles and borrowed output view."}
+		,
+		{ "path": "src/common/editor/photo-library-develop-settings-port-v1.ts", "kind": "helper-contract", "justification": "Version 1 settings selections and inert packets support partial copy, relative adjustments and bounded explicit-version batches whose complete scalar receipts preserve each durable photo acknowledgment." }
+		,
+		{"path": "src/common/editor/photo-library-develop-settings-port-v2.ts", "kind": "helper-contract", "justification": "Current schema2 settings requests and bounded serial batch receipts retain mixed strict settings packets and every acknowledged photo result without resource bodies."}
+		,
+		{"path": "src/common/editor/photo-library-export-presets-port-v1.ts", "kind": "helper-contract", "justification": "Fixed body-free export preset DTO and selected Session transport; the stored scalar recipe version is independent of photo documents and delivery authority."}
+		,
+		{ "path": "src/common/editor/photo-library-image-handoff-port-v1.ts", "kind": "helper-contract", "justification": "Version 1 selected-photo handoff borrows complete saved facts, an authenticated encoded original and the selected recipe's active and disabled LUT resources under one joined Session lifetime, without decoding, persistence or publication authority." }
+		,
+		{ "path": "src/common/editor/photo-library-image-receive-port-v1.ts", "kind": "helper-contract", "justification": "Version 1 selected Session receive publishes one authenticated editable image with fresh local identities and durable Imported acknowledgement, retaining exact opaque recovery failures without granting archive scalars body or destination authority." }
+		,
+		{ "path": "src/common/editor/photo-library-import-settings-port-v1.ts", "kind": "helper-contract", "justification": "Version 1 scalar import recipes, revision-fenced named presets and publication acknowledgements preserve immutable original ownership." }
+		,
+		{"path": "src/common/editor/photo-library-organization-port-v1.ts", "kind": "helper-contract", "justification": "Version1 scalar organization port carries revision-fenced definitions, bounded smart-query JSON and photo memberships without catalog documents."}
+		,
+		{ "path": "src/common/editor/photo-library-original-recovery-port-v1.ts", "kind": "helper-contract", "justification": "Version 1 bounded original inspection pages and revision-fenced exact restoration targets expose scalar retained-source identities independently of product documents or storage locators." }
+		,
+		{ "path": "src/common/editor/photo-library-query-port-v2.ts", "kind": "helper-contract", "justification": "Version 2 scalar metadata query and explicit rebuild ports carry closed effective predicates, bounded ordinary or collapsed steps and separate source/derived byte observations without photo documents." }
+		,
+		{"path": "src/common/editor/photo-library-restore-port-v1.ts", "kind": "helper-contract", "justification": "Version 1 scalar restore receipt and app-lifetime runtime port expose preserved catalog counts and cleanup notices without native namespaces or original bodies."}
+		,
+		{ "path": "src/common/editor/photo-library-saved-collection-port-v1.ts", "kind": "helper-contract", "justification": "Version 1 scalar saved-query port carries bounded summary navigation, one full Query2 recipe string, atomic revision context and durable command acknowledgements without owning catalog documents or storage resources." }
+		,
+		{ "path": "src/common/editor/photo-library-saved-filter-runtime-v1.ts", "kind": "helper-contract", "justification": "Version 1 injected pure saved-filter controls preserve complete bounded Query2 JSON and effective metadata fields independently of Session, catalog and media resources." }
+		,
+		{ "path": "src/common/editor/photo-library-session-port-v1.ts", "kind": "helper-contract", "justification": "Scalar browser presentation port for the version 1 photo library session, independent of owning catalog documents." }
+		,
+		{"path": "src/common/editor/photo-library-session-port-v2.ts", "kind": "helper-contract", "justification": "Fixed current selected-library composition binds complete Photo1/2 admission, current Develop and preset envelopes, and immutable LUT resource capabilities without widening named legacy owners or persisted original/root/receipt profiles."}
+		,
+		{"path": "src/common/editor/photo-library-stack-port-v1.ts", "kind": "helper-contract", "justification": "Version 1 scalar stack presentation commands bind selected membership, ordered drafts and durable acknowledgements to the existing photo Session."}
+		,
+		{"path": "src/common/editor/photo-library-stack-query-port-v1.ts", "kind": "helper-contract", "justification": "Version 1 opt-in collapsed query steps expose bounded scalar representatives and resumable global member probes without photo documents."}
+		,
 		{ "path": "src/common/editor/project-effect-tail-gates-v21.ts", "kind": "persisted-contract", "justification": "The v21 effect-tail gates interpret persisted gain and routing contracts independently of product schema." },
 		{ "path": "src/common/editor/project-effect-tail-v21.ts", "kind": "persisted-contract", "justification": "project-effect-tail-v21.ts is a persisted domain-component or render-contract revision independent of product schema." }
 		,
@@ -381,6 +621,12 @@
 		,
 		{ "path": "src/common/editor/routing-cycle-v21.ts", "kind": "persisted-contract", "justification": "routing-cycle-v21.ts is a persisted domain-component or render-contract revision independent of product schema." }
 		,
+		{"path": "src/common/editor/scape-photo-catalog-pack-v2.ts", "kind": "persisted-contract", "justification": "Explicit Photo pack2 and preset pack2 encodings admit current Photo1/2 and preset row1/2 without widening any legacy format."}
+		,
+		{ "path": "src/common/editor/session-clipboard-codec-v2.ts", "kind": "ipc-contract", "justification": "Session clipboard wrapper V2 carries fully admitted descriptor V7 and scalar source custody across project changes; it grants no body authority and does not promote legacy wrappers on read." }
+		,
+		{ "path": "src/common/editor/session-v2.ts", "kind": "ipc-contract", "justification": "The explicit session V2 snapshot protocol selects current clipboard wrapper V2 and descriptor V7 while preserving import of legacy session snapshots and their unchanged clipboard owners." }
+		,
 		{ "path": "src/common/editor/soundscaper-delivery-contract-v1.ts", "kind": "ipc-contract", "justification": "soundscaper-delivery-contract-v1.ts is an independently versioned persisted or cross-process carrier contract." }
 		,
 		{ "path": "src/common/editor/soundscaper-persistent-delivery-plan-v1.ts", "kind": "ipc-contract", "justification": "soundscaper-persistent-delivery-plan-v1.ts is the canonical persisted plan payload exchanged across the Soundscaper renderer and desktop delivery boundary." }
@@ -395,6 +641,8 @@
 		,
 		{ "path": "src/common/editor/timeline-image-frame-pack-v1.ts", "kind": "persisted-contract", "justification": "timeline-image-frame-pack-v1.ts is a persisted domain-component or render-contract revision independent of product schema." }
 		,
+		{"path": "src/common/editor/timeline-image-model-v2.ts", "kind": "persisted-contract", "justification": "Named static image source successor retains authenticated V1 pack facts and adds bound editable process1/2 recipe, declared natural dimensions and provenance while preserving disabled LUT resource references and leaving V1 schemas unchanged."}
+		,
 		{ "path": "src/common/editor/timeline-image-native-decode-v1.ts", "kind": "persisted-contract", "justification": "timeline-image-native-decode-v1.ts is a persisted domain-component or render-contract revision independent of product schema." }
 		,
 		{ "path": "src/common/editor/track-automation-targets-v21.ts", "kind": "persisted-contract", "justification": "track-automation-targets-v21.ts is a persisted domain-component or render-contract revision independent of product schema." }
@@ -405,13 +653,43 @@
 		,
 		{ "path": "src/common/editor/track-hierarchy-v12.ts", "kind": "persisted-contract", "justification": "track-hierarchy-v12.ts is a persisted domain-component or render-contract revision independent of product schema." }
 		,
+		{"path": "src/common/editor/ui/lightscaper/photo-library-workflow-import-v2.ts", "kind": "helper-contract", "justification": "Current closed import gesture admits scalar schema2 saved-preset choices while preserving existing preparation, settings and receipt profiles."}
+		,
+		{"path": "src/common/editor/ui/lightscaper/use-photo-develop-entry-v2.ts", "kind": "helper-contract", "justification": "Current Develop menu entry owns a synchronous cached whole Workspace retirement join before lazy Restore backend loading, while preserving the named legacy entry owner."}
+		,
+		{"path": "src/common/editor/ui/lightscaper/use-photo-develop-settings-v2.ts", "kind": "helper-contract", "justification": "Version 2 opted-in current Photo settings and presets hook owns one fixed mixed authoring coordinator and joins predecessor retirement without widening its legacy hook."}
+		,
+		{"path": "src/common/editor/ui/lightscaper/use-photo-develop-v2.ts", "kind": "helper-contract", "justification": "Version 2 opted-in current Photo Develop hook owns one fixed mixed authoring coordinator and joins predecessor retirement without widening its legacy hook."}
+		,
+		{"path": "src/common/editor/ui/lightscaper/use-photo-library-workflow-v2.ts", "kind": "helper-contract", "justification": "Current UI workflow selects fixed current Session and Develop envelopes, source-bound lazy renderers and scoped resource import without widening named legacy owners."}
+		,
+		{"path": "src/common/editor/ui/video-preview-clarity-v1.ts", "kind": "helper-contract", "justification": "Version 1 native Clarity shader samples original straight byte alpha and luma through texelFetch, protects hidden RGB at zero-alpha centers and evaluates dense seven-by-seven replicated-edge neighborhoods with bounded highp signed integer arithmetic and exact signed rounding."}
+		,
+		{ "path": "src/common/editor/ui/video-preview-dehaze-v1.ts", "kind": "helper-contract", "justification": "Version 1 code33 Dehaze shader specifies original straight-byte alpha-aware dark neighborhoods with highp integer transmission and explicit signed floor reconstruction. The shared preview dispatcher registers its distinct owning program; alpha and hidden RGB are exact, while native execution qualification remains separate work." }
+		,
+		{"path": "src/common/editor/ui/video-preview-grain-v1.ts", "kind": "helper-contract", "justification": "Version 1 code31 Grain shader evaluates seeded two-octave lattice interpolation and a common RGB midtone offset with explicit bounded highp unsigned and signed integer operations. Original alpha and zero-alpha hidden RGB remain exact; native qualification is a separate gate."}
+		,
+		{"path": "src/common/editor/ui/video-preview-image-geometry-v1.ts", "kind": "helper-contract", "justification": "Version 1 preview geometry consumes the shared inverse matrices and sample bounds with explicit GL coordinate conversion and premultiplied alpha sampling."}
+		,
+		{ "path": "src/common/editor/ui/video-preview-noise-reduction-v1.ts", "kind": "helper-contract", "justification": "Version 1 code30 noise shader specifies original straight-byte neighborhoods with reversible integer YCoCg lifting, bounded signed accumulators and explicit signed floor rounding. The shared preview dispatcher registers its owning program. Alpha and hidden RGB remain exact; native execution evidence is recorded separately by product and engine." }
+		,
+		{"path": "src/common/editor/ui/video-preview-post-crop-vignette-v1.ts", "kind": "helper-contract", "justification": "Version 1 code28 native post-crop vignette uses current texture dimensions and bounded highp integer coordinate, radius, smoothstep and signed byte arithmetic. Original maximum RGB and literal alpha preserve the shared straight encoded-sRGB process without Float32 large-product rounding."}
+		,
+		{ "path": "src/common/editor/ui/video-preview-sharpen-v1.ts", "kind": "helper-contract", "justification": "Version 1 native detail shader evaluates straight byte alpha-weighted replicated-edge three-by-three binomial neighborhoods through texelFetch and bounded highp integers with explicit signed Q8 floor rounding." }
+		,
+		{"path": "src/common/editor/ui/video-preview-texture-v1.ts", "kind": "helper-contract", "justification": "Version 1 code32 Texture shader reads twenty-five replicated original straight-byte texels, separately rounds alpha-weighted three/five binomial luma means, and applies bounded highp integer signed Q8 medium-band contrast with exact alpha and zero-alpha hidden RGB."}
+		,
 		{ "path": "src/common/editor/unified-exact-linear-rgba-v13.ts", "kind": "persisted-contract", "justification": "unified-exact-linear-rgba-v13.ts is a persisted domain-component or render-contract revision independent of product schema." }
+		,
+		{ "path": "src/common/editor/unified-exact-render-clip-picture-v2.ts", "kind": "persisted-contract", "justification": "Version 2 exact-render clip picture records independently admit complete resource-aware effects and keyframes beside the unchanged composition and timing contracts." }
 		,
 		{ "path": "src/common/editor/unified-exact-render-delivery-v15.ts", "kind": "persisted-contract", "justification": "unified-exact-render-delivery-v15.ts is a persisted domain-component or render-contract revision independent of product schema." }
 		,
 		{ "path": "src/common/editor/unified-exact-render-finishing-consumers-v13.ts", "kind": "persisted-contract", "justification": "unified-exact-render-finishing-consumers-v13.ts is a persisted domain-component or render-contract revision independent of product schema." }
 		,
 		{ "path": "src/common/editor/unified-exact-render-finishing-consumers-v14.ts", "kind": "persisted-contract", "justification": "unified-exact-render-finishing-consumers-v14.ts is a persisted domain-component or render-contract revision independent of product schema." }
+		,
+		{ "path": "src/common/editor/unified-exact-render-finishing-consumers-v16.ts", "kind": "helper-contract", "justification": "Named generation 16 finishing preview and export consumers require complete canonical resource-capable render-plan admission before borrowing the shared finishing execution core." }
 		,
 		{ "path": "src/common/editor/unified-exact-render-finishing-motion-v13.ts", "kind": "persisted-contract", "justification": "unified-exact-render-finishing-motion-v13.ts is a persisted domain-component or render-contract revision independent of product schema." }
 		,
@@ -423,13 +701,19 @@
 		,
 		{ "path": "src/common/editor/unified-exact-render-plan-v13.ts", "kind": "persisted-contract", "justification": "unified-exact-render-plan-v13.ts is a persisted domain-component or render-contract revision independent of product schema." }
 		,
+		{ "path": "src/common/editor/unified-exact-render-plan-v16.ts", "kind": "persisted-contract", "justification": "The explicit generation 16 canonical exact-render plan binds complete version 2 clip pictures and immutable fingerprints without widening the named generation 9 through 15 plan contracts." }
+		,
 		{ "path": "src/common/editor/unified-exact-render-plan-v9.ts", "kind": "persisted-contract", "justification": "unified-exact-render-plan-v9.ts is a persisted domain-component or render-contract revision independent of product schema." }
 		,
 		{ "path": "src/common/editor/unified-exact-render-visual-consumers-v13.ts", "kind": "persisted-contract", "justification": "unified-exact-render-visual-consumers-v13.ts is a persisted domain-component or render-contract revision independent of product schema." }
 		,
+		{ "path": "src/common/editor/unified-exact-render-visual-consumers-v16.ts", "kind": "helper-contract", "justification": "Named generation 16 visual preview and export consumers require complete canonical resource-capable render-plan admission before borrowing the shared visual execution core." }
+		,
 		{ "path": "src/common/editor/unified-exact-render-visual-materializer-v13.ts", "kind": "persisted-contract", "justification": "unified-exact-render-visual-materializer-v13.ts is a persisted domain-component or render-contract revision independent of product schema." }
 		,
 		{ "path": "src/common/editor/unified-exact-rgba-sampling-v13.ts", "kind": "persisted-contract", "justification": "unified-exact-rgba-sampling-v13.ts is the shared sampling kernel for the independently versioned V13 render contract." }
+		,
+		{ "path": "src/common/editor/video-black-white-mix-v1.ts", "kind": "persisted-contract", "justification": "Version 1 shared black-and-white mix recipes retain a Rec709 integer gray baseline, eight hue-centered signed Q16 controls, chroma-weighted circular interpolation and nearest rounding toward positive infinity. Enabled zero controls convert to gray; disabled retains all bytes. CPU, highp integer GPU and owning FFmpeg evaluation preserve straight hidden RGB, authored order and unchanged alpha." }
 		,
 		{ "path": "src/common/editor/video-caption-imsc-identities-v27.ts", "kind": "persisted-contract", "justification": "video-caption-imsc-identities-v27.ts is a persisted domain-component or render-contract revision independent of product schema." }
 		,
@@ -441,15 +725,69 @@
 		,
 		{ "path": "src/common/editor/video-caption-track-v27.ts", "kind": "persisted-contract", "justification": "video-caption-track-v27.ts is a persisted domain-component or render-contract revision independent of product schema." }
 		,
+		{ "path": "src/common/editor/video-chroma-develop-v1.ts", "kind": "persisted-contract", "justification": "Version 1 shared vibrance and saturation recipes retain encoded-sRGB Rec709 integer luma and Q16 gains, saturation-before-vibrance ordering and byte rounding/clamping at each substep. CPU, highp integer GPU and owning FFmpeg algebra preserve multichannel straight RGB and unchanged alpha without a separable lookup approximation." }
+		,
+		{"path": "src/common/editor/video-clarity-ffmpeg-v1.ts", "kind": "helper-contract", "justification": "Version 1 owning Clarity graph authenticates its compiled process before composing original-alpha-preserving neighborhood GEQ with output-scoped labels for repeated and mixed authored stages."}
+		,
+		{"path": "src/common/editor/video-clarity-v1.ts", "kind": "persisted-contract", "justification": "Version 1 shared Clarity retains closed fractional amount under the encoded-sRGB alpha-weighted seven-bin luma process. Replicated edges, positive nearest blur ties, signed Q8 common RGB midtone offsets, clipping, unchanged alpha and hidden RGB at transparent centers define ordered CPU, integer native shader and original-alpha-preserving GEQ evaluation; Texture, Dehaze and legacy unsharp remain separate processes."}
+		,
 		{ "path": "src/common/editor/video-color-cube-lut-v27.ts", "kind": "persisted-contract", "justification": "video-color-cube-lut-v27.ts is a persisted domain-component or render-contract revision independent of product schema." }
 		,
 		{ "path": "src/common/editor/video-color-management-v27.ts", "kind": "persisted-contract", "justification": "video-color-management-v27.ts is a persisted domain-component or render-contract revision independent of product schema." }
 		,
+		{ "path": "src/common/editor/video-color-wheels-scalar-v1.ts", "kind": "helper-contract", "justification": "Version 1 scalar LGG wheel evaluation owns closed admitted lift/gamma/gain triples, independently decodes each straight sRGB byte to linear Rec.709 and encodes with positive half-up quantization. Its explicit new process preserves legacy GradeV1 bytes without claiming multichannel Float64 recombination equivalence." }
+		,
+		{ "path": "src/common/editor/video-color-wheels-v1.ts", "kind": "persisted-contract", "justification": "Version 1 color grading wheels retain nine closed finite numeric hue/saturation/luminance controls for overlapping shadow lift, midtone gamma and highlight gain. The srgb-scalar-lgg-wheels-v1 process preserves alpha, derives one private transient one-KiB table only for the current CPU stage or native upload, and supplies the same scalar byte authority to shared Frame and Photo rendering and bounded FFmpeg expressions." }
+		,
+		{ "path": "src/common/editor/video-cube-lut-profile-v1.ts", "kind": "persisted-contract", "justification": "Version 1 cube LUT profile owns one nullable exact V27 reference, closed effect admission and private scalar resource plans using inherited linear Rec709 trilinear semantics. Disabled references remain retained for custody; null explicitly bypasses processing. No parsed body, runtime effect registration, GPU code or expression is persisted." }
+		,
+		{ "path": "src/common/editor/video-cube-lut-project-references-v1.ts", "kind": "helper-contract", "justification": "Version 1 bounded scalar custody collection retains complete Cube references from current timeline and project-bin effects, including disabled leaves, without granting project admission or body authentication." }
+		,
+		{ "path": "src/common/editor/video-curve-transfer-v1.ts", "kind": "helper-contract", "justification": "Version 1 bounded curve preparation maps exact admitted Float64 coordinates to binary-rational arithmetic, retaining at most four arrays of thirty-two point pairs and one detached 256-entry RGBA table. Balanced FFmpeg byte decisions have depth eight and preserve the fixed master-before-channel quantization contract." }
+		,
+		{ "path": "src/common/editor/video-curve-types-v1.ts", "kind": "helper-contract", "justification": "Version 1 shared effect parameters add only closed immutable dimensionless point arrays alongside existing numeric values. Runtime point-array admission remains exclusively with the owning point-curve normalizer; old numeric effect profiles remain unchanged." }
+		,
+		{ "path": "src/common/editor/video-curves-v1.ts", "kind": "persisted-contract", "justification": "Version 1 shared point curves retain closed two-to-thirty-two dimensionless Float64 knots per channel, strict input order and zero/one input endpoints. Separate parametric curves retain ordered Float64 splits and signed Q16 regional gains. Master then red/green/blue interpolation uses exact binary-rational coordinates and nearest byte rounding toward positive infinity; derived one-KiB transfer tables serve CPU, native GPU and alpha-preserving FFmpeg evaluation without persisted LUTs or coordinate aliasing." }
+		,
+		{ "path": "src/common/editor/video-dehaze-ffmpeg-v1.ts", "kind": "helper-contract", "justification": "Version 1 compiled Dehaze graph authenticates its private owning operation, initializes each RGB dark/transmission register independently and delegates exact original-alpha transport through output-scoped labels for ordered repeated stages." }
+		,
+		{ "path": "src/common/editor/video-dehaze-v1.ts", "kind": "persisted-contract", "justification": "Version 1 shared Dehaze defines one closed fractional amount under srgb-alpha-dark3-white-dehaze-q8-v1. Fixed white airlight, original-alpha-aware dark neighborhoods, bounded Q8 transmission, signed nearest reconstruction, explicit clipping and negative white mixing preserve deterministic byte evaluation without changing older recipes." }
+		,
+		{ "path": "src/common/editor/video-effect-closed-families-v1.ts", "kind": "helper-contract", "justification": "Version 1 fixed shared effect families bind each registered numeric or point-curve recipe to its owning definition, closed admission and generated export operation. Static family selection preserves the older eight wrapper prechecks, four complete closed envelopes, all twelve legacy routes and exact option, label, default and serialized bytes; it exposes no caller-configured registry or render resource authority." }
+		,
+		{ "path": "src/common/editor/video-effect-leaf-v2.ts", "kind": "helper-contract", "justification": "Explicit named version 2 leaf fields use the type-only numeric, owning-curve and nullable V27 reference vocabulary without widening legacy V1 leaves. Individual family owners remain the sole runtime parameter admission authority." }
+		,
+		{ "path": "src/common/editor/video-effect-parameter-v2.ts", "kind": "helper-contract", "justification": "Version 2 parameter vocabulary explicitly extends unchanged numeric and curve V1 values with a nullable V27 cube reference. Only the owning cube profile admits reference values; current V1 effect leaves, state and preset consumers remain unchanged until coordinated successor adoption. Imports are type-only and no runtime resource authority is added." }
+		,
+		{ "path": "src/common/editor/video-effects-v2.ts", "kind": "helper-contract", "justification": "Explicit version 2 current-consumer definitions and creation append only the closed nullable cube profile to unchanged legacy effect owners. Resource metadata carries no body, shader, numeric expression or render success; old V1 constructors and serializers remain strict. Owning reference admission, dense bounded stacks, immutable envelopes and discrete updates preserve authored order and opaque refusal identity." }
+		,
 		{ "path": "src/common/editor/video-freeze-v24.ts", "kind": "persisted-contract", "justification": "video-freeze-v24.ts is a persisted domain-component or render-contract revision independent of product schema." }
+		,
+		{ "path": "src/common/editor/video-global-develop-v1.ts", "kind": "persisted-contract", "justification": "Version 1 shared white-balance and tone recipes retain fixed linear-sRGB process math, parameter ranges and per-operation byte quantization. Owning prepared preview identities expose detached 256-entry RGB transfer tables for exact UNORM8 GPU evaluation; generated export expressions preserve the same sampling and byte quantization." }
+		,
+		{"path": "src/common/editor/video-grain-ffmpeg-v1.ts", "kind": "helper-contract", "justification": "Version 1 owning Grain graph authenticates the exact private compiled operation before composing deterministic ten-register GEQ and original-alpha split/merge through output-scoped labels for ordered repeated stages."}
+		,
+		{"path": "src/common/editor/video-grain-v1.ts", "kind": "persisted-contract", "justification": "Version 1 Grain retains four closed numeric controls under srgb-natural-output-grain-q8-v1. Seeded triangular lattice noise, Q8 Size and Roughness octaves, current natural-output pixel centers, signed nearest rounding, a common RGB midtone envelope and explicit gamut clipping define deterministic ordered CPU, GLSL and GEQ evaluation without random sources, persisted tables or changes to older effects."}
+		,
+		{ "path": "src/common/editor/video-hsl-mixer-v1.ts", "kind": "persisted-contract", "justification": "Version 1 shared HSL mixer recipes retain encoded-sRGB eight-band original-hue interpolation and signed Q16 hue, saturation and lightness controls. Saturation, lightness and hue apply in that order with nearest rounding toward positive infinity; enabled zero controls and gray retain every byte. CPU, highp integer GPU and owning alpha-preserving FFmpeg evaluation use bounded integer intermediates and ordered per-operation quantization." }
+		,
+		{"path": "src/common/editor/video-image-geometry-ffmpeg-v1.ts", "kind": "helper-contract", "justification": "Version 1 fixed Frame FFmpeg geometry derives allowlisted geq equations from the same contained inverse map and four premultiplied samples as shared pixel and preview evaluation."}
+		,
+		{"path": "src/common/editor/video-image-geometry-v1.ts", "kind": "persisted-contract", "justification": "Version 1 numeric geometry effect settings bind crop aspect, clockwise rotation, output-axis flips and source-quad rectification across Frame and photo effect persistence."}
+		,
+		{ "path": "src/common/editor/video-keyframe-curves-v2.ts", "kind": "persisted-contract", "justification": "Version 2 keyframe curve operations admit the complete current effect context while retaining resource references as discrete nonnumeric values outside animated targets." }
+		,
+		{ "path": "src/common/editor/video-keyframe-effect-context-v2.ts", "kind": "helper-contract", "justification": "Version 2 keyframe context fully admits current effect envelopes and preserves discrete nullable Cube references without granting numeric animation targets for resource fields." }
 		,
 		{ "path": "src/common/editor/video-keyframe-export-plan-v7-values.ts", "kind": "persisted-contract", "justification": "video-keyframe-export-plan-v7-values.ts is a persisted domain-component or render-contract revision independent of product schema." }
 		,
 		{ "path": "src/common/editor/video-keyframe-export-plan-v7.ts", "kind": "persisted-contract", "justification": "video-keyframe-export-plan-v7.ts is a persisted domain-component or render-contract revision independent of product schema." }
+		,
+		{ "path": "src/common/editor/video-keyframe-preview-state-v2.ts", "kind": "helper-contract", "justification": "Version 2 preview-state resolution accepts only a privately created current render-state provider and otherwise preserves the unchanged legacy preview-state route." }
+		,
+		{ "path": "src/common/editor/video-keyframe-render-state-provider-v2.ts", "kind": "helper-contract", "justification": "Version 2 privately branded render-state providers compile and evaluate complete current effect contexts while preserving legacy provider identity and admission." }
+		,
+		{ "path": "src/common/editor/video-keyframe-state-v2.ts", "kind": "helper-contract", "justification": "Version 2 compiled and evaluated keyframe state binds resource-aware effects and curve admission to the shared state core without changing legacy state owners." }
 		,
 		{ "path": "src/common/editor/video-mask-matte-rgba-v13.ts", "kind": "persisted-contract", "justification": "video-mask-matte-rgba-v13.ts is a persisted domain-component or render-contract revision independent of product schema." }
 		,
@@ -465,13 +803,31 @@
 		,
 		{ "path": "src/common/editor/video-motion-webgl2-v27.ts", "kind": "persisted-contract", "justification": "video-motion-webgl2-v27.ts is a persisted domain-component or render-contract revision independent of product schema." }
 		,
+		{ "path": "src/common/editor/video-noise-reduction-ffmpeg-v1.ts", "kind": "helper-contract", "justification": "Version 1 compiled RGB-noise graph authenticates its owning recipe, translates exact bounded integer lifting and bilateral neighborhoods into ten-register GEQ, and delegates original-alpha transport through output-scoped labels for repeated ordered stages." }
+		,
+		{ "path": "src/common/editor/video-noise-reduction-v1.ts", "kind": "persisted-contract", "justification": "Version 1 RGB noise reduction defines six closed controls under srgb-alpha-bilateral-ycocg-noise-q8-v1. Reversible YCoCg-R, original-alpha-weighted luma and chroma neighborhoods, contrast protection, quantized spatial smoothness, signed nearest rounding and final explicit RGB clipping preserve deterministic process identity without changing older recipes." }
+		,
+		{"path": "src/common/editor/video-original-alpha-ffmpeg-v1.ts", "kind": "helper-contract", "justification": "Version 1 internal compiled-effect graph keeps original byte alpha separate from RGB conversion before neighborhood evaluation and exact output publication. Output-scoped plane labels preserve existing sharpen transport bytes and compose repeated and mixed owning operations."}
+		,
+		{"path": "src/common/editor/video-post-crop-vignette-ffmpeg-v1.ts", "kind": "helper-contract", "justification": "Version 1 owning post-crop vignette graph requires the exact compiled scalar recipe and carries original alpha into ten-register spatial GEQ and final publication. Output-scoped labels preserve sequential mixed-stage composition without caller expressions or retained pixel masks."}
+		,
+		{"path": "src/common/editor/video-post-crop-vignette-v1.ts", "kind": "persisted-contract", "justification": "Version 1 post-crop vignette retains five closed numeric controls under the srgb-natural-output-vignette-q8-v1 process. Current natural-stage pixel centers, bounded integer radius interpolation, hard feather endpoints, signed half-up byte mixing and original-maximum highlight protection define ordered Frame and Photo evaluation; every alpha byte and zero-alpha hidden RGB remain unchanged, and legacy vignette recipes retain their bytes."}
+		,
 		{ "path": "src/common/editor/video-proxy-attachment-v18.ts", "kind": "persisted-contract", "justification": "video-proxy-attachment-v18.ts is a persisted domain-component or render-contract revision independent of product schema." }
 		,
 		{ "path": "src/common/editor/video-retime-v16.ts", "kind": "persisted-contract", "justification": "video-retime-v16.ts is a persisted domain-component or render-contract revision independent of product schema." }
 		,
+		{ "path": "src/common/editor/video-sharpen-ffmpeg-v1.ts", "kind": "helper-contract", "justification": "Version 1 owning detail-sharpen graph transports original byte alpha separately from RGB conversion into neighborhood GEQ and exact output publication; output-scoped plane labels compose consecutive and mixed authored stages." }
+		,
+		{ "path": "src/common/editor/video-sharpen-v1.ts", "kind": "persisted-contract", "justification": "Version 1 shared detail sharpening retains closed amount and threshold parameters under the encoded-sRGB alpha-weighted binomial Q8 process. Three-by-three replicated edges, positive blur ties, signed gain ties toward positive infinity, unchanged threshold deltas and hidden RGB at zero-alpha centers define ordered CPU, native integer shader and original-alpha-preserving GEQ evaluation; legacy unsharp recipes remain unchanged." }
+		,
 		{ "path": "src/common/editor/video-source-color-interpretation-v27.ts", "kind": "persisted-contract", "justification": "video-source-color-interpretation-v27.ts is a persisted domain-component or render-contract revision independent of product schema." }
 		,
 		{ "path": "src/common/editor/video-source-professional-characteristics-v25.ts", "kind": "persisted-contract", "justification": "video-source-professional-characteristics-v25.ts is a persisted domain-component or render-contract revision independent of product schema." }
+		,
+		{"path": "src/common/editor/video-texture-ffmpeg-v1.ts", "kind": "helper-contract", "justification": "Version 1 Texture graph authenticates its exact private compiled operation before composing separately rounded original-alpha luma neighborhoods through output-scoped split and merge labels for repeated or mixed authored stages."}
+		,
+		{"path": "src/common/editor/video-texture-v1.ts", "kind": "persisted-contract", "justification": "Version 1 Texture retains one closed fractional amount under srgb-alpha-binomial3-5-luma-texture-q8-v1. Exact JavaScript Q8 preparation, separately rounded three/five alpha-weighted luma means, replicated edges, a protected coarse-edge gate, signed nearest RGB offset and explicit clipping define deterministic authored byte evaluation without changing older processes or persisting derived planes."}
 		,
 		{ "path": "src/common/editor/video-transition-v1.ts", "kind": "persisted-contract", "justification": "video-transition-v1.ts is a persisted domain-component or render-contract revision independent of product schema." }
 		,
@@ -489,6 +845,14 @@
 		,
 		{ "path": "src/framescaper/delivery-native-target-execution-v1.ts", "kind": "persisted-contract", "justification": "delivery-native-target-execution-v1.ts validates the V1 native delivery report target identity independently of product schema." }
 		,
+		{ "path": "src/framescaper/editor-project-unified-render-plan-v16.ts", "kind": "persisted-contract", "justification": "Current Frame generation 16 plan construction combines validated project, exact source timing, visual nodes and finishing authority into the complete resource-capable picture contract." }
+		,
+		{ "path": "src/framescaper/editor-selected-finishing-exact-preview-v16.ts", "kind": "helper-contract", "justification": "The selected current generation 16 resource preview owns a joined retirement barrier; its separate no-resource route preserves the strict generation 13 plan and legacy factory." }
+		,
+		{ "path": "src/framescaper/editor-selected-timeline-image-resource-preview-v16.ts", "kind": "helper-contract", "justification": "The generation 16 timeline-image resource preview binds complete current picture ordering, scoped image planes and privately paired native OpenFX execution under joined cancellation." }
+		,
+		{ "path": "src/framescaper/editor-session-clipboard-resource-projection-v14.ts", "kind": "helper-contract", "justification": "The version 14 clipboard metadata adapter creates a transient resource-free view only after complete current admission; the original current carrier retains the full recipe and custody references." }
+		,
 		{ "path": "src/framescaper/editor-session-clipboard-v11-controller.ts", "kind": "ipc-contract", "justification": "editor-session-clipboard-v11-controller.ts is a clipboard wire-format revision exchanged independently of project schema." }
 		,
 		{ "path": "src/framescaper/editor-session-clipboard-v11-selection.ts", "kind": "ipc-contract", "justification": "editor-session-clipboard-v11-selection.ts is a clipboard wire-format revision exchanged independently of project schema." }
@@ -503,11 +867,501 @@
 		,
 		{ "path": "src/framescaper/editor-session-clipboard-v13.ts", "kind": "ipc-contract", "justification": "editor-session-clipboard-v13.ts is a clipboard wire-format revision exchanged independently of project schema." }
 		,
+		{ "path": "src/framescaper/editor-session-clipboard-v14-paste.ts", "kind": "helper-contract", "justification": "Version 14 paste restores the complete current descriptor and already allocated sparse effect IDs after legacy rich metadata planning, preserving current resource custody and command admission." }
+		,
+		{ "path": "src/framescaper/editor-session-clipboard-v14.ts", "kind": "ipc-contract", "justification": "Frame clipboard wire format V14 captures complete descriptor V7, rich metadata and scalar Cube custody including disabled resources while body authentication remains owned by staged IO." }
+		,
 		{ "path": "src/framescaper/editor-session-clipboard-v8.ts", "kind": "ipc-contract", "justification": "editor-session-clipboard-v8.ts is a clipboard wire-format revision exchanged independently of project schema." }
 		,
 		{ "path": "src/framescaper/editor-session-clipboard-v9.ts", "kind": "ipc-contract", "justification": "editor-session-clipboard-v9.ts is a clipboard wire-format revision exchanged independently of project schema." }
 		,
+		{ "path": "src/framescaper/editor-video-exact-browser-effects-finishing-v2.ts", "kind": "helper-contract", "justification": "Version 2 exact browser finishing captures current effect capabilities before awaits and applies scoped Cube resources at their authored stage without widening legacy rendering admission." }
+		,
 		{ "path": "src/framescaper/native-render-frame-pack-v1.ts", "kind": "persisted-contract", "justification": "native-render-frame-pack-v1.ts is a persisted domain-component or render-contract revision independent of product schema." }
+		,
+		{ "path": "src/framescaper/selected-finishing-exact-frame-execution-v16.ts", "kind": "helper-contract", "justification": "Current generation 16 selected frame execution admits complete version 2 pictures and captures active native surfaces before scoped current-stage resource acquisition." }
+		,
+		{ "path": "src/framescaper/selected-native-media-openfx-resource-v16.ts", "kind": "helper-contract", "justification": "The generation 16 native resource bridge privately pairs the complete resource-capable plan with a numeric native V14 projection; the host ABI receives no resource rendering authority." }
+		,
+		{"path": "src/framescaper/timeline-image-develop-frame-v2.ts", "kind": "helper-contract", "justification": "Scoped editable still evaluator authenticates the existing original/frame pack and every retained LUT, renders the bound common recipe before contain, checks declared natural output dimensions and joins currentness/cancellation before wiping owned frames."}
+		,
+		{ "path": "src/framescaper/video-export-exact-execution-v16.ts", "kind": "helper-contract", "justification": "Generation 16 exact export execution binds selected current visual and frame execution with authenticated resource-layer restoration while borrowing the existing export execution core." }
+		,
+		{ "path": "src/framescaper/video-export-image-execution-timeline-image-v16.ts", "kind": "helper-contract", "justification": "Generation 16 image export execution captures current options, admits the complete resource-capable plan and preserves timeline-image resource ordering and custody under intrinsic cancellation." }
+		,
+		{ "path": "src/framescaper/video-export-resource-carrier-v16.ts", "kind": "helper-contract", "justification": "Generation 16 export carrier adaptation retains the complete canonical resource snapshot and restores authenticated authored resource layers beside the unchanged strict numeric decoder carrier." }
+		,
+		{ "path": "src/framescaper/video-export-visual-execution-v16.ts", "kind": "helper-contract", "justification": "Generation 16 visual export execution selects the current resource-capable plan constructor while borrowing the existing shared visual execution lifetime." }
+		,
+		{"path": "src/lightscaper/archive/catalog-archive-contract-v2.ts", "kind": "persisted-contract", "justification": "Lightscaper catalog archive version 2 adds authenticated stack packs while preserving the Scape envelope and canonical photo version 1 contracts."}
+		,
+		{"path": "src/lightscaper/archive/catalog-archive-contract-v3.ts", "kind": "persisted-contract", "justification": "Lightscaper catalog archive version 3 preserves physical saved-collection state and authenticated full-query definition packs alongside unchanged photo and stack packs."}
+		,
+		{"path": "src/lightscaper/archive/catalog-archive-contract-v4.ts", "kind": "persisted-contract", "justification": "Lightscaper catalog archive version 4 adds one authenticated bounded shared Develop preset row with explicit physical absence or retained positive revision while preserving unchanged photo, stack and saved-collection contracts."}
+		,
+		{"path": "src/lightscaper/archive/catalog-archive-contract-v5.ts", "kind": "persisted-contract", "justification": "Photo archive5 binds unique exact LUT references and explicit preset row versions under the unchanged combined entry, document and expanded payload caps. Scalar headers grant neither reachability nor body authority."}
+		,
+		{"path": "src/lightscaper/archive/catalog-archive-export-v2.ts", "kind": "helper-contract", "justification": "Version 2 catalog export streams photo and stack packs under the existing archive entry, byte and cleanup bounds."}
+		,
+		{"path": "src/lightscaper/archive/catalog-archive-export-v3.ts", "kind": "helper-contract", "justification": "Version 3 catalog export streams authenticated complete saved definitions and physical saved state, binding final source verification before destination completion."}
+		,
+		{"path": "src/lightscaper/archive/catalog-archive-export-v4.ts", "kind": "helper-contract", "justification": "Version 4 catalog export authenticates one bounded full or partial Develop preset row alongside unchanged photo, stack and saved-collection packs before completing the existing destination owner."}
+		,
+		{"path": "src/lightscaper/archive/catalog-archive-export-v5.ts", "kind": "helper-contract", "justification": "Explicit archive5 export enumerates owning Photo1/2 and shared preset1/2 complete reachable custody and authenticates each immutable LUT body serially before output completion."}
+		,
+		{"path": "src/lightscaper/archive/catalog-archive-import-v2.ts", "kind": "helper-contract", "justification": "Version 2 catalog import admits version 1 empty grouping and validates exclusive stack membership before provisional catalog publication."}
+		,
+		{"path": "src/lightscaper/archive/catalog-archive-import-v3.ts", "kind": "helper-contract", "justification": "Version 3 catalog import preserves physical saved state and complete saved queries while authenticating all packs and joining archive cleanup before provisional publication."}
+		,
+		{"path": "src/lightscaper/archive/catalog-archive-import-v4.ts", "kind": "helper-contract", "justification": "Version 4 catalog import authenticates the complete Develop preset row and its declared revision/count alongside unchanged photo, stack and saved-query packs, preserving explicit legacy absence and joining archive closure before provisional publication."}
+		,
+		{"path": "src/lightscaper/archive/catalog-archive-import-v5.ts", "kind": "helper-contract", "justification": "Explicit archive5 import preserves strict old formats and joins complete codec, extraction and reader retirement before provisional body writes and the destination publication acknowledgement."}
+		,
+		{"path": "src/lightscaper/archive/catalog-archive-saved-collection-guard-v3.ts", "kind": "helper-contract", "justification": "Version 3 archive saved-definition admission binds bounded global identities, root-only references, disjoint collection IDs and exact physical-state counts independently of streamed recipe bodies."}
+		,
+		{"path": "src/lightscaper/archive/catalog-archive-writer-v5.ts", "kind": "helper-contract", "justification": "Fixed archive5 STORE ZIP64 writer uses the longer LUT-name framing estimate with unchanged payload caps; old writer estimates and byte admissions remain unchanged."}
+		,
+		{"path": "src/lightscaper/archive/catalog-pack-entry-v2.ts", "kind": "helper-contract", "justification": "Pack2 entry bridge pins the borrowed extractor before scheduling and authenticates complete mixed Photo1/2 framing and exact original bytes before publication."}
+		,
+		{"path": "src/lightscaper/archive/catalog-pack-sequence-v2.ts", "kind": "helper-contract", "justification": "Pack2 enumeration retains one admitted mixed-photo lookahead, claims admission before held reads, and joins captured source retirement without materializing a catalog."}
+		,
+		{"path": "src/lightscaper/archive/catalog-pack-v2.ts", "kind": "persisted-contract", "justification": "LSCPACK2 explicitly carries bounded owning Photo1/2 metadata and unchanged original digest framing; pack1 remains strict with its existing bytes and ceilings."}
+		,
+		{"path": "src/lightscaper/archive/cube-lut-archive-entry-v1.ts", "kind": "helper-contract", "justification": "One bounded Photo-only LUT entry completes extraction and independently authenticates exact UTF8 reference and parser body before provisional delivery; captured raw backing retires after the joined consumer."}
+		,
+		{"path": "src/lightscaper/archive/cube-lut-archive-source-v1.ts", "kind": "helper-contract", "justification": "Captured immutable LUT body source and scoped writer outcomes both settle before completion, with independent body authentication, opaque identity preservation and no retained cache."}
+		,
+		{"path": "src/lightscaper/archive/develop-preset-pack-entry-v1.ts", "kind": "helper-contract", "justification": "Version 1 Develop preset entry decoding joins bounded ZIP extraction, provisional row staging and final SHA-256 and length authentication while preserving native opaque cancellation."}
+		,
+		{"path": "src/lightscaper/archive/develop-preset-pack-entry-v2.ts", "kind": "helper-contract", "justification": "Preset pack2 entry extraction authenticates the complete bounded row1/2 body before publication; the archive owner separately binds exact row version, revision and count."}
+		,
+		{"path": "src/lightscaper/archive/develop-preset-pack-v1.ts", "kind": "persisted-contract", "justification": "Version 1 Develop preset JSON packs preserve one canonical catalog-scoped shared full or partial preset row within the existing 10 MiB, 16-preset and individual 2 MiB limits with strict streaming UTF8 and joined source retirement."}
+		,
+		{"path": "src/lightscaper/archive/develop-preset-pack-v2.ts", "kind": "persisted-contract", "justification": "Explicit preset pack2 preserves closed row1/2 admission, positive-empty revision and complete UTF8 row bytes under the existing preset and chunk caps."}
+		,
+		{"path": "src/lightscaper/archive/smart-collection-pack-entry-v1.ts", "kind": "helper-contract", "justification": "Version 1 saved collection entry decoding joins authenticated ZIP extraction and provisional record consumption under independent byte bounds and opaque cancellation reasons."}
+		,
+		{"path": "src/lightscaper/archive/smart-collection-pack-sequence-v1.ts", "kind": "helper-contract", "justification": "Version 1 saved collection sequencing borrows one canonical recipe at a time and splits actual framed bytes at bounded record and pack ceilings with joined iterator cleanup."}
+		,
+		{"path": "src/lightscaper/archive/smart-collection-pack-v1.ts", "kind": "persisted-contract", "justification": "Version 1 canonical framed saved-collection records preserve complete Query2 criteria under independent streamed record, pack, chunk and cleanup bounds."}
+		,
+		{"path": "src/lightscaper/catalog/photo-catalog-index-source-v1.ts", "kind": "helper-contract", "justification": "Version 1 admitted metadata field projection lends only index facts from whole Photo1 or Photo2 documents without changing legacy document authority."}
+		,
+		{"path": "src/lightscaper/catalog/photo-catalog-records-v2.ts", "kind": "helper-contract", "justification": "Version 2 stored photo reader admits exact Photo1 or Photo2 documents and binds the closed wrapper to the requested physical key."}
+		,
+		{"path": "src/lightscaper/catalog/photo-catalog-repository-v2.ts", "kind": "helper-contract", "justification": "Version 2 explicit mixed-photo durable facade joins its own database lifetime and requires complete selected-library resource verification before native photo writes."}
+		,
+		{ "path": "src/lightscaper/catalog/photo-catalog-restore-audit-pages-v1.ts", "kind": "helper-contract", "justification": "Version 1 restored candidate inventories retain bounded ASCII primary-key pages, refuse the first excess key, and compare closed persisted projections without bulk record arrays." }
+		,
+		{ "path": "src/lightscaper/catalog/photo-catalog-restore-audit-v1.ts", "kind": "helper-contract", "justification": "Version 1 private restored source audits bind delivered document digests to exact derived rows, paired summaries, memberships and all referenced catalog authority." }
+		,
+		{"path": "src/lightscaper/catalog/photo-catalog-restore-audit-v2.ts", "kind": "helper-contract", "justification": "Version 2 private catalog audit admits complete Photo1/2 sources before comparing immutable delivered digests and unchanged bounded projections, memberships and stack/query authority."}
+		,
+		{ "path": "src/lightscaper/catalog/photo-catalog-restore-delivery-v1.ts", "kind": "helper-contract", "justification": "Version 1 restored delivery identity ledger retains bounded kind and ASCII ID framing plus SHA-256 document digests with an explicit 16 MiB logical byte ceiling." }
+		,
+		{"path": "src/lightscaper/catalog/photo-catalog-restore-delivery-v2.ts", "kind": "helper-contract", "justification": "Version 2 restore delivery authenticates complete Photo1/2 and unchanged stack/saved documents before retaining only bounded identity framing and canonical SHA-256 digests."}
+		,
+		{ "path": "src/lightscaper/catalog/photo-catalog-restore-finalize-v1.ts", "kind": "helper-contract", "justification": "Version 1 sealed private catalog candidate finalization authenticates complete bounded inventories and pending controls before atomically acknowledging derived index readiness." }
+		,
+		{"path": "src/lightscaper/catalog/photo-catalog-restore-finalize-v2.ts", "kind": "helper-contract", "justification": "Version 2 sealed catalog finalization binds complete mixed document audits to unchanged DB5 controls and one joined native readiness acknowledgement."}
+		,
+		{ "path": "src/lightscaper/catalog/photo-catalog-restore-owner-v1.ts", "kind": "helper-contract", "justification": "Version 1 restore allocation inspection authenticates a private DB5 owner companion record and exact physical profile without creating, migrating, publishing or deleting a library." }
+		,
+		{ "path": "src/lightscaper/catalog/photo-catalog-restore-records-v1.ts", "kind": "helper-contract", "justification": "Version 1 fresh catalog restore projections preserve archived documents and revisions while explicitly deriving pending index state and exact physical saved-state presence." }
+		,
+		{"path": "src/lightscaper/catalog/photo-catalog-restore-records-v2.ts", "kind": "helper-contract", "justification": "Version 2 private restore projections require complete owning Photo1/2 admission and preserve existing catalog root, summary, membership and Query1/2 bytes."}
+		,
+		{ "path": "src/lightscaper/catalog/photo-catalog-restore-stage-v1.ts", "kind": "helper-contract", "justification": "Version 1 serial catalog restore stage requires native fresh-database proof, joins admission and retirement, and acknowledges audited candidate readiness without publishing a library pointer or original media." }
+		,
+		{"path": "src/lightscaper/catalog/photo-catalog-restore-stage-v2.ts", "kind": "helper-contract", "justification": "Version 2 fresh mixed-photo stage preserves private DB5 ownership and synchronous serial admission, caches retirement before cancellation reentry and joins the single native deletion before releasing its namespace."}
+		,
+		{"path": "src/lightscaper/catalog/photo-catalog-writes-v2.ts", "kind": "helper-contract", "justification": "Version 2 mixed-photo native publication preserves aggregate schema and original facts while atomically updating unchanged catalog and metadata indexes."}
+		,
+		{ "path": "src/lightscaper/catalog/photo-cube-lut-closure-v1.ts", "kind": "helper-contract", "justification": "Version 1 bounded scalar LUT-reference collector admits explicit Develop state versions, retains disabled resource references, rejects conflicting digest geometry and seals its identity ledger; complete photo, history, snapshot and preset traversal remains the later product owner's responsibility." }
+		,
+		{ "path": "src/lightscaper/catalog/photo-cube-lut-reachability-v1.ts", "kind": "helper-contract", "justification": "Version 1 complete per-record LUT traversal first admits owning Photo1/2 and shared preset1/2 records, then retains all versions, history including redo, snapshots and disabled references in an atomic bounded scalar ledger. Callers retain complete catalog enumeration and independent immutable body authentication responsibilities; no raw documents or resource bodies are retained." }
+		,
+		{"path": "src/lightscaper/catalog/photo-culling-navigation-v1.ts", "kind": "helper-contract", "justification": "Version 1 transaction-local destination seeking authenticates current root, query indexes, saved definitions and stack representatives, derives the actual inclusive index key and issues ordinary fresh continuations through existing bounded scanners."}
+		,
+		{ "path": "src/lightscaper/catalog/photo-develop-workspace-v1.ts", "kind": "persisted-contract", "justification": "Version 1 per-photo-version develop workspace retains bounded ordered history and immutable named snapshots, explicit process versions and a selected-state cursor independently of virtual copies and original identity." }
+		,
+		{ "path": "src/lightscaper/catalog/photo-develop-workspace-v2.ts", "kind": "persisted-contract", "justification": "Explicit version 2 develop workspaces retain mixed strict process-1 and resource-bearing process-2 history and snapshots under unchanged byte and count limits. The closed dispatcher preserves V1 reads; explicit successor edits alone upgrade the workspace envelope without dropping redo, disabled LUT references or named snapshots." }
+		,
+		{ "path": "src/lightscaper/catalog/photo-document-envelope-v1.ts", "kind": "helper-contract", "justification": "Version 1 inert Photo envelope capture and shared original, metadata and membership components preserve legacy rules, validation order and bytes using actual admitted version identities. They do not admit schema versions or develop recipes." }
+		,
+		{ "path": "src/lightscaper/catalog/photo-document-json-v1.ts", "kind": "helper-contract", "justification": "Version 1 canonical JSON ordering and fixed Photo document byte budget preserve the exact legacy persistence algorithm beside explicit successor document admission; this helper alone grants no schema authority." }
+		,
+		{ "path": "src/lightscaper/catalog/photo-document-v2.ts", "kind": "persisted-contract", "justification": "Explicit Photo document version 2 owns mixed strict process-1 and process-2 versions and workspace states with real selected-history coherence, original and metadata rules and unchanged whole-document limits. Closed V1-or-V2 dispatch preserves old reads and explicit upgrade retains original identity; LUT bodies and catalog root versions remain independently owned." }
+		,
+		{ "path": "src/lightscaper/catalog/photo-export-sidecar-v1.ts", "kind": "helper-contract", "justification": "Version 1 Lightscaper-owned photo sidecar binds one fully admitted Photo1/2 saved version and immutable original scalar identity to a captured catalog/photo/revision request, preserves explicit shared recipe and separate authored/extracted metadata semantics in bounded deterministic JSON, and grants no body, storage, import or destination authority." }
+		,
+		{"path": "src/lightscaper/catalog/photo-history-v2.ts", "kind": "helper-contract", "justification": "Version 2 fixed current photo history admits mixed Photo1/2, preserves original and extracted facts, bounded whole-photo snapshots and monotonic revisions, and retains a promoted aggregate through undo and redo."}
+		,
+		{ "path": "src/lightscaper/catalog/photo-metadata-query-columns-v2.ts", "kind": "helper-contract", "justification": "Version 2 closed metadata column definitions bind effective scalar facts, nullable presence, units and local versus UTC clocks independently of raw extracted source metadata." }
+		,
+		{ "path": "src/lightscaper/catalog/photo-query-index-storage-v2.ts", "kind": "persisted-contract", "justification": "Version 2 disposable query build states bind readiness, bounded resume position and atomic derived-row counts independently of canonical photo and catalog schemas." }
+		,
+		{ "path": "src/lightscaper/catalog/photo-query-index-v1.ts", "kind": "persisted-contract", "justification": "Version 1 disposable metadata query rows and rebuild states preserve bounded ordered indexes independently of canonical photo documents." }
+		,
+		{ "path": "src/lightscaper/catalog/photo-query-index-v2.ts", "kind": "persisted-contract", "justification": "Version 2 disposable flat query rows retain bounded effective metadata and dimensions with authenticated sort projections while deriving the unchanged scalar photo summary on demand." }
+		,
+		{"path": "src/lightscaper/catalog/photo-query-matcher-v1.ts", "kind": "helper-contract", "justification": "Version 1 query eligibility is shared by ordinary and globally collapsed catalog pages, including live smart collections."}
+		,
+		{ "path": "src/lightscaper/catalog/photo-query-matcher-v2.ts", "kind": "helper-contract", "justification": "Version 2 ordinary and collapsed query eligibility combines unchanged literal filters with reference-validated effective metadata predicates without widening the version 1 text universe." }
+		,
+		{"path": "src/lightscaper/catalog/photo-query-page-kernel-v2.ts", "kind": "helper-contract", "justification": "Version 2 transaction-local effective metadata scan preserves bounded transient and saved full-query paging without acquiring a second database transaction."}
+		,
+		{ "path": "src/lightscaper/catalog/photo-query-pages-v1.ts", "kind": "helper-contract", "justification": "Version 1 catalog query pages traverse globally ordered indexes with bounded candidate work and live smart collection evaluation." }
+		,
+		{ "path": "src/lightscaper/catalog/photo-query-pages-v2.ts", "kind": "helper-contract", "justification": "Version 2 metadata query pages traverse bounded globally ordered derived rows and return catalog context, revisions and scalar summaries from one native transaction." }
+		,
+		{"path": "src/lightscaper/catalog/photo-query-rebuild-photos-v2.ts", "kind": "helper-contract", "justification": "Version 2 bounded mixed-photo source rebuild publishes unchanged query row profiles with canonical source admission and readiness count fences."}
+		,
+		{ "path": "src/lightscaper/catalog/photo-query-rebuild-v1.ts", "kind": "helper-contract", "justification": "Version 1 resumable query index rebuild publishes bounded derived rows and progress atomically without rewriting original photo documents." }
+		,
+		{ "path": "src/lightscaper/catalog/photo-query-rebuild-v2.ts", "kind": "helper-contract", "justification": "Version 2 explicit resumable metadata index rebuild joins source and derived-row byte bounds with atomic count/progress publication while leaving canonical photo documents unchanged." }
+		,
+		{ "path": "src/lightscaper/catalog/photo-query-types-v1.ts", "kind": "helper-contract", "justification": "Closed version 1 catalog query and bounded continuation contracts bind literal search, filtering and global ordering to one catalog revision." }
+		,
+		{ "path": "src/lightscaper/catalog/photo-query-types-v2.ts", "kind": "helper-contract", "justification": "Closed version 2 catalog queries and bounded continuations add explicit effective metadata predicates and catalog/index revision context while preserving version 1 parsers and defaults." }
+		,
+		{ "path": "src/lightscaper/catalog/photo-smart-collection-archive-capture-v1.ts", "kind": "helper-contract", "justification": "Version 1 saved archive capture binds initial, delivered and final complete bounded inventories by canonical recipe digests and physical saved-state presence while borrowing the existing database lifetime." }
+		,
+		{ "path": "src/lightscaper/catalog/photo-smart-collection-archive-context-v1.ts", "kind": "helper-contract", "justification": "Version 1 atomic archive context authenticates catalog and index revisions while preserving physical saved-state absence and retained empty revisions without enumerating definitions." }
+		,
+		{ "path": "src/lightscaper/catalog/photo-smart-collection-archive-read-v1.ts", "kind": "helper-contract", "justification": "Version 1 saved archive reads authenticate scalar physical context and one complete paired definition in each bounded native readonly transaction." }
+		,
+		{ "path": "src/lightscaper/catalog/photo-smart-collection-audit-v1.ts", "kind": "helper-contract", "justification": "Version 1 private canonical storage audit validates bounded definition, summary and key pages and issues single-use database, root and context-bound write authority independently of public continuation tokens." }
+		,
+		{ "path": "src/lightscaper/catalog/photo-smart-collection-pages-v1.ts", "kind": "helper-contract", "justification": "Version 1 bounded scalar saved-query summary pages authenticate definition existence and catalog, index and saved-state revisions without loading full predicates." }
+		,
+		{"path": "src/lightscaper/catalog/photo-smart-collection-query-progress-v1.ts", "kind": "helper-contract", "justification": "Version 1 connection-bound saved query continuation authenticates complete definition identity, revisions and bounded physical ordinary or collapsed progress."}
+		,
+		{"path": "src/lightscaper/catalog/photo-smart-collection-query-types-v1.ts", "kind": "helper-contract", "justification": "Version 1 closed saved collection page protocol keeps saved selection and continuation separate from transient query and document schema identities."}
+		,
+		{"path": "src/lightscaper/catalog/photo-smart-collection-query-v1.ts", "kind": "helper-contract", "justification": "Version 1 saved full-query execution validates and compiles one persisted definition in the same bounded native transaction as ordinary or collapsed rows."}
+		,
+		{"path": "src/lightscaper/catalog/photo-smart-collection-read-v1.ts", "kind": "helper-contract", "justification": "Version 1 paired saved definition reads authenticate private references and scalar summaries without widening catalog family documents."}
+		,
+		{ "path": "src/lightscaper/catalog/photo-smart-collection-record-v1.ts", "kind": "helper-contract", "justification": "Version 1 private saved-query storage projections authenticate canonical scoped keys and every referenced hierarchy identity within an independent record byte bound." }
+		,
+		{ "path": "src/lightscaper/catalog/photo-smart-collection-repository-types-v1.ts", "kind": "helper-contract", "justification": "Version 1 closed saved-query write options, durable receipts and scalar summary continuations bind definition, catalog, index and retained saved-state revisions." }
+		,
+		{ "path": "src/lightscaper/catalog/photo-smart-collection-repository-v1.ts", "kind": "helper-contract", "justification": "Version 1 transactional saved-query persistence validates references and revisions before atomic definition, summary, root, index and retained-state publication." }
+		,
+		{ "path": "src/lightscaper/catalog/photo-smart-collection-snapshot-v1.ts", "kind": "helper-contract", "justification": "Version 1 selected saved-query snapshot returns one authenticated recipe and scalar catalog, index and retained companion-state revisions from the same native readonly transaction." }
+		,
+		{ "path": "src/lightscaper/catalog/photo-smart-collection-state-v1.ts", "kind": "persisted-contract", "justification": "Version 1 scalar saved-query catalog state preserves collection count and mutation revision, including a retained empty tombstone after the last deletion." }
+		,
+		{ "path": "src/lightscaper/catalog/photo-smart-collection-storage-v1.ts", "kind": "helper-contract", "justification": "Version 1 private saved-query scalar summary records and storage context authenticate paired table existence and root, index and saved-state consistency without a whole-table scan." }
+		,
+		{ "path": "src/lightscaper/catalog/photo-smart-collection-v1.ts", "kind": "persisted-contract", "justification": "Version 1 saved photo collections persist complete version 2 text, filter, predicate and sort criteria independently of canonical family version 1 catalog roots." }
+		,
+		{ "path": "src/lightscaper/catalog/photo-smart-query-types-v2.ts", "kind": "persisted-contract", "justification": "Independent version 2 bounded smart-query predicates encode allowlisted effective metadata text, numeric, clock and presence conditions without changing canonical family version 1 documents." }
+		,
+		{ "path": "src/lightscaper/catalog/photo-smart-query-v2.ts", "kind": "helper-contract", "justification": "Version 2 pure smart-query admission, serialization and matching validate all hierarchy references before boolean evaluation and provide explicit version 1 predicate migration." }
+		,
+		{ "path": "src/lightscaper/catalog/photo-stack-query-audit-v1.ts", "kind": "helper-contract", "justification": "Version 1 collapsed grouping-count authentication resumes bounded primary-key pages without whole-index count scans or retained stack documents." }
+		,
+		{"path": "src/lightscaper/catalog/photo-stack-query-pages-v1.ts", "kind": "helper-contract", "justification": "Version 1 collapsed pages select globally eligible stack representatives through bounded revision-fenced member probes and authenticated forward/reverse membership."}
+		,
+		{ "path": "src/lightscaper/catalog/photo-stack-query-progress-v1.ts", "kind": "helper-contract", "justification": "Version 1 collapsed progress signatures authenticate bounded member positions on their issuing database connection without retaining catalog-wide query state." }
+		,
+		{ "path": "src/lightscaper/catalog/photo-stack-query-progress-v2.ts", "kind": "helper-contract", "justification": "Version 2 collapsed metadata progress signatures authenticate canonical bounded member and count-audit positions on their issuing database connection with authority separate from version 1 cursors." }
+		,
+		{ "path": "src/lightscaper/catalog/photo-stack-query-signal-v1.ts", "kind": "helper-contract", "justification": "Version 1 collapsed read cancellation borrows a private native signal bridge and joins transaction settlement without evaluating late caller-owned signal overrides." }
+		,
+		{"path": "src/lightscaper/catalog/photo-stack-query-types-v1.ts", "kind": "helper-contract", "justification": "Closed version 1 collapsed continuations bind query, catalog, photo index and grouping revisions within a scalar byte bound."}
+		,
+		{ "path": "src/lightscaper/catalog/photo-stack-query-types-v2.ts", "kind": "helper-contract", "justification": "Closed version 2 collapsed metadata requests, pages and continuations bind query digest, atomic catalog/index/grouping revisions and bounded signed progress without admitting version 1 tokens." }
+		,
+		{ "path": "src/lightscaper/catalog/photo-stack-query-v2.ts", "kind": "helper-contract", "justification": "Version 2 collapsed metadata pages adapt the shared bounded global representative kernel to effective query rows while authenticating every winning stack member and preserving version 1 traversal behavior." }
+		,
+		{"path": "src/lightscaper/catalog/photo-stack-record-v1.ts", "kind": "helper-contract", "justification": "Version 1 private stack storage projection validates ordered scoped forward membership and a bounded record independently of portable stack documents."}
+		,
+		{"path": "src/lightscaper/catalog/photo-stack-repository-v1.ts", "kind": "helper-contract", "justification": "Version 1 transactional stack persistence preserves exclusive membership, bounded indexed projections and immutable photo originals."}
+		,
+		{"path": "src/lightscaper/catalog/photo-stack-v1.ts", "kind": "persisted-contract", "justification": "Version 1 photo grouping documents and scalar stack state preserve ordered exclusive catalog membership independently of develop stacks."}
+		,
+		{ "path": "src/lightscaper/controller/photo-batch-rename-inverse-v1.ts", "kind": "helper-contract", "justification": "Version 1 bounded compensating filename commands require exact current revision and name while preserving remaining restoration fences." }
+		,
+		{"path": "src/lightscaper/controller/photo-batch-rename-v1.ts", "kind": "helper-contract", "justification": "Version 1 bounded scalar batch rename preserves selected sequence bindings and publishes authored filenames through existing per-photo CAS/history without mutating originals."}
+		,
+		{"path": "src/lightscaper/controller/photo-batch-rename-v2.ts", "kind": "helper-contract", "justification": "Current serial rename and compensating undo items admit complete Photo1/2 owners while retaining original metadata, resource history and unchanged scalar revision/name fences."}
+		,
+		{"path": "src/lightscaper/controller/photo-command-owner-v2.ts", "kind": "helper-contract", "justification": "Version 2 fixed current command owner pins mixed repository operations, detaches authoring under one demand before awaits, publishes history only after durable CAS acknowledgement, and joins cancellation and Close without owning the repository."}
+		,
+		{"path": "src/lightscaper/controller/photo-commands-v2.ts", "kind": "helper-contract", "justification": "Version 2 fixed current photo commands preserve legacy authored bytes while explicitly promoting real process2 recipes and retaining all versions, originals and extracted import facts."}
+		,
+		{"path": "src/lightscaper/controller/photo-develop-clipboard-v2.ts", "kind": "helper-contract", "justification": "Version 2 closed develop clipboard retains complete process1/2 settings and validated LUT references under the original byte framing while the mixed dispatcher preserves strict legacy packets without body IO or media authority."}
+		,
+		{ "path": "src/lightscaper/controller/photo-develop-frame-v1.ts", "kind": "helper-contract", "justification": "Version 1 Photo ordered-frame owner admits separate named fixed proxy and full-resolution profiles, evaluates natural geometry and supported shared effects, measures rendered histograms, joins cancellation and wipes every replaced stage independently of original custody; callers cannot select arbitrary limits." }
+		,
+		{"path": "src/lightscaper/controller/photo-develop-frame-v2.ts", "kind": "helper-contract", "justification": "Version 2 Photo ordered-frame owner explicitly admits process1/2, preflights and pins each active LUT resource before pixel stages await, authenticates its body through the shared scoped kernel, preserves natural geometry and fixed proxy/full-resolution limits, and joins delivery before wiping replaced pixel stages."}
+		,
+		{ "path": "src/lightscaper/controller/photo-develop-proxy-v1.ts", "kind": "helper-contract", "justification": "Version 1 scoped photo proxy preserves its public signature, limits and view type while delegating ordered evaluation and bounded pixel retirement to the named fixed-profile Photo frame owner." }
+		,
+		{ "path": "src/lightscaper/controller/photo-develop-settings-v1.ts", "kind": "helper-contract", "justification": "Version 1 settings selection, deterministic partial merge and shared-range relative deltas retain effect order and coherent mask identities without donating photo identity or external media authority." }
+		,
+		{ "path": "src/lightscaper/controller/photo-develop-workspace-commands-v1.ts", "kind": "helper-contract", "justification": "Version 1 photo develop history and immutable snapshot drafts preserve explicit per-version state and process versions while borrowing the existing command owner's durable compare-and-swap publication." }
+		,
+		{"path": "src/lightscaper/controller/photo-develop-workspace-commands-v2.ts", "kind": "helper-contract", "justification": "Version 2 fixed current workspace drafts preserve real mixed history and snapshot recipes, explicit workspace promotion and aggregate retention while borrowing ordinary command CAS publication."}
+		,
+		{ "path": "src/lightscaper/controller/photo-framescaper-collection-handoff-archive-v1.ts", "kind": "helper-contract", "justification": "Version 1 whole-collection editable archive serially decodes authenticated selected originals, preserves separate current SourceV2 recipes and placements, and joins original and unique active and disabled LUT deliveries under independent repeated-pack body, entry and ZIP bounds without sender publication." }
+		,
+		{ "path": "src/lightscaper/controller/photo-framescaper-collection-handoff-project-v1.ts", "kind": "helper-contract", "justification": "Version 1 pure collection Frame assembly preserves the ordered current SourceV2 recipes and provenance in distinct contiguous still placements with exact integer duration conversion, globally distinct project identities and current owner validation without resource, storage or archive authority." }
+		,
+		{ "path": "src/lightscaper/controller/photo-framescaper-handoff-archive-v1.ts", "kind": "helper-contract", "justification": "Version 1 selected-photo editable archive assembles one current SourceV2 Frame project from authenticated original and active and disabled LUT bodies under joined saved-facts fences, with fixed unique-body and ZIP limits and no sender project publication." }
+		,
+		{ "path": "src/lightscaper/controller/photo-framescaper-handoff-inspect-v1.ts", "kind": "helper-contract", "justification": "Version 1 editable image choice inspection authenticates current project facts and declared asset closure under bounded joined ZIP ownership, returning scalar SourceV2 choices without original, pixel, LUT or publication authority." }
+		,
+		{ "path": "src/lightscaper/controller/photo-framescaper-handoff-original-v1.ts", "kind": "helper-contract", "justification": "Version 1 retained editable-image original preparation authenticates bounded immutable original bytes against the selected SourceV2 and its verified pre-recipe canonical frame digest, joins native oriented static decoding and cleanup, and returns extracted metadata with explicit bounded display aliases without catalog or native authority." }
+		,
+		{ "path": "src/lightscaper/controller/photo-framescaper-handoff-photo-v1.ts", "kind": "helper-contract", "justification": "Version 1 pure editable image handoff composes one normalized Photo1 or Photo2 with fresh destination identities, exact retained-original facts and unchanged selected process recipe, without byte, storage or publication authority." }
+		,
+		{ "path": "src/lightscaper/controller/photo-framescaper-handoff-project-v1.ts", "kind": "helper-contract", "justification": "Version 1 selected-photo Frame assembly preserves complete SourceV2 recipe and provenance through the current project factory and image commands, creating an unpublished single-still project without storage authority." }
+		,
+		{ "path": "src/lightscaper/controller/photo-framescaper-handoff-read-v1.ts", "kind": "helper-contract", "justification": "Version 1 read-only editable photo handoff authenticates one current SourceV2 recipe, retained original and all active and disabled LUT bodies within a joined bounded archive consumer, without project or catalog publication." }
+		,
+		{ "path": "src/lightscaper/controller/photo-framescaper-handoff-source-v1.ts", "kind": "helper-contract", "justification": "Version 1 pure ordinary Frame image projection preserves Source1 pack facts beside a neutral shared recipe and source-bound Frame clip provenance, retaining only the stored NFC filename and deriving a canonical MIME declaration without archive, original-byte, native-pixel or publication authority." }
+		,
+		{ "path": "src/lightscaper/controller/photo-image-handoff-decode-v1.ts", "kind": "helper-contract", "justification": "Version 1 selected-photo native decode binds authenticated immutable original facts to a bounded canonical original frame pack, joins deadline and Session cancellation and native cleanup, and preserves the saved editable recipe without publication." }
+		,
+		{ "path": "src/lightscaper/controller/photo-image-handoff-source-v1.ts", "kind": "helper-contract", "justification": "Version 1 selected-photo editable image source binds an authenticated original frame pack to the complete process 1 or 2 saved recipe, exact original name and SourceV2 provenance, checking declared natural output dimensions without catalog publication." }
+		,
+		{"path": "src/lightscaper/controller/photo-library-archive-restore-v1.ts", "kind": "helper-contract", "justification": "Version 1 whole-library restore joins authenticated archive delivery and fresh catalog/media owners before guarded atomic pointer publication and permanent-history reconciliation."}
+		,
+		{"path": "src/lightscaper/controller/photo-library-archive-restore-v2.ts", "kind": "helper-contract", "justification": "Version 2 named private restore authenticates PhotoArchive V5 and strict V1–4 compatibility, delivering exact originals, complete preset rows and LUT bodies into fresh namespaces before unchanged journal, lease and pointer acknowledgement fences."}
+		,
+		{"path": "src/lightscaper/controller/photo-library-backup-inventory-v2.ts", "kind": "helper-contract", "justification": "Version 2 borrowed backup inventory captures mixed catalog methods and receivers before awaits and preserves complete catalog, stack and saved-query revision fences."}
+		,
+		{ "path": "src/lightscaper/controller/photo-library-backup-source-v1.ts", "kind": "helper-contract", "justification": "Version 1 borrowed backup source captures one admitted catalog root and enumerates bounded photo summaries and retained originals while fencing catalog and index revisions." }
+		,
+		{"path": "src/lightscaper/controller/photo-library-backup-source-v2.ts", "kind": "helper-contract", "justification": "Version 2 backup source admits complete Photo1/2 documents after bounded summary enumeration, authenticates original custody and preserves root and index revision fences without a resident catalog list."}
+		,
+		{"path": "src/lightscaper/controller/photo-library-backup-stacks-v1.ts", "kind": "helper-contract", "justification": "Version 1 stack backup capture fences grouping and photo index revisions across bounded scalar enumeration and streamed archive records."}
+		,
+		{ "path": "src/lightscaper/controller/photo-library-backup-v1.ts", "kind": "helper-contract", "justification": "Version 1 leased catalog backup enumerates bounded summary pages and authenticated retained originals, fencing root and photo-index revisions before archive completion." }
+		,
+		{ "path": "src/lightscaper/controller/photo-library-backup-v3.ts", "kind": "helper-contract", "justification": "Version 3 leased catalog backup authenticates complete saved inventory before originals and verifies saved, stack and catalog authority before destination completion." }
+		,
+		{"path": "src/lightscaper/controller/photo-library-backup-v4.ts", "kind": "helper-contract", "justification": "Version 4 backup borrows the existing Session catalog writer and selected media settings, retaining physical preset absence or positive empty revisions and reauthenticating complete preset contents before output acknowledgement."}
+		,
+		{"path": "src/lightscaper/controller/photo-library-backup-v5.ts", "kind": "helper-contract", "justification": "Version 5 backup captures mandatory physical preset presence and immutable selected-media LUT capabilities under the existing writer, reauthenticating complete source rows and exact bodies before destination close."}
+		,
+		{ "path": "src/lightscaper/controller/photo-library-batch-rename-v1.ts", "kind": "helper-contract", "justification": "Version 1 serial batch rename and undo borrow the existing Session writer and one command owner, preserving durable receipts through cancellation and cleanup within fixed scalar bounds." }
+		,
+		{"path": "src/lightscaper/controller/photo-library-batch-rename-v2.ts", "kind": "helper-contract", "justification": "Current bounded batch rename borrows one selected writer and current photo owner, pins callable receivers before acquisition and retains each native acknowledgement and exact scalar inverse."}
+		,
+		{"path": "src/lightscaper/controller/photo-library-culling-navigation-session-v1.ts", "kind": "helper-contract", "justification": "Version 1 selected culling navigation detaches closed scalar context and destination before readiness, captures callable receivers and borrows the existing Session lifetime and operation so cancellation and Close join native readers."}
+		,
+		{"path": "src/lightscaper/controller/photo-library-definition-pages-v1.ts", "kind": "helper-contract", "justification": "Version1 scalar definition pages preserve catalog revision and hierarchy scope with bounded current-parent and selected-name projections."}
+		,
+		{ "path": "src/lightscaper/controller/photo-library-develop-import-request-v1.ts", "kind": "helper-contract", "justification": "Version 1 optional Develop import requests detach scalar preset identity and the existing import options without widening legacy closed request admission." }
+		,
+		{"path": "src/lightscaper/controller/photo-library-develop-import-request-v2.ts", "kind": "helper-contract", "justification": "Fixed current selected-library composition binds complete Photo1/2 admission, current Develop and preset envelopes, and immutable LUT resource capabilities without widening named legacy owners or persisted original/root/receipt profiles."}
+		,
+		{ "path": "src/lightscaper/controller/photo-library-develop-import-session-v1.ts", "kind": "helper-contract", "justification": "Version 1 current-catalog preset menus and imports borrow the existing Session readiness, operation, writer and close join while binding the selected settings reader before acquisition." }
+		,
+		{"path": "src/lightscaper/controller/photo-library-develop-import-session-v2.ts", "kind": "helper-contract", "justification": "Fixed current selected-library composition binds complete Photo1/2 admission, current Develop and preset envelopes, and immutable LUT resource capabilities without widening named legacy owners or persisted original/root/receipt profiles."}
+		,
+		{ "path": "src/lightscaper/controller/photo-library-develop-original-session-v1.ts", "kind": "helper-contract", "justification": "Version 1 original pixel reading borrows the selected Session lifetime, authenticates retained source bytes and orientation, and fences the requested photo revision and immutable binding before and after scoped consumption." }
+		,
+		{"path": "src/lightscaper/controller/photo-library-develop-original-session-v2.ts", "kind": "helper-contract", "justification": "Fixed current Photo1/2 original pixel reader fully admits each recipe before the unchanged scoped original presentation, preserving revision and immutable-source fences and native lifetime joins."}
+		,
+		{ "path": "src/lightscaper/controller/photo-library-develop-presets-session-v1.ts", "kind": "helper-contract", "justification": "Version 1 preset requests detach before lazy initialization, bind the catalog and settings revision, and retain acknowledged publication beside independent lease cleanup failures while borrowing the Session writer and Close join." }
+		,
+		{"path": "src/lightscaper/controller/photo-library-develop-presets-session-v2.ts", "kind": "helper-contract", "justification": "Current preset sessions pin selected storage and verifier receivers before initialization and preserve schema2 scalar acknowledgements through writer cleanup."}
+		,
+		{ "path": "src/lightscaper/controller/photo-library-develop-session-v1.ts", "kind": "helper-contract", "justification": "Version 1 Develop facade detaches explicit version commands before initialization and borrows the existing Session writer, lifetime and photo compare-and-swap owner for durable publication." }
+		,
+		{"path": "src/lightscaper/controller/photo-library-develop-session-v2.ts", "kind": "helper-contract", "justification": "Fixed current Develop session composition admits complete Photo1/2 before projection and borrows the selected Session writer and current command owner without widening legacy ports."}
+		,
+		{ "path": "src/lightscaper/controller/photo-library-develop-settings-session-v1.ts", "kind": "helper-contract", "justification": "Version 1 serial settings batches borrow the Session writer and photo CAS owner, admit the whole selection before initialization and retain durable scalar outcomes through cancellation and independent cleanup failures." }
+		,
+		{"path": "src/lightscaper/controller/photo-library-develop-settings-session-v2.ts", "kind": "helper-contract", "justification": "Current serial settings batches detach the complete mixed recipe and target plan before acquisition and preserve native photo acknowledgements through cancellation and independent cleanup."}
+		,
+		{ "path": "src/lightscaper/controller/photo-library-image-handoff-resources-v1.ts", "kind": "helper-contract", "justification": "Version 1 selected handoff resource scope authenticates the exact active and disabled LUT closure, pins native receivers before original acquisition and lends one bounded reader with independently joined callback delivery and opaque failure preservation." }
+		,
+		{ "path": "src/lightscaper/controller/photo-library-import-keywords-v1.ts", "kind": "helper-contract", "justification": "Version 1 selected import keyword planning preserves legacy notice-and-skip behavior and provides strict complete keyword admission before receive catalog writes under the existing caller-owned lease." }
+		,
+		{"path": "src/lightscaper/controller/photo-library-memberships-v1.ts", "kind": "helper-contract", "justification": "Version 1 selected-photo membership commands preserve bounded IDs and revision-fenced catalog references without a second photo owner."}
+		,
+		{"path": "src/lightscaper/controller/photo-library-memberships-v2.ts", "kind": "helper-contract", "justification": "Fixed current full Photo1/2 admission before bounded scalar membership reads and durable current command acknowledgements; legacy named V1 remains strict."}
+		,
+		{"path": "src/lightscaper/controller/photo-library-metadata-v2.ts", "kind": "helper-contract", "justification": "Fixed current Photo1/2 full-document admission before the unchanged bounded descriptive metadata presentation; named V1 readers remain strict."}
+		,
+		{"path": "src/lightscaper/controller/photo-library-organizer-v1.ts", "kind": "helper-contract", "justification": "Version 1 revision-fenced catalog organization admits full smart-query JSON and scalar definition changes without exposing the catalog root."}
+		,
+		{ "path": "src/lightscaper/controller/photo-library-original-inspection-v1.ts", "kind": "helper-contract", "justification": "Version 1 opted-in pre-recovery inspection enumerates bounded published-photo and retained-original bindings under the existing Session writer, preserving strict startup recovery and rejecting custody conflicts without mutating photo documents." }
+		,
+		{"path": "src/lightscaper/controller/photo-library-original-inspection-v2.ts", "kind": "helper-contract", "justification": "Fixed current full Photo1/2 admission before unchanged bounded root/intent/custody scalar original inspection, sharing private implementation with strict legacy wrappers."}
+		,
+		{ "path": "src/lightscaper/controller/photo-library-original-restoration-v1.ts", "kind": "helper-contract", "justification": "Version 1 original restoration revalidates catalog, active intent, photo revision and immutable source authority before selected bytes, preserving durable body acknowledgement independently of subsequent strict library recovery." }
+		,
+		{"path": "src/lightscaper/controller/photo-library-original-restoration-v2.ts", "kind": "helper-contract", "justification": "Fixed current full Photo1/2 admission before immutable original body repair binding and native acknowledgement, with unchanged original and scalar transport contracts."}
+		,
+		{ "path": "src/lightscaper/controller/photo-library-query-session-v1.ts", "kind": "helper-contract", "justification": "Product query Session facade preserves existing V1/V2 ordinary, collapsed and rebuild admission through the Session's borrowed operation and readiness owners without allocating storage, lifetime or writer resources." }
+		,
+		{"path": "src/lightscaper/controller/photo-library-query-session-v2.ts", "kind": "helper-contract", "justification": "Fixed current selected-library composition binds complete Photo1/2 admission, current Develop and preset envelopes, and immutable LUT resource capabilities without widening named legacy owners or persisted original/root/receipt profiles."}
+		,
+		{"path": "src/lightscaper/controller/photo-library-query-v1.ts", "kind": "helper-contract", "justification": "Version1 scalar query and explicit migration steps preserve bounded global ordering, strict cursors and cancellation without exposing photo documents."}
+		,
+		{ "path": "src/lightscaper/controller/photo-library-query-v2.ts", "kind": "helper-contract", "justification": "Version 2 Session metadata query and explicit rebuild adapters admit closed requests before initialization and project authenticated atomic page context into bounded scalar rows with joined cancellation." }
+		,
+		{ "path": "src/lightscaper/controller/photo-library-saved-collection-admission-v1.ts", "kind": "helper-contract", "justification": "Version 1 saved-query presentation admission detaches closed commands, full Query2 recipes, scalar context and opaque navigation before lazy Session resources while retaining one private branded save candidate." }
+		,
+		{ "path": "src/lightscaper/controller/photo-library-saved-collection-read-v1.ts", "kind": "helper-contract", "justification": "Version 1 saved-query read projection authenticates selected catalog, recipe and cursor context into bounded scalar summaries and snapshots with joined native cancellation." }
+		,
+		{ "path": "src/lightscaper/controller/photo-library-saved-collection-write-v1.ts", "kind": "helper-contract", "justification": "Version 1 saved-query write adapter borrows the existing catalog writer, forwards one admitted full recipe and validates exact durable revision and count acknowledgements independently of late cancellation." }
+		,
+		{ "path": "src/lightscaper/controller/photo-library-saved-collections-session-v1.ts", "kind": "helper-contract", "justification": "Version 1 physically frozen four-method scalar saved-query facade borrows the existing Session readiness, cancellation, settlement and single writer without acquiring resources or exposing repository authority." }
+		,
+		{"path": "src/lightscaper/controller/photo-library-session-ports-v2.ts", "kind": "helper-contract", "justification": "Fixed current selected-library composition binds complete Photo1/2 admission, current Develop and preset envelopes, and immutable LUT resource capabilities without widening named legacy owners or persisted original/root/receipt profiles."}
+		,
+		{"path": "src/lightscaper/controller/photo-library-session-v2.ts", "kind": "helper-contract", "justification": "Fixed current selected-library composition binds complete Photo1/2 admission, current Develop and preset envelopes, and immutable LUT resource capabilities without widening named legacy owners or persisted original/root/receipt profiles."}
+		,
+		{"path": "src/lightscaper/controller/photo-library-stack-query-v1.ts", "kind": "helper-contract", "justification": "Version 1 collapsed Session query admission detaches criteria and preserves scalar cursors, cancellation and selected catalog authority."}
+		,
+		{ "path": "src/lightscaper/controller/photo-library-stack-query-v2.ts", "kind": "helper-contract", "justification": "Version 2 collapsed Session metadata queries detach closed criteria and signed cursors before initialization, preserving selected catalog and atomic grouping context through bounded scalar projection and joined cancellation." }
+		,
+		{"path": "src/lightscaper/controller/photo-library-stacks-v1.ts", "kind": "helper-contract", "justification": "Version 1 stack Session commands borrow the existing writer and publish durable grouping acknowledgements independently of cleanup."}
+		,
+		{ "path": "src/lightscaper/controller/photo-png-export-v1.ts", "kind": "helper-contract", "justification": "Version 1 single-photo PNG delivery owns a gesture-prepared destination, joins current full-resolution render and original settlement, revalidates exact photo version/revision and generation before commit, and wipes independent output after joined delivery or cancellation." }
+		,
+		{"path": "src/lightscaper/controller/photo-raster-export-batch-graphic-v1.ts", "kind": "helper-contract", "justification": "Closed version 1 batch graphic intent retains bounded placement, byte length and SHA-256 without resource bodies; joined native hashing issues an ephemeral owner identity, and recovery requires exact file reselection before raster work while existing image decoding owns format admission."}
+		,
+		{"path": "src/lightscaper/controller/photo-raster-export-batch-recovery-v1.ts", "kind": "helper-contract", "justification": "Version 1 pure photo export recovery retains original member indices, classifies committed initiation separately from uncertain started work, and compares fresh catalog, version, revision and original/recipe/LUT scalar fingerprints without scheduling or granting native resource authority."}
+		,
+		{ "path": "src/lightscaper/controller/photo-raster-export-batch-v1.ts", "kind": "helper-contract", "justification": "Version 1 bounded in-session photo raster batch snapshots ordered photo/version/revision identities and output settings, binds stable filename indices, and refuses repeated identities or normalized filename collisions before destination authority acquisition; it grants no resource authority or persisted recovery." }
+		,
+		{"path": "src/lightscaper/controller/photo-raster-export-journal-destinations-v1.ts", "kind": "helper-contract", "justification": "Version 1 initial-gesture download adapter requires durable intent before native delivery, preserves actual download-started acknowledgement through journal or retirement failure, and joins captured native capabilities without serializing them or automatically retrying uncertain members."}
+		,
+		{"path": "src/lightscaper/controller/photo-raster-export-preset-v1.ts", "kind": "helper-contract", "justification": "Closed reusable export preset admission for the persisted scalar recipe, without resource bodies or native capabilities."}
+		,
+		{ "path": "src/lightscaper/import/catalog-write-lock-v1.ts", "kind": "helper-contract", "justification": "Authoritative shared lock namespace for version 1 photo catalog publication across separate metadata and media databases." }
+		,
+		{ "path": "src/lightscaper/import/import-intent-v1.ts", "kind": "persisted-contract", "justification": "Scalar durable photo import intent and root reconciliation for version 1 catalogs." }
+		,
+		{"path": "src/lightscaper/import/import-root-settlement-v2.ts", "kind": "helper-contract", "justification": "Fixed mixed Photo1/2 import recovery fully admits each stored document and verifies reachable resources before bounded custody Root1 reconciliation; persisted Intent1 and original root bytes remain unchanged."}
+		,
+		{ "path": "src/lightscaper/import/managed-import-ports-v1.ts", "kind": "helper-contract", "justification": "Narrow storage and custody ports consumed by version 1 managed photo publication." }
+		,
+		{"path": "src/lightscaper/import/managed-import-ports-v2.ts", "kind": "helper-contract", "justification": "Captured receiver-bound current catalog, selected resource verification, original custody and journal capabilities for mixed Photo1/2 managed publication; scalar receipts and writer authority remain V1."}
+		,
+		{ "path": "src/lightscaper/import/managed-import-v1.ts", "kind": "helper-contract", "justification": "Version 1 photo import publication and recovery using immutable original references and the persisted scalar intent." }
+		,
+		{"path": "src/lightscaper/import/managed-import-v2.ts", "kind": "helper-contract", "justification": "Explicit current managed publication admits complete Photo1/2 history and immutable originals, verifies nonnull reachable LUT bodies before publication, and reconciles lost native acknowledgements without downgrading documents or widening Intent1."}
+		,
+		{ "path": "src/lightscaper/import/metadata-adapter-v1.ts", "kind": "helper-contract", "justification": "Maps version 1 immutable extracted image facts into bounded authored photo metadata without changing originals." }
+		,
+		{ "path": "src/lightscaper/import/photo-import-develop-preset-v1.ts", "kind": "helper-contract", "justification": "Version 1 import preset capture binds one revision-fenced shared recipe before preparation and merges only the unpublished active photo version while preserving other versions and original custody." }
+		,
+		{"path": "src/lightscaper/import/photo-import-develop-preset-v2.ts", "kind": "helper-contract", "justification": "Fixed current selected-library composition binds complete Photo1/2 admission, current Develop and preset envelopes, and immutable LUT resource capabilities without widening named legacy owners or persisted original/root/receipt profiles."}
+		,
+		{ "path": "src/lightscaper/import/photo-import-name-template-v1.ts", "kind": "helper-contract", "justification": "Version 1 authored display-name templates preserve immutable source names and selected-file sequence bindings." }
+		,
+		{ "path": "src/lightscaper/import/photo-import-preparation-v1.ts", "kind": "helper-contract", "justification": "Serial admitted source preparation yielding version 1 catalog photo documents and shared decode artifacts." }
+		,
+		{ "path": "src/lightscaper/import/photo-import-settings-v1.ts", "kind": "helper-contract", "justification": "Version 1 bounded import recipes admit current keyword references and author display metadata after extraction without changing originals." }
+		,
+		{ "path": "src/lightscaper/import/photo-native-image-port-v1.ts", "kind": "helper-contract", "justification": "Version 1 bounded native photo session port validates original-oriented geometry and fixed RGBA output with explicit cleanup ownership." }
+		,
+		{ "path": "src/lightscaper/import/photo-source-admission-v1.ts", "kind": "helper-contract", "justification": "Container proof for the initial static 8-bit sRGB photo source admission profile." }
+		,
+		{ "path": "src/lightscaper/photo-develop-render-runtime-v1.ts", "kind": "helper-contract", "justification": "Version 1 lazy product composition exposes named fixed proxy and full-resolution scoped render paths using the same ordered Photo frame owner without retaining source bodies or weakening either profile." }
+		,
+		{"path": "src/lightscaper/photo-develop-render-runtime-v2.ts", "kind": "helper-contract", "justification": "Version 2 current Photo render composition captures the selected resource method and receiver before UI awaits and exposes scoped proxy/full-resolution process1/2 paths without retaining original bodies or placing resource capabilities in recipes."}
+		,
+		{"path": "src/lightscaper/photo-library-restore-runtime-v1.ts", "kind": "helper-contract", "justification": "Version 1 inert restore runtime owns the fixed settings anchor and one admitted demand through cancellation, native settlement and close."}
+		,
+		{"path": "src/lightscaper/photo-library-restore-runtime-v2.ts", "kind": "helper-contract", "justification": "Version 2 inert restore runtime composes current archive admission through the unchanged scalar receipt, fixed anchor and joined native demand ownership."}
+		,
+		{"path": "src/lightscaper/photo-library-session-runtime-v2.ts", "kind": "helper-contract", "justification": "Version 2 library composition resolves authenticated fixed-anchor location and permanent history before constructing selected resources with physical namespace write leases."}
+		,
+		{"path": "src/lightscaper/photo-library-session-runtime-v3.ts", "kind": "helper-contract", "justification": "Fixed current selected-library composition binds complete Photo1/2 admission, current Develop and preset envelopes, and immutable LUT resource capabilities without widening named legacy owners or persisted original/root/receipt profiles."}
+		,
+		{ "path": "src/lightscaper/photo-saved-filter-ui-runtime-v1.ts", "kind": "helper-contract", "justification": "Version 1 lazy product-owned saved-filter controls parse and serialize complete bounded Query2 recipes through the owning catalog normalizer without acquiring database or media resources." }
+		,
+		{ "path": "src/lightscaper/preview/photo-original-frame-v1.ts", "kind": "helper-contract", "justification": "Version 1 callback-scoped regeneration authenticates retained original bytes and immutable EXIF orientation before preparing shared pixel frames." }
+		,
+		{ "path": "src/lightscaper/preview/photo-preview-cache-v1.ts", "kind": "helper-contract", "justification": "Version 1 closed photo plan adapter for disposable paired preview bodies with immutable original binding." }
+		,
+		{ "path": "src/lightscaper/preview/photo-preview-plan-v1.ts", "kind": "persisted-contract", "justification": "Closed version 1 disposable photo preview plan binds original identity, source descriptor, tier and maintained resampling recipe." }
+		,
+		{ "path": "src/lightscaper/preview/photo-preview-preparation-v1.ts", "kind": "ipc-contract", "justification": "Version 1 prepared disposable photo body carries an independent pixel descriptor and output digest without embedding immutable original bytes." }
+		,
+		{ "path": "src/lightscaper/preview/photo-preview-scheduler-v1.ts", "kind": "helper-contract", "justification": "Version 1 bounded scalar preview demand queue joining retained-original regeneration, cache publication and cancellation." }
+		,
+		{"path": "src/lightscaper/preview/photo-preview-scheduler-v2.ts", "kind": "helper-contract", "justification": "Fixed current Photo1/2 original preview demand retains the shared V1 cache identity, byte profile, bounded scalar queue and joined cancellation; no recipe resource is delivered as original presentation."}
+		,
+		{"path": "src/lightscaper/quality/large-library-workload-v1.ts", "kind": "helper-contract", "justification": "Version 1 digest-pinned deterministic photo catalog workload generates bounded publication batches independently of product schema and runtime capabilities."}
+		,
+		{ "path": "src/lightscaper/storage/photo-cube-lut-repository-v1.ts", "kind": "persisted-contract", "justification": "Version 1 append-only immutable Photo LUT bodies use the existing selected media analysis domain, authenticate complete references and raw bodies on insertion, reuse and scoped read, join native acknowledgements and wipe transient bytes without original, eviction, deletion or connection-close authority." }
+		,
+		{"path": "src/lightscaper/storage/photo-develop-preset-read-v2.ts", "kind": "helper-contract", "justification": "Current preset point reads and signal admission capture callable receivers without metadata reads and preserve physical malformed presence and intrinsic native cancellation."}
+		,
+		{"path": "src/lightscaper/storage/photo-develop-preset-row-v2.ts", "kind": "persisted-contract", "justification": "Explicit preset row2 carries owning shared preset1/2 settings references without bodies; reads preserve old row1 bytes, physical key, absence and positive-empty revisions under unchanged bounds."}
+		,
+		{"path": "src/lightscaper/storage/photo-develop-presets-archive-v1.ts", "kind": "helper-contract", "justification": "Version 1 borrowed preset capture detaches one closed bounded physical row and independently fences its presence, revision and complete canonical digest without editing photo facts or acquiring another resource."}
+		,
+		{"path": "src/lightscaper/storage/photo-develop-presets-archive-v2.ts", "kind": "helper-contract", "justification": "Version 2 preset capture retains exact absent or positive-empty schema1/2 row identity, complete normalized bodies and canonical digest through final source revalidation without promoting legacy rows."}
+		,
+		{ "path": "src/lightscaper/storage/photo-develop-presets-v1.ts", "kind": "persisted-contract", "justification": "Version 1 catalog-scoped shared develop preset rows preserve exact bounded recipe bodies with revision-fenced compare-and-swap, no-op stability and exact post-publication reconciliation independently of photo and import-preset schemas." }
+		,
+		{"path": "src/lightscaper/storage/photo-develop-presets-v2.ts", "kind": "helper-contract", "justification": "Fixed current preset CRUD admits mixed strict rows without read migration, retains durable row2, authenticates every next-row resource before conditional publication and reconciles exact native acknowledgement."}
+		,
+		{ "path": "src/lightscaper/storage/photo-import-presets-v1.ts", "kind": "persisted-contract", "justification": "Version 1 catalog-scoped import preset rows use bounded settings storage and exact revision-fenced publication independently of photo and archive schemas." }
+		,
+		{"path": "src/lightscaper/storage/photo-library-default-initializer-v2.ts", "kind": "helper-contract", "justification": "Version 2 temporary default initializer borrows the initialization lease and creates a cold library root without requiring an existing Session."}
+		,
+		{"path": "src/lightscaper/storage/photo-library-location-reader-v2.ts", "kind": "helper-contract", "justification": "Version 2 fixed-anchor reader authenticates the selected location against permanent restore history before selected resource allocation."}
+		,
+		{"path": "src/lightscaper/storage/photo-library-location-v2.ts", "kind": "persisted-contract", "justification": "Version 2 bounded persisted library location distinguishes restored physical namespaces while preserving legacy pointer field order for native CAS."}
+		,
+		{"path": "src/lightscaper/storage/photo-library-namespace-lock-v1.ts", "kind": "helper-contract", "justification": "Version 1 joined cooperative restore, initialization, logical and physical namespace leases lend cancellation-scoped synchronous write admission."}
+		,
+		{"path": "src/lightscaper/storage/photo-library-restore-journal-owner-v1.ts", "kind": "helper-contract", "justification": "Version 1 fixed-anchor journal owner retains exact acknowledged records for CAS and protects every permanent history before unpublished cleanup."}
+		,
+		{"path": "src/lightscaper/storage/photo-library-restore-journal-v1.ts", "kind": "persisted-contract", "justification": "Version 1 closed staging/readiness journal and permanent restore commit bind an allocated namespace pair to authenticated counts and the previous/replacement pointers."}
+		,
+		{ "path": "src/lightscaper/storage/photo-library-restore-ownership-v1.ts", "kind": "helper-contract", "justification": "Version 1 closed restore allocation derives fresh physical namespaces and authenticates scalar component owner markers without granting publication or deletion authority." }
+		,
+		{"path": "src/lightscaper/storage/photo-library-restore-publication-v1.ts", "kind": "helper-contract", "justification": "Version 1 native library publication guards atomic pointer/history writes and reconciles lost acknowledgements without revoking known publication."}
+		,
+		{"path": "src/lightscaper/storage/photo-library-restore-recovery-v1.ts", "kind": "helper-contract", "justification": "Version 1 cooperative restore recovery requires journal, ownership, absent permanent history and inactive pointer under joined namespace leases before deletion."}
+		,
+		{"path": "src/lightscaper/storage/photo-library-selected-exclusive-v2.ts", "kind": "helper-contract", "justification": "Version 2 selected-library writer leases both physical resources and rechecks fixed-anchor location while sharing legacy logical locks for old pointers."}
+		,
+		{"path": "src/lightscaper/storage/photo-media-cube-lut-resources-v1.ts", "kind": "helper-contract", "justification": "Version 1 fixed selected-media LUT capabilities share the private guarded DB2 analysis port, authenticate full Photo1/2 and preset1/2 reachability before writes, keep three bounded operation slots and join scoped consumers through the owning media lifetime without another retention session or deletion authority."}
+		,
+		{"path": "src/lightscaper/storage/photo-media-restore-audit-v1.ts", "kind": "helper-contract", "justification": "Version 1 bounded original audit authenticates finished catalog bindings, stored custody, chunk geometry and body hashes before candidate readiness."}
+		,
+		{"path": "src/lightscaper/storage/photo-media-restore-audit-v2.ts", "kind": "helper-contract", "justification": "Version 2 fresh media finalization authenticates declared and all reachable LUT references and exact body inventory before original custody promotion and again under one joined native five-store readiness transaction."}
+		,
+		{"path": "src/lightscaper/storage/photo-media-restore-candidate-v1.ts", "kind": "helper-contract", "justification": "Version 1 fresh media restore candidate preserves exact archived storage keys, streams every original and joins native owners through readiness and rollback."}
+		,
+		{"path": "src/lightscaper/storage/photo-media-restore-candidate-v2.ts", "kind": "helper-contract", "justification": "Version 2 fresh media candidate preserves archived originals and complete schema1/2 preset rows, appends authenticated immutable LUT bodies to existing analysis storage and joins serial operations and rollback through native acknowledgement."}
+		,
+		{"path": "src/lightscaper/storage/photo-media-restore-luts-v1.ts", "kind": "helper-contract", "justification": "Version 1 restore LUT inventory admits exact immutable declarations, walks all owning Photo/preset versions, redo and snapshots, authenticates one bounded body at a time and audits only the exact LUT namespace while wiping every owned native read clone."}
+		,
+		{ "path": "src/lightscaper/storage/photo-media-restore-namespace-v1.ts", "kind": "helper-contract", "justification": "Version 1 fresh media namespace creation commits its scalar allocation marker with the owning DB2 schema, joins native lifetime and rechecks current ownership before private rollback." }
+		,
+		{"path": "src/lightscaper/storage/photo-media-restore-presets-v1.ts", "kind": "helper-contract", "justification": "Version 1 private preset restore admission detaches one bounded complete row and binds its canonical digest, authenticating physical absence or exact delivered contents before custody promotion and final native readiness without introducing pointer or CRUD authority."}
+		,
+		{"path": "src/lightscaper/storage/photo-media-restore-presets-v2.ts", "kind": "helper-contract", "justification": "Version 2 private preset restoration exactly binds delivered schema1/2 rows to their header version, revision, count and canonical digest, preserving physical absence and positive-empty state."}
+		,
+		{"path": "src/lightscaper/storage/photo-media-restore-read-v1.ts", "kind": "helper-contract", "justification": "Version 1 versionless candidate reads authenticate current media ownership and bounded persisted original descriptors without creating or adopting resources."}
+		,
+		{"path": "src/lightscaper/storage/photo-media-restore-read-v2.ts", "kind": "helper-contract", "justification": "Version 2 restore reads require complete mixed Photo1/2 admission before bounded scalar original projection and optional synchronous reachability collection, preserving current owner and DB5 control fences."}
+		,
+		{"path": "src/lightscaper/storage/photo-media-restore-signal-v1.ts", "kind": "helper-contract", "justification": "Version 1 intrinsic restore cancellation retains opaque reasons and lends a private joined native signal to media owners."}
+		,
+		{"path": "src/lightscaper/storage/photo-raster-export-journal-owner-v1.ts", "kind": "helper-contract", "justification": "Version 1 bounded scalar CAS owner captures selected settings receivers, reconciles lost acknowledgement only by exact readback, protects foreign history and joins admitted writes on retirement without deleting uncertain delivery intent."}
+		,
+		{"path": "src/lightscaper/storage/photo-raster-export-journal-v1.ts", "kind": "persisted-contract", "justification": "Version 1 bounded catalog-scoped scalar export journal retains ordered photo/version/revision and filename indices, original/recipe/LUT digests and pending/started/committed download-initiation states; it stores no bodies, native destination authority or physical Saved claim."}
+		,
+		{"path": "src/lightscaper/storage/photo-raster-export-presets-v1.ts", "kind": "persisted-contract", "justification": "Fixed selected-catalog scalar export preset row and conditional publication revision; separate from import settings and delivery journals."}
 		,
 		{ "path": "src/soundscaper/desktop-native-plugin-state-transport-v1.ts", "kind": "persisted-contract", "justification": "desktop-native-plugin-state-transport-v1.ts is a persisted domain-component or render-contract revision independent of product schema." }
 	]

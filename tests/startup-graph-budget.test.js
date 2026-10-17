@@ -77,7 +77,7 @@ test('production startup budgets reject editor ownership in the static entry gra
 });
 
 test('production startup budgets reject either product tree in the static entry graph', () => {
-	for (const product of ['soundscaper', 'framescaper']) {
+	for (const product of ['soundscaper', 'framescaper', 'lightscaper']) {
 		const bundle = fixtureBundle();
 		bundle['assets/shared.js'].modules[`/workspace/src/${product}/startup-helper.ts`] = {};
 		assert.throws(
@@ -103,6 +103,20 @@ test('each product-ready graph excludes the other product tree', () => {
 		}),
 		/framescaper.*forbidden soundscaper product module/iu,
 	);
+});
+
+test('every product graph rejects every foreign product tree', () => {
+	const products = ['soundscaper', 'framescaper', 'lightscaper'];
+	for (const product of products) {
+		assert.doesNotThrow(() => assertProductGraphOwnership(product, {
+			moduleIds: new Set([`/workspace/src/${product}/bootstrap.ts`]),
+		}));
+		for (const otherProduct of products.filter((candidate) => candidate !== product)) {
+			assert.throws(() => assertProductGraphOwnership(product, {
+				moduleIds: new Set([`/workspace/src/${otherProduct}/product.js`]),
+			}), new RegExp(`${product}.*forbidden ${otherProduct} product module`, 'iu'));
+		}
+	}
 });
 
 test('the emitted Framescaper project-command chunk cannot reciprocally import a feature chunk', () => {
@@ -226,7 +240,7 @@ test('the ceilings are read from the maintained budget configuration with their 
 		new URL('../config/startup-graph-budgets.json', import.meta.url),
 		'utf8',
 	));
-	assert.deepEqual(Object.keys(configuration).sort(), ['framescaper', 'initial', 'soundscaper']);
+	assert.deepEqual(Object.keys(configuration).sort(), ['framescaper', 'initial', 'lightscaper', 'soundscaper']);
 	for (const [graph, budget] of Object.entries(STARTUP_GRAPH_BUDGETS)) {
 		assert.deepEqual(budget, configuration[graph].ceilings, graph);
 	}
@@ -282,7 +296,7 @@ test('production startup budgets inspect Vite final import-analysis output', () 
 });
 
 test('the product being built is admitted strictly, never defaulted', () => {
-	for (const product of [undefined, null, '', 'lightscaper', 'Soundscaper']) {
+	for (const product of [undefined, null, '', 'unknownscaper', 'Soundscaper']) {
 		assert.throws(
 			() => assertProductionStartupGraphs(fixtureBundle(), product),
 			/product being built/iu,
@@ -292,7 +306,7 @@ test('the product being built is admitted strictly, never defaulted', () => {
 });
 
 test('a build asserts its own product budget rather than silently asserting none', () => {
-	for (const product of ['soundscaper', 'framescaper']) {
+	for (const product of ['soundscaper', 'framescaper', 'lightscaper']) {
 		const bundle = fixtureBundle();
 		addProductBootstrap(bundle, product);
 		const graphs = assertProductionStartupGraphs(bundle, product);
@@ -317,8 +331,8 @@ test('a build whose own bootstrap is absent fails instead of asserting nothing',
 });
 
 test('a production build refuses to emit the other product bootstrap', () => {
-	for (const product of ['soundscaper', 'framescaper']) {
-		const otherProduct = product === 'soundscaper' ? 'framescaper' : 'soundscaper';
+	const products = ['soundscaper', 'framescaper', 'lightscaper'];
+	for (const product of products) for (const otherProduct of products.filter((candidate) => candidate !== product)) {
 		const bundle = fixtureBundle();
 		addProductBootstrap(bundle, product);
 		addProductBootstrap(bundle, otherProduct);

@@ -1,11 +1,30 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { POST_CROP_VIGNETTE_EFFECT_TYPE_V1, POST_CROP_VIGNETTE_EFFECT_CODE_V1, postCropVignettePreviewPassV1 } from '../video-post-crop-vignette-v1.ts';
+import { CLARITY_EFFECT_TYPE_V1, CLARITY_EFFECT_CODE_V1, clarityPreviewPassV1 } from '../video-clarity-v1.ts';
+import { NOISE_REDUCTION_EFFECT_TYPE_V1, NOISE_REDUCTION_EFFECT_CODE_V1, noiseReductionPreviewPassV1 } from '../video-noise-reduction-v1.ts';
+import { GRAIN_EFFECT_TYPE_V1, GRAIN_EFFECT_CODE_V1, grainPreviewPassV1 } from '../video-grain-v1.ts';
+import { TEXTURE_EFFECT_TYPE_V1, TEXTURE_EFFECT_CODE_V1, texturePreviewPassV1 } from '../video-texture-v1.ts';
+import { DEHAZE_EFFECT_TYPE_V1, DEHAZE_EFFECT_CODE_V1, dehazePreviewPassV1 } from '../video-dehaze-v1.ts';
+import { DETAIL_SHARPEN_EFFECT_TYPE_V1, DETAIL_SHARPEN_EFFECT_CODE_V1, detailSharpenPreviewPassV1 } from '../video-sharpen-v1.ts';
+import { LENS_DISTORTION_EFFECT_TYPE_V1, LENS_DISTORTION_EFFECT_CODE_V1, lensDistortionPreviewPassV1 } from '../video-lens-distortion-v1.ts';
+import { CHROMATIC_ABERRATION_EFFECT_TYPE_V1, CHROMATIC_ABERRATION_EFFECT_CODE_V1, chromaticAberrationPreviewPassV1 } from '../video-chromatic-aberration-v1.ts';
+import { DEFRINGE_EFFECT_TYPE_V1, DEFRINGE_EFFECT_CODE_V1, defringePreviewPassV1 } from '../video-defringe-v1.ts';
+import { OPTICAL_VIGNETTE_EFFECT_TYPE_V1, OPTICAL_VIGNETTE_EFFECT_CODE_V1, opticalVignettePreviewPassV1 } from '../video-optical-vignette-v1.ts';
 import { VIDEO_PREVIEW_GEOMETRY_VERTEX_SHADER_SOURCE } from './video-preview-geometry-shader.ts';
 import { FRAGMENT_SHADER_SOURCE, MAX_GAUSSIAN_BLUR_PAIR_COUNT } from './video-preview-effects-shader.js';
+import { GLOBAL_DEVELOP_EFFECT_CODES_V1, globalDevelopPreviewPassV1, isGlobalDevelopEffectTypeV1 } from '../video-global-develop-v1.ts';
+import { IMAGE_GEOMETRY_VIDEO_EFFECT_TYPE_V1, IMAGE_GEOMETRY_VIDEO_EFFECT_CODE_V1, imageGeometryVideoPreviewPassV1 } from '../video-image-geometry-v1.ts';
+import { CHROMA_DEVELOP_EFFECT_TYPE_V1, CHROMA_DEVELOP_EFFECT_CODE_V1, chromaDevelopPreviewPassV1 } from '../video-chroma-develop-v1.ts';
+import { BLACK_WHITE_MIX_EFFECT_TYPE_V1, BLACK_WHITE_MIX_EFFECT_CODE_V1, blackWhiteMixPreviewPassV1 } from '../video-black-white-mix-v1.ts';
+
+import { HSL_MIXER_EFFECT_TYPE_V1, HSL_MIXER_EFFECT_CODE_V1, hslMixerPreviewPassV1 } from '../video-hsl-mixer-v1.ts';
+import { CURVES_EFFECT_CODES_V1, curvesPreviewPassV1, isCurvesEffectTypeV1 } from '../video-curves-v1.ts';
+import { COLOR_WHEELS_EFFECT_TYPE_V1, COLOR_WHEELS_EFFECT_CODE_V1, colorWheelsPreviewPassV1 } from '../video-color-wheels-v1.ts';
 
 export { MAX_GAUSSIAN_BLUR_PAIR_COUNT, VIDEO_PREVIEW_PIXELATE_GRID_SIZE } from './video-preview-effects-shader.js';
 
-export const EFFECT_PROGRAM_COUNT = 18;
+export const EFFECT_PROGRAM_COUNT = 38;
 // Calibrated default pass scale that retains the strict FFmpeg golden-frame gates.
 export const GAUSSIAN_BLUR_RENDER_SCALE = 2 / 3;
 const GAUSSIAN_BLUR_SIGMA_CALIBRATION = 0.85;
@@ -17,6 +36,22 @@ export const VIDEO_PREVIEW_MAX_GAUSSIAN_BLUR_KERNEL_SIGMA = (
 export const BLUR_KERNEL = Symbol('blurKernel');
 
 export const EFFECT_CODES = Object.freeze({
+	[CHROMATIC_ABERRATION_EFFECT_TYPE_V1]: CHROMATIC_ABERRATION_EFFECT_CODE_V1,
+	[DEFRINGE_EFFECT_TYPE_V1]: DEFRINGE_EFFECT_CODE_V1,
+	[OPTICAL_VIGNETTE_EFFECT_TYPE_V1]: OPTICAL_VIGNETTE_EFFECT_CODE_V1,
+	[LENS_DISTORTION_EFFECT_TYPE_V1]: LENS_DISTORTION_EFFECT_CODE_V1,
+	[GRAIN_EFFECT_TYPE_V1]: GRAIN_EFFECT_CODE_V1,
+	[TEXTURE_EFFECT_TYPE_V1]: TEXTURE_EFFECT_CODE_V1,
+	[DEHAZE_EFFECT_TYPE_V1]: DEHAZE_EFFECT_CODE_V1,
+	[NOISE_REDUCTION_EFFECT_TYPE_V1]: NOISE_REDUCTION_EFFECT_CODE_V1,
+	[CLARITY_EFFECT_TYPE_V1]: CLARITY_EFFECT_CODE_V1,
+	[COLOR_WHEELS_EFFECT_TYPE_V1]: COLOR_WHEELS_EFFECT_CODE_V1,
+	[DETAIL_SHARPEN_EFFECT_TYPE_V1]: DETAIL_SHARPEN_EFFECT_CODE_V1,
+	[POST_CROP_VIGNETTE_EFFECT_TYPE_V1]: POST_CROP_VIGNETTE_EFFECT_CODE_V1,
+	[IMAGE_GEOMETRY_VIDEO_EFFECT_TYPE_V1]: IMAGE_GEOMETRY_VIDEO_EFFECT_CODE_V1,
+	[CHROMA_DEVELOP_EFFECT_TYPE_V1]: CHROMA_DEVELOP_EFFECT_CODE_V1,
+	[BLACK_WHITE_MIX_EFFECT_TYPE_V1]: BLACK_WHITE_MIX_EFFECT_CODE_V1,
+	[HSL_MIXER_EFFECT_TYPE_V1]: HSL_MIXER_EFFECT_CODE_V1,
 	'color-adjust': 1,
 	pixelate: 2,
 	vignette: 3,
@@ -29,6 +64,8 @@ export const EFFECT_CODES = Object.freeze({
 	glow: 12,
 	outline: 13,
 	'drop-shadow': 14,
+	...GLOBAL_DEVELOP_EFFECT_CODES_V1,
+	...CURVES_EFFECT_CODES_V1,
 });
 
 export function finiteNumber(value, fallback) {
@@ -78,7 +115,26 @@ function gaussianBlurPass(sigma, renderScale, direction, kernel) {
  * Gaussian blur expands to two convolution passes.
  */
 export function videoEffectPasses(effect, previewScale = {}) {
-	if (!effect || effect.enabled === false) return [];
+	if (effect.type === OPTICAL_VIGNETTE_EFFECT_TYPE_V1) { const pass = opticalVignettePreviewPassV1(effect); return pass ? [pass] : []; }
+	if (effect.type === DEFRINGE_EFFECT_TYPE_V1) { const pass = defringePreviewPassV1(effect); return pass ? [pass] : []; }
+	if (!effect) return [];
+	if (effect.type === CHROMATIC_ABERRATION_EFFECT_TYPE_V1) { const pass = chromaticAberrationPreviewPassV1(effect); return pass ? [pass] : []; }
+	if (effect.type === LENS_DISTORTION_EFFECT_TYPE_V1) { const pass = lensDistortionPreviewPassV1(effect); return pass ? [pass] : []; }
+	if (effect.type === TEXTURE_EFFECT_TYPE_V1) { const pass = texturePreviewPassV1(effect); return pass ? [pass] : []; }
+	if (effect.type === DEHAZE_EFFECT_TYPE_V1) { const pass = dehazePreviewPassV1(effect); return pass ? [pass] : []; }
+	if (effect.type === GRAIN_EFFECT_TYPE_V1) { const pass = grainPreviewPassV1(effect); return pass ? [pass] : []; }
+	if (effect.type === NOISE_REDUCTION_EFFECT_TYPE_V1) { const pass = noiseReductionPreviewPassV1(effect); return pass ? [pass] : []; }
+	if (effect.type === POST_CROP_VIGNETTE_EFFECT_TYPE_V1) { const pass = postCropVignettePreviewPassV1(effect); return pass ? [pass] : []; }
+	if (effect.type === CLARITY_EFFECT_TYPE_V1) { const pass = clarityPreviewPassV1(effect); return pass ? [pass] : []; }
+	if (effect.type === COLOR_WHEELS_EFFECT_TYPE_V1) { const pass = colorWheelsPreviewPassV1(effect); return pass ? [pass] : []; }
+	if (effect.type === DETAIL_SHARPEN_EFFECT_TYPE_V1) { const pass = detailSharpenPreviewPassV1(effect); return pass ? [pass] : []; }
+	if (isCurvesEffectTypeV1(effect.type)) { const pass = curvesPreviewPassV1(effect); return pass ? [pass] : []; }
+	if (effect.type === HSL_MIXER_EFFECT_TYPE_V1) { const pass = hslMixerPreviewPassV1(effect); return pass ? [pass] : []; }
+	if (effect.type === BLACK_WHITE_MIX_EFFECT_TYPE_V1) { const pass = blackWhiteMixPreviewPassV1(effect); return pass ? [pass] : []; }
+	if (effect.type === CHROMA_DEVELOP_EFFECT_TYPE_V1) { const pass = chromaDevelopPreviewPassV1(effect); return pass ? [pass] : []; }
+	if (effect.type === IMAGE_GEOMETRY_VIDEO_EFFECT_TYPE_V1) { const pass = imageGeometryVideoPreviewPassV1(effect); return pass ? [pass] : []; }
+	if (isGlobalDevelopEffectTypeV1(effect.type)) { const pass = globalDevelopPreviewPassV1(effect); return pass ? [pass] : []; }
+	if (effect.enabled === false) return [];
 	const code = EFFECT_CODES[effect.type];
 	if (!code) return [];
 	const params = effect.params || {};
@@ -271,6 +327,7 @@ export function programLocations(gl, program) {
 		textureTransform: gl.getUniformLocation(program, 'u_texture_transform'),
 		texture: gl.getUniformLocation(program, 'u_texture'),
 		auxTexture: gl.getUniformLocation(program, 'u_aux_texture'),
+		globalLookup: gl.getUniformLocation(program, 'u_global_lookup'),
 		resolution: gl.getUniformLocation(program, 'u_resolution'),
 		sourceResolution: gl.getUniformLocation(program, 'u_source_resolution'),
 		contentRect: gl.getUniformLocation(program, 'u_content_rect'),
@@ -278,6 +335,11 @@ export function programLocations(gl, program) {
 		direction: gl.getUniformLocation(program, 'u_direction'),
 		params0: gl.getUniformLocation(program, 'u_params0'),
 		params1: gl.getUniformLocation(program, 'u_params1'),
+		params2: gl.getUniformLocation(program, 'u_params2'), params3: gl.getUniformLocation(program, 'u_params3'),
+		params4: gl.getUniformLocation(program, 'u_params4'), params5: gl.getUniformLocation(program, 'u_params5'),
+		geometryOutput: gl.getUniformLocation(program, 'u_geometry_output'),
+		geometrySource: gl.getUniformLocation(program, 'u_geometry_source'),
+		geometryBounds: gl.getUniformLocation(program, 'u_geometry_bounds'),
 		opacity: gl.getUniformLocation(program, 'u_opacity'),
 		blurPairs: gl.getUniformLocation(program, 'u_blur_pairs[0]'),
 		blurPairCount: gl.getUniformLocation(program, 'u_blur_pair_count'),

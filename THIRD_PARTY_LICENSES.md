@@ -221,6 +221,25 @@ The exact allowlist, per-file hashes, imports, exports, toolchain image, modific
 
 Audacity is a registered trademark. This project is not affiliated with or endorsed by the Audacity project or Muse Group.
 
+## LibRaw 0.22.2 WebAssembly
+
+Lightscaper's optional RAW decoder uses LibRaw 0.22.2 at revision
+`b93f6e45c194f5df9b02a43b1af9a54b4f41f33f`, selecting LGPL-2.1 from
+upstream's LGPL-2.1/CDDL-1.0 dual license. The unmodified upstream source
+archive is retained in `runtime-assets/libraw/0.22.2/` with SHA-256
+`de86b035655accff8d4010f1a221fdf50d353cb7b1422ba26f14a0db92612cfa`.
+The [complete notice](src/common/editor/raw/NOTICE.md) retains upstream
+copyrights, both license texts, and Emscripten 3.1.64 support-library notices.
+The [source/build manifest](config/lightscaper-libraw-runtime-manifest.json)
+pins source, bridge, binary, compiler image, memory and ABI inventories.
+The AGPL-3.0-only bridge provides bounded, memory-only neutral linear RGB16
+decode and embedded-preview extraction. Optional JPEG/zlib/LCMS libraries,
+RawSpeed, Adobe DNG SDK, external demosaic packs, threads and SIMD are excluded.
+The [build/source guide](docs/architecture/lightscaper-raw-decoder.md) explains
+reproduction and corresponding-source packaging. Runtime assets must be served
+outside the Pages bundle with their corresponding source. This foundation
+does not claim external runtime publication or completed RAW import UI.
+
 ## libFLAC 1.5.0 WebAssembly
 
 Soundscaper distributes one exact memory-only Emscripten build of libFLAC

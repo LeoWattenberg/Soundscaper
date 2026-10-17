@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import type { AudioEditorClipboard, AudioEditorClipboardTrack } from '../../commands/protocol.ts';
+import type { AudioEditorClipboardTrack } from '../../commands/protocol.ts';
+import type { CurrentAudioEditorClipboardDescriptor as AudioEditorClipboard } from '../../commands/clipboard-command-v2.ts';
 
 type DataRecord = Readonly<Record<string, unknown>>;
 

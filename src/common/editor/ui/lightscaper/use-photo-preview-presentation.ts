@@ -1,0 +1,43 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+
+import { useLayoutEffect, useRef, useState } from 'react';
+import { PixelPreviewPresentationV1, type PixelPreviewPresentationReaderV1,
+	type PixelPreviewPresentationSnapshotV1 } from '../../controller/shared/pixel-preview-presentation-v1.ts';
+
+export interface PhotoPreviewPresentationOptionsV1 {
+	readonly readPreview: PixelPreviewPresentationReaderV1;
+	readonly photoIds: readonly string[];
+	readonly thumbnailsVisible: boolean;
+	readonly fitScreenPhotoId: string | null;
+	readonly comparePhotoIds?: readonly [string, string] | null;
+	readonly surveyPhotoIds?: readonly string[] | null;
+	readonly surveyFocusedPhotoId?: string | null;
+	readonly registerRetirement?: (retire: () => Promise<void>) => () => void;
+}
+
+/** React observes scalar state; the controller owns cancellation, staging and target backing. */
+export function usePhotoPreviewPresentation(options: PhotoPreviewPresentationOptionsV1) {
+	const owner = useRef<PixelPreviewPresentationV1 | null>(null);
+	owner.current ??= new PixelPreviewPresentationV1();
+	const controller = owner.current;
+	const [snapshot, setSnapshot] = useState<Readonly<PixelPreviewPresentationSnapshotV1>>(() => controller.snapshot());
+	const { readPreview, thumbnailsVisible, fitScreenPhotoId } = options;
+	const referenceId = options.comparePhotoIds?.[0] ?? null, candidateId = options.comparePhotoIds?.[1] ?? null;
+	const surveyIds = options.surveyPhotoIds == null ? null : JSON.stringify(options.surveyPhotoIds);
+	const surveyFocusedPhotoId = options.surveyFocusedPhotoId ?? null;
+	const ids = JSON.stringify(options.photoIds);
+	const { registerRetirement } = options;
+	useLayoutEffect(() => registerRetirement?.(() => controller.pause()), [controller, registerRetirement]);
+	useLayoutEffect(() => {
+		const unsubscribe = controller.subscribe(setSnapshot);
+		if (surveyIds !== null) controller.setSurveyView({ readPreview, photoIds: JSON.parse(surveyIds) as string[], focusedPhotoId: surveyFocusedPhotoId });
+		else if (referenceId !== null && candidateId !== null) controller.setCompareView({ readPreview, photoIds: [referenceId, candidateId] });
+		else controller.setView({ readPreview, photoIds: JSON.parse(ids) as string[], thumbnailsVisible, fitScreenPhotoId });
+		return () => {
+			unsubscribe();
+			// Pause reuses the same joined owner during StrictMode's effect replay.
+			void controller.pause().catch(() => undefined);
+		};
+	}, [controller, readPreview, ids, thumbnailsVisible, fitScreenPhotoId, referenceId, candidateId, surveyIds, surveyFocusedPhotoId]);
+	return { controller, snapshot };
+}

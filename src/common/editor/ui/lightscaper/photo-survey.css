@@ -1,0 +1,81 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+
+.lightscaper-survey {
+	display: grid;
+	gap: 0.75rem;
+	min-width: 0;
+}
+
+.lightscaper-survey p {
+	margin: 0;
+}
+
+.lightscaper-survey-mosaic {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(min(100%, 17rem), 1fr));
+	gap: 0.75rem;
+	align-items: start;
+}
+
+.lightscaper-survey-tile {
+	display: grid;
+	gap: 0.5rem;
+	min-width: 0;
+	padding: 0.75rem;
+	border: 1px solid currentColor;
+	border-radius: 0.5rem;
+}
+
+.lightscaper-survey-tile[data-survey-focused="true"] {
+	box-shadow: 0 0 0 1px currentColor;
+}
+
+.lightscaper-survey-tile:focus-visible,
+.lightscaper-survey-tile:focus-within {
+	outline: 3px solid currentColor;
+	outline-offset: 2px;
+}
+
+.lightscaper-survey-file {
+	overflow-wrap: anywhere;
+}
+
+.lightscaper-survey-preview {
+	display: grid;
+	place-items: center;
+	min-height: 8rem;
+	max-height: 24rem;
+	overflow: hidden;
+	background: #111;
+}
+
+.lightscaper-survey-preview canvas {
+	display: block;
+	max-width: 100%;
+	max-height: 24rem;
+	width: auto;
+	height: auto;
+	object-fit: contain;
+}
+
+.lightscaper-survey-facts,
+.lightscaper-survey-keys {
+	font-size: 0.85rem;
+	overflow-wrap: anywhere;
+}
+
+.lightscaper-survey-controls,
+.lightscaper-survey-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.5rem;
+}
+
+.lightscaper-survey-controls label {
+	display: grid;
+	gap: 0.25rem;
+}
+
+.lightscaper-survey-controls select {
+	max-width: 100%;
+}

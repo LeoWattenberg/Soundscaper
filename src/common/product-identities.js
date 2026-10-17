@@ -1,8 +1,16 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-export const PRODUCT_IDS = Object.freeze(['soundscaper', 'framescaper']);
+export const PRODUCT_IDS = Object.freeze(['soundscaper', 'framescaper', 'lightscaper']);
 
 const PRODUCT_ID_SET = new Set(PRODUCT_IDS);
+
+// Register conversion edges independently of navigation and product identity.
+// Lightscaper's editable still conversion is introduced with its L5 consumer.
+const EDITABLE_COPY_DESTINATIONS = deepFreeze({
+	soundscaper: ['framescaper'],
+	framescaper: ['soundscaper'],
+	lightscaper: [],
+});
 
 export const PRODUCT_IDENTITIES = deepFreeze({
 	soundscaper: {
@@ -16,6 +24,12 @@ export const PRODUCT_IDENTITIES = deepFreeze({
 		name: 'Framescaper',
 		basePath: '/framescaper',
 		defaultWorkspace: 'video-editor',
+	},
+	lightscaper: {
+		id: 'lightscaper',
+		name: 'Lightscaper',
+		basePath: '/lightscaper',
+		defaultWorkspace: 'photo-library',
 	},
 });
 
@@ -37,7 +51,16 @@ export function productLocalePath(product, locale, options = {}) {
 }
 
 export function otherProductId(product) {
-	return normalizeProductId(product) === 'framescaper' ? 'soundscaper' : 'framescaper';
+	const productId = normalizeProductId(product);
+	const destinations = EDITABLE_COPY_DESTINATIONS[productId];
+	if (destinations.length === 1) return destinations[0];
+	if (destinations.length > 1) throw new RangeError(`Choose an explicit editable-copy destination for product: ${productId}.`);
+	throw new RangeError(`No editable-copy destination is registered for product: ${productId}.`);
+}
+
+export function otherProductIds(product) {
+	const productId = normalizeProductId(product);
+	return Object.freeze(PRODUCT_IDS.filter((candidate) => candidate !== productId));
 }
 
 function deepFreeze(value) {

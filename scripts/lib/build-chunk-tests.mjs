@@ -16,7 +16,7 @@ export const editorPath = String.raw`src[\\/]common[\\/]editor[\\/]`;
 const editorOptionalArchiveModule = String.raw`(?:archive-media-reader|aup-legacy(?:-block-budget|-conversion|-xml)?|aup3-(?:database|effect-profile|profile)|aup4-(?:client|opaque-merge|opaque-persistence|profile-values|profile|sanitization|time-signature|track-nodes|worker-snapshot)|audacity-(?:annotation-interchange|tempo-import)|dawproject-(?:archive|export(?:-clip-omissions|-context|-lanes|-routing-omissions)?|format|import(?:-maps|-project|-structure|-timeline)?|xml)|sesx-import(?:-project)?|scape-(?:archive-(?:copy|layout(?:-witness)?|manifest|reader)|export-(?:destination|plan)|import-capacity|import-transaction|project-admission|project-source-remap)|scape-project(?:-canonical-inspection|-timing-assets)?)`;
 const editorOptionalExecutionModule = String.raw`(?:audacity-effects[\\/]reverb-live-processor|controller[\\/]import[\\/]internal[\\/]streamed-audio-import-service|analysis|specialized-audio-analysis|audio-analysis-report-worker-(?:entry|runtime)|media-content-digest-worker-(?:client|entry|runtime)|timeline-spectrogram-worker-(?:entry|runtime)|browser-(?:native-aac-encoder|native-streamed-aac-import|audio-encode-stream-client|audio-streamed-encode|dedicated-audio-(?:codec|output-validation|profiles|worker-client)|reviewed-streamed-audio-decoders|streamed-audio-(?:import|output-validation)|streamed-wavpack-import|webcodecs-aac(?:-stream)?)|dedicated-audio-encode-session|desktop-audio-(?:range-blob|pcm-stream(?:-write)?|stream-encoder|stream-request)|desktop-mpeg-layer-ii-import|aac-source-geometry|(?:mp3|ogg)-gapless-import|loudness-measurement-report|pffft|selection-effects-runtime|selection-effect-spectral-context|selection-effect-chain|spectral-edit(?:-admission)?|video-(?:keyframe-mediabunny-execution|mediabunny-muxer|motion-webgl2-v27))`;
 const controllerInternalPath = String.raw`internal[\\/](?:[^\\/]+[\\/])*`;
-const editorOptionalExportControllerBasename = String.raw`(?:audio-export-delivery-admission|audio-export-progress|audio-export-render-orchestration|audio-realtime-encoded-export|audio-rendered-fallback-export|bw64-render-project|delivery-conformance-action|desktop-audio-export-capability|direct-(?:aiff-export|audio-render-plan|broadcast-wave-export|bw64-export|bwf-export|compressed-export|compressed-plan|compressed-stem-archive-plan|export-dispatch|mp3-export|native-stem-archive-plan|offline-compressed-export|offline-pcm-export|pcm-export|stem-archive-export|stem-(?:pipeline-admission|render-execution)|video-export|video-plan-contract|wav-export)|export-service|freesound-clip-upload-materializer|mastering-sequence-export-render|persistent-audio-delivery-execution|persistent-export-progress|realtime-desktop-pcm-export|realtime-export-pcm-transform|direct-stem-entry-stream|one-next-stem-pipeline|owned-stem-(?:progress|renderer)|render-conformed-stem|rendered-audio-encoding|streaming-stem-archive-export|video-export-captions|video-export-original-loader|video-export-service|video-export-staged-audio|video-rendered-fallback-export)`;
+const editorOptionalExportControllerBasename = String.raw`(?:audio-export-delivery-admission|audio-export-progress|audio-export-render-orchestration|audio-realtime-encoded-export|audio-rendered-fallback-export|bw64-render-project|delivery-conformance-action|desktop-audio-export-capability|direct-(?:aiff-export|audio-render-plan|broadcast-wave-export|bw64-export|bwf-export|compressed-export|compressed-plan|compressed-stem-archive-plan|export-dispatch|mp3-export|native-stem-archive-plan|offline-compressed-export|offline-pcm-export|pcm-export|stem-archive-export|stem-(?:pipeline-admission|render-execution)|video-export|video-plan-contract|wav-export)|export-service|freesound-clip-upload-materializer|mastering-sequence-export-render|persistent-audio-delivery-execution|persistent-export-progress|realtime-desktop-pcm-export|realtime-export-pcm-transform|direct-stem-entry-stream|one-next-stem-pipeline|owned-stem-(?:progress|renderer)|render-conformed-stem|rendered-audio-encoding|streaming-stem-archive-export|video-export-captions|video-export-graphic|video-export-text|video-export-original-loader|video-export-product-encode-request|video-export-service|video-export-staged-audio|video-rendered-fallback-export)`;
 const editorOptionalExportControllerModule = String.raw`(?:export[\\/](?:${controllerInternalPath})?${editorOptionalExportControllerBasename}|track-audio[\\/]internal[\\/]freesound-clip-upload-materializer)`;
 /**
  * Flat editor modules the lazy export slice alone renders through.
@@ -167,7 +167,7 @@ const audiocomOptionalModule = String.raw`(?:controller[\\/]import[\\/](?:intern
 
 /** Menu-opened UI, panel-only domain helpers, and deferred native authoring contracts. */
 export const EDITOR_OPTIONAL_SURFACE_CHUNK_TEST = new RegExp(
-	`(?:${editorPath}(?:${editorOptionalSurfaceModule}|${audiocomOptionalModule}|${deferredSurfaceHelpers}|recording-notes-(?:markdown|code)\\.ts|selected-generator-source-command\\.ts|ui[\\\\/]workspace[\\\\/]RecordingNotesPanel\\.tsx|freesound-upload-metadata\\.ts|ui[\\\\/]local-assistance-review-authority\\.ts|local-diagnostics-(?:report|contract)\\.ts|native-ofx-(?:host-contract(?:-v2)?|interact-contract)\\.ts)|src[\\\\/]common[\\\\/]i18n[\\\\/](?:freesound-attribution-copy\\.js|audiocom-copy\\.ts)|src[\\\\/]framescaper[\\\\/](?:editor-selected-timeline-image-image-(?:preview|filmstrip|preview-resources)|editor-native-openfx-authoring-model)\\.ts)$`,
+	`(?:${editorPath}(?:${editorOptionalSurfaceModule}|${audiocomOptionalModule}|${deferredSurfaceHelpers}|recording-notes-(?:markdown|code)\\.ts|selected-generator-source-command\\.ts|ui[\\\\/]workspace[\\\\/]RecordingNotesPanel\\.tsx|freesound-upload-metadata\\.ts|ui[\\\\/]local-assistance-review-authority\\.ts|local-diagnostics-(?:report|contract)\\.ts|native-ofx-(?:host-contract(?:-v2)?|interact-contract)\\.ts)|src[\\\\/]common[\\\\/]i18n[\\\\/](?:freesound-attribution-copy\\.js|audiocom-copy\\.ts)|src[\\\\/]framescaper[\\\\/](?:editor-selected-timeline-image-image-(?:preview|filmstrip|preview-resources|preview-session)|editor-selected-timeline-image-resource-preview-v16|editor-native-openfx-authoring-model)\\.ts)$`,
 );
 
 /** Split Tool interaction runtimes kept out of the product-ready startup graph. */
@@ -198,7 +198,7 @@ export const DESIGN_SYSTEM_EDITOR_SHELL_COMPONENT_CHUNK_TEST = /(?:^|[\\/])vendo
 // adapter. A shared eager codec owner creates an emitted initialization cycle
 // through the desktop codec composition that dynamically imports the adapter.
 export const EDITOR_DESKTOP_VIDEO_CODEC_RUNTIME_CHUNK_TEST = /(?:src[\\/]common[\\/]editor[\\/]desktop-video-codec-runtime\.ts|desktop[\\/]desktop-video-(?:codec-operation-contract|h264-encoder)\.ts)$/;
-export const EDITOR_CODEC_FOUNDATION_CHUNK_TEST = /(?:src[\\/]common[\\/]editor[\\/](?:wavpack[\\/]|staffpad[\\/]|parametric-eq[\\/](?:authorities|parameters|design|wasm-runtime|wasm-loader)\.js$)|desktop[\\/]desktop-audio-codec-(?:capability|operation)-contract\.ts$)/;
+export const EDITOR_CODEC_FOUNDATION_CHUNK_TEST = /(?:src[\\/]common[\\/]editor[\\/](?:wavpack[\\/]|staffpad[\\/]|parametric-eq[\\/](?:authorities|parameters|design|wasm-runtime|wasm-loader)\.js$)|desktop[\\/]desktop-audio-codec-(?:capability|operation)-contract\.ts$|(?:^|[\\/])config[\\/]lightscaper-libraw-runtime-manifest\.json$)/;
 export const EDITOR_EFFECT_CONTRACT_CHUNK_TEST = /(?:src[\\/]common[\\/](?:i18n[\\/]action-parity\.js|editor[\\/](?:selection-effect-chain-contract\.ts|audacity-effects[\\/](?:(?:classic-filter-coefficients|contracts|factory-preset-tables|factory-presets|live-capabilities|live-capability-policy|manifest)\.js|(?:audacity-dynamics-lookahead|audacity-filter-release|live-update-geometry|pcm-channel-validation|reverb-parameters)\.ts)|first-party-effects[\\/](?:(?:bitcrusher|parametric-eq)[\\/]definition\.js|parametric-eq[\\/]coefficients\.ts|dynamics[\\/]definition\.ts|standard[\\/](?:definition|filters-definition|filters-coefficients|modulation-definition|noise-gate-definition|delay-definition|delay-pitch-admission|delay-selection-contract|parameter-range|effect-tail|nyquist-replacements|selection-contract)\.ts)|nyquist[\\/](?:(?:plugin-parser|plugin-registry|plugins[\\/]catalog)\.js|audio-budget\.ts)|reviewed-effects[\\/](?:errors|manifest|selection-effect-contract|utility-gain-package)\.ts)))$/;
 /**
  * Soundscaper family-v1 project and archive authority shared with transfer pages.
@@ -238,6 +238,7 @@ const framescaperProjectFoundationModules = Object.freeze([
 	'editor-audio-finishing-finishing',
 	'editor-captured-video-proxy-preservation',
 	'editor-domain-runtime-profile',
+	'editor-native-action-bridge-availability',
 	'editor-native-project-action-requests',
 	'editor-project-assistance-foundation',
 	'editor-project-assistance-validation',
@@ -309,6 +310,7 @@ const framescaperProjectFoundationModules = Object.freeze([
 	'editor-project-visual',
 	'editor-project',
 	'editor-video-proxy-action-runtime',
+	'timeline-image-picture-carrier',
 ]);
 export const FRAMESCAPER_PROJECT_FOUNDATION_CHUNK_TEST = new RegExp(
 	`src[\\\\/]framescaper[\\\\/](?:${framescaperProjectFoundationModules.join('|')})\\.ts$`,
@@ -380,9 +382,9 @@ export const FRAMESCAPER_PROJECT_COMMAND_CHUNK_TEST = new RegExp(
 );
 export const FRAMESCAPER_SESSION_CLIPBOARD_CHUNK_TEST = /src[\\/]framescaper[\\/]editor-session-clipboard-(?:visual-collisions|v(?:8|11(?:-(?:controller|selection))?|12(?:-controller)?|13(?:-paste)?))\.ts$/;
 
-/** Timeline-image feature modules plus the runtime projection chain they extend. */
+/** Timeline-image features, their captured native LUT reader and runtime projections. */
 export const FRAMESCAPER_TIMELINE_IMAGE_CHUNK_TEST =
-	/src[\\/]framescaper[\\/](?:editor-project-(?:native-media|assistance)-runtime|editor-(?:image-(?:import-coordinator|placement)-timeline-image|project-[^\\/]*timeline-image[^\\/]*|scape-[^\\/]*timeline-image|selected-timeline-image|timeline-image)|video-export-(?:image|strategy-timeline-image)-)/;
+	/src[\\/]framescaper[\\/](?:(?:internal[\\/]timeline-image-(?:develop-frame-kernel|native-pack-owner-current|publication-transition|(?:raw|hdr)-working-plan-current)-v1|editor-selected-image-hdr-merge-current-v1|editor-scape-asset-plan-finishing|timeline-image-[^\\/]+|cube-lut-source-finishing)\.ts$|editor-project-(?:native-media|assistance)-runtime|editor-(?:image-(?:import-coordinator|placement)-timeline-image|project-[^\\/]*timeline-image[^\\/]*|scape-[^\\/]*timeline-image|selected-timeline-image|timeline-image)|video-export-(?:image|strategy-timeline-image)-)/;
 
 
 /**
@@ -409,5 +411,5 @@ export const PROJECT_INTERCHANGE_FOUNDATION_CHUNK_TEST = new RegExp(
 
 /** Flat editor modules and `assistance/` domain modules shared by the shell and dialogs. */
 export const EDITOR_DOMAIN_CHUNK_TEST = new RegExp(
-	`${editorPath}(?!${editorOptionalArchiveModule}\\.(?:[cm]?[jt]s)$)(?!${editorOptionalExecutionModule}\\.(?:[cm]?[jt]s)$)(?!${editorOptionalCaptureFlatModule}\\.ts$)(?:[^\\\\/]+|assistance[\\\\/](?:internal[\\\\/]radix-two-fft-v1|[^\\\\/]+)|(?:design-system-adapters|platform)[\\\\/][^\\\\/]+)\\.(?:[cm]?[jt]s)$`,
+	`${editorPath}(?!${editorOptionalArchiveModule}\\.(?:[cm]?[jt]s)$)(?!${editorOptionalExecutionModule}\\.(?:[cm]?[jt]s)$)(?!${editorOptionalCaptureFlatModule}\\.ts$)(?:[^\\\\/]+|assistance[\\\\/](?:internal[\\\\/]radix-two-fft-v1|[^\\\\/]+)|(?:design-system-adapters|platform)[\\\\/][^\\\\/]+)\\.(?:[cm]?[jt]s)$|${editorPath}internal[\\\\/](?:image-develop-handoff-provenance|timeline-image-model-editable|video-cube-lut-project-references)-kernel-v1\\.ts$`,
 );

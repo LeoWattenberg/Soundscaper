@@ -134,3 +134,23 @@ export const FRAMESCAPER_PROFILE = {
 		category: 'AudioVideo;Video',
 	},
 };
+
+// Photo claims are enabled individually when their maintained workflow gates pass.
+export const LIGHTSCAPER_PROFILE = {
+	...PRODUCT_IDENTITIES.lightscaper,
+	description: 'A local-first photo library and non-destructive develop editor.',
+	projectFileExtension: PROJECT_FILE_EXTENSION_BY_PRODUCT.lightscaper,
+	enabledCommands: [],
+	panels: [],
+	importChoices: ['photos'],
+	exportChoices: [],
+	shortcuts: { disabledCommandIds: [] },
+	applicationFeatures: {},
+	capabilities: {
+		...Object.fromEntries(Object.keys({ ...SHARED_CAPABILITIES, ...SOUNDSCAPER_PROFILE.capabilities })
+			.map((key) => [key, false])),
+		photoLibrarySurface: true,
+		photoCatalog: true,
+		photoDevelop: true,
+	},
+};

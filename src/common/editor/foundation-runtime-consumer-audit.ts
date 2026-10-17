@@ -279,6 +279,10 @@ export const FOUNDATION_RUNTIME_PROJECTION_IMPORTER_EXCLUSIONS: readonly Foundat
 		reason: 'The command transaction brands a verified transient draft and is an edit adapter rather than a runtime consumer.',
 	},
 	{
+		file: 'src/common/editor/commands/frame-resource-command-v2.ts',
+		reason: 'The current Frame command adapter projects a fully admitted persisted project for the shared mutation transaction, then reconciles and validates its persisted result; it serves edit reconciliation rather than runtime media consumption.',
+	},
+	{
 		file: 'src/common/editor/commands/mutation-transaction.ts',
 		reason: 'The shared mutation transaction verifies and brands a caller-owned command draft before applying registered edit handlers; it is not a runtime media consumer.',
 	},

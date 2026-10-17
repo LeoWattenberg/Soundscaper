@@ -47,15 +47,16 @@ import {
 	type MixRenderCommandPreview,
 } from './mix-render-routing.ts';
 import type { AudioBufferLike } from '../../../source/source-audio.ts';
-import type {
-	ControllerEffect,
-	ControllerProject,
-	ControllerSource,
-	ControllerTrack,
-	DerivedSourceRecord,
-	MutableControllerProject,
-	SourceStoragePort,
-	SourceWriter,
+import {
+	findControllerSource,
+	type ControllerEffect,
+	type ControllerProject,
+	type ControllerSource,
+	type ControllerTrack,
+	type DerivedSourceRecord,
+	type MutableControllerProject,
+	type SourceStoragePort,
+	type SourceWriter,
 } from '../../track-domain-types.ts';
 
 const MIX_RENDER_TASK = 'mix-render';
@@ -195,7 +196,9 @@ export function createMixRenderService(
 			const { deriveSourceProvenance } = await loadSourceProvenanceDerivation();
 			assertOwned(ownership);
 			for (const job of jobs) {
-				const provenance = deriveSourceProvenance(job.renderProject.sources);
+				const provenance = deriveSourceProvenance(job.renderProject.sources.flatMap(source => {
+					const pcm = findControllerSource({ sources: [source] }, source.id); return pcm ? [pcm] : [];
+				}));
 				let renderedSource: DerivedSourceRecord;
 				if (job.plan.streamToStorage) {
 					renderedSource = await persistStreamedMixSource(

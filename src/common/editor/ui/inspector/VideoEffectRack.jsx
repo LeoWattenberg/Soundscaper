@@ -3,22 +3,28 @@ import { useNativeRangeTouchOwner } from '../useNativeRangeTouchOwner.ts';
 import { retainNativeRangeMouseCustody } from '../../controller/effects/native-range-mouse-custody.ts';
 import { Button } from '@soundscaper/design-system/Button';
 import { VIDEO_EFFECT_TYPES, videoEffectDefinition } from '../../video-effects.js';
+import { VIDEO_EFFECT_TYPES_V2, videoEffectDefinitionV2 } from '../../video-effects-v2.ts';
+import { cubeLutEffectPortV1For } from '../../controller/clip-video/cube-lut-effect-port-v1.ts';
 import { DesignCheckbox, LabeledDropdown } from './inspector-controls.jsx';
 import VideoEffectNumberInput from './VideoEffectNumberInput.tsx';
+import VideoCurveControl from './VideoCurveControl.tsx';
+import VideoColorWheelsControls from './VideoColorWheelsControls.tsx';
+import VideoEffectCubeLut from './VideoEffectCubeLut.tsx';
 import { createVideoEffectPointerCancellation } from './video-effect-pointer-cancellation.ts';
 import { useVideoEffectRemovalFocus } from './useVideoEffectRemovalFocus.ts';
 
 export function VideoEffectRack({ clip, controller, copy, disabled, onError }) {
 	const effects = clip.videoEffects || [];
+	const resourcePort = cubeLutEffectPortV1For(controller), types = resourcePort ? VIDEO_EFFECT_TYPES_V2 : VIDEO_EFFECT_TYPES;
 	const [effectType, setEffectType] = useState(VIDEO_EFFECT_TYPES[0] || '');
 	const actions = controller.actions.video?.effects;
 	const mutationDisabled = disabled || !actions;
 	const rack = useRef(null);
 	const removing = useVideoEffectRemovalFocus(rack, clip.id, effects, mutationDisabled);
-	const effectOptions = useMemo(() => VIDEO_EFFECT_TYPES.map((type) => {
-		const descriptor = videoEffectDefinition(type);
+	const effectOptions = useMemo(() => types.map((type) => {
+		const descriptor = resourcePort ? videoEffectDefinitionV2(type) : videoEffectDefinition(type);
 		return { value: type, label: labelFor(descriptor, copy) };
-	}), [copy]);
+	}), [copy, types, resourcePort]);
 
 	const run = (work) => {
 		if (mutationDisabled) return;
@@ -42,15 +48,15 @@ export function VideoEffectRack({ clip, controller, copy, disabled, onError }) {
 			{effects.length === 0 && <p className="audio-editor-panel-hint" data-video-effect-empty>{copy.videoEffectsEmpty}</p>}
 			{effects.length > 0 && <ol className="audio-editor-video-effects__list">
 				{effects.map((effect, index) => (
-					<VideoEffectRow key={effect.id} effect={effect} clipId={clip.id} index={index} count={effects.length} actions={actions} copy={copy} disabled={mutationDisabled} onError={onError} onRun={run} onRemoving={removing} />
+					<VideoEffectRow key={effect.id} effect={effect} effects={effects} resourcePort={resourcePort} clipId={clip.id} index={index} count={effects.length} actions={actions} copy={copy} disabled={mutationDisabled} onError={onError} onRun={run} onRemoving={removing} />
 				))}
 			</ol>}
 		</section>
 	);
 }
 
-function VideoEffectRow({ effect, clipId, index, count, actions, copy, disabled, onError, onRun, onRemoving }) {
-	const descriptor = videoEffectDefinition(effect.type);
+function VideoEffectRow({ effect, effects, resourcePort, clipId, index, count, actions, copy, disabled, onError, onRun, onRemoving }) {
+	const descriptor = resourcePort ? videoEffectDefinitionV2(effect.type) : videoEffectDefinition(effect.type);
 	const label = labelFor(descriptor, copy);
 	return (
 		<li className="audio-editor-video-effect" data-video-effect-id={effect.id} data-video-effect-type={effect.type} data-enabled={effect.enabled !== false ? 'true' : 'false'}>
@@ -63,7 +69,9 @@ function VideoEffectRow({ effect, clipId, index, count, actions, copy, disabled,
 				</div>
 			</header>
 			<div className="audio-editor-video-effect__params">
-				{Object.entries(descriptor.params).map(([name, parameter]) => (
+				{effect.type === 'cube-lut-profile-v1' && resourcePort ? <VideoEffectCubeLut clipId={clipId} effect={effect} effects={effects}
+					port={resourcePort} copy={copy} disabled={disabled || effect.enabled === false} /> : effect.type === 'color-wheels-v1' ? <VideoEffectWheels effect={effect} clipId={clipId} actions={actions} copy={copy}
+					disabled={disabled || effect.enabled === false} onError={onError} /> : Object.entries(descriptor.params).map(([name, parameter]) => (
 					<VideoEffectParameter key={name} clipId={clipId} effectId={effect.id} name={name} parameter={parameter} value={effect.params[name]} actions={actions} copy={copy} disabled={disabled || effect.enabled === false} onError={onError} />
 				))}
 			</div>
@@ -107,9 +115,24 @@ function useEffectGesture({ actions, clipId, effectId, disabled, onError }) {
 }
 
 function VideoEffectParameter(props) {
+	if (props.parameter.control === 'curve') return <VideoEffectCurve {...props} />;
 	if (props.parameter.control === 'color') return <VideoEffectColor {...props} />;
 	if (props.parameter.control === 'select') return <VideoEffectSelect {...props} />;
 	return <VideoEffectSlider {...props} />;
+}
+
+function VideoEffectWheels({ effect, clipId, actions, copy, disabled, onError }) {
+	const gesture = useEffectGesture({ actions, clipId, effectId: effect.id, disabled, onError });
+	return <VideoColorWheelsControls params={effect.params} copy={copy} disabled={disabled} isCurrent={() => !disabled}
+		onBegin={gesture.begin} onPreview={(_group, params) => gesture.preview(params)} onCommit={gesture.commit} onCancel={gesture.cancel} />;
+}
+
+function VideoEffectCurve({ clipId, effectId, name, parameter, value, actions, copy, disabled, onError }) {
+	const gesture = useEffectGesture({ actions, clipId, effectId, disabled, onError });
+	return <VideoCurveControl label={parameterLabel(parameter, copy)} points={value} disabled={disabled} isCurrent={() => !disabled}
+		messages={{ addPoint: copy.videoEffectCurveAddPoint, removePoint: copy.videoEffectCurveRemovePoint,
+			input: copy.videoEffectCurveInput, output: copy.videoEffectCurveOutput, invalid: copy.videoEffectCurveInvalid }}
+		onBegin={gesture.begin} onPreview={points => gesture.preview({ [name]: points })} onCommit={gesture.commit} onCancel={gesture.cancel} />;
 }
 
 function VideoEffectSelect({ clipId, effectId, name, parameter, value, actions, copy, disabled, onError }) {

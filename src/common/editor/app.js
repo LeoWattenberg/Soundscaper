@@ -4,7 +4,7 @@ import { createFramescaperCaptureSetupActions } from './framescaper-capture-setu
 import { startController } from './controller/composition/controller-startup.ts';
 import { createControllerResources } from './controller/composition/controller-resources.ts';
 import { bindSessionHistoryAdmission } from './controller/document/session-history-admission.ts'; import { createControllerDocumentScope } from './controller/document/controller-document-scope.ts';
-import { createControllerDisposal } from './controller/composition/controller-disposal.ts';
+import { createControllerDisposal } from './controller/composition/controller-disposal.ts'; import { retireCubeLutEffectPortsV1 } from './controller/clip-video/cube-lut-effect-port-v1.ts';
 import { createControllerBindings } from './controller/composition/controller-bindings.ts';
 import { createControllerDocumentState, createControllerDocumentCheckpoints } from './controller/document/document-state.ts'; import { publishProjectView } from './controller/document/document-snapshot.ts';
 import { createEffectsComposition } from './controller/effects/effects-composition.ts';
@@ -605,7 +605,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		removeDeviceChangeListener: () => { removeDeviceChangeListener(); removeDeviceChangeListener = () => {}; },
 		disposeCapture: () => framescaperCapture?.dispose(), disposeCaptureProxy: () => framescaperCaptureProxyScheduler?.dispose?.(),
 		disposeOpenRecovery: () => takeCycleOpenRecovery.dispose(), invalidateProject: () => projectGeneration.invalidate(),
-		disposeVisuals: sources.projectVisual.dispose, unsubscribeEngineErrors: () => { unsubscribeParametricEqErrors(); unsubscribePlaybackErrors(); },
+		disposeVisuals: sources.projectVisual.dispose, disposeProductResources: () => retireCubeLutEffectPortsV1(store), unsubscribeEngineErrors: () => { unsubscribeParametricEqErrors(); unsubscribePlaybackErrors(); },
 		cancelTimedRecording: () => bindings.cancelTimedRecording({ publish: false, status: false }), cancelRecordingStart: bindings.cancelRecordingStart,
 		cancelScheduledSave: doc.saves.cancelScheduled, clearSourceGcTimer: () => globalThis.clearTimeout(state.sourceGcTimer),
 		cancelPlaybackPreparation: bindings.cancelPlaybackCachePreparation, cancelPlayAtSpeedPreparation, stopMetronome,

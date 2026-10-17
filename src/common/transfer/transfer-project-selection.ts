@@ -12,6 +12,7 @@
  */
 
 import {
+	isTimelineProjectSchemaFamily,
 	readProjectSchemaIdentity,
 	type ProjectSchemaFamily,
 } from '../editor/project-schema-identity.ts';
@@ -50,7 +51,8 @@ export function transferProductForOrigin(origin: unknown): TransferProduct | nul
  * Which product wrote a stored project, judged only by its persisted family.
  */
 export function transferProjectProduct(project: unknown): TransferProduct | null {
-	return transferProjectIdentity(project)?.schemaFamily ?? null;
+	const identity = transferProjectIdentity(project);
+	return identity && isTimelineProjectSchemaFamily(identity.schemaFamily) ? identity.schemaFamily : null;
 }
 
 /**
@@ -163,10 +165,13 @@ export async function listTransferProjects(
 	for (const row of inventory.rows) {
 		const record = row.project as { title?: unknown; schemaVersion?: unknown } | null;
 		const identity = transferProjectIdentity(record);
-		const product = identity?.schemaFamily ?? null;
+		const product = identity && isTimelineProjectSchemaFamily(identity.schemaFamily) ? identity.schemaFamily : null;
 		const schemaFamily = identity?.schemaFamily ?? null;
 		const schemaVersion = identity?.schemaVersion ?? null;
-		const title = typeof record?.title === 'string' && record.title.trim() ? record.title : null;
+		const familyRefusal = identity && !isTimelineProjectSchemaFamily(identity.schemaFamily)
+			? 'Lightscaper catalogs cannot use this timeline transfer page.' : null;
+		const title = familyRefusal === null && typeof record?.title === 'string' && record.title.trim() ? record.title : null;
+		const refusal = describeTransferRefusal(row.refusal) ?? familyRefusal;
 		offers.push(Object.freeze({
 			projectId: row.selectionKey,
 			storeProjectId: row.projectId,
@@ -179,8 +184,8 @@ export async function listTransferProjects(
 			schemaVersion,
 			// A row the exporter must never be given is never ticked for the
 			// visitor either, whatever product wrote it.
-			preselected: row.exportable && options.product !== null && product === options.product,
-			refusal: describeTransferRefusal(row.refusal),
+			preselected: row.exportable && refusal === null && options.product !== null && product === options.product,
+			refusal,
 		}));
 	}
 	for (const fault of inventory.unreadable) {

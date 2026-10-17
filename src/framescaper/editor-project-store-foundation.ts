@@ -38,6 +38,7 @@ export interface FramescaperProjectStoreFoundationDefinition {
 	readonly repository: (
 		profile: unknown,
 		delegate: ProjectRepositoryPort,
+		authority: Readonly<{ port: StorageRepositoryPort; repositories: StorageRepositories }>,
 	) => ProjectRepositoryPort;
 }
 
@@ -124,7 +125,7 @@ function foundationRepositoryFactory(
 		}
 		const composed = Object.freeze({
 			...repositories,
-			projects: definition.repository(definition.profile, repositories.projects),
+			projects: definition.repository(definition.profile, repositories.projects, { port, repositories }),
 		}) as StorageRepositories;
 		recordAuthority(Object.freeze({ port, opfs: repositories.opfs ?? null }));
 		return composed;

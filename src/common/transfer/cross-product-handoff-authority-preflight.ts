@@ -2,7 +2,8 @@
 
 import {
 	SOUNDSCAPER_PROJECT_SCHEMA_FAMILY,
-	type ProjectSchemaFamily,
+	isTimelineProjectSchemaFamily,
+	type TimelineProjectSchemaFamily,
 } from '../editor/project-schema-identity.ts';
 import { isProjectFeatureAudioCapabilityId } from '../editor/project-feature-capabilities.ts';
 import { createSoundscaperProjectFeatureCompatibilityService } from
@@ -26,9 +27,10 @@ const COMPATIBILITY = Object.freeze({
 
 /** Refuse source semantics that the converter would otherwise discard without a materializer. */
 export function crossProductHandoffSourceAuthorityRefusals(
-	family: ProjectSchemaFamily,
+	family: TimelineProjectSchemaFamily,
 	source: Record<string, unknown>,
 ): readonly Readonly<CrossProductHandoffAuthorityRefusal>[] {
+	if (!isTimelineProjectSchemaFamily(family)) throw new RangeError('Editable-copy preflight requires a timeline family.');
 	const result: CrossProductHandoffAuthorityRefusal[] = [];
 	const compatibility = COMPATIBILITY[family].evaluate(source);
 	if (compatibility === null) result.push({
@@ -56,9 +58,10 @@ export function crossProductHandoffSourceAuthorityRefusals(
 
 /** A constructed copy is exportable only when its owning product will admit it as editable. */
 export function crossProductHandoffDestinationAuthorityRefusals(
-	family: ProjectSchemaFamily,
+	family: TimelineProjectSchemaFamily,
 	destination: Record<string, unknown>,
 ): readonly Readonly<CrossProductHandoffAuthorityRefusal>[] {
+	if (!isTimelineProjectSchemaFamily(family)) throw new RangeError('Editable-copy preflight requires a timeline family.');
 	const compatibility = COMPATIBILITY[family].evaluate(destination);
 	if (compatibility?.compatible === true) return Object.freeze([]);
 	const count = compatibility?.items.filter(({ disposition }) => disposition !== 'native').length ?? 0;

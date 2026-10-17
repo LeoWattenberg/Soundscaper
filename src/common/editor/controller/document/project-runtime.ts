@@ -2,8 +2,11 @@
 
 import type { HistoryOperationMetadata } from './internal/history-operation-metadata.ts';
 
-import type { AudioEditorClipboard, AudioEditorCommand } from '../../commands/protocol.ts';
+import type { AudioEditorCommand } from '../../commands/protocol.ts';
+import type { CurrentAudioEditorClipboardDescriptor, CurrentAudioEditorMutationCommandV2 } from '../../commands/clipboard-command-v2.ts';
 import { applyEditorCommand } from '../../commands.js';
+import { normalizeAudioEditorClipboardDescriptor } from '../../commands/clipboard-codec.ts';
+import { snapshotInertEditorCommand } from '../../commands/editor-command-snapshot.ts';
 import {
 	AUDIO_EDITOR_HISTORY_LIMIT,
 	canRedo,
@@ -38,7 +41,7 @@ const METHOD_NAMES = [
  * long before a transaction could open — so a runtime without these is complete,
  * and one with them keeps them rather than having them snapshotted away.
  */
-const OPTIONAL_METHOD_NAMES = ['collapseHistory', 'rollbackHistory', 'validateProject', 'compactProjectSourceMetadata', 'prepareEditDuplicateCommand'] as const;
+const OPTIONAL_METHOD_NAMES = ['collapseHistory', 'rollbackHistory', 'validateProject', 'compactProjectSourceMetadata', 'prepareEditDuplicateCommand', 'captureEditClipboardDescriptor'] as const;
 
 export interface ControllerRuntimeProject extends Record<string, unknown> {
 	readonly id: string;
@@ -89,7 +92,7 @@ export interface ControllerTrackDuplicateCarrier {
 }
 
 export interface ControllerEditSessionClipboardCarrier {
-	readonly descriptor: AudioEditorClipboard;
+	readonly descriptor: CurrentAudioEditorClipboardDescriptor;
 	readonly sources?: readonly Readonly<{ readonly id: string }>[];
 	readonly originProjectId?: string;
 }
@@ -120,25 +123,27 @@ export interface ControllerProjectRuntime<
 	readonly projectForCommandConsumers: (project: unknown) => ConsumerProject;
 	readonly projectForRuntimeConsumers: (project: unknown) => ConsumerProject;
 	readonly projectForEditClipboardConsumers?: (project: unknown) => Readonly<Record<string, unknown>>;
+	readonly captureEditClipboardDescriptor?: (project: unknown,
+		options: Readonly<{ startFrame?: number; endFrame?: number; trackIds?: readonly string[]; clipIds?: readonly string[] }>) => CurrentAudioEditorClipboardDescriptor;
 	readonly prepareEditClipboardDescriptor: (
 		project: unknown,
-		descriptor: AudioEditorClipboard,
-	) => AudioEditorClipboard;
+		descriptor: CurrentAudioEditorClipboardDescriptor,
+	) => CurrentAudioEditorClipboardDescriptor;
 	readonly createEditSessionClipboard?: (
 		project: unknown,
-		descriptor: AudioEditorClipboard,
+		descriptor: CurrentAudioEditorClipboardDescriptor,
 	) => ControllerEditSessionClipboardCarrier;
 	readonly prepareEditClipboardPasteCommand?: (
 		project: unknown,
 		clipboard: ControllerEditSessionClipboardCarrier,
-		command: AudioEditorCommand,
+		command: CurrentAudioEditorMutationCommandV2,
 		createId: (prefix?: string) => string,
 	) => unknown;
 	/** Duplicate within the same document, preserving product leaves without replacing the session clipboard. */
 	readonly prepareEditDuplicateCommand?: (
 		project: unknown,
-		descriptor: AudioEditorClipboard,
-		command: AudioEditorCommand,
+		descriptor: CurrentAudioEditorClipboardDescriptor,
+		command: CurrentAudioEditorMutationCommandV2,
 		createId: (prefix?: string) => string,
 	) => unknown;
 	readonly prepareTrackDuplicateCarrier: (
@@ -200,13 +205,13 @@ const DEFAULT_RUNTIME = Object.freeze({
 	projectForCommandConsumers,
 	projectForRuntimeConsumers,
 	projectForEditClipboardConsumers: projectForCommandConsumers,
-	prepareEditClipboardDescriptor: (_project: unknown, descriptor: AudioEditorClipboard) => descriptor,
-	createEditSessionClipboard: (_project: unknown, descriptor: AudioEditorClipboard) => ({ descriptor }),
+	prepareEditClipboardDescriptor: (_project: unknown, descriptor: CurrentAudioEditorClipboardDescriptor) => normalizeAudioEditorClipboardDescriptor(descriptor),
+	createEditSessionClipboard: (_project: unknown, descriptor: CurrentAudioEditorClipboardDescriptor) => ({ descriptor: normalizeAudioEditorClipboardDescriptor(descriptor) }),
 	prepareEditClipboardPasteCommand: (
 		_project: unknown,
 		_clipboard: ControllerEditSessionClipboardCarrier,
-		command: AudioEditorCommand,
-	) => command,
+		command: CurrentAudioEditorMutationCommandV2,
+	) => snapshotInertEditorCommand(command, 'Legacy controller clipboard paste'),
 	prepareTrackDuplicateCarrier: (_project: unknown, request: ControllerTrackDuplicateRequest) => ({
 		sourceTrackId: request.sourceTrackId,
 		effectIds: request.effectIds,
@@ -350,17 +355,17 @@ export function bindControllerEditClipboardRuntime(
 	const preparePaste = runtime.prepareEditClipboardPasteCommand;
 	return Object.freeze({
 		...(createClipboard === undefined ? {} : {
-			createEditSessionClipboard: (_project: unknown, descriptor: AudioEditorClipboard) => (
-				createClipboard(getProject(), descriptor)
+			createEditSessionClipboard: (_project: unknown, descriptor: CurrentAudioEditorClipboardDescriptor) => (
+				Reflect.apply(createClipboard, runtime, [getProject(), descriptor]) as ControllerEditSessionClipboardCarrier
 			),
 		}),
 		...(preparePaste === undefined ? {} : {
 			prepareEditClipboardPasteCommand: (
 				_project: unknown,
 				clipboard: ControllerEditSessionClipboardCarrier,
-				command: AudioEditorCommand,
+				command: CurrentAudioEditorMutationCommandV2,
 				createId: (prefix?: string) => string,
-			) => preparePaste(getProject(), clipboard, command, createId),
+			) => Reflect.apply(preparePaste, runtime, [getProject(), clipboard, command, createId]) as unknown,
 		}),
 	});
 }

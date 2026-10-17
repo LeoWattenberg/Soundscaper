@@ -7,6 +7,7 @@ import {
 	type ClosedDomainRecord,
 } from './closed-domain-value.ts';
 import type { Rational } from './timeline-time.ts';
+import { readCanonicalSafeVisualText as safeText } from './safe-visual-text.ts';
 
 export const VIDEO_VISUAL_MODEL_LIMITS_V1 = Object.freeze({
 	maximumDimension: 65_536,
@@ -180,7 +181,6 @@ const INPUT_NAME = /^[A-Za-z][A-Za-z0-9_-]{0,63}$/u;
 const IMAGE_MIME = /^image\/[a-z0-9][a-z0-9.+-]{0,126}$/u;
 const SHA256 = /^[a-f0-9]{64}$/u;
 const COLOR = /^#[a-f0-9]{8}$/u;
-const UNSAFE_TEXT = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069]/u;
 
 export function normalizeVideoStillSourceV1(value: unknown): VideoStillSourceV1 {
 	const record = exact(value, 'video still source', STILL_SOURCE_FIELDS, 1, 'still');
@@ -407,13 +407,6 @@ function stableId(value: unknown, name: string): string {
 
 function inputName(value: unknown, name: string): string {
 	if (typeof value !== 'string' || !INPUT_NAME.test(value)) throw new TypeError(`${name} must be a canonical input name.`);
-	return value;
-}
-
-function safeText(value: unknown, name: string, maximum: number, multiline: boolean): string {
-	if (typeof value !== 'string' || value.length < 1 || value.length > maximum || value.normalize('NFC') !== value || UNSAFE_TEXT.test(value) || (!multiline && /[\r\n]/u.test(value)) || /\r/u.test(value)) {
-		throw new TypeError(`${name} must be canonical safe text without unsupported control characters.`);
-	}
 	return value;
 }
 

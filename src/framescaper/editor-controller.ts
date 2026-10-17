@@ -53,6 +53,8 @@ import {
 } from './editor-selected-timeline-image-image-authoring-controller.ts';
 import { bindFramescaperSelectedImagePreviewControllerTimelineImage } from
 	'./editor-selected-timeline-image-image-preview-controller.ts';
+import { bindFramescaperImageDevelopAuthoringCurrentV1 } from './editor-selected-timeline-image-develop-authoring-controller-v1.ts';
+import { bindFramescaperImageHdrMergeCurrentV1 } from './editor-selected-image-hdr-merge-current-v1.ts';
 
 const PRESENTATION_FIELDS = [
 	'locale', 'copy', 'fileService', 'confirmMonoConversion', 'confirmFileSizeWarning',
@@ -210,6 +212,7 @@ export function createFramescaperAudioEditorController(
 	});
 	bindFramescaperSelectedImagePreviewControllerTimelineImage({
 		controller,
+		...(openFxExecute ? { openFxExecute } : {}),
 		profile: environment.runtime.profile,
 		store: environment.controllerStore,
 		cloneProject: (_profile, project) => materializeFramescaperSelectedMulticameraVisualPreviewProject(
@@ -226,6 +229,11 @@ export function createFramescaperAudioEditorController(
 		actions: { projectBin: binController.actions.projectBin,
 			edit: { commit: command => binController.actions.edit.commit(command as never) } },
 	});
+	bindFramescaperImageDevelopAuthoringCurrentV1({ controller: controller as never, store: environment.controllerStore });
+	bindFramescaperImageHdrMergeCurrentV1({ controller: controller as never, store: environment.controllerStore, session: sessionController as never,
+		prepareCurrentProject: () => controller.actions.project.flush({ forceCurrentSnapshot: true, prepareCurrentSnapshot: true }),
+		executeCommand: (history, command, options) => environment.runtime.executeCommand(history as never, command as never, options) as never,
+		publishIfCurrent: request => environment.hdrImages.publishIfCurrent(request) });
 	return controller;
 }
 

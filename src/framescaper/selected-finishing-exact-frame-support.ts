@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import type { ExactConsumerPlanCore } from '../common/editor/unified-exact-render-consumer-plan-core.ts';
 /** Pixel, grade, capture, and composition-ordering helpers for the selected finishing exact frame execution. */
 
 import {
@@ -21,13 +22,13 @@ import type { UnifiedExactRenderVisualFrameEntryV13 } from '../common/editor/uni
 import type { UnifiedExactRenderVisualRgbaV13 } from '../common/editor/unified-exact-render-visual-materializer-v13.ts';
 import type {
 	UnifiedExactRenderFinishingNode,
-	UnifiedExactRenderPlanV13,
 } from '../common/editor/unified-exact-render-plan.ts';
 import { evaluateVideoMaskMatteRgbaV13 } from '../common/editor/video-mask-matte-rgba-v13.ts';
 import { videoDeliveryColorChannels } from '../common/editor/video-delivery-color.ts';
 import { identityVisualPlacement, multiplyVisualMaskPlanes } from './visual-finishing-kernel.ts';
 
 type Data = Readonly<Record<string, unknown>>;
+const CHECK = AbortSignal.prototype.throwIfAborted;
 
 /**
  * One track's composition entries at one authored compositing order. Tracks
@@ -51,7 +52,7 @@ export function checkedFrame(value: unknown, name: string): UnifiedExactRenderRg
 	return Object.freeze({ width, height, pixels: frame.pixels.slice() });
 }
 
-export function requiredFinishing(plan: UnifiedExactRenderPlanV13): UnifiedExactRenderFinishingNode {
+export function requiredFinishing(plan: ExactConsumerPlanCore): UnifiedExactRenderFinishingNode {
 	const values = plan.nodes.filter((node): node is UnifiedExactRenderFinishingNode => node.kind === 'finishing');
 	if (values.length !== 1) throw new ReferenceError('Selected finishing exact execution requires one finishing node.');
 	return values[0]!;
@@ -174,7 +175,7 @@ export function combinedGraphs(
 }
 
 export function backgroundLinear(
-	plan: UnifiedExactRenderPlanV13,
+	plan: ExactConsumerPlanCore,
 	finishing: UnifiedExactRenderFinishingNode,
 ): readonly [number, number, number, number] {
 	const channels = videoDeliveryColorChannels(plan.output.canvas.backgroundColor);
@@ -250,20 +251,47 @@ function writeChannels(target: Uint8Array, offset: number, value: readonly numbe
 	for (let channel = 0; channel < 4; channel += 1) target[offset + channel] = Math.round(value[channel]! * 255);
 }
 
-function record(value: unknown, name: string): Data {
+export function record(value: unknown, name: string): Data {
 	if (!value || typeof value !== 'object' || Array.isArray(value)) throw new TypeError(`${name} must be an object.`);
 	return value as Data;
 }
 
-function dimension(value: unknown, name: string): number {
+export function dimension(value: unknown, name: string): number {
 	if (!Number.isSafeInteger(value) || Number(value) < 1 || Number(value) > 65_536) {
 		throw new RangeError(`${name} must be a positive bounded integer.`);
 	}
 	return Number(value);
 }
 
-function throwIfAborted(signal: AbortSignal): void {
-	if (signal.aborted) throw signal.reason ?? new DOMException('Selected finishing exact execution was aborted.', 'AbortError');
+export function throwIfAborted(signal: AbortSignal): void {
+	Reflect.apply(CHECK, signal, []);
 }
 
-function compareText(left: string, right: string): number { return left < right ? -1 : left > right ? 1 : 0; }
+export function compareText(left: string, right: string): number { return left < right ? -1 : left > right ? 1 : 0; }
+
+export function assertReady(options: Readonly<{ signal: AbortSignal; assertCurrent: () => void }>): void {
+	throwIfAborted(options.signal);
+	options.assertCurrent();
+}
+
+export function nonNegativeInteger(value: unknown, name: string): number {
+	if (!Number.isSafeInteger(value) || Number(value) < 0) throw new RangeError(`${name} must be non-negative.`);
+	return Number(value);
+}
+
+export function stableId(value: unknown, name: string): string {
+	if (typeof value !== 'string' || value.length < 1 || value.length > 256) throw new TypeError(`${name} is invalid.`);
+	return value;
+}
+
+export function records(value: unknown, name: string): Data[] {
+	if (!Array.isArray(value)) throw new TypeError(`${name} must be an array.`);
+	return value.map((entry, index) => record(entry, `${name}[${String(index)}]`));
+}
+
+export function unit(value: unknown, name: string): number {
+	if (typeof value !== 'number' || !Number.isFinite(value) || value < 0 || value > 1) {
+		throw new RangeError(`${name} must be between zero and one.`);
+	}
+	return value;
+}

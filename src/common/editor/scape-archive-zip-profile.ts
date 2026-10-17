@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { SCAPE_ARCHIVE_LIMITS } from './scape-archive-envelope.ts';
+import { SCAPE_ARCHIVE_LIMITS } from './scape-archive-limits.ts';
 
 const TEXT_ENCODER = new TextEncoder();
 const ZIP_MAXIMUM_UINT16 = 0xffff;

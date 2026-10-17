@@ -10,13 +10,19 @@ import type {
 	ProductVideoTimelineFilmstripRequest,
 } from '../common/editor/ui/workspace/product-video-visual-preview-runtime.ts';
 import { createVideoKeyframeRenderStateProvider } from '../common/editor/video-keyframe-render-state-provider.ts';
-import { resolveVideoKeyframePreviewState } from '../common/editor/video-keyframe-preview-state.ts';
+import { resolveVideoKeyframePreviewStateCurrent } from '../common/editor/video-keyframe-preview-state-v2.ts';
+import { createVideoKeyframeRenderStateProviderV2 } from '../common/editor/video-keyframe-render-state-provider-v2.ts';
+import { hasSelectedCubeLutPictureV2 } from './selected-preview-resource-policy.ts';
+import type { FramescaperProjectFinishing } from './editor-project-finishing.ts';
 import { resolveVideoSourceDisplaySize } from '../common/editor/video-source-presentation.ts';
 import { resolveActiveVideoLayers } from '../common/editor/video-timeline.js';
 import { createFramescaperSelectedVisualPreviewSessionFinishing } from './editor-selected-finishing-visual-preview.ts';
 import type { CreateFramescaperOpenFxExactExecutionNativeMedia } from './video-export-exact-execution-finishing.ts';
+import type { CreateFramescaperOpenFxExactExecutionV16 } from './video-export-exact-execution-v16.ts';
+import { settleSelectedPreviewBorrower } from './selected-preview-borrower-settlement.ts';
 
 type Data = Readonly<Record<string, unknown>>;
+const CHECK = AbortSignal.prototype.throwIfAborted, FILL = Uint8Array.prototype.fill;
 
 interface DecodedFilmstripSourceFinishing {
 	readonly drawable: unknown;
@@ -37,6 +43,7 @@ export interface FramescaperSelectedTimelineFilmstripOptionsFinishing
 	readonly profile: unknown;
 	readonly store: AudioEditorProjectStore;
 	readonly createOpenFxExecution?: CreateFramescaperOpenFxExactExecutionNativeMedia;
+	readonly createOpenFxExecutionV16?: CreateFramescaperOpenFxExactExecutionV16;
 	/** Test seam; selected production routes always use browser image decode. */
 	readonly decodeSource?: DecodeFilmstripSourceFinishing;
 }
@@ -52,37 +59,39 @@ export async function createFramescaperSelectedTimelineFilmstripFinishing(
 	const width = evenDimension(options.width, 'timeline filmstrip width');
 	const height = evenDimension(options.height, 'timeline filmstrip height');
 	const runtimeProject = resolveRuntimeProjectProjection(options.project as RuntimeClipProject);
-	const keyframeState = createVideoKeyframeRenderStateProvider();
+	const keyframeState = hasSelectedCubeLutPictureV2(options.project as FramescaperProjectFinishing)
+		? createVideoKeyframeRenderStateProviderV2() : createVideoKeyframeRenderStateProvider();
 	const session = await createFramescaperSelectedVisualPreviewSessionFinishing({
 		profile: options.profile,
 		project: options.project,
 		store: options.store,
-		width,
+		width, signal,
 		height,
 		...(options.createOpenFxExecution ? {
 			createOpenFxExecution: options.createOpenFxExecution,
 		} : {}),
+		...(options.createOpenFxExecutionV16 ? { createOpenFxExecutionV16: options.createOpenFxExecutionV16 } : {}),
 	});
 	if (session === null) return null;
-	if (typeof session.renderExact !== 'function') {
-		session.dispose();
-		throw new Error('Selected finishing timeline thumbnails require exact preview execution.');
-	}
 	const decode = options.decodeSource ?? decodeFilmstripSource;
 	const output: ProductVideoTimelineFilmstripFrame[] = [];
-	try {
+	return settleSelectedPreviewBorrower(async () => {
+		throwIfAborted(signal);
+		const renderExact = session.renderExact;
+		if (typeof renderExact !== 'function') throw new Error('Selected finishing timeline thumbnails require exact preview execution.');
 		for (const frame of frames) {
 			throwIfAborted(signal);
 			const active = activeFilmstripEntry(
 				runtimeProject, frame, { width, height }, keyframeState,
 			);
 			const decoded = await decode(frame.sourceUrl, width, height, signal);
-			try {
+			await settleSelectedPreviewBorrower(async () => {
 				throwIfAborted(signal);
-				const rendered = await session.renderExact({
+				const rendered = await Reflect.apply(renderExact, session, [{
+					signal,
 					timelineSample: frame.timelineSample,
 					mediaLayers: [mediaLayer(active, decoded)],
-				});
+				}]) as Awaited<ReturnType<typeof renderExact>>;
 				const pixels = readExactOutput(rendered.layers, signal);
 				output.push(Object.freeze({
 					key: frame.key,
@@ -91,26 +100,25 @@ export async function createFramescaperSelectedTimelineFilmstripFinishing(
 					height: pixels.height,
 					pixels: pixels.pixels,
 				}));
-			} finally {
-				decoded.dispose();
-			}
+			}, () => decoded.dispose(), () => undefined);
 		}
 		return Object.freeze(output);
-	} finally {
-		session.dispose();
-	}
+	}, async () => {
+		if (session.close) await session.close(); else session.dispose();
+		throwIfAborted(signal);
+	}, () => { for (const frame of output) Reflect.apply(FILL, frame.pixels, [0]); });
 }
 
 function activeFilmstripEntry(
 	project: ReturnType<typeof resolveRuntimeProjectProjection>,
 	frame: ProductVideoTimelineFilmstripRequest['frames'][number],
 	canvas: Readonly<{ width: number; height: number }>,
-	keyframeState: ReturnType<typeof createVideoKeyframeRenderStateProvider>,
+	keyframeState: ReturnType<typeof createVideoKeyframeRenderStateProvider> | ReturnType<typeof createVideoKeyframeRenderStateProviderV2>,
 ): Readonly<{ layer: Data; clip: Data }> {
 	const layers = resolveActiveVideoLayers(project, frame.timelineSample, {
 		renderCanvas: canvas,
-		resolveClipRenderState: (request: Parameters<typeof resolveVideoKeyframePreviewState>[1]) => (
-			resolveVideoKeyframePreviewState(keyframeState, request)
+		resolveClipRenderState: (request: Parameters<typeof resolveVideoKeyframePreviewStateCurrent>[1]) => (
+			resolveVideoKeyframePreviewStateCurrent(keyframeState, request)
 		),
 	});
 	for (const layerValue of layers) {
@@ -315,5 +323,5 @@ function records(value: unknown, name: string): Data[] {
 }
 
 function throwIfAborted(signal: AbortSignal): void {
-	if (signal.aborted) throw signal.reason ?? new DOMException('Timeline filmstrip rendering was cancelled.', 'AbortError');
+	Reflect.apply(CHECK, signal, []);
 }

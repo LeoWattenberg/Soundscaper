@@ -12,7 +12,7 @@ import {
 	type ProjectBextMetadata,
 } from './project-bext-metadata.ts';
 import {
-	validateProjectDocument,
+	validateProjectDocument, validateProjectDocumentForFrameV2,
 	type ProjectAudioAuthorityValidation,
 } from './project-document-validation.ts';
 import { validateProjectFoundation } from './project-foundation-validation.ts';
@@ -113,6 +113,14 @@ export function validateProjectHierarchyDocument(
 	options: ProjectHierarchyDocumentValidationOptions = {},
 	audioAuthority: ProjectAudioAuthorityValidation = {},
 ): project is ProjectHierarchyDocument {
+	return validateHierarchy(project, expectedSchemaVersion, options, audioAuthority, false);
+}
+export function validateProjectHierarchyDocumentForFrameV2(project: unknown, expectedSchemaVersion: number,
+	options: ProjectHierarchyDocumentValidationOptions = {}, audioAuthority: ProjectAudioAuthorityValidation = {}): project is ProjectHierarchyDocument {
+	return validateHierarchy(project, expectedSchemaVersion, options, audioAuthority, true);
+}
+function validateHierarchy(project: unknown, expectedSchemaVersion: number, options: ProjectHierarchyDocumentValidationOptions,
+	audioAuthority: ProjectAudioAuthorityValidation, resourceV2: boolean): project is ProjectHierarchyDocument {
 	if (!Number.isSafeInteger(expectedSchemaVersion) || expectedSchemaVersion < 1) {
 		throw new RangeError('Expected project schema version must be a positive safe integer.');
 	}
@@ -126,7 +134,7 @@ export function validateProjectHierarchyDocument(
 		|| Object.hasOwn(candidate, 'trackFolderStateProjectionVersion')) {
 		throw new RangeError('A persisted project cannot contain a runtime projection marker.');
 	}
-	const { metadata, media } = validateProjectDocument(candidate, audioAuthority);
+	const { metadata, media } = (resourceV2 ? validateProjectDocumentForFrameV2 : validateProjectDocument)(candidate, audioAuthority);
 	validateProjectBextMetadata(metadata);
 	if (metadata.ixml != null) normalizeIxmlMetadata(metadata.ixml as IxmlMetadataInput);
 	if (metadata.cart != null) normalizeCartMetadata(metadata.cart as CartMetadataInput);

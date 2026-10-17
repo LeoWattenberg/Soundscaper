@@ -87,8 +87,8 @@ test('tightening preserves the labels and the recorded reasons', () => {
 test('a report that measures a scope the configuration does not budget is refused', () => {
 	assert.throws(() => tightenCoverageGates(configuration(), {
 		...measured,
-		lightscaper: { lines: 100, branches: 100, functions: 100 },
-	}), /unbudgeted scope: lightscaper/u);
+		unknownscaper: { lines: 100, branches: 100, functions: 100 },
+	}), /unbudgeted scope: unknownscaper/u);
 });
 
 test('a report missing a budgeted scope is refused rather than tightening the rest', () => {

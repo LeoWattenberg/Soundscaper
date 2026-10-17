@@ -1,9 +1,10 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import type { CurrentAudioEditorMutationCommandV2 as AudioEditorCommand } from '../../commands/clipboard-command-v2.ts';
+
 import { createAddSourceCommand } from '../../commands/factories.ts';
 import type {
 	AudioEditorClipboardTrack,
-	AudioEditorCommand,
 	CommandObject,
 } from '../../commands/protocol.ts';
 import {

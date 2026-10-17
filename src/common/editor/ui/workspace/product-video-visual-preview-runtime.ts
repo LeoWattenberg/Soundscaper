@@ -29,11 +29,14 @@ export interface ProductVideoVisualPreviewFrame {
 }
 
 export interface ProductVideoVisualPreviewSession {
+	/** Current resource-dependent sessions have an exact continuous render path. */
+	readonly exactPlaying?: true;
 	resolve(timelineSample: number): ProductVideoVisualPreviewFrame;
 	resolveTransitionWeight(clipId: string, timelineSample: number): number | null;
 	renderExact?(request: Readonly<{
 		readonly timelineSample: number;
 		readonly mediaLayers: readonly unknown[];
+		readonly signal?: AbortSignal;
 	}>): Promise<Readonly<{
 		readonly frame: ProductVideoVisualPreviewFrame;
 		readonly layers: readonly Readonly<Record<string, unknown>>[];
@@ -47,12 +50,15 @@ export interface ProductVideoVisualPreviewSession {
 		readonly reportsOpenFxDegradation?: boolean;
 	}>>;
 	dispose(): void;
+	/** Joined current-session retirement; legacy borrowed sessions use dispose. */
+	close?(): Promise<void>;
 }
 
 export interface ProductVideoVisualPreviewCreateRequest {
 	readonly project: unknown;
 	readonly width: number;
 	readonly height: number;
+	readonly signal?: AbortSignal;
 	/**
 	 * The delivery canvas fit being previewed. Playback and export are the same
 	 * render, so a reframed delivery has to be composited here the way it will be

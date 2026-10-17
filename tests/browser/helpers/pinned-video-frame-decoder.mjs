@@ -10,6 +10,19 @@ let operationOrdinal = 0;
 
 /** Decode a displayed frame with the exact software decoder shipped by Soundscaper. */
 export async function decodePinnedVideoRgbFrame(bytes, { timeSeconds = 0 } = {}) {
+	return decodePinnedRgbFrame(bytes, timeSeconds, []);
+}
+
+/** Accurate scalar RGB conversion avoids the pinned scaler's one-column 4:2:0
+ * fast-path defect. JPEG geometry and native encoded bytes remain unchanged. */
+export async function decodePinnedJpegRgbFrame(bytes) {
+	if (!(bytes instanceof Uint8Array) || bytes[0] !== 0xff || bytes[1] !== 0xd8) {
+		throw new TypeError('Pinned JPEG decoding requires JPEG bytes.');
+	}
+	return decodePinnedRgbFrame(bytes, 0, ['-sws_flags', 'accurate_rnd+bitexact']);
+}
+
+async function decodePinnedRgbFrame(bytes, timeSeconds, rgbConversionArguments) {
 	if (!(bytes instanceof Uint8Array) || bytes.byteLength === 0) {
 		throw new TypeError('Pinned video frame decoding requires nonempty Uint8Array bytes.');
 	}
@@ -27,7 +40,7 @@ export async function decodePinnedVideoRgbFrame(bytes, { timeSeconds = 0 } = {})
 		core.FS.writeFile(inputPath, bytes.slice());
 		const exitCode = core.exec(
 			'-hide_banner', '-nostdin', '-y', ...(timeSeconds === 0 ? [] : ['-ss', String(timeSeconds)]), '-i', inputPath,
-			'-frames:v', '1', '-c:v', 'ppm', '-f', 'image2', outputPath,
+			...rgbConversionArguments, '-frames:v', '1', '-c:v', 'ppm', '-f', 'image2', outputPath,
 		);
 		if (exitCode !== 0) {
 			throw new Error(`Pinned video frame decoding exited ${String(exitCode)}.\n${logs.join('\n')}`);

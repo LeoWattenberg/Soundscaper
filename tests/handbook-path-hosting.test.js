@@ -25,7 +25,7 @@ test('each product handbook has the same path on its own origin', () => {
 		scope: '/docs/',
 		assetScope: '/docs/_astro/',
 	});
-	assert.throws(() => handbookPlan('lightscaper'), /Unsupported web build product/u);
+	assert.throws(() => handbookPlan('unknownscaper'), /Unsupported web build product/u);
 	assert.deepEqual(webBuildRouting({ SCAPE_PRODUCT: 'soundscaper' }).handbook, handbookPlan('soundscaper'));
 	assert.deepEqual(webBuildRouting({ SCAPE_PRODUCT: 'framescaper' }).handbook, handbookPlan('framescaper'));
 });

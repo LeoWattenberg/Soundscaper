@@ -1,8 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { videoKeyframeCurvesEqual } from '../video-keyframe-curves.ts';
 import { VIDEO_KEYFRAME_CARRIER_EDITED } from './command-projection-transients.ts';
-import { transformVideoKeyframeCarrier } from './video-keyframe-carrier.ts';
+import { frameCommandCarriersV2, frameCommandKeyframesEqualV2 } from './frame-resource-command-carriers-v2.ts';
 
 type DataRecord = Record<PropertyKey, unknown>;
 
@@ -16,18 +15,18 @@ export function reconcileVideoKeyframeCarriersAfterCommand(
 ): void {
 	const project = record(projectValue, 'command project');
 	const base = record(baseValue, 'persisted command base');
-	reconcileCollection(array(project.clips, 'command project.clips'), array(base.clips, 'persisted command base.clips'), 'timeline');
+	reconcileCollection(array(project.clips, 'command project.clips'), array(base.clips, 'persisted command base.clips'), 'timeline', project);
 	if (!isRecord(project.projectBin) || !isRecord(base.projectBin)) return;
 	const projectBin = project.projectBin;
 	const baseBin = base.projectBin;
 	reconcileCollection(
 		array(projectBin.clips, 'command project.projectBin.clips'),
 		array(baseBin.clips, 'persisted command base.projectBin.clips'),
-		'Project Bin',
+		'Project Bin', project,
 	);
 }
 
-function reconcileCollection(targets: DataRecord[], sources: DataRecord[], scope: string): void {
+function reconcileCollection(targets: DataRecord[], sources: DataRecord[], scope: string, project: DataRecord): void {
 	const sourceById = new Map(sources.map((clip) => [String(clip.id), clip]));
 	for (let index = 0; index < targets.length; index += 1) {
 		const target = targets[index]!;
@@ -36,10 +35,10 @@ function reconcileCollection(targets: DataRecord[], sources: DataRecord[], scope
 		delete target[VIDEO_KEYFRAME_CARRIER_EDITED];
 		if (!source || !hasCarrier(source) || !hasCarrier(target)) continue;
 		if (carrierEdited) continue;
-		if (!placementChanged(source, target) || carrierChanged(source, target)) continue;
+		if (!placementChanged(source, target) || carrierChanged(project, source, target)) continue;
 		const sourceClip = projectedClip(source);
 		const targetClip = projectedClip(target);
-		const reconciled = transformVideoKeyframeCarrier(
+		const reconciled = frameCommandCarriersV2(project).transformVideoKeyframeCarrier(
 			target, sourceClip, targetClip, {}, `${scope} clip ${String(target.id)}`,
 		);
 		target.videoKeyframes = reconciled.videoKeyframes;
@@ -53,10 +52,10 @@ function placementChanged(source: DataRecord, target: DataRecord): boolean {
 		|| source.sourceFrameCount !== target.sourceFrameCount;
 }
 
-function carrierChanged(source: DataRecord, target: DataRecord): boolean {
+function carrierChanged(project: DataRecord, source: DataRecord, target: DataRecord): boolean {
 	const sourceClip = projectedClip(source);
 	try {
-		return !videoKeyframeCurvesEqual(
+		return !frameCommandKeyframesEqualV2(project)(
 			source.videoKeyframes,
 			target.videoKeyframes,
 			keyframeContext(sourceClip),

@@ -20,6 +20,7 @@ import type {
 	PasteMonoDerivedSourcesPort,
 } from './paste-mono-conversion-service.ts';
 import type { PasteLinkedSourceAliasStore } from './internal/paste-linked-source-aliases.ts';
+import type { CurrentAudioEditorMutationCommandV2 } from '../../commands/clipboard-command-v2.ts';
 
 /** The document identity the label and generator services read. */
 export type EditCompositionProject =
@@ -65,6 +66,7 @@ export interface EditMonoConversionConfirmationRequest {
 export interface EditCompositionRuntime<History extends ControllerRuntimeHistory> extends ControllerEditClipboardRuntimeBindings {
 	readonly applyCommand?: ControllerProjectRuntime['applyCommand'];
 	readonly prepareEditClipboardDescriptor: ControllerProjectRuntime['prepareEditClipboardDescriptor'];
+	readonly captureEditClipboardDescriptor?: ControllerProjectRuntime['captureEditClipboardDescriptor'];
 	readonly prepareTrackDuplicateCarrier?: ControllerProjectRuntime['prepareTrackDuplicateCarrier'];
 	readonly prepareEditDuplicateCommand?: ControllerProjectRuntime['prepareEditDuplicateCommand'];
 	readonly projectForEditClipboardConsumers?: (project: EditCompositionProject) => Readonly<Record<string, unknown>>;
@@ -109,7 +111,8 @@ export interface EditCompositionDependencies<History extends ControllerRuntimeHi
 	readonly commit:
 		& LabelServiceDependencies['commit']
 		& ClipboardEditServiceDependencies['commit']
-		& AudioGeneratorServiceDependencies['commit'];
+		& AudioGeneratorServiceDependencies['commit']
+		& ((command: CurrentAudioEditorMutationCommandV2) => unknown);
 	readonly setStatus: (message: string, state?: string, localization?: import('../../../i18n/presentation-message.ts').LocalizedPresentationMessage) => void;
 	readonly publishDocumentSnapshot: () => void;
 	readonly batchPresentation?: (operation: () => void) => void;

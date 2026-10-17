@@ -2,6 +2,7 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { deferred } from './helpers/async-test-control.ts';
 
 import {
 	frameTimestamp,
@@ -206,6 +207,9 @@ function createHarness(options: {
 		configs,
 		keyFrameFlags,
 		frameDurations: [] as number[],
+		frameInits: [] as Record<string, unknown>[],
+		frameData: [] as Uint8Array[],
+		encoderConstructions: 0,
 		closed: false,
 		maximumObservedQueue: 0,
 		emittedChunks: [] as unknown[],
@@ -225,6 +229,7 @@ function createHarness(options: {
 		state = 'configured';
 
 		constructor(callbacks: { output: typeof output; error: typeof onError }) {
+			harness.encoderConstructions += 1;
 			output = callbacks.output;
 			onError = callbacks.error;
 		}
@@ -274,7 +279,9 @@ function createHarness(options: {
 	}
 
 	class FakeVideoFrame {
-		constructor(_data: Uint8Array, init: Record<string, unknown>) {
+		constructor(data: Uint8Array, init: Record<string, unknown>) {
+			harness.frameData.push(data);
+			harness.frameInits.push(init);
 			harness.frameDurations.push(Number(init.duration));
 		}
 		close() {}
@@ -302,3 +309,197 @@ function createHarness(options: {
 	} as unknown as VideoWebCodecsProduceRequest;
 	return harness;
 }
+
+for (const [rgbaColorSpace, transfer] of [['srgb', 'iec61966-2-1'], ['rec709', 'bt709']] as const) {
+	test(`I420 VideoFrames carry declared ${rgbaColorSpace} rather than native defaults`, async () => {
+		const harness = createHarness({ frameCount: 1 });
+		await produceVideoWebCodecsStream({ ...harness.request, rgbaColorSpace } as VideoWebCodecsProduceRequest);
+		assert.equal(harness.frameInits[0]?.format, 'I420');
+		assert.deepEqual(harness.frameInits[0]?.colorSpace, {
+			primaries: 'bt709', transfer, matrix: 'bt709', fullRange: false,
+		});
+	});
+}
+
+test('legacy unlabelled RGBA retains the exact native default init shape', async () => {
+	const harness = createHarness({ frameCount: 1 });
+	await produceVideoWebCodecsStream(harness.request);
+	assert.deepEqual(harness.frameInits[0], {
+		format: 'RGBA', codedWidth: 4, codedHeight: 2, timestamp: 0, duration: 33_367,
+	});
+});
+
+test('the declared profile is captured before a held renderer can replace it', async () => {
+	const harness = createHarness({ frameCount: 1 });
+	const request = { ...harness.request, rgbaColorSpace: 'rec709' };
+	request.producer = { ...request.producer, async produce() {
+		request.rgbaColorSpace = 'srgb';
+		await Promise.resolve();
+	} };
+	await produceVideoWebCodecsStream(request as VideoWebCodecsProduceRequest);
+	assert.equal((harness.frameInits[0]?.colorSpace as Record<string, unknown>).transfer, 'bt709');
+});
+
+test('a held nonempty VP9 header cannot add a profile to an omitted legacy request', async () => {
+	const harness = createHarness({ frameCount: 1, videoCodec: 'vp9' });
+	const entered = deferred<void>();
+	const release = deferred<void>();
+	let writes = 0;
+	const request = { ...harness.request, async write(bytes: Uint8Array) {
+		if (writes++ === 0) { assert.equal(bytes.byteLength, 32); entered.resolve(); await release.promise; }
+		await harness.request.write(bytes);
+	} };
+	const pending = produceVideoWebCodecsStream(request);
+	await entered.promise;
+	Object.defineProperty(request, 'rgbaColorSpace', { enumerable: true, value: 'srgb' });
+	release.resolve();
+	await pending;
+	assert.equal(Object.hasOwn(harness.frameInits[0]!, 'colorSpace'), false);
+});
+
+test('a held nonempty VP9 header cannot invoke a post-capture profile getter', async () => {
+	const harness = createHarness({ frameCount: 1, videoCodec: 'vp9' });
+	const entered = deferred<void>();
+	const release = deferred<void>();
+	let writes = 0; let reads = 0;
+	const request = { ...harness.request, rgbaColorSpace: 'rec709' as const, async write(bytes: Uint8Array) {
+		if (writes++ === 0) { assert.equal(bytes.byteLength, 32); entered.resolve(); await release.promise; }
+		await harness.request.write(bytes);
+	} };
+	const pending = produceVideoWebCodecsStream(request);
+	await entered.promise;
+	Object.defineProperty(request, 'rgbaColorSpace', { enumerable: true, get() { reads++; return 'srgb'; } });
+	release.resolve();
+	await pending;
+	assert.equal(reads, 0);
+	assert.equal((harness.frameInits[0]?.colorSpace as Record<string, unknown>).transfer, 'bt709');
+});
+
+test('unsupported and accessor profiles refuse before native construction without executing getters', async () => {
+	let reads = 0;
+	for (const profile of ['linear-rec709-d65', 'display-p3', null, undefined]) {
+		const harness = createHarness({ frameCount: 1 });
+		await assert.rejects(produceVideoWebCodecsStream({ ...harness.request, rgbaColorSpace: profile } as never));
+		assert.equal(harness.encoderConstructions, 0);
+	}
+	const harness = createHarness({ frameCount: 1 });
+	const request = Object.defineProperty({ ...harness.request }, 'rgbaColorSpace', {
+		enumerable: true, get() { reads += 1; return 'srgb'; },
+	});
+	await assert.rejects(produceVideoWebCodecsStream(request));
+	assert.equal(reads, 0);
+	assert.equal(harness.encoderConstructions, 0);
+	const inherited = Object.setPrototypeOf({ ...harness.request }, { get rgbaColorSpace() { reads++; return 'srgb'; } });
+	await assert.rejects(produceVideoWebCodecsStream(inherited));
+	assert.equal(reads, 0);
+	assert.equal(harness.encoderConstructions, 0);
+});
+
+test('explicit I420 admission rejects odd, mismatched and excessive frames before native construction', async () => {
+	for (const [width, height, byteLength] of [[3, 2, 24], [4, 2, 31], [4096, 4096, 67_108_864]]) {
+		const harness = createHarness({ frameCount: 1 });
+		const request = { ...harness.request, rgbaColorSpace: 'rec709' as const,
+			frameSource: { ...harness.request.frameSource, canvas: { width: width!, height: height!, frameRate: RATE_2997 } },
+			producer: { ...harness.request.producer, byteLength: byteLength! } };
+		await assert.rejects(produceVideoWebCodecsStream(request));
+		assert.equal(harness.encoderConstructions, 0);
+	}
+});
+
+test('explicit I420 reuses one plane and joins held delivery before wiping both workspaces', async () => {
+	const harness = createHarness({ frameCount: 2 });
+	const entered = deferred<void>(), release = deferred<void>();
+	const rendered: Uint8Array[] = [];
+	const observed: number[][] = [];
+	const request = { ...harness.request, rgbaColorSpace: 'rec709' as const,
+		producer: { byteLength: 32, produce(_frame: unknown, rgba: Uint8Array) { rgba.fill(180); rendered.push(rgba); } },
+		async write() {
+			observed.push([...harness.frameData.at(-1)!]);
+			if (observed.length === 1) { entered.resolve(); await release.promise; }
+		} };
+	let settled = false;
+	const pending = produceVideoWebCodecsStream(request).finally(() => { settled = true; });
+	await entered.promise;
+	assert.equal(settled, false);
+	assert.equal(rendered[0]![0], 180);
+	assert.deepEqual([...harness.frameData[0]!], [171,171,171,171,171,171,171,171,128,128,128,128]);
+	release.resolve(); await pending;
+	assert.equal(harness.frameData[0], harness.frameData[1]);
+	assert.equal(rendered[0], rendered[1]);
+	assert.ok(rendered[0]!.every(value => value === 0));
+	assert.ok(harness.frameData[0]!.every(value => value === 0));
+	assert.equal(observed.length, 2);
+});
+
+test('cancelled held rendering joins before wipe and no frame is encoded', async () => {
+	const harness = createHarness({ frameCount: 1 });
+	const controller = new AbortController(), entered = deferred<void>(), release = deferred<void>();
+	let borrowed: Uint8Array | undefined, settled = false;
+	const pending = produceVideoWebCodecsStream({ ...harness.request, rgbaColorSpace: 'srgb', signal: controller.signal,
+		producer: { byteLength: 32, async produce(_frame, rgba) { borrowed = rgba; rgba.fill(180); entered.resolve(); await release.promise; } },
+	}).finally(() => { settled = true; });
+	await entered.promise; controller.abort(); await Promise.resolve();
+	assert.equal(settled, false); assert.equal(borrowed![0], 180);
+	release.resolve(); await assert.rejects(pending, { name: 'AbortError' });
+	assert.ok(borrowed!.every(value => value === 0)); assert.equal(harness.frameData.length, 0);
+});
+
+test('opaque renderer or delivery failure is retained while owned planes are wiped', async () => {
+	for (const stage of ['render', 'delivery'] as const) {
+		const harness = createHarness({ frameCount: 1 }), primary = Symbol(stage);
+		let borrowed: Uint8Array | undefined;
+		const request = { ...harness.request, rgbaColorSpace: 'rec709' as const,
+			producer: { byteLength: 32, produce(_frame: unknown, rgba: Uint8Array) { borrowed = rgba; rgba.fill(180); if (stage === 'render') throw primary; } },
+			write() { throw primary; } };
+		await assert.rejects(produceVideoWebCodecsStream(request), error => error === primary);
+		assert.ok(borrowed!.every(value => value === 0));
+		assert.ok(harness.frameData.every(bytes => bytes.every(value => value === 0)));
+	}
+});
+
+test('explicit admission captures producer storage length before native construction', async () => {
+	const harness = createHarness({ frameCount: 1 });
+	let reads = 0;
+	const producer = { ...harness.request.producer, get byteLength() { return ++reads === 1 ? 32 : 64; } };
+	await produceVideoWebCodecsStream({ ...harness.request, producer, rgbaColorSpace: 'rec709' });
+	assert.equal(reads,1); assert.equal(harness.frameData[0]!.byteLength,12);
+});
+
+test('detached owned renderer and delivery backings cannot replace their opaque failure', async () => {
+	for (const stage of ['render','delivery'] as const) {
+		const harness = createHarness({ frameCount: 1 }), primary = Symbol(stage);
+		const pending = produceVideoWebCodecsStream({ ...harness.request, rgbaColorSpace: 'srgb',
+			producer: { byteLength:32, produce(_frame,rgba) {
+				rgba.fill(180);
+				if (stage === 'render') { structuredClone(rgba.buffer,{transfer:[rgba.buffer]}); throw primary; }
+			} },
+			write() { const plane = harness.frameData[0]!; structuredClone(plane.buffer,{transfer:[plane.buffer]}); throw primary; },
+		});
+		await assert.rejects(pending,error => error === primary);
+		assert.equal(harness.closed,true);
+	}
+});
+
+test('cancellation joins a held writer before wiping its live I420 backing', async () => {
+	const harness = createHarness({ frameCount:1 }), controller = new AbortController();
+	const entered = deferred<void>(), release = deferred<void>();
+	let settled = false;
+	const pending = produceVideoWebCodecsStream({ ...harness.request, rgbaColorSpace:'rec709', signal:controller.signal,
+		producer: { byteLength:32, produce(_frame,rgba) { rgba.fill(180); } },
+		async write() { entered.resolve(); await release.promise; },
+	}).finally(() => { settled = true; });
+	await entered.promise; controller.abort(); await Promise.resolve();
+	assert.equal(settled,false); assert.equal(harness.frameData[0]![0],171);
+	release.resolve(); await assert.rejects(pending,{name:'AbortError'});
+	assert.ok(harness.frameData[0]!.every(value => value === 0));
+});
+
+test('cleanup uses intrinsic owned storage even when a failing borrower replaces its view prototype', async () => {
+	for (const stage of ['render','delivery'] as const) {
+		const harness = createHarness({frameCount:1}), primary = Symbol(stage);
+		await assert.rejects(produceVideoWebCodecsStream({ ...harness.request, rgbaColorSpace:'rec709',
+			producer: {byteLength:32,produce(_frame,rgba) { rgba.fill(180); if (stage === 'render') { Object.setPrototypeOf(rgba,null); throw primary; } }},
+			write() { Object.setPrototypeOf(harness.frameData[0]!,null); throw primary; },
+		}),error => error === primary);
+	}
+});

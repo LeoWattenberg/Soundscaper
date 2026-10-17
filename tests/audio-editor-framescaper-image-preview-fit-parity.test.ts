@@ -33,14 +33,17 @@ test('every delivery fit places a timeline image differently, so the preview mus
 });
 
 test('the baseline image preview composites through the delivery fit, as the export does', async () => {
-	const [preview, execution, panel, hook, runtime] = await Promise.all([
+	const [preview, facade, execution, panel, hook, runtime] = await Promise.all([
 		readFile(new URL('src/framescaper/editor-selected-timeline-image-image-preview.ts', ROOT), 'utf8'),
 		readFile(new URL('src/framescaper/video-export-image-execution-timeline-image.ts', ROOT), 'utf8'),
+		readFile(new URL('src/framescaper/video-export-image-execution-timeline-image-core.ts', ROOT), 'utf8'),
 		readFile(new URL('src/common/editor/ui/workspace/VideoPreviewPanel.jsx', ROOT), 'utf8'),
 		readFile(new URL('src/common/editor/ui/workspace/use-product-video-visual-preview-session.ts', ROOT), 'utf8'),
 		readFile(new URL('src/common/editor/ui/workspace/product-video-visual-preview-runtime.ts', ROOT), 'utf8'),
 	]);
 
+	assert.match(facade, /import \{ createTimelineImageExecutionCore \} from '\.\/video-export-image-execution-timeline-image-core\.ts';/u);
+	assert.match(facade, /return createTimelineImageExecutionCore\(options\);/u);
 	assert.match(execution, /fit: options\.foundationPlan\.output\.canvas\.fit/u);
 	assert.match(runtime, /readonly fit\?: VideoCanvasFit;/u);
 	assert.match(panel, /fit: referenceCanvas\.fit/u);
@@ -61,20 +64,28 @@ test('the finishing visual preview preserves the selected delivery fit', async (
 });
 
 test('finishing playback, exact preview, and export share one visual placement', async () => {
-	const [playback, exact, exportDriver, exportLedger] = await Promise.all([
+	const [playback, facade, exact, gradedPlacement, exportDriver, exportLedger] = await Promise.all([
 		readFile(new URL('src/framescaper/editor-selected-finishing-visual-preview.ts', ROOT), 'utf8'),
 		readFile(new URL('src/framescaper/selected-finishing-exact-frame-execution.ts', ROOT), 'utf8'),
+		readFile(new URL('src/framescaper/selected-finishing-exact-frame-core.ts', ROOT), 'utf8'),
+		readFile(new URL('src/framescaper/selected-finishing-managed-grade-frame.ts', ROOT), 'utf8'),
 		readFile(new URL('src/framescaper/video-export-exact-execution-finishing.ts', ROOT), 'utf8'),
 		readFile(new URL('src/framescaper/video-export-visual-execution-finishing.ts', ROOT), 'utf8'),
 	]);
 
-	for (const source of [playback, exact]) {
+	for (const source of [playback, gradedPlacement]) {
 		assert.match(source, /resolveFramescaperVisualPlacementFinishing/u);
 	}
+	assert.match(facade, /import \{ createSelectedExactFrameLegacyCore \} from '\.\/selected-finishing-exact-frame-core\.ts';/u);
+	assert.match(facade, /return createSelectedExactFrameLegacyCore\(options\);/u);
+	assert.match(exact, /createSelectedExactFrameLegacyCore = \(options:[^\n]+\) => createExecution\(options, false\);/u);
+	assert.match(exact, /from '\.\/selected-finishing-managed-grade-frame\.ts'/u);
+	assert.match(exact, /await placeFramescaperManagedGradedVisualFrameV1\(/u);
 	assert.match(exportDriver, /createFramescaperSelectedExactFrameExecutionFinishing/u);
 	assert.doesNotMatch(exportLedger, /resolveFramescaperVisualPlacementFinishing/u);
 	assert.doesNotMatch(exportLedger, /placeUnifiedExactLinearRgbaFrameV13/u);
 	assert.doesNotMatch(exact, /renderDescription: identityDescription\(width, height, entry\.blendMode\)/u);
+	assert.doesNotMatch(gradedPlacement, /renderDescription: identityDescription\(width, height, entry\.blendMode\)/u);
 	assert.doesNotMatch(exportLedger, /renderDescription: identityDescription\(width, height, entry\.blendMode\)/u);
 });
 

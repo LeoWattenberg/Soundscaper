@@ -24,4 +24,3 @@ test('Edit Duplicate creates an independent picture track for a generated Title'
 	await chooseCommandAction(page, editor, 'Edit', 'Redo');
 	await expect(clips).toHaveCount(2);
 });
-

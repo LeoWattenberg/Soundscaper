@@ -6,7 +6,7 @@ import {
 	normalizeProjectSampleRate,
 } from './project-foundation-validation.ts';
 import {
-	createMediaClip,
+	createMediaClip, createMediaClipV2,
 	createMediaSource,
 	createMediaTrack,
 } from './project-media-factory.ts';
@@ -56,6 +56,13 @@ const DEFAULT_TIMECODE = Object.freeze({ negative: false, hours: 0, minutes: 0, 
 export function createProjectFoundation(
 	options: ProjectFoundationOptions = {},
 ): DataRecord {
+	return createFoundation(options, false);
+}
+/** Fixed current Frame resource foundation; legacy creation remains strict. */
+export function createProjectFoundationForFrameV2(options: ProjectFoundationOptions = {}): DataRecord {
+	return createFoundation(options, true);
+}
+function createFoundation(options: ProjectFoundationOptions, resourceV2: boolean): DataRecord {
 	const input = options as Readonly<DataRecord>;
 	const base = createProjectDocumentBase(options);
 	const sampleRate = normalizeProjectSampleRate(base.sampleRate);
@@ -96,14 +103,14 @@ export function createProjectFoundation(
 	);
 	const clips = arrayOr(input.clips, []).map((value) => {
 		const clip = dataRecord(value, 'clip');
-		return createMediaClip(clip, contextFor(clip));
+		return (resourceV2 ? createMediaClipV2 : createMediaClip)(clip, contextFor(clip));
 	});
 	const projectBinInput = input.projectBin == null
 		? {}
 		: dataRecord(input.projectBin, 'project.projectBin');
 	const binClips = arrayOr(projectBinInput.clips, []).map((value) => {
 		const clip = dataRecord(value, 'projectBin clip');
-		const created = createMediaClip(clip, contextFor(clip));
+		const created = (resourceV2 ? createMediaClipV2 : createMediaClip)(clip, contextFor(clip));
 		return { ...created, binItemId: clip.binItemId || created.id };
 	});
 	const graph = { sources, clips, tracks };

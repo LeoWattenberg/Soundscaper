@@ -13,7 +13,7 @@ import type {
 import { sameProjectSnapshot } from '../common/editor/storage/project-snapshot-equality.ts';
 import { FRAMESCAPER_FINISHING_PROJECT_RUNTIME_PROFILE } from './editor-domain-runtime-profile.ts';
 import { framescaperProjectFinishingFoundationShapeNativeMedia } from './editor-project-native-media-foundation.ts';
-import { validateFramescaperProjectNativeMedia, type FramescaperProjectNativeMedia } from './editor-project-native-media.ts';
+import { cloneFramescaperProjectNativeMedia, validateFramescaperProjectNativeMedia, type FramescaperProjectNativeMedia } from './editor-project-native-media.ts';
 import {
 	createFramescaperVideoExportStrategyFinishing,
 	type FramescaperVideoExportStrategyFinishingDependencies,
@@ -24,9 +24,12 @@ import type {
 import type { FramescaperVideoExportVisualAssetStoreFinishing } from './video-export-visual-execution-finishing.ts';
 import type { FramescaperSelectedOpenFxExecutionNativeMedia } from './selected-native-media-openfx-exact-planes.ts';
 import { createFramescaperOpenFxExecutionForFoundationNativeMedia } from './selected-native-media-openfx-execution.ts';
+import { createFramescaperOpenFxExecutionForResourceFoundationV16 } from './selected-native-media-openfx-resource-v16.ts';
+import type { CreateFramescaperOpenFxExactExecutionV16, CreateFramescaperSupplementalPictureExecutionV16 } from './video-export-exact-execution-v16.ts';
 
 interface ExportAuthorityNativeMedia {
 	readonly canonicalProject: Readonly<Record<string, unknown>>;
+	readonly canonicalSnapshot: FramescaperProjectNativeMedia;
 	readonly inheritedProject: Readonly<Record<string, unknown>>;
 }
 
@@ -40,6 +43,7 @@ export function createFramescaperVideoExportStrategyNativeMedia(
 	assetStore?: FramescaperVideoExportVisualAssetStoreFinishing,
 	openFxExecute?: FramescaperSelectedOpenFxExecutionNativeMedia['execute'],
 	createSupplementalPictureExecution?: CreateFramescaperVideoExportSupplementalPictureExecutionFinishing,
+	createSupplementalPictureExecutionV16?: CreateFramescaperSupplementalPictureExecutionV16,
 ): ProductVideoExportStrategy {
 	const authorities = new Map<string, WeakRef<ExportAuthorityNativeMedia>>();
 	const authorityFinalizer = new FinalizationRegistry<Readonly<{
@@ -68,9 +72,24 @@ export function createFramescaperVideoExportStrategyNativeMedia(
 				canonicalProject: authority.canonicalProject,
 			});
 		};
+	const createOpenFxExecutionV16: CreateFramescaperOpenFxExactExecutionV16 | undefined = openFxExecute === undefined ? undefined
+		: ({ foundationPlan, timingViews }) => {
+			const authority = authorities.get(projectKey(foundationPlan.project))?.deref();
+			if (!authority) throw new Error('Selected current OpenFX export lost its native project authority.');
+			return createFramescaperOpenFxExecutionForResourceFoundationV16({ profile,
+				project: authority.canonicalProject as unknown as FramescaperProjectNativeMedia,
+				foundationPlan, timingViews, execute: openFxExecute });
+		};
+	const supplementalV16: CreateFramescaperSupplementalPictureExecutionV16 | undefined = createSupplementalPictureExecutionV16 === undefined ? undefined
+		: options => {
+			const authority = foundationAuthorities.get(options.canonicalProject);
+			if (!authority) throw new Error('Selected current supplemental export lost its native project authority.');
+			return createSupplementalPictureExecutionV16({ ...options, canonicalProject: authority.canonicalProject });
+		};
 	const delegate = createFramescaperVideoExportStrategyFinishing(
 		FRAMESCAPER_FINISHING_PROJECT_RUNTIME_PROFILE, dependencies, assetStore, createOpenFxExecution,
-		createSupplementalExecution,
+		createSupplementalExecution, { ...(createOpenFxExecutionV16 ? { createOpenFxExecution: createOpenFxExecutionV16 } : {}),
+			...(supplementalV16 ? { createSupplementalPictureExecution: supplementalV16 } : {}) },
 	);
 	const exports = new WeakMap<object, ExportAuthorityNativeMedia>();
 	const plans = new WeakMap<object, ExportAuthorityNativeMedia>();
@@ -135,6 +154,7 @@ function projectAuthority(
 	assertBrowserFoundationOnly(project, allowOpenFx);
 	return Object.freeze({
 		canonicalProject: project,
+		canonicalSnapshot: cloneFramescaperProjectNativeMedia(profile, project),
 		inheritedProject: framescaperProjectFinishingFoundationShapeNativeMedia(project),
 	});
 }
@@ -152,7 +172,8 @@ function currentAuthority(
 		throw new TypeError('The browser export projection is not owned by this exact nativeMedia project.');
 	}
 	const current = projectAuthority(profile, request.canonicalProject, true);
-	if (!sameProjectSnapshot(current.inheritedProject, authority.inheritedProject)) {
+	if (!sameProjectSnapshot(request.canonicalProject, authority.canonicalSnapshot)
+		|| !sameProjectSnapshot(current.inheritedProject, authority.inheritedProject)) {
 		throw new Error('The selected nativeMedia browser export projection is stale.');
 	}
 	return authority;

@@ -13,7 +13,7 @@ import {
 	type ProjectFeatureRequirementsReport,
 } from '../common/editor/project-feature-requirements.ts';
 import { normalizeFramescaperProjectFeatureManifest } from './editor-project-feature-manifest-context.ts';
-import { normalizeVideoKeyframeCurves } from '../common/editor/video-keyframe-curves.ts';
+import { normalizeVideoKeyframeCurvesV2 as normalizeVideoKeyframeCurves } from '../common/editor/video-keyframe-curves-v2.ts';
 import {
 	FRAMESCAPER_RETIME_PROJECT_FEATURE_CAPABILITY_PROFILE,
 } from './editor-project-feature-capability-profile-retime.ts';

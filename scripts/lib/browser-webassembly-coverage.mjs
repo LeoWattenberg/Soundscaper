@@ -5,9 +5,10 @@ import { lstat, readFile, realpath } from 'node:fs/promises';
 import { isAbsolute, resolve, sep } from 'node:path';
 
 import { repositoryRevision } from './e2e-coverage-integrity.mjs';
+import { PRODUCT_IDS as REGISTERED_PRODUCT_IDS } from '../../src/common/product-identities.js';
 
 const BUILD_EVIDENCE = '.browser-product-build.json';
-const PRODUCT_IDS = new Set(['framescaper', 'soundscaper']);
+const PRODUCT_IDS = new Set(REGISTERED_PRODUCT_IDS);
 const REVISION = /^[a-f\d]{40}$/u;
 const SHA256 = /^[a-f\d]{64}$/u;
 const WASM_PATH = /^(?:[A-Za-z\d][A-Za-z\d._~-]*\/)*[A-Za-z\d][A-Za-z\d._~-]*\.wasm$/u;
@@ -24,7 +25,7 @@ const WASM_PATH = /^(?:[A-Za-z\d][A-Za-z\d._~-]*\/)*[A-Za-z\d][A-Za-z\d._~-]*\.w
  *   sites?: Array<{
  *     origin: string,
  *     outputDirectory: string,
- *     productId: 'framescaper' | 'soundscaper',
+ *     productId: 'framescaper' | 'soundscaper' | 'lightscaper',
  *   }>,
  * }} options
  */

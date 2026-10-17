@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { resolveVideoKeyframePreviewState } from '../../video-keyframe-preview-state.ts';
+import { resolveVideoKeyframePreviewStateCurrent } from '../../video-keyframe-preview-state-v2.ts';
 import { resolveVideoSourceDisplaySize } from '../../video-source-presentation.ts';
 import { drawableVideoIntervalInteriorSeconds } from '../../video-drawable-interval.ts';
 import { resolveVideoTransitionPreviewOpacity } from '../../video-transition-preview-opacity.js';
@@ -201,7 +201,7 @@ function resolveKeyframeStates(interval, timeline, timelineFrame) {
 	for (const layer of interval.layers) {
 		for (const clip of layer.clips) {
 			if (!timeline.clipStateById.get(clip.clipId)?.available) continue;
-			const state = resolveVideoKeyframePreviewState(timeline.keyframeStateProvider, {
+			const state = resolveVideoKeyframePreviewStateCurrent(timeline.keyframeStateProvider, {
 				clip: clip.clip,
 				timelineSample: timelineFrame,
 				sourceDisplaySize: resolveVideoSourceDisplaySize(clip.source),

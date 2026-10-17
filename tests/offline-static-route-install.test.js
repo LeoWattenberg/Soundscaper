@@ -107,9 +107,26 @@ test('a configured Framescaper site overrides the default origin without disturb
 
 test('an unknown build product is refused rather than silently served as Soundscaper', async (context) => {
 	await assert.rejects(
-		() => generateRoutes(context, { SCAPE_PRODUCT: 'lightscaper' }),
-		/Unsupported web build product: lightscaper/u,
+		() => generateRoutes(context, { SCAPE_PRODUCT: 'unknown-editor' }),
+		/Unsupported web build product: unknown-editor/u,
 	);
+});
+
+test('a Lightscaper route installs its own branding at its origin root with capture sealed', async (context) => {
+	const outputRoot = await generateRoutes(context, { SCAPE_PRODUCT: 'lightscaper' });
+	for (const path of ['index.html', 'en/index.html', 'embed/de/index.html']) {
+		const html = await readFile(join(outputRoot, path), 'utf8');
+		assertInstallLinks(html, 'lightscaper');
+		assert.match(html, /data-product="lightscaper"/u);
+		assert.match(html, /<title>Lightscaper<\/title>/u);
+		assert.doesNotMatch(html, /manifest-soundscaper|manifest-framescaper/u);
+	}
+	const html = await readFile(join(outputRoot, 'en/index.html'), 'utf8');
+	assert.match(html, /<link rel="canonical" href="https:\/\/lightscaper\.org\/en\/" \/>/u);
+	const headers = await readFile(join(outputRoot, '_headers'), 'utf8');
+	assert.match(headers, /Permissions-Policy: microphone=\(\), speaker-selection=\(\), display-capture=\(\), camera=\(\), geolocation=\(\)/u);
+	assert.match(headers, /\/service-worker\.js\n\tCache-Control: no-store\n\tService-Worker-Allowed: \/\n/u);
+	assert.equal(await readFile(join(outputRoot, 'lightscaper/en/index.html')).catch(() => null), null);
 });
 
 test('every product document tells the browser and iOS what an installed launch looks like', async (context) => {
@@ -285,6 +302,6 @@ function occurrences(html, needle) {
 function assertInstallLinks(html, productId) {
 	assert.match(html, new RegExp(`<link rel="manifest" href="/manifest-${productId}\\.webmanifest" data-product-manifest \\/>`, 'u'));
 	assert.match(html, new RegExp(`<link rel="apple-touch-icon" sizes="180x180" href="/offline-icons/${productId}-180\\.png" data-product-install-icon \\/>`, 'u'));
-	const name = productId === 'framescaper' ? 'Framescaper' : 'Soundscaper';
+	const name = `${productId.charAt(0).toUpperCase()}${productId.slice(1)}`;
 	assert.match(html, new RegExp(`<meta name="apple-mobile-web-app-title" content="${name}" data-product-install-title \\/>`, 'u'));
 }

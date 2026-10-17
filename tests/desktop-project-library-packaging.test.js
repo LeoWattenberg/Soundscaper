@@ -59,6 +59,10 @@ test('desktop runtime compilation emits importable JavaScript with rewritten ext
 	assert.equal(result.files.includes('src/common/editor/pffft.js'), true);
 	assert.equal(result.files.includes('src/common/editor/native-plugin-realtime-contract.js'), true);
 	assert.equal(result.files.includes('src/common/editor/native-plugin-realtime-worklet.js'), true);
+	const riffText = await import(pathToFileURL(join(
+		outputRoot, 'src/common/editor/riff-metadata-text.js',
+	)).href);
+	assert.equal(riffText.decodeRiffMetadataText(new Uint8Array([0x80, 0]), 1252), '€');
 	const packagedNativePluginPlayback = await readFile(join(
 		outputRoot, 'src/soundscaper/editor-native-plugin-playback.js',
 	), 'utf8');

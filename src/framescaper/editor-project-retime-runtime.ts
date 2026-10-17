@@ -8,8 +8,8 @@ import {
 } from '../common/editor/runtime-clip-projection.ts';
 import { cloneVideoClipComposition } from '../common/editor/video-clip-composition.ts';
 import {
-	normalizeVideoKeyframeCurves,
-} from '../common/editor/video-keyframe-curves.ts';
+	normalizeVideoKeyframeCurvesV2 as normalizeVideoKeyframeCurves,
+} from '../common/editor/video-keyframe-curves-v2.ts';
 import {
 	framescaperProjectFeatureRequirementsForCompositionFoundationRetime,
 } from './editor-project-feature-requirements-retime.ts';

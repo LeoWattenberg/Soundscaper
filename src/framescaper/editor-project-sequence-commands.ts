@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { applyEditorCommand } from '../common/editor/commands.js';
+import { applyFrameResourceFoundationCommandV2 as applyEditorCommand } from '../common/editor/commands/frame-resource-command-v2.ts';
 import { retainFramescaperMulticameraSourcesSequence } from './editor-multicamera-source-retention-sequence.ts';
 import { FRAMESCAPER_PROJECT_SCHEMA_FAMILY } from '../common/editor/project-schema-identity.ts';
 import type { EditorProjectRuntimeProfile } from '../common/editor/project-runtime-profile.ts';

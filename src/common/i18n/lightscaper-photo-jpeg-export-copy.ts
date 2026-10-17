@@ -1,0 +1,33 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+
+const EN = Object.freeze({ title: 'Export JPEG', description: 'Save the selected photo’s current version as a JPEG at 90% quality. Only opaque images are supported; use PNG for transparency. Metadata is stripped by default.',
+	save: 'Save JPEG', close: 'Close', preparing: 'Preparing export…', working: 'Exporting…',
+	saved: 'JPEG saved: {name}', downloadStarted: 'Download started: {name}. Check your browser’s downloads.',
+	cancelled: 'Export cancelled.', failed: 'The JPEG export failed. Close and reopen Export JPEG to try again.',
+	summary: '{width} × {height} pixels · {bytes} bytes', fileType: 'JPEG image',
+	outputSize: 'Output dimensions', originalSize: 'Original dimensions', fitSize: 'Fit within', longEdgeSize: 'Long edge', megapixelsSize: 'Megapixels', percentageSize: 'Percentage',
+	width: 'Maximum width (pixels)', height: 'Maximum height (pixels)', pixels: 'Long edge (pixels)', megapixels: 'Megapixels', percentage: 'Percentage', allowUpscale: 'Allow upscaling',
+	resample: 'Resampling', nearest: 'Nearest neighbor', bilinear: 'Bilinear', filenameTemplate: 'Filename template',
+	filenameHelp: 'Use {name}, {index}, or {index:3}. Double braces write a literal brace. The selected format supplies the extension.', invalidSettings: 'Check the output settings and filename template.',
+	metadata: 'Metadata', stripMetadata: 'Strip (default)', captureMetadata: 'Include capture EXIF',
+	metadataHelp: 'Capture includes admitted camera, lens, exposure and capture-time EXIF facts. Output dimensions and orientation are rebuilt. GPS, MakerNotes, XMP and authored text are excluded; unsupported ASCII or numeric fields refuse export.',
+	metadataFailed: 'Capture metadata could not be included. Choose Strip to export without it.',
+	sidecar: 'Download a Lightscaper develop + metadata sidecar', sidecarHelp: 'Optional JSON records the saved version and metadata. It contains no original or LUT bodies and no output-only settings. The image and JSON are separate downloads; this is not an Adobe sidecar.',
+	sidecarSaved: 'Sidecar download started: {name}. Check your browser’s downloads.', sidecarPartial: 'The image is already saved or its download has started. The sidecar was not downloaded. Retry only the sidecar or close this dialog.', sidecarRetry: 'Retry sidecar download',
+	outputSharpen: 'Sharpen output after resizing', sharpenAmount: 'Sharpening amount (%)', sharpenThreshold: 'Sharpening threshold (0–255)' });
+const DE = Object.freeze({ title: 'JPEG exportieren', description: 'Die aktuelle Version des ausgewählten Fotos als JPEG mit 90 % Qualität speichern. Nur vollständig deckende Bilder werden unterstützt; verwenden Sie PNG für Transparenz. Metadaten werden standardmäßig entfernt.',
+	save: 'JPEG speichern', close: 'Schließen', preparing: 'Export wird vorbereitet…', working: 'Wird exportiert…',
+	saved: 'JPEG gespeichert: {name}', downloadStarted: 'Download gestartet: {name}. Prüfen Sie die Downloads Ihres Browsers.',
+	cancelled: 'Export abgebrochen.', failed: 'Der JPEG-Export ist fehlgeschlagen. Schließen und öffnen Sie den Export erneut.',
+	summary: '{width} × {height} Pixel · {bytes} Bytes', fileType: 'JPEG-Bild',
+	outputSize: 'Ausgabegröße', originalSize: 'Originalgröße', fitSize: 'Einpassen', longEdgeSize: 'Lange Kante', megapixelsSize: 'Megapixel', percentageSize: 'Prozent',
+	width: 'Maximale Breite (Pixel)', height: 'Maximale Höhe (Pixel)', pixels: 'Lange Kante (Pixel)', megapixels: 'Megapixel', percentage: 'Prozent', allowUpscale: 'Vergrößern erlauben',
+	resample: 'Neuberechnung', nearest: 'Nächster Nachbar', bilinear: 'Bilinear', filenameTemplate: 'Dateinamenvorlage',
+	filenameHelp: 'Verwenden Sie {name}, {index} oder {index:3}. Doppelte Klammern schreiben eine einzelne Klammer. Das gewählte Format ergänzt die Endung.', invalidSettings: 'Prüfen Sie die Ausgabe-Einstellungen und die Dateinamenvorlage.',
+	metadata: 'Metadaten', stripMetadata: 'Entfernen (Standard)', captureMetadata: 'Aufnahme-EXIF übernehmen',
+	metadataHelp: 'Aufnahme übernimmt zugelassene EXIF-Angaben zu Kamera, Objektiv, Belichtung und Aufnahmezeit. Ausgabegröße und Ausrichtung werden neu geschrieben. GPS, MakerNotes, XMP und eigener Text bleiben ausgeschlossen; nicht unterstützte ASCII- oder Zahlenfelder verhindern den Export.',
+	metadataFailed: 'Aufnahme-Metadaten konnten nicht übernommen werden. Wählen Sie Entfernen, um ohne sie zu exportieren.',
+	sidecar: 'Lightscaper-Sidecar mit Entwicklung und Metadaten herunterladen', sidecarHelp: 'Optionales JSON enthält die gespeicherte Version und Metadaten, keine Original- oder LUT-Dateien und keine reinen Ausgabe-Einstellungen. Bild und JSON werden getrennt heruntergeladen; dies ist kein Adobe-Sidecar.',
+	sidecarSaved: 'Sidecar-Download gestartet: {name}. Prüfen Sie die Downloads Ihres Browsers.', sidecarPartial: 'Das Bild wurde bereits gespeichert oder sein Download gestartet. Das Sidecar wurde nicht heruntergeladen. Laden Sie nur das Sidecar erneut herunter oder schließen Sie den Dialog.', sidecarRetry: 'Sidecar-Download wiederholen',
+	outputSharpen: 'Ausgabe nach dem Skalieren schärfen', sharpenAmount: 'Stärke der Schärfung (%)', sharpenThreshold: 'Schwellenwert der Schärfung (0–255)' });
+export function photoJpegExportCopy(locale: string) { return locale.toLowerCase().split('-')[0] === 'de' ? DE : EN; }

@@ -22,8 +22,8 @@ import {
 	type HoldTempoMap,
 	type Rational,
 } from '../timeline-time.ts';
+import type { CurrentAudioEditorClipboardDescriptor } from './clipboard-command-v2.ts';
 import type {
-	AudioEditorClipboard,
 	AudioEditorClipboardAnnotation,
 } from './protocol.ts';
 
@@ -133,7 +133,7 @@ export function stageTimelineAnnotationInsertMutation(
 /** Validate ID/sequence maps and stage expansion plus additions as one projected replacement. */
 export function stageTimelineAnnotationClipboardPaste(
 	projectValue: unknown,
-	clipboard: AudioEditorClipboard,
+	clipboard: CurrentAudioEditorClipboardDescriptor,
 	commandValue: unknown,
 	mode: string,
 	geometry: TimelineAnnotationClipboardPasteGeometry,
@@ -219,7 +219,7 @@ function annotationDescriptor(
 
 function validateCurrentMaps(
 	project: MutableClipboardAnnotationProject,
-	clipboard: AudioEditorClipboard,
+	clipboard: CurrentAudioEditorClipboardDescriptor,
 	command: DataRecord,
 ): ValidatedAnnotationPasteMaps {
 	const annotations = clipboard.annotations || [];

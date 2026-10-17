@@ -5,7 +5,9 @@ import test from 'node:test';
 
 import {
 	classifyProjectSchemaIdentity,
+	isTimelineProjectSchemaFamily,
 	FRAMESCAPER_PROJECT_SCHEMA_FAMILY,
+	LIGHTSCAPER_PROJECT_SCHEMA_FAMILY,
 	PROJECT_SCHEMA_FAMILIES,
 	PROJECT_SCHEMA_VERSION,
 	ProjectReimportRequiredError,
@@ -17,7 +19,8 @@ test('the 1.0 project identity is family-qualified and exact', () => {
 	assert.equal(PROJECT_SCHEMA_VERSION, 1);
 	assert.equal(SOUNDSCAPER_PROJECT_SCHEMA_FAMILY, 'soundscaper');
 	assert.equal(FRAMESCAPER_PROJECT_SCHEMA_FAMILY, 'framescaper');
-	assert.deepEqual(PROJECT_SCHEMA_FAMILIES, ['soundscaper', 'framescaper']);
+	assert.equal(LIGHTSCAPER_PROJECT_SCHEMA_FAMILY, 'lightscaper');
+	assert.deepEqual(PROJECT_SCHEMA_FAMILIES, ['soundscaper', 'framescaper', 'lightscaper']);
 	assert.equal(Object.isFrozen(PROJECT_SCHEMA_FAMILIES), true);
 
 	for (const schemaFamily of PROJECT_SCHEMA_FAMILIES) {
@@ -68,6 +71,9 @@ test('numeric-only pre-baseline documents require re-import', () => {
 });
 
 test('known foreign and future identities are classified without domain traversal', () => {
+	assert.equal(isTimelineProjectSchemaFamily('lightscaper'), false);
+	assert.equal(isTimelineProjectSchemaFamily('soundscaper'), true);
+	assert.equal(isTimelineProjectSchemaFamily('framescaper'), true);
 	const foreign = classifyProjectSchemaIdentity({
 		schemaFamily: 'framescaper',
 		schemaVersion: 1,
@@ -93,6 +99,10 @@ test('known foreign and future identities are classified without domain traversa
 	}, 'soundscaper').disposition, 'current');
 	assert.throws(() => readProjectSchemaIdentity({
 		schemaFamily: 'unknown', schemaVersion: 1,
+	}), /schema family/iu);
+	assert.throws(() => readProjectSchemaIdentity({
+		schemaFamily: { toString() { assert.fail('Unknown identity values must not execute conversion methods.'); } },
+		schemaVersion: 1,
 	}), /schema family/iu);
 	for (const schemaVersion of [0, -1, 1.5, Number.MAX_SAFE_INTEGER + 1, '1']) {
 		assert.throws(() => readProjectSchemaIdentity({

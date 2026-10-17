@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import type { ExactConsumerPlanCore } from '../common/editor/unified-exact-render-consumer-plan-core.ts';
 import { confirmFileSizeWarning, type FileSizeWarningOptions } from '../common/editor/controller/shared/file-size-warning.ts';
 import { sha256 } from '@noble/hashes/sha2.js';
 import { bytesToHex } from '@noble/hashes/utils.js';
@@ -11,7 +12,6 @@ import {
 import type { UnifiedExactRenderVisualRgbaV13 } from '../common/editor/unified-exact-render-visual-materializer-v13.ts';
 import type {
 	UnifiedExactRenderFinishingNode,
-	UnifiedExactRenderPlanV13,
 } from '../common/editor/unified-exact-render-plan.ts';
 import type { FramescaperVideoExportFinishingAssetStoreFinishing } from './video-export-finishing-finishing.ts';
 
@@ -40,7 +40,7 @@ const MAXIMUM_VISUAL_ASSET_BYTES = 512 * 1024 * 1024;
 /** Authenticate and decode all external still and LUT bodies before frame execution. */
 export async function loadFramescaperVideoExportVisualAssetsFinishing(
 	request: LoadRequest,
-	plan: UnifiedExactRenderPlanV13,
+	plan: ExactConsumerPlanCore,
 	finishing: UnifiedExactRenderFinishingNode,
 ): Promise<FramescaperVideoExportVisualAssetsFinishing> {
 	const stillSources = unique(plan.nodes.flatMap((node) => (

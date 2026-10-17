@@ -107,7 +107,7 @@ jobs:
       # shared tests run in two stable filename-hash partitions. Wait for lint
       # and typecheck so a static-check failure does not burn the test runners.
       matrix:
-        shard: [common-1, common-2, framescaper, soundscaper]
+        shard: [common-1, common-2, framescaper, soundscaper, lightscaper]
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
@@ -169,6 +169,10 @@ jobs:
       - name: Provision pinned Boost closure for Framescaper native tests
         if: matrix.shard == 'framescaper'
         run: node scripts/ci-provision-framescaper-boost.mjs
+
+      - name: Provision pinned Lightscaper RAW fixtures
+        if: matrix.shard == 'lightscaper'
+        run: node scripts/provision-lightscaper-raw-fixtures.mjs
 
       - name: Restore Electron binary for the desktop protocol test
         if: matrix.shard == 'common-2'

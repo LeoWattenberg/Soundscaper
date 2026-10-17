@@ -165,6 +165,8 @@ export function shareTargetPath(configuration) {
  * POST interceptor for its own origin.
  */
 export function isShareTargetSubmission(request, origin, configuration) {
+	// The initial photo shell has no receiving workflow or manifest share target.
+	if (configuration?.productId === 'lightscaper') return false;
 	if (!request || request.method !== 'POST' || typeof request.url !== 'string') return false;
 	let url;
 	try {

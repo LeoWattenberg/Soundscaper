@@ -35,9 +35,9 @@ test('a Framescaper build serves itself from its origin root and crosses origins
 });
 
 test('product web links fail closed on an unknown product on either side of the link', () => {
-	assert.throws(() => productHref('lightscaper', 'en', { builtProductId: 'soundscaper' }), /Unsupported editor product/u);
-	assert.throws(() => productHref('soundscaper', 'en', { builtProductId: 'lightscaper' }), /Unsupported editor product/u);
-	assert.throws(() => productWebOrigin('lightscaper'), /Unsupported editor product/u);
+	assert.throws(() => productHref('unknown', 'en', { builtProductId: 'soundscaper' }), /Unsupported editor product/u);
+	assert.throws(() => productHref('soundscaper', 'en', { builtProductId: 'unknown' }), /Unsupported editor product/u);
+	assert.throws(() => productWebOrigin('unknown'), /Unsupported editor product/u);
 });
 
 test('the locale segment is encoded rather than interpolated raw', () => {
@@ -69,4 +69,3 @@ test('a link falls back to the built product and can address the embedded route'
 	// An absent locale is the default rather than an empty segment.
 	assert.equal(productHref('soundscaper', '', { builtProductId: 'soundscaper' }), '/en/');
 });
-

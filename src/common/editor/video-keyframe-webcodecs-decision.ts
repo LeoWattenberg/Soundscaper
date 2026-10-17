@@ -1,9 +1,10 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { captureVideoWebCodecsRgbaColorSpace } from './video-webcodecs-producer.ts';
 import type { VideoKeyframeWebCodecsEncode } from './video-keyframe-webcodecs-execution.ts';
 
 const NAME = 'video keyframe WebCodecs decision';
-const FIELDS = new Set(['codec', 'bitrate', 'encoderClass', 'videoFrameClass', 'hardwareAcceleration']);
+const FIELDS = new Set(['codec', 'bitrate', 'encoderClass', 'videoFrameClass', 'hardwareAcceleration', 'rgbaColorSpace']);
 
 /** Capture the exact encoder decision before any native or streamed execution. */
 export function validateVideoKeyframeWebCodecsDecision(value: unknown): VideoKeyframeWebCodecsEncode {
@@ -37,8 +38,10 @@ export function validateVideoKeyframeWebCodecsDecision(value: unknown): VideoKey
 	if (hasHardwarePreference && data(value, 'hardwareAcceleration') !== 'prefer-hardware') {
 		throw new TypeError(`${NAME}.hardwareAcceleration must be prefer-hardware.`);
 	}
+	const rgbaColorSpace = captureVideoWebCodecsRgbaColorSpace(value);
 	return Object.freeze({
 		codec, bitrate, encoderClass, videoFrameClass,
+		...(rgbaColorSpace === undefined ? {} : { rgbaColorSpace }),
 		...(hasHardwarePreference ? { hardwareAcceleration: 'prefer-hardware' as const } : {}),
 	});
 }

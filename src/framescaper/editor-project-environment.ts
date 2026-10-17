@@ -41,6 +41,7 @@ export interface FramescaperEditorProjectEnvironment {
 	readonly desktopProjectLibrary: FramescaperDesktopProjectLibraryRenderer | null;
 	readonly playback: PlaybackProjectService;
 	readonly timelineImages: FramescaperProjectStoreAuthority['timelineImages'];
+	readonly hdrImages: FramescaperProjectStoreAuthority['hdrImages'];
 	readonly claimCleanup: FramescaperProjectSequenceClaimCleanupRepository;
 	readonly videoProxyCleanup: FramescaperVideoProxyCleanupCoordinatorRetime;
 	readonly initialCleanup: Readonly<FramescaperProjectSequenceClaimCleanupResult>;
@@ -108,6 +109,7 @@ export async function createFramescaperEditorProjectEnvironment(
 				{ timingStore: store },
 			),
 			timelineImages: authority.timelineImages,
+			hdrImages: authority.hdrImages,
 			createProjectIfAbsent: controllerStore === store
 				? async (project: ProjectDocument, publicationOptions: FileSizeWarningOptions = {}) => {
 					await admitProjectPublication(store, project, publicationOptions);

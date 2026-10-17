@@ -28,6 +28,8 @@ import {
 	recordVideoPreviewLayerRendered,
 } from './video-preview-render-ledger.js';
 import { videoPreviewViewports } from './video-preview-viewports.js';
+import { bindVideoCurvesGpu } from '../controller/clip-video/video-curves-gpu.ts';
+import { bindVideoColorWheelsGpu } from '../controller/clip-video/video-color-wheels-gpu.ts';
 import {
 	createVideoPreviewCompositionBlendRuntime,
 	disposeVideoPreviewCompositionBlendRuntime,
@@ -50,6 +52,9 @@ import {
 import { resolveVideoPreviewCompositorSize } from './video-preview-compositor-size.js';
 import { compositeVideoPreviewAdjustedLayer } from './video-preview-layer-effects.js';
 import { applyVideoPreviewEntryEffects } from './video-preview-entry-effects.js';
+import { bindVideoPreviewEffectParameters } from './video-preview-effect-parameters.ts';
+import { bindImageGeometryVideoUniformsV1 } from './video-preview-image-geometry-v1.ts';
+import { bindVideoGlobalDevelopGpu, disposeVideoGlobalDevelopGpu } from '../controller/clip-video/video-global-develop-gpu.ts';
 
 export {
 	VIDEO_PREVIEW_MAX_GAUSSIAN_BLUR_KERNEL_SIGMA,
@@ -63,7 +68,6 @@ const COPY_PASS = Object.freeze({});
 const FINAL_YUV420_PASS = Object.freeze({ code: 7 });
 const EMPTY_EFFECTS = Object.freeze([]);
 const ZERO_VECTOR_2 = Object.freeze([0, 0]);
-const ZERO_VECTOR_4 = Object.freeze([0, 0, 0, 0]);
 const SUPPORTED_EFFECT_TYPES = new Set(Object.keys(EFFECT_CODES));
 
 /**
@@ -128,6 +132,7 @@ export class VideoPreviewCompositor {
 	}
 
 	initializeResources() {
+		disposeVideoGlobalDevelopGpu(this.gl);
 		this.effectResultCache.clear();
 		this.programs = Array.from(
 			{ length: EFFECT_PROGRAM_COUNT },
@@ -241,6 +246,9 @@ export class VideoPreviewCompositor {
 			gl.vertexAttribPointer(locations.position, 2, gl.FLOAT, false, 0, 0);
 			this.currentProgram = program;
 		}
+		if (effectCode === 18 || effectCode === 19) bindVideoGlobalDevelopGpu(gl, locations.globalLookup, pass);
+		if (effectCode === 24 || effectCode === 25) bindVideoCurvesGpu(gl, locations.globalLookup, pass);
+		if (effectCode === 26) bindVideoColorWheelsGpu(gl, locations.globalLookup, pass);
 		gl.bindFramebuffer(gl.FRAMEBUFFER, target?.framebuffer || null);
 		if (viewport) gl.viewport(viewport.x, viewport.y, viewport.width, viewport.height);
 		else gl.viewport(0, 0, targetWidth, targetHeight);
@@ -288,8 +296,10 @@ export class VideoPreviewCompositor {
 			);
 		} else gl.uniform4f(locations.sourceRect, 0, 0, 1, 1);
 		gl.uniform2fv(locations.direction, pass.direction || ZERO_VECTOR_2);
-		gl.uniform4fv(locations.params0, pass.params0 || ZERO_VECTOR_4);
-		gl.uniform4fv(locations.params1, pass.params1 || ZERO_VECTOR_4);
+		bindVideoPreviewEffectParameters(gl, locations, pass);
+		if (pass.geometry) bindImageGeometryVideoUniformsV1(gl, locations, pass.geometry,
+			sourceContentViewport?.width || contentViewport?.width || targetWidth,
+			sourceContentViewport?.height || contentViewport?.height || targetHeight);
 		const blurKernel = pass[BLUR_KERNEL];
 		if (blurKernel && blurKernel !== this.boundBlurKernel) {
 			gl.uniform2fv(locations.blurPairs, blurKernel.pairs);
@@ -520,6 +530,7 @@ export class VideoPreviewCompositor {
 		this.gl.deleteBuffer(this.positionBuffer);
 		for (const program of this.programs) this.gl.deleteProgram(program);
 		disposeVideoPreviewCompositionBlendRuntime(this.gl, this.compositionBlend);
+		disposeVideoGlobalDevelopGpu(this.gl);
 	}
 }
 

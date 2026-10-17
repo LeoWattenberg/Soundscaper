@@ -189,6 +189,11 @@ export function renderReferenceDocuments(sources) {
 		scapeFormat, video, videoEffects, workspaces,
 	} = sources;
 	const productProfiles = products.PRODUCT_IDS.map((id) => products.PRODUCT_PROFILES[id]);
+	// The photo shell has a separate menu/controller and no shared timeline
+	// project workflow. Its profile belongs in the capability matrix, while
+	// these editor-specific inventories require the implemented project route.
+	const sharedEditorProfiles = productProfiles.filter((product) => product.capabilities.project === true
+		&& product.enabledCommands.includes('timeline'));
 	const englishCopy = copy.COPY_BY_LOCALE.en;
 	const workspaceEnglishCopy = Object.freeze({
 		...englishCopy,
@@ -199,7 +204,7 @@ export function renderReferenceDocuments(sources) {
 		['commands.md', renderCommandReference({
 			manifest: actions.AUDACITY_ACTION_MANIFEST,
 			implementedStatus: actions.AUDACITY_ACTION_STATUS.IMPLEMENTED,
-			products: productProfiles,
+			products: sharedEditorProfiles,
 			source: actions.AUDACITY_ACTION_SOURCE,
 			isProductCommandDisabled: actions.isAudacityShortcutCommandDisabled,
 			applicationMenuEntries: sources.applicationMenuReference?.APPLICATION_MENU_REFERENCE_ENTRIES ?? [],
@@ -219,7 +224,7 @@ export function renderReferenceDocuments(sources) {
 		['nyquist-plugins.md', renderNyquistReference({
 			plugins: nyquist.NYQUIST_BUNDLED_PLUGINS,
 			regularEffectReplacement: sources.nyquistReplacements.regularEffectReplacementForNyquistPlugin,
-			products: productProfiles,
+			products: sharedEditorProfiles,
 			isProductCommandDisabled: actions.isAudacityShortcutCommandDisabled,
 		})],
 		['local-assistance.md', renderAssistanceReference({
@@ -230,7 +235,7 @@ export function renderReferenceDocuments(sources) {
 			modelCatalog,
 		})],
 		['workspaces.md', renderWorkspaceReference({
-			products: productProfiles,
+			products: sharedEditorProfiles,
 			copy: workspaceEnglishCopy,
 			builtInWorkspaces: workspaces.AUDIO_EDITOR_BUILT_IN_WORKSPACES,
 			presets: workspaces.AUDIO_EDITOR_WORKSPACE_PRESETS,
@@ -243,7 +248,7 @@ export function renderReferenceDocuments(sources) {
 			isProductCommandDisabled: actions.isAudacityShortcutCommandDisabled,
 		})],
 		['project-files.md', renderProjectFileReference({
-			products: productProfiles,
+			products: sharedEditorProfiles,
 			extensionByProduct: projectFiles.PROJECT_FILE_EXTENSION_BY_PRODUCT,
 			acceptedExtensions: projectFiles.ACCEPTED_PROJECT_FILE_EXTENSIONS,
 			legacyExtension: projectFiles.LEGACY_PROJECT_FILE_EXTENSION,

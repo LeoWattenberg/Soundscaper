@@ -4,6 +4,7 @@ import type { FileSizeWarningOptions } from '../common/editor/controller/shared/
 import type { ScapeManifest } from '../common/editor/scape-archive-envelope.ts';
 import type { PlannedScapeExportAsset } from '../common/editor/scape-export-plan.ts';
 import type { VideoCubeLutReferenceV1 } from '../common/editor/video-color-management-v27.ts';
+import { collectCubeLutProfileProjectReferencesCurrentV1 } from '../common/editor/video-cube-lut-project-references-current-v1.ts';
 import type {
 	VideoMotionAnalysisReferenceV1,
 	VideoProcessorStackV1,
@@ -20,7 +21,7 @@ import {
 	validateFramescaperDurableScapeAssetReferenceBytes,
 	validateFramescaperDurableScapeExportAssetBody,
 	validateFramescaperDurableScapeImportAssets,
-} from './editor-scape-durable-asset-plan-core.ts';
+} from '../common/editor/scape-durable-asset-plan-core-v1.ts';
 
 export const FRAMESCAPER_SCAPE_ASSET_KINDS = FRAMESCAPER_DURABLE_SCAPE_ASSET_KINDS;
 export type FramescaperScapeAssetKind = FramescaperDurableScapeAssetKind;
@@ -91,6 +92,7 @@ function projectLuts(project: FramescaperProject): readonly VideoCubeLutReferenc
 		...records(project.videoFinishingPresets, 'videoFinishingPresets')
 			.map((preset) => record(preset.template, 'video finishing template').grade)
 			.map((grade) => recordOrNull(grade)?.lut ?? null),
+		...collectCubeLutProfileProjectReferencesCurrentV1(project),
 	].filter((value): value is VideoCubeLutReferenceV1 => value !== null);
 }
 

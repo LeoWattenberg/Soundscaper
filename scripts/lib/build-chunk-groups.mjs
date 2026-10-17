@@ -20,6 +20,8 @@
  * `tests/audio-editor-build-chunk-ownership.test.ts` keeps it that way.
  */
 
+import { imagingChunkGroups } from './build-chunk-imaging.mjs';
+import { translationCatalogChunkGroups } from './build-chunk-translation-catalogs.mjs';
 import {
 	DESIGN_SYSTEM_EDITOR_SHELL_COMPONENT_CHUNK_TEST,
 	EDITOR_ASSISTANCE_MODEL_PREFLIGHT_CHUNK_TEST,
@@ -59,10 +61,10 @@ import {
 	editorOptionalAssistanceModule,
 	editorOptionalCaptureControllerModule,
 	editorOptionalControllerModule,
-	editorOptionalSurfaceModule,
 	editorPath,
 } from './build-chunk-tests.mjs';
 import { withUiPreparationChunkTest } from './build-chunk-ui-preparation.mjs';
+import { editorUiChunkGroups } from './build-chunk-editor-ui.mjs';
 
 // The membership patterns keep their long-standing import site.
 export {
@@ -92,6 +94,7 @@ export {
 
 /** @type {import('rolldown').CodeSplittingGroup[]} */
 export const chunkGroups = [
+	...translationCatalogChunkGroups,
 	{ name: 'editor-assistance-model-preflight', test: EDITOR_ASSISTANCE_MODEL_PREFLIGHT_CHUNK_TEST,
 		priority: 100, minSize: 0, maxSize: 400_000,
 		includeDependenciesRecursively: false },
@@ -311,7 +314,7 @@ export const chunkGroups = [
 		name: 'editor-copy',
 		test: EDITOR_COPY_CHUNK_TEST,
 		priority: 97,
-		maxSize: 400_000,
+		maxSize: 490_000,
 		includeDependenciesRecursively: false,
 	},
 	{
@@ -447,18 +450,13 @@ export const chunkGroups = [
 	},
 	{
 		name: 'editor-controller-core',
-		test: new RegExp(`${editorPath}(?!controller[\\\\/](?:${editorOptionalControllerModule}|${editorOptionalAssistanceModule}|${editorOptionalCaptureControllerModule})\\.ts$)(?:app\\.js|controller[\\\\/]|commands(?:\\.js|[\\\\/])|facade\\.ts|index\\.js)`),
+		test: new RegExp(`${editorPath}(?!controller[\\\\/](?:${editorOptionalControllerModule}|${editorOptionalAssistanceModule}|${editorOptionalCaptureControllerModule})\\.ts$)(?:app\\.js|controller[\\\\/]|commands(?:\\.js|[\\\\/])|delivery-queue-runner\\.ts$|facade\\.ts|index\\.js)`),
 		priority: 75,
 		maxSize: 400_000,
 		includeDependenciesRecursively: false,
 	},
-	{
-		name: 'editor-shell',
-		test: new RegExp(`(?:${editorPath}(?!${editorOptionalSurfaceModule}$)ui[\\\\/](?!(?:dialogs[\\\\/](?!(?:editor-dialog-model\\.js|AssistanceLoadingDialog\\.tsx)$)|inspector[\\\\/]))|src[\\\\/]common[\\\\/](?:products\\.js|url\\.ts)$|src[\\\\/]common[\\\\/]offline[\\\\/](?:file-handler-launch|install-prompt|share-target-launch)\\.ts$|src[\\\\/]soundscaper[\\\\/](?:editor-capture-toolbar-control|editor-framescaper-overlay-model|editor-video-preview-product-runtime|editor-application-menu-product-runtime|editor-workspace-application-menu-runtime|editor-workspace-panel-runtime)\\.(?:js|tsx?)$|src[\\\\/]framescaper[\\\\/]editor-soundscaper-workflow-product-runtime\\.tsx$)`),
-		priority: 70,
-		maxSize: 400_000,
-		includeDependenciesRecursively: false,
-	},
+	...editorUiChunkGroups,
+	...imagingChunkGroups,
 	{
 		// The schema, planners, assistance domain, and value tables the shell and dialogs share.
 		// They are owned here rather than placed by reachability; see the module
@@ -466,7 +464,7 @@ export const chunkGroups = [
 		name: 'editor-domain',
 		test: EDITOR_DOMAIN_CHUNK_TEST,
 		priority: 65,
-		maxSize: 400_000,
+		maxSize: 490_000,
 		includeDependenciesRecursively: false,
 	},
 	{
@@ -496,43 +494,10 @@ export const chunkGroups = [
 	},
 ];
 
-/** Saxes and the XML character tables it imports inside maintained workers. */
-export const WORKER_XML_VENDOR_CHUNK_TEST = /node_modules[\\/](?:saxes|xmlchars)[\\/]/;
-
-/** Effect metadata and the dependency-closed canonical copy registry used by workers. */
-export const WORKER_EFFECT_CONTRACT_CHUNK_TEST = /(?:src[\\/]common[\\/]i18n[\\/](?:canonical-extras(?:-(?:audacity-(?:effects|presets)|standard-effects))?|locale)\.js|src[\\/]common[\\/]editor[\\/]audacity-effects[\\/]audacity-filter-release\.ts|src[\\/]common[\\/]editor[\\/]staffpad[\\/]parameters\.js|src[\\/]common[\\/]editor[\\/]nyquist[\\/]audio-budget\.ts|src[\\/]common[\\/]editor[\\/]first-party-effects[\\/](?:parametric-eq[\\/]coefficients\.ts|standard[\\/](?:definition|filters-definition|filters-coefficients|modulation-definition|noise-gate-definition|delay-definition|delay-pitch-admission|delay-selection-contract|parameter-range|effect-tail|nyquist-replacements|selection-contract)\.ts))$/;
-
-/** @type {import('rolldown').CodeSplittingGroup[]} */
-export const workerChunkGroups = [
-	{
-		name: 'vendor-sqlite-worker',
-		test: /node_modules[\\/]@sqlite\.org[\\/]sqlite-wasm[\\/]/,
-		priority: 100,
-		maxSize: 400_000,
-	},
-	{
-		// Keep the parser and its character tables under one explicit owner instead
-		// of placing either by reachability. Non-recursive ownership keeps future
-		// dependency growth from silently broadening this worker vendor surface.
-		name: 'vendor-xml-worker',
-		test: WORKER_XML_VENDOR_CHUNK_TEST,
-		priority: 99,
-		maxSize: 400_000,
-		includeDependenciesRecursively: false,
-	},
-	{
-		// Archive workers describe imported effects without running their DSP.
-		// Keep that shared metadata and its complete copy dependency closure apart
-		// from the database protocol, without absorbing their consumers recursively.
-		// Delay capacity also reads StaffPad parameters; leaving that leaf unowned
-		// creates a cycle back into the worker entry during contract initialization.
-		name: 'editor-effect-contracts-worker',
-		test: WORKER_EFFECT_CONTRACT_CHUNK_TEST,
-		priority: 98,
-		maxSize: 400_000,
-		includeDependenciesRecursively: false,
-	},
-];
+// Worker patterns keep their established public import site.
+export { workerChunkGroups, WORKER_XML_VENDOR_CHUNK_TEST,
+	WORKER_EFFECT_CONTRACT_CHUNK_TEST, WORKER_VIDEO_CONTRACT_CHUNK_TEST,
+} from './build-chunk-workers.mjs';
 
 /**
  * The group that claims one repository-relative module path, or null.
@@ -545,5 +510,6 @@ export function chunkGroupForModulePath(path) {
 	const candidates = chunkGroups
 		.filter((group) => group.test instanceof RegExp && group.test.test(path))
 		.sort((left, right) => right.priority - left.priority);
-	return candidates[0]?.name ?? null;
+	const name = candidates[0]?.name;
+	return typeof name === 'function' ? name(path) : name ?? null;
 }

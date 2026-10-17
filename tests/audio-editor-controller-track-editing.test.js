@@ -379,7 +379,7 @@ test('controller runs specialized analysis reports and snaps selections to zero 
 		ffmpeg: createMemoryFfmpeg(),
 		renderSnapshot,
 	});
-	context.after(() => controller.dispose());
+	context.after(async () => { await controller.dispose(); });
 	await controller.ready;
 	const trackId = controller.getSnapshot().project.tracks[0].id;
 	controller.actions.edit.commit({

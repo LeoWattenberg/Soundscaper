@@ -2,9 +2,9 @@
 
 [Soundscaper](https://soundscaper.org) is a re-implementation of Audacity 4 on the web. It aims to be fully compatible to Audacity 4, keeping layout, design and features closely aligned, while also introducing a range of new features, such as basic video editing capabilities. 
 
-The repository now builds two focused products from the same local-first mixed-media editor and canonical project schema. Soundscaper provides the complete audio/DAW surface at `/<locale>/`; Framescaper provides video effects and compositing at `/framescaper/<locale>/`. On the web, both routes deliberately share the same origin, IndexedDB/OPFS library, and project locks. Either product can preserve, render, and hand a project to the other without copying its media.
+The repository builds three focused products over shared local-first media, storage and Scape infrastructure: Soundscaper for audio, Framescaper for video, and Lightscaper for its [photo library and develop roadmap](roadmap-lightscaper.md). Each builds independently for `/<locale>/` on its own origin: `soundscaper.org`, `framescaper.org` and `lightscaper.org`. Browser storage and locks remain origin-scoped, following the [product-origin decision](docs/decisions/product-origins.md).
 
-Scape is the lossless portable project format for both products. Each writes its own suffix — Soundscaper saves `.sscape` and Framescaper `.fscape` — and both open `.sscape`, `.fscape`, the reserved `.liscape`, and the legacy `.scape` interchangeably, because the archive behind every one of them is the same. Audacity `.aup3` and `.aup4` exports remain explicitly audio-only interchange formats.
+Scape is the shared lossless archive container. Soundscaper saves `.sscape`, Framescaper `.fscape`, and Lightscaper catalog backups `.liscape`. The suffix is a routing hint; the archive's family and version determine editable authority. Cross-origin handoff transports authenticated media into the destination store. Audacity `.aup3` and `.aup4` exports remain explicitly audio-only interchange formats.
 
 ## Why Soundscaper
 

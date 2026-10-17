@@ -31,6 +31,7 @@ export function filterProductMenus(menus, capabilities, productId) {
 					'framescaper-ofx-manage', 'framescaper-video-effects', 'framescaper-video-transitions',
 					'framescaper-edit-video-mask-matte', 'framescaper-freeze-video',
 					'framescaper-video-finishing', 'ara-clip-editor',
+					'image-develop-repairs', 'image-develop-masks', 'image-develop-brush', 'image-hdr-merge',
 				]);
 				return {
 					...menu,

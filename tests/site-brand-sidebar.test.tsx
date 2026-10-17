@@ -263,11 +263,12 @@ test('the rail reserves product names for its brand and gives both editor links 
 			assert.equal(links[1]?.textContent, editorLabels[1]);
 			assert.equal(links.some((link) => /Soundscaper|Framescaper/u.test(link.textContent)), false);
 			assert.equal(links.some((link) => link.getAttribute('href') === `${parentSite}#projects`), false);
-			assert.equal(links[2]?.getAttribute('href'), parentSite);
-			assert.equal(links[2]?.textContent, locale === 'de' ? 'Mach mit' : 'Join us');
-			assert.equal(links[2]?.querySelector('img')?.getAttribute('src'), '/logo/mindscaper.svg');
-			assert.equal(links[2]?.querySelector('img')?.getAttribute('alt'), '');
-			for (const link of links.slice(3)) {
+			const parentLink = links.find((link) => link.getAttribute('href') === parentSite);
+			assert.ok(parentLink);
+			assert.equal(parentLink.textContent, locale === 'de' ? 'Mach mit' : 'Join us');
+			assert.equal(parentLink.querySelector('img')?.getAttribute('src'), '/logo/mindscaper.svg');
+			assert.equal(parentLink.querySelector('img')?.getAttribute('alt'), '');
+			for (const link of links.filter(link => !link.querySelector('img'))) {
 				const icon = link.querySelector('svg');
 				assert.ok(icon, `${link.textContent} has a navigation icon`);
 				assert.equal(icon.getAttribute('aria-hidden'), 'true');

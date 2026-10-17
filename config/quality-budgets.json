@@ -800,6 +800,77 @@
 					"filesystem-denied"
 				]
 			}
+		},
+		{
+			"id": "lightscaper-large-library-20000-v1",
+			"kind": "deterministic-bounded-native-photo-catalog",
+			"specification": {
+				"generatorRevision": 1,
+				"photoCount": 20000,
+				"publicationBatchSize": 16,
+				"presentationPageSize": 64,
+				"width": 2,
+				"height": 2,
+				"maximumDocumentBytes": 16384,
+				"sourceByteLength": 163,
+				"sourceSha256": "53da2d7acaff4a63fe169b1c8c76ab63f4cfa8d5182868d2ba9f356a97586e6c",
+				"sparseSearchText": "Distant library search token"
+			},
+			"limitation": "Tiny repeated immutable media isolates catalog scaling and bounded query/presentation behavior. Fixture setup may reuse the decoded original; an ordinary managed-import gesture into the populated catalog is measured separately. This does not measure large-image decoding, heterogeneous camera formats, raw processing, representative working sets or hardware performance."
+		},
+		{
+			"id": "lightscaper-develop-proxy-spatial-4096x3072-v1",
+			"kind": "deterministic-native-photo-develop-proxy-spatial",
+			"specification": {
+				"fixture": {
+					"width": 4096,
+					"height": 3072,
+					"proxyWidth": 2048,
+					"proxyHeight": 1536,
+					"sourceRgbaByteLength": 50331648,
+					"proxyRgbaByteLength": 12582912,
+					"pngSrgbIntent": 0,
+					"encodedByteLength": 166923,
+					"encodedSha256": "79345b64d7a00ab8b24934b46876631885d87dcab6e7c2e0a9a0d2097b761934",
+					"sourceRgbaSha256": "41db31fb6114cdd03b0cb3fbba0b6a6ab5c4a0d3718f633c891b2001ffab4833",
+					"proxyRgbaSha256": "b8cc4f34de2f56cbce4942c7794eef8252d01cc60f128036d13531353c767db5",
+					"dehazeRgbaSha256": "45371ceb8afddd578a4df3a2679560c2b95200004a566e385cbb8368686d4252",
+					"goldens": [
+						{
+							"amount": 25,
+							"afterSha256": "3493823732b30e4e178c75d509c10d77bf3335f9a8def4027971f1a1bde05cba"
+						},
+						{
+							"amount": 50,
+							"afterSha256": "15a28bf25e37400e68b14a232a6df53a65fbdd9e90224507838b260be8015496"
+						},
+						{
+							"amount": 75,
+							"afterSha256": "94d6b10938d115b144224940ed343190ae8f4338767b098376ad9fdd68576ff8"
+						},
+						{
+							"amount": 100,
+							"afterSha256": "6490a96f72cbfaa12ad09ed229ba5a9aa29dbdfa413930ccaf74aac1494e5ee2"
+						},
+						{
+							"amount": 125,
+							"afterSha256": "dc11b6ed96ff3ed0ed7b8c494cbabb87a36e29b2fcd5b23d0b2419e93d08f53a"
+						}
+					]
+				},
+				"protocol": {
+					"start": "trusted-finite-input",
+					"end": "current-ready-plus-one-raf",
+					"warmupTrials": 1,
+					"measuredTrials": 5,
+					"workers": 1,
+					"retries": 0,
+					"caseDeadlineMs": 90000,
+					"p95Method": "nearest-rank-per-locale-then-worst"
+				},
+				"timingInstrumentation": "none"
+			},
+			"limitation": "A fixed ICC-absent lossless PNG with sRGB intent 0 tests actual 4096x3072 import and 2048x1536 fit-screen Develop with ordered Dehaze 37.125 then DetailSharpen. Independent replicated-border integer goldens authenticate every RGBA channel, histogram and clipping count. Native saved recipe/history and retained original custody are qualified. Timing is uninstrumented trusted input to current-ready plus one requestAnimationFrame, with five measured serial edits and five pending-work bursts per locale after one warmup. EN and DE p95 are computed separately and the worse locale is retained; hosted collection uses Chromium and Firefox qualifies separately. The finite 2500ms ceilings are observational environment diagnostics, not a hardware promise. This does not qualify all Develop operations, raw/ICC corpora, full-resolution export or total memory."
 		}
 	],
 	"measurements": [
@@ -1261,6 +1332,62 @@
 		},
 		{
 			"id": "ofx.hostProcessTreeRssBytes",
+			"behavior": "observational"
+		},
+		{
+			"id": "photoLibrary.resultMismatchCount",
+			"behavior": "blocking"
+		},
+		{
+			"id": "photoLibrary.originalDigestMismatchCount",
+			"behavior": "blocking"
+		},
+		{
+			"id": "photoLibrary.maximumRenderedPhotos",
+			"behavior": "blocking"
+		},
+		{
+			"id": "photoLibrary.maximumPublishedBatchPhotos",
+			"behavior": "blocking"
+		},
+		{
+			"id": "photoLibrary.maximumCandidatePhotos",
+			"behavior": "blocking"
+		},
+		{
+			"id": "photoLibrary.importP95Ms",
+			"behavior": "observational"
+		},
+		{
+			"id": "photoLibrary.scrollFrameIntervalP95Ms",
+			"behavior": "observational"
+		},
+		{
+			"id": "photoLibrary.filterP95Ms",
+			"behavior": "observational"
+		},
+		{
+			"id": "photoLibrary.searchP95Ms",
+			"behavior": "observational"
+		},
+		{
+			"id": "photoDevelop.proxyPixelMismatchCount",
+			"behavior": "blocking"
+		},
+		{
+			"id": "photoDevelop.originalDigestMismatchCount",
+			"behavior": "blocking"
+		},
+		{
+			"id": "photoDevelop.latestFrameMismatchCount",
+			"behavior": "blocking"
+		},
+		{
+			"id": "photoDevelop.serialEditP95Ms",
+			"behavior": "observational"
+		},
+		{
+			"id": "photoDevelop.burstLatestReadyP95Ms",
 			"behavior": "observational"
 		}
 	],
@@ -1954,6 +2081,90 @@
 			"comparison": "lte",
 			"value": 1073741824,
 			"unit": "bytes"
+		},
+		{
+			"measurementId": "photoLibrary.resultMismatchCount",
+			"comparison": "eq",
+			"value": 0,
+			"unit": "photos"
+		},
+		{
+			"measurementId": "photoLibrary.originalDigestMismatchCount",
+			"comparison": "eq",
+			"value": 0,
+			"unit": "originals"
+		},
+		{
+			"measurementId": "photoLibrary.maximumRenderedPhotos",
+			"comparison": "lte",
+			"value": 64,
+			"unit": "photos"
+		},
+		{
+			"measurementId": "photoLibrary.maximumPublishedBatchPhotos",
+			"comparison": "lte",
+			"value": 16,
+			"unit": "photos"
+		},
+		{
+			"measurementId": "photoLibrary.maximumCandidatePhotos",
+			"comparison": "lte",
+			"value": 64,
+			"unit": "photos"
+		},
+		{
+			"measurementId": "photoLibrary.importP95Ms",
+			"comparison": "lte",
+			"value": 10000,
+			"unit": "ms"
+		},
+		{
+			"measurementId": "photoLibrary.scrollFrameIntervalP95Ms",
+			"comparison": "lte",
+			"value": 50,
+			"unit": "ms"
+		},
+		{
+			"measurementId": "photoLibrary.filterP95Ms",
+			"comparison": "lte",
+			"value": 1000,
+			"unit": "ms"
+		},
+		{
+			"measurementId": "photoLibrary.searchP95Ms",
+			"comparison": "lte",
+			"value": 5000,
+			"unit": "ms"
+		},
+		{
+			"measurementId": "photoDevelop.proxyPixelMismatchCount",
+			"comparison": "eq",
+			"value": 0,
+			"unit": "count"
+		},
+		{
+			"measurementId": "photoDevelop.originalDigestMismatchCount",
+			"comparison": "eq",
+			"value": 0,
+			"unit": "count"
+		},
+		{
+			"measurementId": "photoDevelop.latestFrameMismatchCount",
+			"comparison": "eq",
+			"value": 0,
+			"unit": "count"
+		},
+		{
+			"measurementId": "photoDevelop.serialEditP95Ms",
+			"comparison": "lte",
+			"value": 2500,
+			"unit": "ms"
+		},
+		{
+			"measurementId": "photoDevelop.burstLatestReadyP95Ms",
+			"comparison": "lte",
+			"value": 2500,
+			"unit": "ms"
 		}
 	],
 	"workloads": [
@@ -2234,6 +2445,38 @@
 				"ofx.authoredStateLosses",
 				"ofx.unsupportedTargets",
 				"ofx.hostProcessTreeRssBytes"
+			]
+		},
+		{
+			"id": "l3-photo-library-large",
+			"behavior": "blocking",
+			"fixtureIds": [
+				"lightscaper-large-library-20000-v1"
+			],
+			"measurementIds": [
+				"photoLibrary.resultMismatchCount",
+				"photoLibrary.originalDigestMismatchCount",
+				"photoLibrary.maximumRenderedPhotos",
+				"photoLibrary.maximumPublishedBatchPhotos",
+				"photoLibrary.maximumCandidatePhotos",
+				"photoLibrary.importP95Ms",
+				"photoLibrary.scrollFrameIntervalP95Ms",
+				"photoLibrary.filterP95Ms",
+				"photoLibrary.searchP95Ms"
+			]
+		},
+		{
+			"id": "l4-photo-develop-proxy-spatial",
+			"behavior": "blocking",
+			"fixtureIds": [
+				"lightscaper-develop-proxy-spatial-4096x3072-v1"
+			],
+			"measurementIds": [
+				"photoDevelop.proxyPixelMismatchCount",
+				"photoDevelop.originalDigestMismatchCount",
+				"photoDevelop.latestFrameMismatchCount",
+				"photoDevelop.serialEditP95Ms",
+				"photoDevelop.burstLatestReadyP95Ms"
 			]
 		}
 	]

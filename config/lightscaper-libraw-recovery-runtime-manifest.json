@@ -1,0 +1,134 @@
+{
+	"schemaVersion": 2,
+	"upstream": {
+		"name": "LibRaw",
+		"version": "0.22.2",
+		"repository": "https://github.com/LibRaw/LibRaw.git",
+		"revision": "b93f6e45c194f5df9b02a43b1af9a54b4f41f33f",
+		"license": "LGPL-2.1 (selected; upstream dual LGPL-2.1/CDDL-1.0)",
+		"sourceArchive": {
+			"path": "runtime-assets/libraw/0.22.2/LibRaw-0.22.2.tar.gz",
+			"url": "https://www.libraw.org/data/LibRaw-0.22.2.tar.gz",
+			"sha256": "de86b035655accff8d4010f1a221fdf50d353cb7b1422ba26f14a0db92612cfa",
+			"byteLength": 1682962
+		}
+	},
+	"toolchain": {
+		"emscriptenVersion": "3.1.64",
+		"dockerImage": "emscripten/emsdk:3.1.64",
+		"dockerDigest": "sha256:8847dad4171ebc8a53d9ae5cda86a2546ef5b2e68834c14dc1ba2b2962e125cc",
+		"sourceDateEpoch": "1719792000"
+	},
+	"bridge": {
+		"path": "src/common/editor/raw/native/libraw_recovery_wasm.cpp",
+		"sha256": "f69de3c0f110f018d847113e8437948c0433d41d21840e1d92a26206491752e4"
+	},
+	"runtime": {
+		"path": "runtime-assets/libraw/0.22.2/recovery-abi2/libraw-recovery.wasm",
+		"url": "https://assets.soundscaper.org/runtime/libraw/0.22.2/recovery-abi2/libraw-recovery.wasm",
+		"sha256": "ee86c46d33cfb424cdc8468255ec349a823cc2221f5a0e5a54cc8571808b09b7",
+		"byteLength": 871145,
+		"maximumBytes": 8388608,
+		"initialMemoryBytes": 33554432,
+		"maximumMemoryBytes": 536870912
+	},
+	"licenseFiles": [
+		{
+			"path": "src/common/editor/raw/licenses/COMPILER_RT.txt",
+			"sha256": "1a8f1058753f1ba890de984e48f0242a3a5c29a6a8f2ed9fd813f36985387e8d"
+		},
+		{
+			"path": "src/common/editor/raw/licenses/COPYRIGHT",
+			"sha256": "574c88f5dd59414cfc896293a63defbc2d525a418ed413d7ab7dcc43cf79c509"
+		},
+		{
+			"path": "src/common/editor/raw/licenses/EMSCRIPTEN.txt",
+			"sha256": "620a78084fc7ca97c0b5dea9abf891f3ffcadfdbf305276f099c9c4e12fc1d86"
+		},
+		{
+			"path": "src/common/editor/raw/licenses/LIBCXX.txt",
+			"sha256": "539dd7aed86e8a4f12cbdd0e6c50c189c7d74847e4fecc64ce2c6ee3a01da38b"
+		},
+		{
+			"path": "src/common/editor/raw/licenses/LIBCXXABI.txt",
+			"sha256": "e2b35be49f7284a45b7baca8fc7b3ab7440e7902392b2528a457816b5bb2a15c"
+		},
+		{
+			"path": "src/common/editor/raw/licenses/LICENSE.CDDL",
+			"sha256": "0e3098d2d54a12434715f6679ea408d57da5e8d613c385c58ecc6fe5d30cc81f"
+		},
+		{
+			"path": "src/common/editor/raw/licenses/LICENSE.LGPL",
+			"sha256": "eea173a556abac0370461e57e12aab266894ea6be3874c2be05fd87871f75449"
+		},
+		{
+			"path": "src/common/editor/raw/licenses/MUSL.txt",
+			"sha256": "f9bc4423732350eb0b3f7ed7e91d530298476f8fec0c6c427a1c04ade22655af"
+		}
+	],
+	"wasm": {
+		"stackBytes": 1048576,
+		"requiredExports": [
+			"memory",
+			"_initialize",
+			"raw_abi_version",
+			"raw_profile_version",
+			"raw_input_alloc",
+			"raw_open",
+			"raw_decode",
+			"raw_output_ptr",
+			"raw_output_bytes",
+			"raw_output_width",
+			"raw_output_height",
+			"raw_output_channels",
+			"raw_output_bits",
+			"raw_flip",
+			"raw_highlight_mode",
+			"raw_exposure_scale",
+			"raw_destroy"
+		],
+		"allowedImports": [
+			"env.emscripten_notify_memory_growth",
+			"wasi_snapshot_preview1.fd_read",
+			"wasi_snapshot_preview1.fd_write",
+			"wasi_snapshot_preview1.fd_close",
+			"wasi_snapshot_preview1.fd_seek"
+		],
+		"auxiliaryExports": {
+			"__indirect_function_table": "table",
+			"__trap": "function"
+		}
+	},
+	"buildRecipe": {
+		"path": "scripts/build-lightscaper-libraw-recovery-wasm.mjs",
+		"sha256": "aff71d163531d45c9b28ede49e45d04972db46a5d62408c410850462a7e85dc2"
+	},
+	"profileVersion": 1,
+	"profiles": [
+		{
+			"id": "linear-headroom-v1",
+			"highlightMode": 1
+		},
+		{
+			"id": "highlight-recovery-v1",
+			"highlightMode": 3
+		}
+	],
+	"processing": {
+		"normalization": "inverse-min-normalized-premul",
+		"workingSpace": "linear-srgb-float32",
+		"orientation": "native-flip-applied",
+		"adjustMaximumThreshold": 0.75,
+		"demosaicQuality": 3,
+		"autoBright": false,
+		"autoWhiteBalance": false,
+		"cameraWhiteBalance": false,
+		"minimumSidePixels": 16,
+		"maximumSidePixels": 8192,
+		"maximumPixels": 16777216,
+		"maximumInputBytes": 67108864,
+		"maximumDecodedBytes": 268435456,
+		"maximumDecodeWorkingBytes": 1073741824,
+		"maximumExposureScale": 65536
+	}
+}

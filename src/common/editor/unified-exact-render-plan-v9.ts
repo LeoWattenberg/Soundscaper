@@ -17,18 +17,9 @@ import {
 	type VideoKeyframeCurves,
 } from './video-keyframe-curves.ts';
 import { normalizeVideoEffects } from './video-effects.js';
-import {
-	assertUnifiedExactRetimeAuthority,
-	assertUnifiedExactRetimeStructureWithDeferredVfr,
-} from './unified-exact-retime-authority.ts';
-import {
-	normalizeVideoRetimeExportIntentV6Wire,
-} from './video-retime-exact-ordinal-oracle.ts';
+import { normalizeUnifiedExactRenderClipNodeCore } from './unified-exact-render-clip-node-core.ts';
 import type { VideoRetimeExportIntentV6 } from './video-retime-export-plan.ts';
-import {
-	normalizeVideoRetimeCurveV16,
-	type VideoRetimeCurveV16,
-} from './video-retime-v16.ts';
+import type { VideoRetimeCurveV16 } from './video-retime-v16.ts';
 import {
 	normalizeVideoTimingAssetReference,
 	type VideoTimingAssetReference,
@@ -129,14 +120,8 @@ const SOURCE_FIELDS = Object.freeze([
 ]);
 const CFR_FIELDS = Object.freeze(['kind', 'frameCount', 'rate']);
 const VFR_FIELDS = Object.freeze(['kind', 'reference']);
-const CLIP_FIELDS = Object.freeze([
-	'kind', 'nodeId', 'clipId', 'trackId', 'sourceNodeId', 'sequenceStartFrame',
-	'sequenceFrameCount', 'sourceInFrame', 'sourceFrameCount', 'pictureState',
-	'sourceTimeMapping',
-]);
 const TRACK_FIELDS = Object.freeze(['trackId', 'sequenceOrder', 'mute', 'solo', 'hidden']);
 const PICTURE_STATE_FIELDS = Object.freeze(['composition', 'videoEffects', 'videoKeyframes']);
-const MAPPING_FIELDS = Object.freeze(['kind', 'sourceRate', 'retimeMap', 'intent']);
 const TRANSITION_FIELDS = Object.freeze(['kind', 'nodeId', 'transition', 'edges']);
 const RATE_FIELDS = Object.freeze(['num', 'den']);
 const ID = /^[A-Za-z0-9][A-Za-z0-9._:/-]{0,4095}$/u;
@@ -210,74 +195,10 @@ export function normalizeUnifiedExactRenderSources(
 	});
 }
 
-export function normalizeUnifiedExactRenderClipNode(
-	value: unknown,
-	context: UnifiedExactRenderTemporalContext,
-	sources: UnifiedExactRenderSourceIndex,
-	tracks: UnifiedExactRenderTrackIndexV1,
-	timing: UnifiedExactRenderTimingIndex,
-): UnifiedExactRenderClipNode {
-	const name = 'unified clip render node';
-	const clip = readClosedDomainRecord(value, name, CLIP_FIELDS);
-	if (field(clip, 'kind', name) !== 'clip') throw new RangeError(`${name}.kind is unsupported.`);
-	const sourceNodeId = stableId(field(clip, 'sourceNodeId', name), `${name}.sourceNodeId`);
-	const source = sources.byNodeId.get(sourceNodeId);
-	if (!source) throw new ReferenceError('Unified clip render node references an unknown source node.');
-	const sequenceStartFrame = integer(field(clip, 'sequenceStartFrame', name), `${name}.sequenceStartFrame`, 0);
-	const sequenceFrameCount = integer(field(clip, 'sequenceFrameCount', name), `${name}.sequenceFrameCount`, 1);
-	const sourceInFrame = integer(field(clip, 'sourceInFrame', name), `${name}.sourceInFrame`, 0);
-	const sourceFrameCount = integer(field(clip, 'sourceFrameCount', name), `${name}.sourceFrameCount`, 1);
-	if (!Number.isSafeInteger(sequenceStartFrame + sequenceFrameCount)
-		|| !Number.isSafeInteger(sourceInFrame + sourceFrameCount)
-		|| sourceInFrame + sourceFrameCount > timingFrameCount(source.timing)) {
-		throw new RangeError('Unified clip frame ranges escape their exact source authority.');
-	}
-	const mapping = readClosedDomainRecord(field(clip, 'sourceTimeMapping', name), `${name}.sourceTimeMapping`, MAPPING_FIELDS);
-	if (field(mapping, 'kind', `${name}.sourceTimeMapping`) !== 'video-retime-export-intent-v6') {
-		throw new RangeError('Unified clip source-time mapping kind is unsupported.');
-	}
-	const clipId = stableId(field(clip, 'clipId', name), `${name}.clipId`);
-	const trackId = stableId(field(clip, 'trackId', name), `${name}.trackId`);
-	if (!tracks.byId.has(trackId)) throw new ReferenceError('Unified clip references an unknown video track.');
-	const pictureState = normalizePictureState(
-		field(clip, 'pictureState', name), sequenceFrameCount, clipId,
-	);
-	const sourceRate = rate(field(mapping, 'sourceRate', `${name}.sourceTimeMapping`), `${name}.sourceTimeMapping.sourceRate`);
-	if (source.timing.kind === 'cfr' && !sameRate(sourceRate, source.timing.rate)) {
-		throw new RangeError('Unified clip source rate disagrees with its exact CFR source authority.');
-	}
-	const retimeMap = normalizeVideoRetimeCurveV16(
-		field(mapping, 'retimeMap', `${name}.sourceTimeMapping`),
-		{ sequenceFrameCount, sourceInFrame, sourceFrameCount },
-	);
-	const intent = normalizeVideoRetimeExportIntentV6Wire(field(mapping, 'intent', `${name}.sourceTimeMapping`));
-	const sourceTimingView = source.timing.kind === 'vfr'
-		? timing.vfrBySourceId.get(source.sourceId) ?? null
-		: null;
-	const retimeAuthority = {
-		clipId, sourceId: source.sourceId,
-		sequenceStartFrame, sequenceFrameCount, sourceInFrame, sourceFrameCount,
-		sourceRate, retimeMap, sourceTiming: source.timing, sourceTimingView,
-	};
-	if (timing.deferredVfrSourceIds.has(source.sourceId)) {
-		assertUnifiedExactRetimeStructureWithDeferredVfr(intent, context, retimeAuthority);
-	} else {
-		assertUnifiedExactRetimeAuthority(intent, context, retimeAuthority);
-	}
-	return Object.freeze({
-		kind: 'clip' as const,
-		nodeId: stableId(field(clip, 'nodeId', name), `${name}.nodeId`),
-		clipId, trackId,
-		sourceNodeId,
-		sequenceStartFrame,
-		sequenceFrameCount,
-		sourceInFrame,
-		sourceFrameCount,
-		pictureState,
-		sourceTimeMapping: Object.freeze({
-			kind: 'video-retime-export-intent-v6' as const, sourceRate, retimeMap, intent,
-		}),
-	});
+export function normalizeUnifiedExactRenderClipNode(value: unknown, context: UnifiedExactRenderTemporalContext,
+ sources: UnifiedExactRenderSourceIndex, tracks: UnifiedExactRenderTrackIndexV1,
+ timing: UnifiedExactRenderTimingIndex): UnifiedExactRenderClipNode {
+ return normalizeUnifiedExactRenderClipNodeCore(normalizePictureState, value, context, sources, tracks, timing);
 }
 
 function normalizePictureState(
@@ -305,7 +226,7 @@ function normalizePictureState(
 export function normalizeUnifiedExactRenderTransitionNode(
 	value: unknown,
 	context: UnifiedExactRenderTemporalContext,
-	clipsById: ReadonlyMap<string, UnifiedExactRenderClipNode>,
+	clipsById: ReadonlyMap<string, Omit<UnifiedExactRenderClipNode, 'pictureState'>>,
 	sources: UnifiedExactRenderSourceIndex,
 ): UnifiedExactRenderTransitionNode {
 	const name = 'unified transition render node';
@@ -403,10 +324,6 @@ function compareTransitions(left: UnifiedExactRenderTransitionNode, right: Unifi
 		|| compareText(left.transition.outgoingClipId, right.transition.outgoingClipId)
 		|| compareText(left.transition.incomingClipId, right.transition.incomingClipId)
 		|| compareText(left.transition.id, right.transition.id);
-}
-
-function timingFrameCount(value: UnifiedExactRenderSourceTiming): number {
-	return value.kind === 'cfr' ? value.frameCount : value.reference.frameCount;
 }
 
 function rate(value: unknown, name: string): RationalRate {

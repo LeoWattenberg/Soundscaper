@@ -218,7 +218,11 @@ function copyForLocale(locale) {
 function routeDocument(html, { descriptor, plan, route, embedded }) {
 	const productId = plan.productId;
 	const copy = copyForLocale(descriptor.locale);
-	const description = productId === 'framescaper' ? copy.framescaperMetaDescription : copy.metaDescription;
+	const description = {
+		soundscaper: copy.metaDescription,
+		framescaper: copy.framescaperMetaDescription,
+		lightscaper: copy.lightscaperMetaDescription,
+	}[productId];
 	const alternates = ROUTE_LOCALES.map(({ locale }) => {
 		const href = new URL(documentRoute(plan, locale, embedded), site).href;
 		return `<link rel="alternate" hreflang="${escapeHtml(locale)}" href="${escapeHtml(href)}" />`;

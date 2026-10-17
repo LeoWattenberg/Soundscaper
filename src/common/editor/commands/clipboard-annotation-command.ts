@@ -4,7 +4,7 @@ import {
 	pasteSpanForSequence,
 	sequenceForTrack,
 } from './clipboard-time-runtime.js';
-import type { AudioEditorClipboard } from './protocol.ts';
+import type { CurrentAudioEditorClipboardDescriptor } from './clipboard-command-v2.ts';
 import type { TimelineAnnotationClipboardPasteGeometry } from './timeline-annotation-clipboard.ts';
 
 type DataRecord = Record<string, unknown>;
@@ -25,7 +25,7 @@ interface MutablePasteCommand extends DataRecord {
 
 /** Allocate every annotation-capable identity and derive its source-to-target sequence map. */
 export function preparePasteAnnotationMaps(
-	clipboard: AudioEditorClipboard,
+	clipboard: CurrentAudioEditorClipboardDescriptor,
 	options: PastePreparationOptions,
 	command: MutablePasteCommand,
 	idFactory: IdFactory,
@@ -88,7 +88,7 @@ export function preparePasteAnnotationMaps(
 /** Bind each copied track context to the actual owning destination sequence. */
 export function assertPasteSequenceMaps(
 	project: DataRecord,
-	clipboard: AudioEditorClipboard,
+	clipboard: CurrentAudioEditorClipboardDescriptor,
 	command: MutablePasteCommand,
 ): void {
 	if (clipboard.schemaVersion < 3) return;

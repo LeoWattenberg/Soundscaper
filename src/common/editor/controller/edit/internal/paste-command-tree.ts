@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import type { AudioEditorCommand } from '../../../commands/protocol.ts';
+import type { CurrentAudioEditorMutationCommandV2 as AudioEditorCommand } from '../../../commands/clipboard-command-v2.ts';
 
 export type PasteCommand = Extract<AudioEditorCommand, { readonly type: 'clipboard/paste' }>;
 export type SourceAddCommand = Extract<AudioEditorCommand, { readonly type: 'source/add' }>;

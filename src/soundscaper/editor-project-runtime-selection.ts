@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import type { AudioEditorClipboard } from '../common/editor/commands/protocol.ts';
+import type { CurrentAudioEditorClipboardDescriptor } from '../common/editor/commands/clipboard-command-v2.ts';
 import type {
 	ControllerProjectRuntime,
 	ControllerRuntimeHistory,
@@ -124,7 +124,7 @@ export function createSoundscaperProjectRuntimeSelection(): Readonly<Soundscaper
 		loadProject: (project: unknown) => Object.freeze(loadSoundscaperProject(project)),
 		projectForCommandConsumers: (project: unknown) => projectForConsumers(project, 'command'),
 		projectForRuntimeConsumers: (project: unknown) => projectForConsumers(project, 'runtime'),
-		prepareEditClipboardDescriptor: (project: unknown, descriptor: AudioEditorClipboard) => (
+		prepareEditClipboardDescriptor: (project: unknown, descriptor: CurrentAudioEditorClipboardDescriptor) => (
 			createAudioEditorSessionClipboard(
 				soundscaperProjectForCommandConsumers(project),
 				{ descriptor },

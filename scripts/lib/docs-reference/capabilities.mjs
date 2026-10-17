@@ -1,10 +1,15 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { assertProducts, compareText, page, reviewedLabel, table } from './markdown.mjs';
+import { assertProducts, compareText, page, productSentence, reviewedLabel, table } from './markdown.mjs';
 
 const CAPABILITY_LABELS = Object.freeze({
 	project: 'Projects',
 	projectBin: 'Project bin',
+	photoLibrarySurface: 'Photo library shell',
+	photoCatalog: 'Photo catalog',
+	photoDevelop: 'Photo develop',
+	photoExport: 'Photo export',
+	photoRaw: 'Raw photo decoding',
 	audioImport: 'Audio import',
 	audioPlayback: 'Audio playback',
 	audioTimelineEditing: 'Audio timeline editing',
@@ -70,6 +75,7 @@ const FAMILY_LABELS = Object.freeze({
 	'audacity-project': 'Audacity projects',
 	audio: 'Audio',
 	video: 'Video',
+	photos: 'Photos',
 	labels: 'Labels',
 	'aup3-audio-only': 'AUP3 (audio-only)',
 	'aup4-audio-only': 'AUP4 (audio-only)',
@@ -88,7 +94,7 @@ function renderFeatureRows(products, field, labels, kind) {
 }
 
 function familyNames(product, families) {
-	if (!Array.isArray(families)) return 'None';
+	if (!Array.isArray(families) || families.length === 0) return 'None';
 	return families.map((family) => {
 		const label = reviewedLabel(FAMILY_LABELS, family, 'format family');
 		const resolved = typeof label === 'function' ? label(product) : label;
@@ -127,6 +133,24 @@ export function renderCapabilityReference({ products }) {
 		'',
 		table(featureHeaders, featureRows),
 	];
+	if (products.some((product) => product.capabilities?.photoLibrarySurface === true
+		&& product.capabilities?.photoCatalog !== true)) {
+		sections.push('', 'The photo library shell provides an empty library. Photo catalog import and browsing, develop adjustments, export, and raw decoding remain planned and are not enabled by this shell.');
+	}
+	const photoCatalogs = products.filter((product) => product.capabilities?.photoCatalog === true);
+	if (photoCatalogs.length > 0) {
+		let narrative = 'Photo catalogs support managed import, bounded browsing, and persistent ratings, flags, color labels, and descriptive metadata edits through the File and View menus and the Photo submenu. The current import admits static 8-bit sRGB photos and preserves original bytes.';
+		if (photoCatalogs.some((product) => product.capabilities?.photoDevelop === true)) {
+			narrative += ' Develop is available through File > Photo > Develop for the selected photo. Its non-destructive adjustments preserve original bytes.';
+		}
+		const planned = [['photoDevelop', 'develop'], ['photoExport', 'photo export'], ['photoRaw', 'raw decoding']]
+			.filter(([key]) => photoCatalogs.every((product) => product.capabilities?.[key] !== true))
+			.map(([, label]) => label);
+		const list = planned.length > 1
+			? `${planned.slice(0, -1).join(', ')}${planned.length > 2 ? ',' : ''} and ${planned.at(-1)}` : planned[0];
+		if (list) narrative += ` ${list[0].toUpperCase()}${list.slice(1)} ${planned.length === 1 ? 'remains' : 'remain'} planned.`;
+		sections.push('', narrative);
+	}
 	if (applicationFeatureRows.length > 0) {
 		sections.push(
 			'',
@@ -137,7 +161,7 @@ export function renderCapabilityReference({ products }) {
 	}
 	return page({
 		title: 'Product capabilities',
-		description: 'Soundscaper and Framescaper import, export, editing, and project capabilities.',
+		description: `${productSentence(products)} import, export, editing, and project capabilities.`,
 		order: 3,
 		body: sections.join('\n'),
 	});

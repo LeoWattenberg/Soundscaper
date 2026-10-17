@@ -56,6 +56,9 @@ test('workers give effect definitions and the complete canonical copy registry a
 	assert.ok(group);
 	assert.ok(group.test instanceof RegExp);
 	for (const path of [
+		'src/common/editor/audacity-effects/manifest.js',
+		'src/common/editor/first-party-effects/parametric-eq/definition.js',
+		'src/common/editor/first-party-effects/bitcrusher/definition.js',
 		'src/common/editor/first-party-effects/standard/definition.ts',
 		'src/common/editor/first-party-effects/standard/filters-definition.ts',
 		'src/common/editor/first-party-effects/standard/filters-coefficients.ts',

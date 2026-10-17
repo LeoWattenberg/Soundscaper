@@ -21,6 +21,10 @@ function optionLabel(parameter, value) {
 }
 
 function parameterRow(parameter) {
+	if (parameter.control === 'curve') {
+		return [parameter.label, parameter.default.map(point => `(${formatNumber(point.x)}, ${formatNumber(point.y)})`).join('; '),
+			`2–${parameter.maximumPoints} points; input/output 0–1; strictly increasing inputs, endpoints 0 and 1`, '—'];
+	}
 	if (parameter.control === 'color') {
 		return [parameter.label, colorLiteral(parameter.default), 'Any RGB color', '—'];
 	}
@@ -62,6 +66,9 @@ export function renderVideoEffectReference({ products, definitions }) {
 		`Video effects are registered by ${productSentence(enabledProducts)}. They are stacked on a clip, an adjustment layer, or a track, and are applied in the order they appear.`,
 		'',
 		'One definition owns each effect’s parameters, and the preview and the export both read it, so an effect that is visible in the preview is the effect the export renders.',
+		...(definitions['color-wheels-v1'] ? ['',
+			'Color grading wheels use the explicit `srgb-scalar-lgg-wheels-v1` process. Shadows, midtones and highlights control overlapping lift, gamma and gain. Each straight encoded sRGB channel decodes to linear Rec.709, applies lift → gain → gamma, clips, encodes sRGB and rounds half up to a byte. Alpha stays unchanged. Only nine numeric controls persist; lookup tables are derived when the current CPU stage or native upload needs them.',
+			'This scalar process preserves its own exact byte contract. Legacy managed GradeV1 retains its existing luminance recombination and rounding; the two processes can differ at half-byte boundaries.'] : []),
 		'',
 		'## Effects',
 		'',

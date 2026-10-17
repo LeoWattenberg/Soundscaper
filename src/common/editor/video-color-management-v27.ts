@@ -6,6 +6,7 @@
  * pixels, LUT bodies, histograms, and scopes remain transient.
  */
 
+import { normalizeVideoCubeLutReferenceV1 } from './cube-lut-reference-contract.ts';
 import {
 	readClosedDomainArray,
 	readClosedDomainField,
@@ -15,7 +16,6 @@ import {
 import {
 	requireCubeLutBody,
 	sampleCubeLut,
-	VIDEO_COLOR_LIMITS_V1,
 	type ParsedCubeLutV1,
 	type VideoCubeLutReferenceV1,
 } from './video-color-cube-lut-v27.ts';
@@ -89,11 +89,7 @@ const GRADE_FIELDS = Object.freeze([
 	'schemaVersion', 'exposureStops', 'contrast', 'pivot', 'lift', 'gamma', 'gain',
 	'saturation', 'lut',
 ]);
-const LUT_FIELDS = Object.freeze([
-	'storageKey', 'sha256', 'byteLength', 'size', 'domainMin', 'domainMax',
-]);
 const ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/u;
-const SHA256 = /^[a-f0-9]{64}$/u;
 
 export function defaultVideoSourceColorInterpretationV1(
 	kind: 'still' | 'video',
@@ -172,7 +168,7 @@ export function normalizeVideoColorGradeV1(value: unknown = defaultGrade()): Vid
 		gain: triplet(field(record, 'gain', name), 0, 16, 'grade gain'),
 		saturation: bounded(field(record, 'saturation', name), 0, 4, 'grade saturation'),
 		lut: field(record, 'lut', name) === null
-			? null : normalizeCubeLutReference(field(record, 'lut', name)),
+			? null : normalizeVideoCubeLutReferenceV1(field(record, 'lut', name)),
 	});
 }
 
@@ -435,25 +431,6 @@ function defaultGrade(): VideoColorGradeV1 {
 	});
 }
 
-function normalizeCubeLutReference(value: unknown): VideoCubeLutReferenceV1 {
-	const record = readClosedDomainRecord(value, 'video cube LUT reference', LUT_FIELDS);
-	const digest = sha(field(record, 'sha256', 'video cube LUT reference'), 'cube LUT digest');
-	const storageKey = field(record, 'storageKey', 'video cube LUT reference');
-	if (storageKey !== `lut-sha256:${digest}`) throw new TypeError('The cube LUT storage key must bind its SHA-256.');
-	const result = Object.freeze({
-		storageKey,
-		sha256: digest,
-		byteLength: boundedInteger(field(record, 'byteLength', 'video cube LUT reference'), 1, VIDEO_COLOR_LIMITS_V1.maximumCubeLutBytes, 'cube LUT bytes'),
-		size: boundedInteger(field(record, 'size', 'video cube LUT reference'), 2, VIDEO_COLOR_LIMITS_V1.maximumCubeLutSize, 'cube LUT size'),
-		domainMin: triplet(field(record, 'domainMin', 'video cube LUT reference'), -65_536, 65_536, 'cube LUT domain minimum'),
-		domainMax: triplet(field(record, 'domainMax', 'video cube LUT reference'), -65_536, 65_536, 'cube LUT domain maximum'),
-	});
-	if (result.domainMin.some((channel, index) => channel >= result.domainMax[index]!)) {
-		throw new RangeError('The cube LUT reference domain minimum must precede its maximum.');
-	}
-	return result;
-}
-
 function assertDefaultDisclosure(value: VideoSourceColorInterpretationV1): void {
 	if (value.provenance === 'default-still-srgb-full' && (
 		value.sourceKind !== 'still' || value.primaries !== 'srgb' || value.transfer !== 'srgb'
@@ -544,11 +521,6 @@ function stableId(value: unknown, name: string): string {
 	return value;
 }
 
-function sha(value: unknown, name: string): string {
-	if (typeof value !== 'string' || !SHA256.test(value)) throw new TypeError(`${name} must be lowercase SHA-256.`);
-	return value;
-}
-
 function finite(value: unknown, name: string): number {
 	if (typeof value !== 'number' || !Number.isFinite(value) || Object.is(value, -0)) {
 		throw new RangeError(`${name} must be a finite number other than negative zero.`);
@@ -560,14 +532,6 @@ function bounded(value: unknown, minimum: number, maximum: number, name: string)
 	const result = finite(value, name);
 	if (result < minimum || result > maximum) throw new RangeError(`${name} is outside its bound.`);
 	return result;
-}
-
-function boundedInteger(value: unknown, minimum: number, maximum: number, name: string): number {
-	const number = typeof value === 'string' && /^\d+$/u.test(value) ? Number(value) : value;
-	if (!Number.isSafeInteger(number) || Number(number) < minimum || Number(number) > maximum) {
-		throw new RangeError(`${name} is outside its integer bound.`);
-	}
-	return Number(number);
 }
 
 function clamp(value: number): number {

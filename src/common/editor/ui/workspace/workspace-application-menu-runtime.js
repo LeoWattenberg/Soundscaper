@@ -154,6 +154,8 @@ export function createWorkspaceApplicationMenus({
 					? openAssistanceSearch : undefined,
 				framescaperCandidateAuthoring: framescaperRuntime.framescaperCandidateAuthoring,
 				openFramescaperFinishing: framescaperRuntime.openFramescaperFinishing,
+				openFramescaperImageDevelop: framescaperRuntime.openFramescaperImageDevelop,
+				openFramescaperImageHdrMerge: framescaperRuntime.openFramescaperImageHdrMerge,
 				framescaperNativeServices: framescaperRuntime.framescaperNativeServices,
 				soundscaperWorkflow,
 				soundscaperNativeServices,

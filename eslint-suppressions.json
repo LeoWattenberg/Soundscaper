@@ -531,11 +531,6 @@
       "count": 1
     }
   },
-  "src/common/editor/file-service.js": {
-    "no-control-regex": {
-      "count": 1
-    }
-  },
   "src/common/editor/framescaper-capture-domain.ts": {
     "no-control-regex": {
       "count": 1
@@ -563,6 +558,11 @@
   },
   "src/common/editor/reviewed-effects/wasm-abi.ts": {
     "no-useless-assignment": {
+      "count": 1
+    }
+  },
+  "src/common/editor/safe-visual-text.ts": {
+    "no-control-regex": {
       "count": 1
     }
   },
@@ -625,14 +625,6 @@
     }
   },
   "src/common/editor/storage/media-asset-write-repository.ts": {
-    "preserve-caught-error": {
-      "count": 1
-    }
-  },
-  "src/common/editor/storage/opfs-repository.ts": {
-    "no-control-regex": {
-      "count": 1
-    },
     "preserve-caught-error": {
       "count": 1
     }
@@ -888,11 +880,6 @@
   },
   "src/common/editor/video-timing-storage.ts": {
     "preserve-caught-error": {
-      "count": 1
-    }
-  },
-  "src/common/editor/video-visual-model-v24.ts": {
-    "no-control-regex": {
       "count": 1
     }
   },

@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import type { AudioEditorClipboard, AudioEditorCommand } from '../common/editor/commands/protocol.ts';
+import type { CurrentAudioEditorClipboardDescriptor as AudioEditorClipboard, CurrentAudioEditorMutationCommandV2 as AudioEditorCommand } from '../common/editor/commands/clipboard-command-v2.ts';
+import { createFramescaperCurrentClipboardRuntime, type CurrentFramescaperSessionClipboard as FramescaperSessionClipboardV13, type CurrentFramescaperSessionClipboardPaste as FramescaperSessionClipboardPasteV13 } from './editor-current-clipboard-runtime.ts';
 import { AUDIO_EDITOR_HISTORY_LIMIT } from '../common/editor/history.js';
 import { acquireProjectLock } from '../common/editor/project-lock.js';
 import type { ControllerRuntimeHistory } from '../common/editor/controller/document/project-runtime.ts';
@@ -10,7 +11,7 @@ import {
 	FRAMESCAPER_PROJECT_SCHEMA_FAMILY,
 	classifyProjectSchemaIdentity,
 } from '../common/editor/project-schema-identity.ts';
-import { createAudioEditorSessionController } from '../common/editor/session.js';
+import { createAudioEditorSessionControllerV2 as createAudioEditorSessionController } from '../common/editor/session-v2.ts';
 import type { AudioEditorProjectStoreOptions } from '../common/editor/storage/project-store-options.ts';
 import { createStableId } from '../common/editor/stable-id.js';
 import { compactFramescaperProjectSourceMetadata } from './editor-project-source-compaction.ts';
@@ -49,19 +50,12 @@ import {
 	type FramescaperProject,
 	type FramescaperProjectOptions,
 } from './editor-project.ts';
-import { framescaperProjectTimelineImageFoundationShapeAssistance } from './editor-project-assistance-foundation.ts';
-import { FRAMESCAPER_TIMELINE_IMAGE_PROJECT_RUNTIME_PROFILE } from './editor-domain-runtime-profile.ts';
 import {
-	prepareFramescaperSessionClipboardPasteV13,
 	stageFramescaperSessionClipboardImageBodiesV13,
 	type FramescaperImageClipboardBodyStageV13,
 	type FramescaperImageClipboardBodyStoreV13,
-	type FramescaperSessionClipboardPasteV13,
 } from './editor-session-clipboard-v13-paste.ts';
-import {
-	createFramescaperSessionClipboardV13,
-	type FramescaperSessionClipboardV13,
-} from './editor-session-clipboard-v13.ts';
+
 
 type LockFactory = (projectId: string, options?: Record<string, unknown>) => Promise<ProjectLifecycleLock>;
 type SessionFactory = () => ReturnType<typeof createAudioEditorSessionController>;
@@ -90,6 +84,7 @@ export interface EditorProjectRuntimeSelection {
 	readonly projectForCommandConsumers: (project: unknown) => ReturnType<typeof projectForConsumers>;
 	readonly projectForRuntimeConsumers: (project: unknown) => ReturnType<typeof projectForConsumers>;
 	readonly projectForEditClipboardConsumers: (project: unknown) => Readonly<Record<string, unknown>>;
+	readonly captureEditClipboardDescriptor: ReturnType<typeof createFramescaperCurrentClipboardRuntime>['captureEditClipboardDescriptor'];
 	readonly createSessionClipboard: (
 		project: unknown,
 		descriptor: AudioEditorClipboard,
@@ -153,6 +148,7 @@ export function createEditorProjectRuntimeSelection(
 	profile: unknown,
 ): Readonly<EditorProjectRuntimeSelection> {
 	assertFramescaperProjectRuntimeProfile(profile);
+	const clipboardRuntime = createFramescaperCurrentClipboardRuntime(profile);
 	const selection: EditorProjectRuntimeSelection = {
 		assistanceAssetCommands: true,
 		profile,
@@ -170,38 +166,17 @@ export function createEditorProjectRuntimeSelection(
 		projectForEditClipboardConsumers: (project) => framescaperProjectForEditClipboardConsumers(
 			profile, project,
 		),
-		createSessionClipboard: (project, descriptor) => createClipboard(project, descriptor),
-		createEditSessionClipboard: (project, descriptor) => createClipboard(project, descriptor),
-		prepareEditClipboardPaste: (project, clipboard, command, createId) => (
-			prepareFramescaperSessionClipboardPasteV13(
-				FRAMESCAPER_TIMELINE_IMAGE_PROJECT_RUNTIME_PROFILE,
-				legacyImageFoundation(project),
-				clipboard,
-				command,
-				createId,
-			)
-		),
-		prepareEditClipboardPasteCommand: (project, clipboard, command, createId) => {
-			const destination = legacyImageFoundation(project);
-			const prepared = prepareFramescaperSessionClipboardPasteV13(
-				FRAMESCAPER_TIMELINE_IMAGE_PROJECT_RUNTIME_PROFILE,
-				destination,
-				clipboard,
-				command,
-				createId,
-			);
-			const availableImages = new Set(destination.sources.filter(source => source.kind === 'image').map(source => source.id));
-			// Retained image bodies need no new asset publication during an ordinary paste.
-			return ([...prepared.imageSourceIdMap.values()].every(id => availableImages.has(id))
-				? prepared.command : prepared.foundationCommand) as FramescaperProjectCommand;
-		},
+		captureEditClipboardDescriptor: clipboardRuntime.captureEditClipboardDescriptor,
+		createSessionClipboard: clipboardRuntime.createClipboard,
+		createEditSessionClipboard: clipboardRuntime.createClipboard,
+		prepareEditClipboardPaste: clipboardRuntime.preparePaste,
+		prepareEditClipboardPasteCommand: clipboardRuntime.preparePasteCommand,
 		stageEditClipboardPasteBodies: (prepared, store, options = {}) => (
 			stageFramescaperSessionClipboardImageBodiesV13(prepared.bodyTransfers, store, options)
 		),
-		prepareEditClipboardDescriptor: (project, descriptor) => createClipboard(project, descriptor).descriptor,
-		prepareEditDuplicateCommand: (project: unknown, descriptor: AudioEditorClipboard, command: AudioEditorCommand, createId: (prefix?: string) => string) => (
-			prepareFramescaperSessionClipboardPasteV13(FRAMESCAPER_TIMELINE_IMAGE_PROJECT_RUNTIME_PROFILE,
-				legacyImageFoundation(project), createClipboard(project, descriptor), command, createId).command
+		prepareEditClipboardDescriptor: (project, descriptor) => clipboardRuntime.createClipboard(project, descriptor).descriptor,
+		prepareEditDuplicateCommand: (project, descriptor, command, createId) => (
+			clipboardRuntime.preparePaste(project, clipboardRuntime.createClipboard(project, descriptor), command, createId).command
 		),
 		createHistory: (project) => createHistory(profile, project),
 		applyCommand: (project, command, options = {}) => applyFramescaperProjectCommand(
@@ -241,21 +216,6 @@ export function createEditorProjectRuntimeSelection(
 		),
 	};
 	return Object.freeze(selection);
-}
-
-function createClipboard(
-	project: unknown,
-	descriptor: AudioEditorClipboard,
-): FramescaperSessionClipboardV13 {
-	return createFramescaperSessionClipboardV13(
-		FRAMESCAPER_TIMELINE_IMAGE_PROJECT_RUNTIME_PROFILE,
-		legacyImageFoundation(project),
-		descriptor,
-	);
-}
-
-function legacyImageFoundation(project: unknown) {
-	return framescaperProjectTimelineImageFoundationShapeAssistance(project);
 }
 
 function createSelectedSession(profile: unknown): ReturnType<typeof createAudioEditorSessionController> {

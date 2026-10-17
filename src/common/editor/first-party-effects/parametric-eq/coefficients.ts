@@ -450,4 +450,3 @@ function releaseRecord(value: unknown): Readonly<Record<string, unknown>> | null
 function finiteReleaseValue(value: unknown): value is number {
 	return typeof value === 'number' && Number.isFinite(value);
 }
-

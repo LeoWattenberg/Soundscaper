@@ -3,6 +3,8 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { lstat, mkdir, readdir, readlink, rename, rm } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
+import { NIGHTLY_IMAGE_TEST_HELPER_INPUTS } from './desktop-nightly-image-test-payloads.mjs';
+
 import nativeFixtureSources from './desktop-nightly-tests-native-fixture-inputs.cjs';
 import { NIGHTLY_BROWSER_CODEC_INPUTS } from './desktop-nightly-tests-browser-codec-inputs.mjs';
 import { NIGHTLY_BROWSER_MEDIA_INPUTS } from './desktop-nightly-tests-browser-media-inputs.mjs';
@@ -110,6 +112,7 @@ export const NIGHTLY_TEST_PAYLOAD_INPUTS = Object.freeze([
 	{ source: 'scripts/collect-m4-production-parity-quality.mjs', destination: 'scripts/collect-m4-production-parity-quality.mjs', kind: 'file', label: 'M4 production parity metric collector' },
 	{ source: 'scripts/collect-m4b2-keyframe-parity-quality.mjs', destination: 'scripts/collect-m4b2-keyframe-parity-quality.mjs', kind: 'file', label: 'M4B2 keyframe metric collector' },
 	{ source: 'scripts/lib/quality-budget-config.mjs', destination: 'scripts/lib/quality-budget-config.mjs', kind: 'file', label: 'quality budget config reader' },
+	{ source: 'scripts/lib/lightscaper-large-library-diagnostics-v1.ts', destination: 'scripts/lib/lightscaper-large-library-diagnostics-v1.ts', kind: 'file', label: 'photo library native workload diagnostics' },
 	{ source: 'scripts/quality-budget-evaluator.mjs', destination: 'scripts/quality-budget-evaluator.mjs', kind: 'file', label: 'quality budget evaluator' },
 	{ source: 'scripts/quality-budget-result.mjs', destination: 'scripts/quality-budget-result.mjs', kind: 'file', label: 'quality budget result evaluator' },
 	{ source: 'scripts/verify-quality-budget-result.mjs', destination: 'scripts/verify-quality-budget-result.mjs', kind: 'file', label: 'quality budget diagnostic verifier' },
@@ -167,14 +170,7 @@ export const NIGHTLY_TEST_PAYLOAD_INPUTS = Object.freeze([
 	{ source: 'tests/electron/local-assistance-models', destination: 'tests/electron/local-assistance-models', kind: 'directory', label: 'real local assistance model tests', exclude: new Set(['AGENTS.md']) },
 	{ source: 'tests/aup3-fixture.js', destination: 'tests/aup3-fixture.js', kind: 'file', label: 'AUP3 browser support fixture' },
 	{ source: 'tests/helpers/png-fixture.mjs', destination: 'tests/helpers/png-fixture.mjs', kind: 'file', label: 'timeline image browser support fixture' },
-	{ source: 'tests/helpers/framescaper-ordinary-animation-fixture.ts', destination: 'tests/helpers/framescaper-ordinary-animation-fixture.ts', kind: 'file', label: 'ordinary animated image browser support fixture' },
-	{ source: 'tests/helpers/framescaper-ordinary-high-precision-image-fixture.ts', destination: 'tests/helpers/framescaper-ordinary-high-precision-image-fixture.ts', kind: 'file', label: 'ordinary high-precision PNG browser support fixture' },
-	...['desktop-preload-source.mjs', 'ordinary-cover-mp3-fixture.ts', 'native-original-import-fixture.ts', 'ordinary-ogg-opus-fixture.ts', 'ordinary-tail-m4a-fixture.ts', 'os-audio-codec-fixtures.ts', 'round7-speech-preview-bridge.ts', 'round7-warp-drums.ts'].map(file => ({
-		source: `tests/helpers/${file}`, destination: `tests/helpers/${file}`, kind: 'file', label: 'ordinary browser workflow fixture support',
-	})),
-	{ source: 'tests/helpers/interchange-reference.ts', destination: 'tests/helpers/interchange-reference.ts', kind: 'file', label: 'external interchange reader browser support helper' },
-	{ source: 'tests/helpers/framescaper-native-sidecar-fixture.ts', destination: 'tests/helpers/framescaper-native-sidecar-fixture.ts', kind: 'file', label: 'native sidecar chooser/read/save browser support fixture' },
-	{ source: 'tests/helpers/libsndfile-rifx-fixture.ts', destination: 'tests/helpers/libsndfile-rifx-fixture.ts', kind: 'file', label: 'normal RIFX browser import fixture' },
+	...NIGHTLY_IMAGE_TEST_HELPER_INPUTS,
 	{ source: 'tests/fixtures/aup4-native-rich.js', destination: 'tests/fixtures/aup4-native-rich.js', kind: 'file', label: 'AUP4 browser support fixture' },
 	...NIGHTLY_BROWSER_MEDIA_INPUTS,
 	{ source: 'desktop/original-file-overwrite.ts', destination: 'desktop/original-file-overwrite.ts', kind: 'file', label: 'ordinary native original media browser workflow support' },

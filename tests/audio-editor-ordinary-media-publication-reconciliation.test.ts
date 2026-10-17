@@ -4,13 +4,15 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { createProjectStore } from '../src/common/editor/storage.js';
+import { CATALOG_ORIGINAL_ROOT_STORE_NAME } from '../src/common/editor/storage/media-catalog-original-schema.ts';
 import { createInstrumentedIndexedDB } from './helpers/instrumented-indexeddb.js';
 
 test('ordinary media write reconciles a committed row after completion acknowledgement fails', async () => {
 	const fixture = await mediaFixture('committed');
 	try {
-		injectPublicationCompletionFailure(fixture.database, fixture.publicationError);
+		const assertFault = injectPublicationCompletionFailure(fixture.database, fixture.publicationError);
 		const metadata = await fixture.store.writeMediaAsset('video-source', new Blob(['original']));
+		assertFault();
 		assert.equal(metadata.storage, 'opfs');
 		assert.equal(fixture.files.size, 1);
 		assert.equal(await readMedia(fixture.store), 'original');
@@ -23,8 +25,9 @@ test('ordinary media write reconciles a committed row after completion acknowled
 test('ordinary Blob-backed media write reconciles a committed row after completion acknowledgement fails', async () => {
 	const fixture = await mediaFixture('blob-committed', false);
 	try {
-		injectPublicationCompletionFailure(fixture.database, fixture.publicationError);
+		const assertFault = injectPublicationCompletionFailure(fixture.database, fixture.publicationError);
 		const metadata = await fixture.store.writeMediaAsset('video-source', new Blob(['original']));
+		assertFault();
 		assert.equal(metadata.storage, 'indexeddb-blob');
 		assert.equal(await readMedia(fixture.store), 'original');
 	} finally {
@@ -37,13 +40,14 @@ test('ordinary media write retains OPFS when publication reconciliation cannot r
 	const fixture = await mediaFixture('indeterminate');
 	const reconciliationError = new Error('media reconciliation unavailable');
 	try {
-		injectPublicationCompletionFailure(fixture.database, fixture.publicationError, reconciliationError);
+		const assertFault = injectPublicationCompletionFailure(fixture.database, fixture.publicationError, reconciliationError);
 		await assert.rejects(
 			fixture.store.writeMediaAsset('video-source', new Blob(['original'])),
 			(error: unknown) => error instanceof AggregateError
 				&& error.errors[0] === fixture.publicationError
 				&& error.errors[1] === reconciliationError,
 		);
+		assertFault();
 		assert.equal(fixture.files.size, 1);
 		assert.equal(await readMedia(fixture.store), 'original');
 	} finally {
@@ -78,7 +82,7 @@ function injectPublicationCompletionFailure(
 	database: IDBDatabase,
 	publicationError: Error,
 	reconciliationError?: Error,
-): void {
+): () => void {
 	const originalTransaction = database.transaction.bind(database);
 	let injected = false;
 	let failedRead = false;
@@ -93,7 +97,7 @@ function injectPublicationCompletionFailure(
 			}
 			const transaction = originalTransaction(storeNames, mode);
 			if (!injected && mode === 'readwrite'
-				&& names.length === 1 && names[0] === 'mediaAssets') {
+				&& names.length === 2 && names.includes('mediaAssets') && names.includes(CATALOG_ORIGINAL_ROOT_STORE_NAME)) {
 				injected = true;
 				Object.defineProperty(transaction, 'oncomplete', {
 					configurable: true,
@@ -109,6 +113,10 @@ function injectPublicationCompletionFailure(
 			return transaction;
 		},
 	});
+	return () => {
+		assert.equal(injected, true, 'The real media publication must lose its completion acknowledgement.');
+		if (reconciliationError) assert.equal(failedRead, true, 'The actual reconciliation read must fail.');
+	};
 }
 
 function fakeOpfs(files: Map<string, Blob>): FileSystemDirectoryHandle {

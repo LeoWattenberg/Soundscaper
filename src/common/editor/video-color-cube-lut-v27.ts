@@ -9,22 +9,11 @@
 
 import { sha256 } from '@noble/hashes/sha2.js';
 import { bytesToHex } from '@noble/hashes/utils.js';
+import { VIDEO_COLOR_LIMITS_V1, type VideoCubeLutReferenceV1 } from './cube-lut-reference-contract.ts';
+
+export { VIDEO_COLOR_LIMITS_V1, type VideoCubeLutReferenceV1 } from './cube-lut-reference-contract.ts';
 
 type RgbTripletV1 = readonly [number, number, number];
-
-export const VIDEO_COLOR_LIMITS_V1 = Object.freeze({
-	maximumCubeLutBytes: 16 * 1024 * 1024,
-	maximumCubeLutSize: 65,
-});
-
-export interface VideoCubeLutReferenceV1 {
-	readonly storageKey: string;
-	readonly sha256: string;
-	readonly byteLength: number;
-	readonly size: number;
-	readonly domainMin: RgbTripletV1;
-	readonly domainMax: RgbTripletV1;
-}
 
 export interface ParsedCubeLutV1 {
 	readonly title: string | null;

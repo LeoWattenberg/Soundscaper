@@ -5,8 +5,9 @@
 import { compareCodeUnits } from '../code-unit-order.ts';
 import {
 	PROJECT_SCHEMA_VERSION,
+	isTimelineProjectSchemaFamily,
 	readProjectSchemaIdentity,
-	type ProjectSchemaFamily,
+	type TimelineProjectSchemaFamily,
 } from '../project-schema-identity.ts';
 
 export const ASSISTANCE_WORKFLOW_FENCE_VERSION = 1;
@@ -29,7 +30,7 @@ export interface AssistanceWorkflowSourceRangeV1 {
 export interface AssistanceWorkflowFenceV1 {
 	readonly fenceVersion: typeof ASSISTANCE_WORKFLOW_FENCE_VERSION;
 	readonly projectId: string;
-	readonly schemaFamily: ProjectSchemaFamily;
+	readonly schemaFamily: TimelineProjectSchemaFamily;
 	readonly schemaVersion: typeof PROJECT_SCHEMA_VERSION;
 	readonly revision: number;
 	readonly sequenceId: string;
@@ -57,8 +58,8 @@ const MAXIMUM_OCCURRENCES = 1024;
 /** Normalize the exact aggregate authority revalidated before publication. */
 export function validateAssistanceWorkflowFenceV1(value: unknown): AssistanceWorkflowFenceV1 {
 	const identity = readProjectSchemaIdentity(value);
-	if (identity.schemaVersion !== PROJECT_SCHEMA_VERSION) {
-		throw new RangeError('The assistance workflow fence must bind the current project schema version.');
+	if (!isTimelineProjectSchemaFamily(identity.schemaFamily) || identity.schemaVersion !== PROJECT_SCHEMA_VERSION) {
+		throw new RangeError('The assistance workflow fence must bind the current timeline project schema.');
 	}
 	const record = exactRecord(value, FENCE_KEYS, 'assistance workflow fence');
 	if (record.fenceVersion !== ASSISTANCE_WORKFLOW_FENCE_VERSION) {

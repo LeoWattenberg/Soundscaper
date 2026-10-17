@@ -7,7 +7,7 @@ import { sequenceForTrack } from './clipboard-time-runtime.js';
 import { assertClipSourceBounds, normalizeClipForProject, requireTrack } from './shared-runtime.js';
 import { createClipEditIndex } from './clip-edit-index.ts';
 import { firstById } from './editing-work-index.ts';
-import type { AudioEditorClipboard } from './protocol.ts';
+import type { CurrentAudioEditorClipboardDescriptor } from './clipboard-command-v2.ts';
 
 interface Clip extends Record<string, unknown> {
 	id: string;
@@ -35,12 +35,13 @@ const scaleClip = scaleClipboardClip as unknown as (
 	descriptor: Readonly<Record<string, unknown>>, scale: number, atFrame: number, id: string,
 	groupIds: Readonly<Record<string, string>>, avLinkIds: Readonly<Record<string, string>>,
 	videoEffectIds: readonly string[] | undefined, targetSequence: unknown, conformedAnchor: unknown,
+	project: object,
 ) => Record<string, unknown>;
 const assertSourceBounds = assertClipSourceBounds as unknown as (project: object, clip: Clip, source: unknown) => void;
 
 /** Stage every addition before publication; all indexes are rebuilt after collision edits. */
 export function stageClipboardClipAdditions(
-	projectValue: object, clipboard: AudioEditorClipboard, command: PasteCommand,
+	projectValue: object, clipboard: CurrentAudioEditorClipboardDescriptor, command: PasteCommand,
 	scale: number, atFrame: number, mode: string, conformedAnchorBySequenceId: ReadonlyMap<string, unknown>,
 ): { track: Track; clip: Clip }[] {
 	const project = projectValue as Project;
@@ -64,7 +65,7 @@ export function stageClipboardClipAdditions(
 			if (clipIds.has(id)) throw new RangeError(`Duplicate clip ID: ${id}.`);
 			const clip = normalizeClipForProject(project, scaleClip(
 				descriptor, scale, atFrame, id, command.groupIds || {}, command.avLinkIds || {},
-				command.videoEffectIds?.[key], targetSequence, conformedAnchor,
+				command.videoEffectIds?.[key], targetSequence, conformedAnchor, project,
 			)) as Clip;
 			assertSourceBounds(project, clip, sources.get(clip.sourceId));
 			if (mode === 'reject' && clipIndex) {

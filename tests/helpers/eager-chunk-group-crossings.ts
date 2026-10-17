@@ -39,8 +39,31 @@ const EAGER_ENTRY_MODULES: readonly string[] = [
 export const EAGER_CHUNK_GROUPS: ReadonlySet<string> = new Set([
 	'editor-codec-foundations',
 	'editor-copy',
+	// Lightscaper's lazy product bootstrap reads its compact defaults immediately.
+	// Initial-page separation remains measured by the product startup graph.
+	'lightscaper-editor-copy',
+	// The File menu reads these scalar batch labels immediately at product startup.
+	'lightscaper-photo-batch-export-menu-copy',
+	// The photo bootstrap composes these scalar owners immediately; the shared
+	// inert value validator is also read by the existing timeline boot domains.
+	'editor-photo-library-scalars',
+	'editor-closed-domain-values',
+	// Existing startup domains use cancellation, ordering, IDs and the inert
+	// limit read by archive estimation; their actual product graphs stay measured.
+	'editor-neutral-foundations',
+	// Existing project storage reaches retention, publication and writer contracts.
+	'editor-media-storage-contracts',
+	// Existing product boot repositories already compose shared original custody.
+	'editor-media-custody-storage',
+	// Existing editor bootstrap file/archive services already consume these
+	// implementations. The photo product reaches them only after menu opt-in.
+	'editor-file-saving',
+	'editor-scape-archive-bytes',
 	'editor-controller-core',
 	'editor-domain',
+	// Frame's existing image decoder/frame source already compose these common
+	// kernels at product startup; the group gives those kernels a stable owner.
+	'editor-imaging',
 	'editor-effect-contracts',
 	'editor-engine',
 	// The browser reaches this composition only through a dynamic trim lease;
@@ -49,6 +72,10 @@ export const EAGER_CHUNK_GROUPS: ReadonlySet<string> = new Set([
 	'editor-production-meter',
 	'editor-presentation',
 	'editor-shell',
+	// Ready audio/video tooltips, overlays and workspace dialogs already import
+	// these neutral leaves. Product-specific startup budgets still measure when
+	// Lightscaper reaches its menu-opened dialog owner.
+	'editor-dialog-foundations',
 	'editor-shell-design-components',
 	'editor-web-bootstrap',
 	'editor-storage-model',
@@ -105,6 +132,10 @@ const DYNAMIC_IMPORT_PATTERN = /\bimport\(\s*(?:'(\.[^']+)'|"(\.[^"]+)")/gu;
  * the entry module is its own bundle root.
  */
 export const REACHABILITY_PLACED_TARGETS: ReadonlyMap<string, string> = new Map([
+	[
+		'src/common/i18n/site-copy.js',
+		'Site defaults already read by the initial BrandSidebar/use-site-copy graph; Lightscaper reuses four identity strings without giving the initial leaf an editor owner.',
+	],
 	[
 		'src/common/i18n/locale.js',
 		'Site copy leaf: `src/common/site/BrandSidebar.jsx` reads it, so an editor owner would put an editor chunk in the initial graph.',

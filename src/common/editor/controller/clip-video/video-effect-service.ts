@@ -3,13 +3,17 @@
 import { createLocalizedError } from '../../../i18n/presentation-message.ts'; import type { AudioEditorCommand, CommandObject } from '../../commands/protocol.ts';
 import type { EditorProjectToken } from '../shared/lifecycle.ts';
 import { EffectGestureTargetChangedError, effectParametersMatch } from '../effects/effect-gesture-safety.ts';
+import type { VideoEffectParameterV1 } from '../../video-curve-types-v1.ts';
+import type { VideoEffectParameterV2 } from '../../video-effect-parameter-v2.ts';
+import { createVideoEffectV2 } from '../../video-effects-v2.ts';
+import { isCurrentProjectSchemaIdentity } from '../../project-schema-identity.ts';
 import { createVideoEffect, normalizeVideoEffect } from '../../video-effects.js';
 
 export interface ControllerVideoEffect {
 	readonly id: string;
 	readonly type: string;
 	readonly enabled: boolean;
-	readonly params: Readonly<Record<string, number>>;
+	readonly params: Readonly<Record<string, VideoEffectParameterV2>>;
 }
 
 export interface ControllerVideoClip {
@@ -19,6 +23,8 @@ export interface ControllerVideoClip {
 }
 
 export interface VideoEffectProject {
+	readonly schemaFamily?: string;
+	readonly schemaVersion?: number;
 	readonly id: string;
 	readonly clips: readonly ControllerVideoClip[];
 }
@@ -26,8 +32,8 @@ export interface VideoEffectProject {
 export interface VideoEffectGestureSession {
 	readonly project: EditorProjectToken;
 	readonly effectType: string;
-	readonly original: Readonly<Record<string, number>>;
-	params: Readonly<Record<string, number>>;
+	readonly original: Readonly<Record<string, VideoEffectParameterV1>>;
+	params: Readonly<Record<string, VideoEffectParameterV1>>;
 }
 
 export interface VideoEffectControllerState {
@@ -61,7 +67,7 @@ export interface VideoEffectServiceRuntime {
 export interface AddVideoEffectOptions {
 	readonly id?: string;
 	readonly enabled?: boolean;
-	readonly params?: Readonly<Record<string, number>>;
+	readonly params?: Readonly<Record<string, VideoEffectParameterV1>>;
 	readonly index?: number;
 }
 
@@ -91,7 +97,7 @@ export function createVideoEffectService(runtime: VideoEffectServiceRuntime) {
 		if (editingBlocked()) return null;
 		const clip = getProject()?.clips.find((candidate) => candidate.id === clipId);
 		if (!clip || clip.kind !== 'video') throw new Error('Video clip not found.');
-		const effect = createVideoEffect(type, options) as ControllerVideoEffect;
+		const effect = (isCurrentProjectSchemaIdentity(getProject(), 'framescaper') ? createVideoEffectV2 : createVideoEffect)(type, options) as ControllerVideoEffect;
 		commit({
 			type: 'video-effect/add',
 			clipId: clip.id,
@@ -176,9 +182,11 @@ export function createVideoEffectService(runtime: VideoEffectServiceRuntime) {
 	function beginVideoEffectGesture(
 		clipId: string,
 		effectId: string,
-	): Readonly<Record<string, number>> | null {
+	): Readonly<Record<string, VideoEffectParameterV1>> | null {
 		if (editingBlocked()) return null;
-		const { effect } = videoClipEffect(clipId, effectId);
+		const { effect: currentEffect } = videoClipEffect(clipId, effectId);
+		if (currentEffect.type === 'cube-lut-profile-v1') throw new RangeError('A LUT resource changes discretely; numeric gestures are unsupported.');
+		const effect = normalizeVideoEffect(currentEffect) as Readonly<{ id: string; type: string; enabled: boolean; params: Readonly<Record<string, VideoEffectParameterV1>> }>;
 		const key = videoEffectGestureKey(clipId, effectId);
 		const current = state.videoEffectGestures.get(key);
 		if (current) assertGestureTarget(key, current, effect);
@@ -196,10 +204,12 @@ export function createVideoEffectService(runtime: VideoEffectServiceRuntime) {
 	function previewVideoEffectGesture(
 		clipId: string,
 		effectId: string,
-		params: Readonly<Record<string, number>> = {},
-	): Readonly<Record<string, number>> | null {
+		params: Readonly<Record<string, VideoEffectParameterV1>> = {},
+	): Readonly<Record<string, VideoEffectParameterV1>> | null {
 		if (editingBlocked()) return null;
-		const { effect } = videoClipEffect(clipId, effectId);
+		const { effect: currentEffect } = videoClipEffect(clipId, effectId);
+		if (currentEffect.type === 'cube-lut-profile-v1') throw new RangeError('A LUT resource changes discretely; numeric gestures are unsupported.');
+		const effect = normalizeVideoEffect(currentEffect) as Readonly<{ id: string; type: string; enabled: boolean; params: Readonly<Record<string, VideoEffectParameterV1>> }>;
 		const key = videoEffectGestureKey(clipId, effectId);
 		if (!state.videoEffectGestures.has(key)) beginVideoEffectGesture(clipId, effectId);
 		const gesture = state.videoEffectGestures.get(key)!;
@@ -207,7 +217,7 @@ export function createVideoEffectService(runtime: VideoEffectServiceRuntime) {
 		const normalized = (normalizeVideoEffect({
 			...effect,
 			params: { ...gesture.params, ...params },
-		}) as ControllerVideoEffect).params;
+		}) as unknown as Readonly<{ params: Readonly<Record<string, VideoEffectParameterV1>> }>).params;
 		gesture.params = structuredClone(normalized);
 		publishDocumentSnapshot();
 		return structuredClone(normalized);
@@ -216,17 +226,19 @@ export function createVideoEffectService(runtime: VideoEffectServiceRuntime) {
 	function commitVideoEffectGesture(
 		clipId: string,
 		effectId: string,
-		params: Readonly<Record<string, number>> = {},
+		params: Readonly<Record<string, VideoEffectParameterV1>> = {},
 	): VideoEffectProject {
 		if (state.readOnly) throw createLocalizedError(Error, copy, 'projectReadOnly');
-		const { effect } = videoClipEffect(clipId, effectId);
+		const { effect: currentEffect } = videoClipEffect(clipId, effectId);
+		if (currentEffect.type === 'cube-lut-profile-v1') throw new RangeError('A LUT resource changes discretely; numeric gestures are unsupported.');
+		const effect = normalizeVideoEffect(currentEffect) as Readonly<{ id: string; type: string; enabled: boolean; params: Readonly<Record<string, VideoEffectParameterV1>> }>;
 		const key = videoEffectGestureKey(clipId, effectId);
 		const gesture = state.videoEffectGestures.get(key);
 		if (gesture) assertGestureTarget(key, gesture, effect);
 		const normalized = (normalizeVideoEffect({
 			...effect,
 			params: { ...effect.params, ...(gesture?.params || {}), ...params },
-		}) as ControllerVideoEffect).params;
+		}) as unknown as Readonly<{ params: Readonly<Record<string, VideoEffectParameterV1>> }>).params;
 		state.videoEffectGestures.delete(key);
 		if (effectParametersMatch(effect.params, normalized)) {
 			publishDocumentSnapshot();
