@@ -90,6 +90,10 @@ export function NumberField({ value, onCommit, disabled, step = 1, min, max, dig
       data-clip-properties-field={testId}
       data-mixed={mixed ? 'true' : undefined}
       data-tooltip={label}
+      onFocusCapture={(e) => {
+        // Editing starts from authored precision; focusing alone never commits it.
+        if (e.target === inputRef.current && !mixed && draftRef.current === null) setDraft(String(value));
+      }}
       onKeyDown={(e) => {
         if (e.key === 'Enter') { commitDraft(); inputRef.current?.blur(); }
         if (e.key === 'Escape') { setDraft(null); inputRef.current?.blur(); e.stopPropagation(); }

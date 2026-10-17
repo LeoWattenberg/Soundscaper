@@ -116,6 +116,8 @@ export interface ClipPropertiesPanelProps {
   onReverseChange?: (reversed: boolean) => void;
   /** Pitch back to 0 and speed back to 100 — the section's Reset */
   onResetPitchSpeed?: () => void;
+  /** Native hosts can include stored values hidden by linked pitch presentation. */
+  resetPitchSpeedDisabled?: boolean;
   /** The export block's formats; none = no Export section */
   exportFormats?: ReadonlyArray<ClipPropertiesOption>;
   /** The export block's sample rates, Hz (ids are the numbers) */

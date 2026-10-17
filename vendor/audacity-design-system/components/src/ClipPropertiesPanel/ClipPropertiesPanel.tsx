@@ -41,6 +41,7 @@ function ClipPropertiesPanelBody({
   onSpeedChange,
   onReverseChange,
   onResetPitchSpeed,
+  resetPitchSpeedDisabled,
   exportFormats = [],
   exportSampleRates = [],
   onExport,
@@ -255,7 +256,7 @@ function ClipPropertiesPanelBody({
             actionId="reset-pitch-speed"
             actionTip={t('Reset pitch and speed')}
             onAction={onResetPitchSpeed}
-            actionDisabled={pitch === 0 && speed === 100}
+            actionDisabled={resetPitchSpeedDisabled ?? (pitch === 0 && speed === 100)}
           >
             {t('Pitch & speed')}
           </SectionHeader>

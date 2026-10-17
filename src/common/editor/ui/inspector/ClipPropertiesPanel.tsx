@@ -159,6 +159,7 @@ export default function ClipPropertiesPanel({ controller, snapshot, copy, focusR
 					}); } : undefined} />}
 				onSpeedChange={timePitchEnabled ? percent => setTimePitch({ speedRatio: percent / 100 }) : undefined}
 				onReverseChange={timePitchEnabled && !presentation.clips.some(clip => (clip as { readonly warpMap?: unknown }).warpMap != null) ? reversed => update(() => ({ reversed })) : undefined}
+				resetPitchSpeedDisabled={presentation.clips.every(clip => (clip.pitchCents ?? 0) === 0 && (clip.speedRatio ?? 1) === 1 && !clip.preserveFormants)}
 				onResetPitchSpeed={timePitchEnabled ? () => setTimePitch({ pitchCents: 0, speedRatio: 1, preserveFormants: false }) : undefined} />
 		</fieldset>
 			{clip && source && !presentation.selection && <ClipAudioSettingsMenu key={`settings:${targetKey}`} controller={controller} clip={clip} source={source}

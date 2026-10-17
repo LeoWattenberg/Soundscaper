@@ -151,6 +151,46 @@ test('merged clip properties edit all selected clips in one native batch without
 	} finally { await f.cleanup(); }
 });
 
+test('linked neutral playback can reset retained independent pitch and formants once', async () => {
+	for (const stored of [{ pitchCents: 600, preserveFormants: false }, { pitchCents: 0, preserveFormants: true }]) {
+		const f = await fixture();
+		try {
+			await f.render(['one'], { timePitch: { ...stored, linkPitchAndTempo: true, speedRatio: 1 } });
+			assert.equal(f.input('pitch').value, '0', 'linked playback displays its audible pitch');
+			assert.equal(f.input('speed').value, '100');
+			const reset = f.dom.one('[data-clip-properties-action="reset-pitch-speed"]');
+			assert.equal(reset.getAttribute('disabled'), null, 'Reset includes retained native values');
+			await act(async () => reactProps(reset).onClick());
+			assert.deepEqual(f.timePitch, [{ ids: ['one'], changes: { pitchCents: 0, speedRatio: 1, preserveFormants: false } }]);
+			await f.render(['one'], { timePitch: { pitchCents: 0, preserveFormants: false, linkPitchAndTempo: true, speedRatio: 1 } });
+			assert.equal(f.dom.one('[data-clip-properties-action="reset-pitch-speed"]').getAttribute('disabled'), '');
+		} finally { await f.cleanup(); }
+	}
+});
+
+test('retained pitch does not enable Reset when native editing or audio effects are blocked', async () => {
+	const f = await fixture();
+	try {
+		for (const guards of [{ locked: true }, { audioEffects: false }]) {
+			await f.render(['one'], { ...guards, timePitch: { pitchCents: 600, linkPitchAndTempo: true, speedRatio: 1 } });
+			assert.equal(f.dom.one('[data-clip-properties-action="reset-pitch-speed"]').getAttribute('disabled'), '');
+		}
+		assert.deepEqual(f.timePitch, []);
+	} finally { await f.cleanup(); }
+});
+
+test('merged linked clips reset their retained independent pitch in one native operation', async () => {
+	const f = await fixture();
+	try {
+		await f.render(['one', 'two'], { timePitch: { pitchCents: 600, linkPitchAndTempo: true, speedRatio: 1 } });
+		assert.equal(f.input('pitch').value, '0');
+		const reset = f.dom.one('[data-clip-properties-action="reset-pitch-speed"]');
+		assert.equal(reset.getAttribute('disabled'), null);
+		await act(async () => reactProps(reset).onClick());
+		assert.deepEqual(f.timePitch, [{ ids: ['one', 'two'], changes: { pitchCents: 0, speedRatio: 1, preserveFormants: false } }]);
+	} finally { await f.cleanup(); }
+});
+
 test('opening requests focus pitch and speed once when their dock becomes active', async () => {
 	const f = await fixture();
 	try {
@@ -272,12 +312,14 @@ async function fixture() {
 			await act(async () => reactProps(item).onClick({ stopPropagation() {} }));
 		},
 		typeAndCommit: async (name: string, value: string) => { await type(name, value); await act(async () => reactProps(field(name)).onBlur({ target: input(name) })); },
-		render: async (ids: string[], options: { projectId?: string; locked?: boolean; copy?: typeof ENGLISH_COPY;
+		render: async (ids: string[], options: { projectId?: string; locked?: boolean; copy?: typeof ENGLISH_COPY; audioEffects?: boolean;
+			timePitch?: Partial<Pick<ReturnType<typeof createAudioClip>, 'pitchCents' | 'speedRatio' | 'linkPitchAndTempo' | 'preserveFormants'>>;
 			focusRequest?: ComponentProps<typeof ClipPropertiesPanel>['focusRequest']; panelActive?: boolean } = {}) => {
 			current = project(options.projectId, ids, options.locked);
+			if (options.timePitch) current = { ...current, clips: current.clips.map(clip => ({ ...clip, ...options.timePitch })) };
 			await act(async () => root.render(<ClipPropertiesPanel controller={controller} copy={options.copy ?? ENGLISH_COPY}
 				run={run}
-				snapshot={{ project: current, selectedClipIds: ids, selectedClipId: ids[0] ?? null, capabilities: { audioEffects: true } }}
+				snapshot={{ project: current, selectedClipIds: ids, selectedClipId: ids[0] ?? null, capabilities: { audioEffects: options.audioEffects ?? true } }}
 				focusRequest={options.focusRequest} panelActive={options.panelActive} />));
 		},
 		cleanup: async () => { await act(async () => root.unmount()); actGlobal.IS_REACT_ACT_ENVIRONMENT = priorAct;

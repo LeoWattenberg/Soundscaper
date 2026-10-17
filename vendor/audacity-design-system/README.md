@@ -641,3 +641,17 @@ are the places where the two keyboard models meet, so a future sync should re-ch
     consumer code. Covered by the mounted inspector, exact-time and error-routing
     regressions and ordinary Clip properties browser workflows. Upstream-PR
     candidates; the selective upstream pin remains unchanged.
+
+81. The clip properties `NumberField` reveals its full authored precision on
+    input focus and returns to the compact display on blur. Focusing and leaving
+    the field never round or commit its value; explicitly entering the rounded
+    neutral value can therefore reset a tiny non-neutral speed. Covered by
+    `tests/vendored-clip-number-field-precision.test.tsx` and the tiny-speed
+    indicator browser workflow. Upstream-PR candidate.
+
+82. `ClipPropertiesPanel` accepts an optional `resetPitchSpeedDisabled` override
+    so the host can keep Reset available for stored independent pitch or formant
+    settings hidden by linked neutral playback. Hosts that omit it retain the
+    upstream displayed-pitch/speed default; the action callback still controls
+    mutation admission. Covered by the merged and linked reset inspector tests.
+    Upstream-PR candidate.
