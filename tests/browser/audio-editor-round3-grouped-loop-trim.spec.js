@@ -19,7 +19,11 @@ for (const input of ['keyboard', 'pointer']) test(`a grouped loop trim shares th
 	await expect(editor.locator('.clip-display[data-selected="true"]')).toHaveCount(2);
 	if (input === 'keyboard') {
 		await first.focus();
-		await first.press('Control+Shift+ArrowLeft');
+		await first.press('t');
+		const rightHandle = first.getByRole('button', { name: 'Trim right edge', exact: true });
+		if (!await rightHandle.evaluate(node => node === node.ownerDocument.activeElement)) await page.keyboard.press('t');
+		await expect(rightHandle).toBeFocused();
+		await rightHandle.press('ArrowLeft');
 	} else {
 		const handle = await first.getByRole('button', { name: 'Trim right edge', exact: true }).boundingBox();
 		const display = await first.locator('.clip-display').boundingBox();
@@ -28,9 +32,10 @@ for (const input of ['keyboard', 'pointer']) test(`a grouped loop trim shares th
 		await page.mouse.move(x, y); await page.mouse.down();
 		await page.mouse.move(x - display.width / 16, y, { steps: 5 }); await page.mouse.up();
 	}
-	const period = await first.locator('[data-loop-boundary-frame]').first().getAttribute('data-loop-boundary-frame');
-	if (input === 'keyboard') expect(period).toBe('33600');
-	else expect(Number(period)).toBeLessThan(34400);
+	const firstBoundary = first.locator('[data-loop-boundary-frame]').first();
+	if (input === 'keyboard') await expect(firstBoundary).toHaveAttribute('data-loop-boundary-frame', '33600');
+	const period = await firstBoundary.getAttribute('data-loop-boundary-frame');
+	if (input === 'pointer') expect(Number(period)).toBeLessThan(34400);
 	for (const file of files) await expect(clipByName(editor, file.name).locator('[data-loop-boundary-frame]').first()).toHaveAttribute('data-loop-boundary-frame', period);
 	await editor.getByRole('button', { name: 'Undo', exact: true }).click();
 	for (const file of files) await expect(clipByName(editor, file.name).locator('[data-loop-boundary-frame]').first()).toHaveAttribute('data-loop-boundary-frame', '38400');

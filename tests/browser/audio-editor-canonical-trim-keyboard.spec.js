@@ -108,9 +108,13 @@ test.describe('Framescaper canonical clip-focus trim keyboard routing', () => {
 		const legacyGroup = soundscaper.locator(`[data-clip-id="${legacyBefore.id}"][role="group"]`);
 		await expect(legacyGroup).toHaveCount(1);
 		await legacyGroup.focus();
-		// Bare brackets navigate globally; the retained clip trim chord edits
-		// ordinary audio by a tenth of a second through the legacy callback.
-		await legacyGroup.press('Control+Shift+ArrowLeft');
+		// Soundscaper reserves Shift+arrows for selection commands. Enter its
+		// right trim handle to edit by a tenth of a second in the source clock.
+		await legacyGroup.press('t');
+		const legacyTrimRight = legacyGroup.locator('.clip-display__handle--trim-right');
+		if (!await legacyTrimRight.evaluate(node => node === node.ownerDocument.activeElement)) await page.keyboard.press('t');
+		await expect(legacyTrimRight).toBeFocused();
+		await legacyTrimRight.press('ArrowLeft');
 		await expect.poll(() => persistedAudioOnlyClip(page, soundscaperProjectId))
 			.toMatchObject({
 				timelineStartFrame: legacyBefore.timelineStartFrame,

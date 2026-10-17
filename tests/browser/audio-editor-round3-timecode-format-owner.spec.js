@@ -51,7 +51,7 @@ test('the application playhead format popup owns arrows after pointer opening fr
 	await expect(choice).toBeVisible();
 	await page.keyboard.press('ArrowDown');
 	await expect(display).toHaveText(before);
-	await expect(page.getByRole('menuitem', { name: 'Enter value…', exact: true })).toBeFocused();
+	await expect(page.getByRole('menuitem', { name: 'Enter value', exact: true })).toBeFocused();
 	await page.keyboard.press('ArrowDown');
 	await expect(choice).toBeFocused();
 	await page.keyboard.press('Enter');
