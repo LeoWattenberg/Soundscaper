@@ -148,6 +148,7 @@ export function ShapePicker({ side, shapes, current, own, onPick, disabled }: {
   return (
     <div
       className="clip-properties__field clip-properties__field--select clip-properties__field--shape"
+      ref={(node) => { node?.querySelector('button')?.setAttribute('aria-label', label); }}
       data-clip-properties-field={`shape-${side}`}
       data-shape={preset?.id}
       data-mixed={current === MIXED ? 'true' : undefined}
@@ -312,7 +313,8 @@ export function SelectField({ testId, label, glyph, options, value, onChange, di
   disabled?: boolean;
 }) {
   return (
-    <div className="clip-properties__field clip-properties__field--select" data-clip-properties-field={testId} data-tooltip={label}>
+    <div className="clip-properties__field clip-properties__field--select" data-clip-properties-field={testId} data-tooltip={label}
+      ref={(node) => { node?.querySelector('button')?.setAttribute('aria-label', label); }}>
       <span className="clip-properties__glyph-cell">{glyph}</span>
       <Dropdown options={options} value={value} onChange={onChange} disabled={disabled} width="100%" />
       <span className="clip-properties__sr">{label}</span>

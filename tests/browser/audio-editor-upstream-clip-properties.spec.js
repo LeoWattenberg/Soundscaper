@@ -14,7 +14,7 @@ test.describe('upstream clip properties and source monitor', () => {
 		const clip = clipByName(editor, toneA.name);
 		const properties = await openClipProperties(page, editor, clip, { additional: false });
 		await expect(properties.getByRole('textbox', { name: 'Clip name', exact: true })).toHaveValue(toneA.name.replace(/\.[^.]+$/u, ''));
-		await expect(properties.getByRole('textbox', { name: 'Clip speed', exact: true })).toHaveValue('100');
+		await expect(properties.getByRole('textbox', { name: 'Speed', exact: true })).toHaveValue('100');
 		await expect(properties.getByRole('button', { name: 'Trim start', exact: true })).toBeVisible();
 		await expect(properties.getByRole('region', { name: 'Source waveform', exact: true })).toHaveCount(0);
 		const start = properties.getByRole('textbox', { name: 'Start', exact: true });
@@ -27,7 +27,7 @@ test.describe('upstream clip properties and source monitor', () => {
 		const source = await openSourceMonitor(page, editor, clip);
 		await expect(source.getByRole('region', { name: 'Source waveform', exact: true })).toBeVisible();
 		await expect(source.locator('details')).toHaveCount(0);
-		await expect(source.getByRole('textbox', { name: 'Clip speed', exact: true })).toHaveCount(0);
+		await expect(source.getByRole('textbox', { name: 'Speed', exact: true })).toHaveCount(0);
 		await source.getByRole('button', { name: 'Trim source start', exact: true }).press('Shift+ArrowRight');
 		await chooseCommandAction(page, editor, 'Edit', 'Undo');
 		expect(errors).toEqual([]);
@@ -40,7 +40,7 @@ test.describe('upstream clip properties and source monitor', () => {
 		await clipByName(editor, toneB.name).locator('.clip-header').click({ modifiers: ['Shift'] });
 		const properties = await openClipProperties(page, editor, undefined, { additional: false });
 		await expect(properties.getByText('2 clips', { exact: true })).toBeVisible();
-		const pitch = properties.getByRole('textbox', { name: 'Clip pitch', exact: true });
+		const pitch = properties.getByRole('textbox', { name: 'Pitch', exact: true });
 		await commitInput(pitch, '2');
 		await expect(pitch).toHaveValue('2');
 		await expect(properties.getByText('2 clips', { exact: true })).toBeVisible();

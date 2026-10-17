@@ -159,6 +159,7 @@ function ClipPropertiesPanelBody({
             <Row>
               <div
                 className="clip-properties__field clip-properties__field--select clip-properties__field--wide"
+                ref={(node) => { node?.querySelector('button')?.setAttribute('aria-label', t('Track')); }}
                 data-clip-properties-field="track"
                 data-mixed={trackId === MIXED ? 'true' : undefined}
                 data-tooltip={t('Track')}
@@ -177,7 +178,7 @@ function ClipPropertiesPanelBody({
             </Row>
           )}
           <Row>
-            <div className="clip-properties__field clip-properties__field--select clip-properties__field--wide" data-clip-properties-field="color" data-tooltip={t('Clip color')}>
+            <div className="clip-properties__field clip-properties__field--select clip-properties__field--wide" ref={(node) => { node?.querySelector('button')?.setAttribute('aria-label', t('Clip color')); }} data-clip-properties-field="color" data-tooltip={t('Clip color')}>
               <span className="clip-properties__glyph-cell">
                 <span className="clip-properties__swatch" data-swatch={swatch ?? (color === MIXED ? 'mixed' : 'track')} aria-hidden="true" />
               </span>

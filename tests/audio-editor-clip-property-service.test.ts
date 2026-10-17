@@ -294,7 +294,7 @@ function createHarness(
 	lifetime.markReady();
 	const generation = new EditorProjectGeneration();
 	generation.activate(project.id);
-	const commits: Array<{ command: AudioEditorCommand }> = [];
+	const commits: Array<{ command: AudioEditorCommand; selection?: Parameters<ClipPropertyServiceDependencies['commit']>[1] }> = [];
 	const analysisSignals: AbortSignal[] = [];
 	const sourceBuffers = new Map([['source', audioBufferFixture()]]);
 	const service = createClipPropertyService({
@@ -316,8 +316,8 @@ function createHarness(
 		},
 		sourceBuffers,
 		createId: (prefix) => `${prefix}-id`,
-		commit: (command) => {
-			commits.push({ command });
+		commit: (command, selection) => {
+			commits.push({ command, selection });
 			return project;
 		},
 	});

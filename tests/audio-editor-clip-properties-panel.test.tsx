@@ -50,11 +50,11 @@ test('opening requests focus pitch and speed once when their dock becomes active
 		await f.render(['one', 'two'], { focusRequest: request, panelActive: false });
 		assert.notEqual(document.activeElement, f.input('speed'));
 		await f.render(['one', 'two'], { focusRequest: request, panelActive: true });
-		assert.ok(document.activeElement === f.input('speed'));
+		assert.equal(document.activeElement, f.input('speed') as unknown as Element);
 		assert.equal(handled, 1);
 		f.input('pitch').focus();
 		await f.render(['one', 'two'], { focusRequest: request });
-		assert.ok(document.activeElement === f.input('pitch'));
+		assert.equal(document.activeElement, f.input('pitch') as unknown as Element);
 		assert.equal(handled, 1);
 	} finally { await f.cleanup(); }
 });
@@ -77,6 +77,22 @@ test('drafts and stale callbacks cannot target a different selection or project'
 	} finally { await f.cleanup(); }
 });
 
+test('Escape discards a rename before synchronous blur and Enter commits only once', async () => {
+	const f = await fixture();
+	try {
+		await f.render(['one']);
+		const name = f.input('name');
+		Object.defineProperty(name, 'blur', { configurable: true, value: () => reactProps(name).onBlur() });
+		await f.type('name', 'Discard me');
+		await act(async () => reactProps(f.dom.one('[data-clip-properties-field="name"]')).onKeyDown({ key: 'Escape', target: name, stopPropagation() {} }));
+		assert.deepEqual(f.updates, []);
+		assert.equal(name.value, 'First clip');
+		await f.type('name', 'New name');
+		await act(async () => reactProps(f.dom.one('[data-clip-properties-field="name"]')).onKeyDown({ key: 'Enter', target: name }));
+		assert.deepEqual(f.updates, [{ id: 'one', changes: { title: 'New name' } }]);
+	} finally { await f.cleanup(); }
+});
+
 test('native blocked state disables every property mutation while German fields keep accessible names', async () => {
 	const f = await fixture();
 	try {
@@ -84,7 +100,7 @@ test('native blocked state disables every property mutation while German fields 
 		assert.notEqual(f.input('name').getAttribute('disabled'), null);
 		assert.notEqual(f.input('pitch').getAttribute('disabled'), null);
 		assert.equal(f.input('name').getAttribute('aria-label'), GERMAN_COPY.clipName);
-		assert.equal(f.input('pitch').getAttribute('aria-label'), GERMAN_COPY.clipPitchIndicator);
+		assert.equal(f.input('pitch').getAttribute('aria-label'), GERMAN_COPY.clipPitchField);
 		await f.render(['one']);
 		assert.equal(f.input('name').getAttribute('disabled'), null);
 	} finally { await f.cleanup(); }
