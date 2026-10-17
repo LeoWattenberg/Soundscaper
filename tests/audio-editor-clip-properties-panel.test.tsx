@@ -191,6 +191,25 @@ test('merged linked clips reset their retained independent pitch in one native o
 	} finally { await f.cleanup(); }
 });
 
+for (const speedRatio of [0.9999999, 1.0000001]) test(`native tiny speed ${speedRatio} remains exact through the host and resets only after explicit entry`, async () => {
+	const f = await fixture();
+	try {
+		await f.render(['one'], { timePitch: { speedRatio } });
+		const field = f.dom.one('[data-clip-properties-field="speed"]');
+		const input = f.input('speed');
+		assert.equal(input.value, '100');
+		input.focus();
+		await act(async () => reactProps(field).onFocusCapture({ target: input }));
+		assert.equal(Number(input.value), speedRatio * 100, 'the full host must retain the native tiny ratio before formatting');
+		await act(async () => reactProps(field).onBlur({ target: input }));
+		assert.deepEqual(f.timePitch, [], 'viewing the native ratio must not normalize it');
+		await act(async () => reactProps(field).onFocusCapture({ target: input }));
+		await act(async () => reactProps(input).onChange({ target: { value: '100' } }));
+		await act(async () => reactProps(field).onBlur({ target: input }));
+		assert.deepEqual(f.timePitch, [{ ids: ['one'], changes: { speedRatio: 1 } }]);
+	} finally { await f.cleanup(); }
+});
+
 test('opening requests focus pitch and speed once when their dock becomes active', async () => {
 	const f = await fixture();
 	try {

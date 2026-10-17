@@ -22,6 +22,8 @@ export interface ClipPropertiesClip {
   fullDuration: number;
   /** 1 = as recorded; the visible length is source × this */
   stretchFactor: number;
+  /** Authored scalar speed, when independent from the strip's resolved geometry. */
+  speedPercent?: number;
   /** Pitch shift in semitones (0 = none) */
   pitchSemitones: number;
   fadeIn: number;
@@ -56,6 +58,7 @@ export interface ClipPropertiesSelection {
   end: number;
   color?: string | Mixed;
   stretchFactor: number | Mixed;
+  speedPercent?: number | Mixed;
   pitchSemitones: number | Mixed;
   fadeIn: number | Mixed;
   fadeOut: number | Mixed;

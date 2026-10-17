@@ -60,3 +60,32 @@ test('loop repetitions change the visible length without changing the displayed 
 	assert.equal(view.clip?.duration, 4);
 	assert.equal(view.clip.stretchFactor, 0.5);
 });
+
+test('authored speed percentage retains tiny values independently from rounded timeline geometry', () => {
+	for (const speedRatio of [0.9999999, 1.0000001]) {
+		const view = clipPropertiesPresentation({ ...project, clips: [{ ...clip, speedRatio }] }, ['one'], 'Clip');
+		assert.equal(view.clip?.speedPercent, speedRatio * 100);
+		assert.notEqual(view.clip?.speedPercent, 100);
+		assert.equal(view.clip?.stretchFactor, 0.5, 'the strip retains the actual source and project extents');
+	}
+});
+
+test('warped musical clip geometry and authored scalar speed remain independent', () => {
+	const musical = { ...clip, anchor: 'musical', speedRatio: 1.25, warpMap: { feature: 'audio-warp', points: [
+		{ source: { num: 96_000, den: 1 }, outer: { num: 0, den: 1 } },
+		{ source: { num: 480_000, den: 1 }, outer: { num: 96_000, den: 1 } },
+	] } };
+	const view = clipPropertiesPresentation({ ...project, clips: [musical] }, ['one'], 'Clip');
+	assert.equal(view.clip?.speedPercent, 125, 'Speed shows the scalar property its edit callback changes');
+	assert.equal(view.clip?.stretchFactor, 0.5, 'a non-scalar warp still draws from the true extents');
+});
+
+test('merged speed follows authored scalar equality even when selected extents match', () => {
+	const one = { ...clip, speedRatio: 0.9999999 };
+	const two = { ...clip, id: 'two', speedRatio: 1.0000001 };
+	const mixed = clipPropertiesPresentation({ ...project, clips: [one, two] }, ['one', 'two'], 'Clip');
+	assert.equal(mixed.selection?.speedPercent, 'mixed');
+	assert.equal(mixed.selection?.stretchFactor, 0.5);
+	const same = clipPropertiesPresentation({ ...project, clips: [{ ...one, speedRatio: two.speedRatio }, two] }, ['one', 'two'], 'Clip');
+	assert.equal(same.selection?.speedPercent, two.speedRatio * 100);
+});

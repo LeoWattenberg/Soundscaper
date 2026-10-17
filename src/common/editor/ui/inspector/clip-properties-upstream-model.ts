@@ -72,6 +72,7 @@ export function clipPropertiesPresentation(project: PropertyProject | null, ids:
 			fullDuration: (source?.frameCount ?? clip.sourceStartFrame + clip.sourceDurationFrames) / sourceRate,
 			// Actual extents also cover warped/musical clips whose scalar speed is only a hint.
 			stretchFactor: ((readClipLoop(clip)?.periodFrames ?? clip.durationFrames) / rate) / (clip.sourceDurationFrames / sourceRate),
+			speedPercent: (clip.speedRatio ?? 1) * 100,
 			pitchSemitones: clip.linkPitchAndTempo ? 12 * Math.log2(clip.speedRatio ?? 1) : (clip.pitchCents ?? 0) / 100,
 			fadeIn: (clip.fadeInFrames ?? 0) / rate, fadeOut: (clip.fadeOutFrames ?? 0) / rate,
 			fadeInShapeId: selectedEndFadeShapePreset(clip.fadeInShape) ?? undefined,
@@ -87,7 +88,7 @@ export function clipPropertiesPresentation(project: PropertyProject | null, ids:
 	const selection: ClipPropertiesSelection | null = views.length < 2 ? null : {
 		count: views.length, trackNames: tracks.map(track => track.name), trackId: merge('trackId'),
 		start: Math.min(...views.map(clip => clip.start)), end: Math.max(...views.map(clip => clip.start + clip.duration)),
-		color: merge('color'), stretchFactor: merge('stretchFactor')!, pitchSemitones: merge('pitchSemitones')!,
+		color: merge('color'), stretchFactor: merge('stretchFactor')!, speedPercent: merge('speedPercent'), pitchSemitones: merge('pitchSemitones')!,
 		fadeIn: merge('fadeIn')!, fadeOut: merge('fadeOut')!, fadeInShapeId: merge('fadeInShapeId'), fadeOutShapeId: merge('fadeOutShapeId'),
 		reversed: merge('reversed'),
 	};

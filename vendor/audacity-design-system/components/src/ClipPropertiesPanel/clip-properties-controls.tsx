@@ -82,6 +82,7 @@ export function NumberField({ value, onCommit, disabled, step = 1, min, max, dig
     const d = draftRef.current;
     if (d === null) return;
     setDraft(null);
+    if (!mixed && d === String(value)) return;
     commitText(d);
   };
   return (

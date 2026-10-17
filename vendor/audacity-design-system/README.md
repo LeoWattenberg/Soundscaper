@@ -644,8 +644,12 @@ are the places where the two keyboard models meet, so a future sync should re-ch
 
 81. The clip properties `NumberField` reveals its full authored precision on
     input focus and returns to the compact display on blur. Focusing and leaving
-    the field never round or commit its value; explicitly entering the rounded
-    neutral value can therefore reset a tiny non-neutral speed. Covered by
+    the field never round, clamp or commit its value; explicitly entering the
+    rounded neutral value can therefore reset a tiny non-neutral speed. The
+    panel retains raw speed percentages before display formatting and accepts an
+    optional `speedPercent` for native scalar speed, separate from the source
+    strip's resolved `stretchFactor`. Without that value the upstream stretch
+    conversion remains in use. Covered by
     `tests/vendored-clip-number-field-precision.test.tsx` and the tiny-speed
     indicator browser workflow. Upstream-PR candidate.
 

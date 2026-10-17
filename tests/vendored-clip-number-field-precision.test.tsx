@@ -3,11 +3,12 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import React, { act } from 'react';
 import { NumberField } from '../vendor/audacity-design-system/components/src/ClipPropertiesPanel/clip-properties-controls.tsx';
+import { ClipPropertiesPanel } from '../vendor/audacity-design-system/components/src/ClipPropertiesPanel/ClipPropertiesPanel.tsx';
 import { installReactTestDom, reactProps } from './helpers/react-test-dom.ts';
 
 for (const actual of [99.99999, 100.00001]) {
-	test(`a rounded clip value ${actual} exposes its exact draft so unity can be restored`, async () => {
-		const f = await fixture(actual);
+	for (const owner of ['field', 'panel'] as const) test(`a rounded clip ${owner} value ${actual} exposes its exact draft so unity can be restored`, async () => {
+		const f = await fixture(actual, owner);
 		try {
 			assert.equal(f.input.value, '100', 'the unfocused field keeps its compact presentation');
 			await f.focus();
@@ -34,7 +35,17 @@ test('Escape discards an exact clip draft before synchronous blur can commit it'
 	} finally { await f.cleanup(); }
 });
 
-async function fixture(value: number) {
+for (const owner of ['field', 'panel'] as const) test(`viewing an authored ${owner} speed below its input minimum does not clamp it`, async () => {
+	const f = await fixture(0.1, owner, 1);
+	try {
+		await f.focus();
+		assert.equal(f.input.value, '0.1');
+		await f.blur();
+		assert.deepEqual(f.commits, [], 'an existing out-of-range value is still authored state until explicitly edited');
+	} finally { await f.cleanup(); }
+});
+
+async function fixture(value: number, owner: 'field' | 'panel' = 'field', min?: number) {
 	const dom = installReactTestDom();
 	const globals = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean };
 	const previousAct = globals.IS_REACT_ACT_ENVIRONMENT;
@@ -42,8 +53,11 @@ async function fixture(value: number) {
 	const { createRoot } = await import('react-dom/client');
 	const root = createRoot(dom.container as unknown as Element);
 	const commits: number[] = [];
-	await act(async () => root.render(<NumberField testId="speed" label="Speed" value={value} digits={2}
-		glyph={null} onCommit={next => { commits.push(next); }} />));
+	await act(async () => root.render(owner === 'field' ? <NumberField testId="speed" label="Speed" value={value} digits={2}
+		glyph={null} min={min} onCommit={next => { commits.push(next); }} /> : <ClipPropertiesPanel
+		clip={{ id: 'clip', name: 'Recording', trackName: 'Track', start: 0, duration: 1, trimStart: 0, fullDuration: 2,
+			stretchFactor: 100 / value, pitchSemitones: 0, fadeIn: 0, fadeOut: 0 }} colors={[]} fadeShapes={[]}
+		onSpeedChange={next => { commits.push(next); }} />));
 	const field = dom.one('[data-clip-properties-field="speed"]');
 	const input = field.querySelector('input');
 	assert.ok(input);

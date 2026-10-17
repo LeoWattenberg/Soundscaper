@@ -12,7 +12,7 @@ import { usePanelTooltip, NumberField, ReadField, ShapePicker, Row, ClipStrip, S
 import { ClipPropertiesLabels, useClipPropertiesText } from './clip-properties-localization';
 import './ClipPropertiesPanel.css';
 const fmt = (n: number, digits = 3) => (Math.round(n * 10 ** digits) / 10 ** digits).toString();
-const speedOf = (stretchFactor: number) => Math.round(100 / stretchFactor * 100) / 100;
+const speedOf = (stretchFactor: number) => 100 / stretchFactor;
 export type * from './clip-properties-types';
 export function ClipPropertiesPanel({ labels = {}, ...props }: ClipPropertiesPanelProps) {
   return <ClipPropertiesLabels.Provider value={labels}><ClipPropertiesPanelBody {...props} /></ClipPropertiesLabels.Provider>;
@@ -92,8 +92,8 @@ function ClipPropertiesPanelBody({
   const pitch = multi ? multi.pitchSemitones : clip?.pitchSemitones ?? 0;
   const reversed: boolean | Mixed = multi ? (multi.reversed ?? false) : (clip?.reversed ?? false);
   const speed: number | Mixed = multi
-    ? (multi.stretchFactor === MIXED ? MIXED : speedOf(multi.stretchFactor))
-    : speedOf(clip?.stretchFactor ?? 1);
+    ? (multi.speedPercent ?? (multi.stretchFactor === MIXED ? MIXED : speedOf(multi.stretchFactor)))
+    : clip?.speedPercent ?? speedOf(clip?.stretchFactor ?? 1);
   const trackId = multi ? multi.trackId : clip?.trackId;
   // The header names the subject only where a field does not: a
   // selection's count and tracks (a single clip's track is its Track
