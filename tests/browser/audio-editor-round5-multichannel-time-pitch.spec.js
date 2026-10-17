@@ -35,9 +35,9 @@ test('multichannel independent speed refuses before mutation and linked speed re
 	await expect(recovery.getByRole('alert')).toHaveCount(0);
 	await chooseClipMediaSetting(recovery, 'Link pitch and tempo');
 	await expect(failure).toContainText('mono or stereo');
+	await failure.getByRole('button', { name: 'Close', exact: true }).click();
 	await expectClipMediaSettingChecked(recovery, 'Link pitch and tempo', true);
 	await expect(clipField(recovery, 'durationFrame')).toHaveValue('19200');
-	await failure.getByRole('button', { name: 'Close', exact: true }).click();
 	await closeClipProperties(recovery);
 	const linked = await exportSamples(page, editor);
 	expect(linked).toHaveLength(19200);

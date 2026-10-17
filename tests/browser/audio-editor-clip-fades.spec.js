@@ -435,7 +435,7 @@ test.describe('non-destructive clip fade handles', () => {
 		await selectClip(clip);
 		await clip.getByRole('slider', { name: 'Fade in', exact: true }).press('0');
 		await clip.getByRole('slider', { name: 'Fade out', exact: true }).press('0');
-		const properties = await openClipProperties(page, editor, clip);
+		const properties = await openClipProperties(page, editor, clip, { additional: false });
 		await commitInput(properties.getByRole('textbox', { name: 'Fade in', exact: true }), '0.8');
 		await commitInput(properties.getByRole('textbox', { name: 'Fade out', exact: true }), '0.8');
 		await closeClipProperties(properties);

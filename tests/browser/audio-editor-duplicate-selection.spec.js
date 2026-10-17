@@ -29,6 +29,7 @@ test.describe('Duplicate selection', () => {
 		await expect(copied).toBeVisible();
 		const copiedTrack = copied.locator('xpath=ancestor::*[@data-track-row][1]');
 		expect(await copiedTrack.getAttribute('data-track-id')).not.toBe(sourceId);
+		await copied.locator('.clip-header').click();
 		const copiedProperties = await openClipProperties(page, editor, copied);
 		await showClipTimingFields(copiedProperties);
 		await expect(clipField(copiedProperties, 'startFrame')).toHaveValue('12345');

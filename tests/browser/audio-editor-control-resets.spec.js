@@ -63,6 +63,7 @@ test.describe('double click control defaults', () => {
 		}
 		for (const label of ['Fade in shape', 'Fade out shape']) {
 			const slider = waveform.getByRole('slider', { name: label, exact: true });
+			await slider.press('0');
 			await expect(slider).toHaveAttribute('aria-valuenow', '2');
 			await slider.press('ArrowDown');
 			const custom = await slider.getAttribute('aria-valuenow');

@@ -13,7 +13,7 @@ test('changing clip pitch units restores the settings trigger for continued keyb
 	const trigger = panel.getByRole('button', { name: 'Media settings', exact: true });
 	for (const label of ['Percent change', 'Semitones (half-steps)']) {
 		const menu = await openClipMediaSettings(panel);
-		const unitMenu = menu.getByRole('menuitem', { name: 'Pitch unit', exact: true });
+		const unitMenu = menu.getByRole('menuitem', { name: /^Pitch unit(?:\s|$)/u });
 		await unitMenu.focus();
 		await unitMenu.press('ArrowRight');
 		const unit = menu.getByRole('menuitemradio', { name: label, exact: true });
@@ -22,7 +22,7 @@ test('changing clip pitch units restores the settings trigger for continued keyb
 		await expect(menu).toBeHidden();
 		await expect(trigger).toBeFocused();
 		const reopened = await openClipMediaSettings(panel);
-		const units = reopened.getByRole('menuitem', { name: 'Pitch unit', exact: true });
+		const units = reopened.getByRole('menuitem', { name: /^Pitch unit(?:\s|$)/u });
 		await units.focus();
 		await units.press('ArrowRight');
 		await expect(reopened.getByRole('menuitemradio', { name: label, exact: true })).toHaveAttribute('aria-checked', 'true');

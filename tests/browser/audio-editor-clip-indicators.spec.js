@@ -55,6 +55,8 @@ test.describe('clip pitch and speed indicators', () => {
 
 		dialog = await openClipProperties(page, editor, clip);
 
+		await speedField(dialog).focus();
+		await expect.poll(async () => Number(await speedField(dialog).inputValue())).toBeGreaterThan(100);
 		await commitInput(speedField(dialog), '100');
 		await closeClipProperties(dialog);
 		await expect(speed).toHaveCount(0);

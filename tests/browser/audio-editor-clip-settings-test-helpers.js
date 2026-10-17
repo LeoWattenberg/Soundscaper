@@ -3,6 +3,14 @@
 import { expect } from '@playwright/test';
 
 export async function openClipMediaSettings(properties) {
+	// Linked audio/video selections retain the native media drawer so their
+	// picture fields and link stay owned by the existing inspector adapter.
+	const drawer = properties.locator('[data-clip-properties-drawer="media"]');
+	if (await drawer.count()) {
+		if (await drawer.getAttribute('open') === null) await drawer.locator('summary').click();
+		await expect(drawer).toHaveAttribute('open', '');
+		return drawer;
+	}
 	await properties.getByRole('button', { name: 'Media settings', exact: true }).click();
 	const menu = properties.page().getByRole('menu', { name: 'Media settings', exact: true });
 	await expect(menu).toBeVisible();
@@ -11,6 +19,10 @@ export async function openClipMediaSettings(properties) {
 
 export async function chooseClipMediaSetting(properties, label) {
 	const menu = await openClipMediaSettings(properties);
+	if (await menu.getAttribute('data-clip-properties-drawer') === 'media') {
+		await menu.getByRole('button', { name: label, exact: true }).click();
+		return;
+	}
 	await menu.getByRole('menuitem', { name: label, exact: true })
 		.or(menu.getByRole('menuitemcheckbox', { name: label, exact: true })).click();
 	await expect(menu).toBeHidden();
@@ -18,7 +30,7 @@ export async function chooseClipMediaSetting(properties, label) {
 
 export async function chooseClipPitchUnit(properties, label) {
 	const menu = await openClipMediaSettings(properties);
-	const units = menu.getByRole('menuitem', { name: 'Pitch unit', exact: true });
+	const units = menu.getByRole('menuitem', { name: /^Pitch unit(?:\s|$)/u });
 	await units.focus();
 	await units.press('ArrowRight');
 	await menu.getByRole('menuitemradio', { name: label, exact: true }).click();
@@ -33,6 +45,13 @@ export async function expectClipMediaSettingChecked(properties, label, checked) 
 
 export async function expectClipSampleRate(properties, rate) {
 	const menu = await openClipMediaSettings(properties);
+	if (await menu.getAttribute('data-clip-properties-drawer') === 'media') {
+		const fact = menu.locator('[data-clip-source-fact="sampleRate"]');
+		await expect(fact.locator('.audio-editor-field__value')).toHaveText(String(rate));
+		await expect(fact.locator('input')).toHaveCount(0);
+		await closeClipMediaSettings(menu);
+		return;
+	}
 	const fact = menu.getByRole('menuitem', { name: new RegExp(`^Sample rate \\(Hz\\):\\s*${rate}$`, 'u') });
 	await expect(fact).toBeVisible();
 	await expect(fact).toBeDisabled();
@@ -41,6 +60,13 @@ export async function expectClipSampleRate(properties, rate) {
 
 export async function readClipSampleRate(properties) {
 	const menu = await openClipMediaSettings(properties);
+	if (await menu.getAttribute('data-clip-properties-drawer') === 'media') {
+		const fact = menu.locator('[data-clip-source-fact="sampleRate"] .audio-editor-field__value');
+		await expect(fact).toBeVisible();
+		const rate = Number(await fact.innerText());
+		await closeClipMediaSettings(menu);
+		return rate;
+	}
 	const fact = menu.getByRole('menuitem', { name: /^Sample rate \(Hz\):/u });
 	await expect(fact).toBeDisabled();
 	const match = (await fact.innerText()).match(/:\s*(\d+)$/u);
@@ -51,6 +77,11 @@ export async function readClipSampleRate(properties) {
 }
 
 async function closeClipMediaSettings(menu) {
+	if (await menu.getAttribute('data-clip-properties-drawer') === 'media') {
+		await menu.locator('summary').click();
+		await expect(menu).not.toHaveAttribute('open');
+		return;
+	}
 	await menu.press('Escape');
 	await expect(menu).toBeHidden();
 }

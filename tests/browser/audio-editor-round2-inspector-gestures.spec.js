@@ -12,9 +12,11 @@ async function prepareSourceFade(page) {
 	const fade = owner.getByRole('slider', { name: 'Fade in', exact: true });
 	await fade.press('Home');
 	for (let step = 0; step < 2; step++) await fade.press('ArrowRight');
+	const shape = owner.getByRole('slider', { name: 'Fade in shape', exact: true });
+	await shape.press('0');
+	await expect(shape).toHaveAttribute('aria-valuenow', '2');
 	const previousLength = await fade.getAttribute('aria-valuenow');
 	await fade.press('ArrowRight');
-	const shape = owner.getByRole('slider', { name: 'Fade in shape', exact: true });
 	await expect(shape).toHaveAttribute('aria-valuenow', '2');
 	return { editor, clip, owner, fade, previousLength, shape };
 }

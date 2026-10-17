@@ -12,6 +12,9 @@ test('normalizing a quiet recording reports an unreachable target without substi
 	const properties = await openClipProperties(page, editor, clipByName(editor, recording.name));
 	await expectClipGain(properties, 0);
 	await chooseClipMediaSetting(properties, 'Normalize to −1 dBFS');
-	await expect(page.getByRole('alert').filter({ hasText: 'requires more than the maximum clip gain' })).toBeVisible();
+	const toast = editor.locator('[data-editor-toast="workspace-error"]');
+	await expect(toast.getByRole('alert')).toContainText('requires more than the maximum clip gain');
+	await toast.getByRole('button', { name: 'Close', exact: true }).click();
+	await expect(toast).toBeHidden();
 	await expectClipGain(properties, 0);
 });
