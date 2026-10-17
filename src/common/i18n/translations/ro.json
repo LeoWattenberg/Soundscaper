@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "ro",
 	"provenance": {
-		"machine": {"model":"gpt-6","modelDigest":"sha256:6e606a5936068a7456dc743fea67273c1bbdeee2a1953a8f26c101e8297bc2f2","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"gpt-6","modelDigest":"sha256:231bb2731663ac92ccbadb3b81c00d145148740c34cabdd2b57b9210382ce3ee","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"de2e43dc13474ba712ade5ea8e47550eba0e8bfb","runId":35327911264,"artifactId":10539339149,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/35327911264","archiveName":"Audacity_locale_262610911.zip","archiveSha256":"13b1ff11c39a677c711a1d29738a394aaca7a200533927aab3f45bbd76c1ff8e","archiveByteLength":15413913,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/de2e43dc13474ba712ade5ea8e47550eba0e8bfb/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -1511,7 +1511,7 @@
 		"joinUsLink": ["human","Join us","Alătură-te nouă"],
 		"jumpEnd": ["machine","Jump to project end","Sare la sfârșitul proiectului"],
 		"jumpStart": ["machine","Jump to project start","Sare la începutul proiectului"],
-		"keyboardHelp": ["machine","Space: play · R: record · S: split · Delete: remove · Ctrl/Cmd + Z: undo","Spațiu: redare · R: înregistrare · S: împărțire · Ștergere: eliminare · Ctrl/Cmd + Z: revenire"],
+		"keyboardHelp": ["machine","Space: play · R: record · C: split tool · F/T/S: clip handles · Delete: remove · Ctrl/Cmd + Z: undo","Spațiu: redare · R: înregistrare · C: instrument de împărțire · F/T/S: mânerele clipurilor · Ștergere: eliminare · Ctrl/Cmd + Z: revenire"],
 		"labelTextSize": ["machine","Label text size","Dimensiunea textului etichetelor"],
 		"labelTitle": ["machine","Label title","Titlu etichetă"],
 		"labelTrack": ["machine","Label track","Pistă etichetă"],

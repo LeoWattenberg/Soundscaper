@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "fa",
 	"provenance": {
-		"machine": {"model":"gpt-6","modelDigest":"sha256:71ee3e989dcfb8d2fc381fb97095c09f541b5534a66c73bec693d82421749df6","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"gpt-6","modelDigest":"sha256:2ead3528fe7efc15eda76972c69c4e7b1f09378e64e77758bff377cef74ed7af","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"de2e43dc13474ba712ade5ea8e47550eba0e8bfb","runId":35327911264,"artifactId":10539339149,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/35327911264","archiveName":"Audacity_locale_262610911.zip","archiveSha256":"13b1ff11c39a677c711a1d29738a394aaca7a200533927aab3f45bbd76c1ff8e","archiveByteLength":15413913,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/de2e43dc13474ba712ade5ea8e47550eba0e8bfb/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -1511,7 +1511,7 @@
 		"joinUsLink": ["human","Join us","به ما بپیوندید"],
 		"jumpEnd": ["machine","Jump to project end","پرش به پایان پروژه"],
 		"jumpStart": ["machine","Jump to project start","پرش به آغاز پروژه"],
-		"keyboardHelp": ["machine","Space: play · R: record · S: split · Delete: remove · Ctrl/Cmd + Z: undo","Space: پخش · R: ضبط · S: تقسیم · Delete: حذف · Ctrl/Cmd + Z: برگردان"],
+		"keyboardHelp": ["machine","Space: play · R: record · C: split tool · F/T/S: clip handles · Delete: remove · Ctrl/Cmd + Z: undo","Space: پخش · R: ضبط · C: ابزار تقسیم · F/T/S: دستگیره‌های کلیپ · Delete: حذف · Ctrl/Cmd + Z: برگردان"],
 		"labelTextSize": ["machine","Label text size","اندازهٔ متن برچسب"],
 		"labelTitle": ["machine","Label title","عنوان برچسب"],
 		"labelTrack": ["machine","Label track","آهنگ برچسب"],

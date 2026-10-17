@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "es",
 	"provenance": {
-		"machine": {"model":"gpt-6","modelDigest":"sha256:50b9a670fb0a8facf678bd42a60a5d192d582a05f7b96dbce28ce8d0195cbc5a","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"gpt-6","modelDigest":"sha256:a875df46a83a2a96c597472f0e3e0732e13af5130483106962a42e6d173cf4e7","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"de2e43dc13474ba712ade5ea8e47550eba0e8bfb","runId":35327911264,"artifactId":10539339149,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/35327911264","archiveName":"Audacity_locale_262610911.zip","archiveSha256":"13b1ff11c39a677c711a1d29738a394aaca7a200533927aab3f45bbd76c1ff8e","archiveByteLength":15413913,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/de2e43dc13474ba712ade5ea8e47550eba0e8bfb/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -1511,7 +1511,7 @@
 		"joinUsLink": ["human","Join us","Únete a nosotros"],
 		"jumpEnd": ["machine","Jump to project end","Ir al final del proyecto"],
 		"jumpStart": ["machine","Jump to project start","Ir al inicio del proyecto"],
-		"keyboardHelp": ["machine","Space: play · R: record · S: split · Delete: remove · Ctrl/Cmd + Z: undo","Barra espaciadora: reproducir · R: grabar · S: dividir · Eliminar: eliminar · Ctrl/Cmd + Z: deshacer"],
+		"keyboardHelp": ["machine","Space: play · R: record · C: split tool · F/T/S: clip handles · Delete: remove · Ctrl/Cmd + Z: undo","Barra espaciadora: reproducir · R: grabar · C: herramienta de división · F/T/S: tiradores de clips · Eliminar: eliminar · Ctrl/Cmd + Z: deshacer"],
 		"labelTextSize": ["machine","Label text size","Tamaño del texto de las etiquetas"],
 		"labelTitle": ["machine","Label title","Título de la etiqueta"],
 		"labelTrack": ["machine","Label track","Pista de la etiqueta"],

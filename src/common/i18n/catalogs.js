@@ -265,7 +265,7 @@ export const COPY_BY_LOCALE = deepFreeze({
 		saveEffectPreset: 'Preset speichern',
 		deleteEffectPreset: 'Preset löschen',
 		moreOptions: 'Weitere Optionen',
-		keyboardHelp: 'Leertaste: Wiedergabe · R: Aufnahme · S: Teilen · Entf: Löschen · Strg/Cmd + Z: Rückgängig',
+		keyboardHelp: 'Leertaste: Wiedergabe · R: Aufnahme · C: Teilen-Werkzeug · F/T/S: Clip-Griffe · Entf: Löschen · Strg/Cmd + Z: Rückgängig',
 	},
 	en: {
 		...CLIP_DRAG_COPY_BY_LOCALE.en,
@@ -495,7 +495,7 @@ export const COPY_BY_LOCALE = deepFreeze({
 		saveEffectPreset: 'Save preset',
 		deleteEffectPreset: 'Delete preset',
 		moreOptions: 'More options',
-		keyboardHelp: 'Space: play · R: record · S: split · Delete: remove · Ctrl/Cmd + Z: undo',
+		keyboardHelp: 'Space: play · R: record · C: split tool · F/T/S: clip handles · Delete: remove · Ctrl/Cmd + Z: undo',
 	},
 });
 

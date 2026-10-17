@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "ar",
 	"provenance": {
-		"machine": {"model":"gpt-6","modelDigest":"sha256:83f4aae4e623ab631af87f0dfe3307f646a4257e3190383f32c617847055a7ad","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"gpt-6","modelDigest":"sha256:539fcb96f9632d6ddc4e4d556ebd5d7f2ffb27234fd4442d2f0a30227b7fb516","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"de2e43dc13474ba712ade5ea8e47550eba0e8bfb","runId":35327911264,"artifactId":10539339149,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/35327911264","archiveName":"Audacity_locale_262610911.zip","archiveSha256":"13b1ff11c39a677c711a1d29738a394aaca7a200533927aab3f45bbd76c1ff8e","archiveByteLength":15413913,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/de2e43dc13474ba712ade5ea8e47550eba0e8bfb/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -1511,7 +1511,7 @@
 		"joinUsLink": ["human","Join us","انضم إلينا"],
 		"jumpEnd": ["machine","Jump to project end","القفز إلى نهاية المشروع"],
 		"jumpStart": ["machine","Jump to project start","القفز إلى بداية المشروع"],
-		"keyboardHelp": ["machine","Space: play · R: record · S: split · Delete: remove · Ctrl/Cmd + Z: undo","مسافة: تشغيل · R: تسجيل · S: تقسيم · حذف: إزالة · Ctrl/Cmd + Z: التراجع"],
+		"keyboardHelp": ["machine","Space: play · R: record · C: split tool · F/T/S: clip handles · Delete: remove · Ctrl/Cmd + Z: undo","مسافة: تشغيل · R: تسجيل · C: أداة التقسيم · F/T/S: مقابض المقاطع · حذف: إزالة · Ctrl/Cmd + Z: التراجع"],
 		"labelTextSize": ["machine","Label text size","حجم نص التسمية"],
 		"labelTitle": ["machine","Label title","عنوان التسمية"],
 		"labelTrack": ["machine","Label track","تسمية المسار"],
