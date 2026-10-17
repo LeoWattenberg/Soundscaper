@@ -365,7 +365,7 @@
   flex: 0 0 26px;
   height: 14px;
   border-radius: 7px;
-  background: rgba(0, 0, 0, 0.18);
+  background: var(--text-secondary, #6f788f);
   transition: background 0.12s ease-out;
 }
 .clip-properties__switch::after {

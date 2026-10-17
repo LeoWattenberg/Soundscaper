@@ -624,3 +624,10 @@ are the places where the two keyboard models meet, so a future sync should re-ch
     stylesheet loads in a later chunk. Covered by both products' light and dark
     Sakura toolbar workflows in `tests/browser/audio-editor-sakura-buttons.spec.js`.
     Upstream-PR candidate.
+
+79. `ClipPropertiesPanel.css` paints the unchecked Reverse switch track from
+    the themed secondary text color. The former translucent black track nearly
+    disappeared against its dark inset thumb. Actual stylesheet color checks in
+    `tests/audio-editor-clip-properties-switch-contrast.test.ts` retain at least
+    3:1 thumb-to-track contrast in both states across the maintained theme palettes.
+    Upstream-PR candidate.
