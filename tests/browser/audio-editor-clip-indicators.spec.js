@@ -45,12 +45,15 @@ test.describe('clip pitch and speed indicators', () => {
 		await expect(speed).toHaveCount(0);
 		await expect(clip).not.toContainText('100%');
 
+		let previousPercent = 100;
 		for (const [ratio, percentage] of [['0.9999999', '99.9%'], ['1.0000001', '100.1%']]) {
 			dialog = await openClipProperties(page, editor, clip);
-
+			await speedField(dialog).focus();
+			await expect.poll(async () => Number(await speedField(dialog).inputValue())).toBeCloseTo(previousPercent, 9);
 			await commitInput(speedField(dialog), String(Number(ratio) * 100));
 			await closeClipProperties(dialog);
 			await expect(speed).toContainText(percentage);
+			previousPercent = Number(ratio) * 100;
 		}
 
 		dialog = await openClipProperties(page, editor, clip);
