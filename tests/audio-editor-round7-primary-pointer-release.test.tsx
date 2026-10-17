@@ -40,6 +40,7 @@ for (const scenario of cases) test(`native clip movement ownership: ${scenario.n
 	let history = createSoundscaperProjectHistory(initial);
 	const project = resolveRuntimeProjectProjection(history.present);
 	const calls: AudioEditorCommand[] = [];
+	const clearedClips: (string | null)[] = [];
 	const session: { current: Record<string, unknown> | null } = { current: {
 		kind: 'move', clipId: 'clip', trackId: 'track', pointerId: 1, startX: 0, startY: 20,
 		original: project.clips[0], preview: { trackId: 'track', timelineStartFrame: 24 },
@@ -50,7 +51,7 @@ for (const scenario of cases) test(`native clip movement ownership: ${scenario.n
 		scrollRef: { current: null }, touchPointers: { current: new Map() }, pinchSession: { current: null },
 		setDraggingClipIds: noop, setClipDragPreview: noop, setTrackResizePreview: noop,
 		setLoopPreview: noop, setSelectionPreview: noop, setBoundarySnapGuideFrames: noop };
-	const controller = { actions: { clip: { move(clipId: string, trackId: string, timelineStartFrame: number) {
+	const controller = { actions: { timeline: { selectClip: (id: string | null) => clearedClips.push(id) }, clip: { move(clipId: string, trackId: string, timelineStartFrame: number) {
 		const command: AudioEditorCommand = { type: 'clip/move', clipId, trackId, timelineStartFrame };
 		history = executeSoundscaperProjectCommand(history, command); calls.push(command);
 	} } } };
@@ -70,12 +71,14 @@ for (const scenario of cases) test(`native clip movement ownership: ${scenario.n
 		await act(async () => { events.dispatchEvent(Object.assign(new Event('pointermove'),
 			{ ...scenario, clientX: 24, clientY: 20 })); });
 		assert.equal(calls.length, scenario.complete ? 1 : 0);
+		assert.deepEqual(clearedClips, scenario.complete ? [null] : []);
 		assert.equal(history.undoStack.length, scenario.complete ? 1 : 0);
 		assert.equal(flushed, scenario.complete ? 1 : 0);
 		assert.equal(session.current === null, scenario.complete);
 		await act(async () => { events.dispatchEvent(Object.assign(new Event('pointerup'),
 			{ pointerId: 1, clientX: 24, clientY: 20 })); });
 		assert.equal(calls.length, 1);
+		assert.deepEqual(clearedClips, [null]);
 		assert.equal(history.undoStack.length, 1);
 		assert.equal(resolveRuntimeProjectProjection(history.present).clips[0]?.timelineStartFrame, 24);
 	} finally {

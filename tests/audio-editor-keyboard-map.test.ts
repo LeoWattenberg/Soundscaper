@@ -27,5 +27,7 @@ test('keyboard map separates contextual handle keys from configured global short
 	assert.ok(rows.some(row => row.context === 'context:fade' && row.key === '0' && row.action === 'Reset fade'));
 	assert.ok(rows.some(row => row.context === 'context:fade' && row.key === 'F10' && row.state === 'Shift'));
 	assert.ok(!rows.some(row => row.context === 'context:clip' && row.key === 'S' && row.state === 'Shift'));
-	assert.ok(rows.some(row => row.context === 'context:edge' && row.key === 'S' && row.state === 'Shift'));
+	assert.ok(rows.some(row => row.context === 'context:edge' && row.key === 'S' && row.state === 'plain'));
+	assert.ok(rows.some(row => row.context === 'context:edge' && row.key === 'S' && row.state === 'Alt'));
+	assert.ok(!rows.some(row => row.key === 'S' && row.state === 'Shift'));
 });

@@ -59,7 +59,7 @@ for (const child of ['Effects', 'Track menu', 'Volume', 'Pan'] as const) {
 			assert.ok(control, `Missing production ${child} control`);
 			control.focus();
 			await act(async () => { reactProps(dom.one('.audio-editor-track-controls')).onFocusCapture({ target: control }); });
-			assert.deepEqual(focused, ['last'], 'the owning focus capture still focuses the track');
+			assert.deepEqual(focused, [], 'focusing a control preserves the focused track and selection');
 			if (child === 'Volume') {
 				const pointer = { pointerId: 7, pointerType: 'mouse', button: 0, buttons: 1, isPrimary: true, preventDefault() {} };
 				await act(async () => { reactProps(control).onPointerDown(pointer); });
@@ -79,7 +79,7 @@ for (const child of ['Effects', 'Track menu', 'Volume', 'Pan'] as const) {
 			});
 			assert.deepEqual(selection, original);
 			assert.equal(selectionWrites, 0);
-			assert.deepEqual(focused, ['last']);
+			assert.deepEqual(focused, []);
 			assert.deepEqual(effects, child === 'Effects' ? ['last'] : []);
 			assert.equal(menus.length, child === 'Track menu' ? 1 : 0);
 			if (child === 'Track menu') assert.equal(menus[0] === control, true);
