@@ -20,6 +20,10 @@ export function ClipPropertiesPanel({ labels = {}, ...props }: ClipPropertiesPan
 
 function ClipPropertiesPanelBody({
   clip,
+  colorControl,
+  pitchControl,
+  timingFields = {},
+  onOpenSource,
   selection = null,
   colors,
   tracks = [],
@@ -182,14 +186,14 @@ function ClipPropertiesPanelBody({
               <span className="clip-properties__glyph-cell">
                 <span className="clip-properties__swatch" data-swatch={swatch ?? (color === MIXED ? 'mixed' : 'track')} aria-hidden="true" />
               </span>
-              <Dropdown
+              {colorControl ?? <Dropdown
                 options={colorOptions}
                 value={color === MIXED ? '' : color ?? ''}
                 placeholder={color === MIXED ? t('Mixed') : t('Track color')}
                 onChange={(v) => onColorChange?.(v)}
                 disabled={!onColorChange}
                 width="100%"
-              />
+              />}
               <span className="clip-properties__sr">{t('Clip color')}</span>
             </div>
           </Row>
@@ -217,15 +221,15 @@ function ClipPropertiesPanelBody({
               {/* Start, length and end are one statement (start + length =
                   end): one row, always */}
               <Row three>
-                <NumberField testId="start" label={t('Start')} glyph={<StartGlyph />} value={clip.start} onCommit={onStartChange} step={0.1} min={0} />
-                <NumberField testId="length" label={t('Length')} glyph={<LengthGlyph />} value={clip.duration} onCommit={onDurationChange} step={0.1} min={0.02} />
-                <ReadField testId="end" label={t('End')} glyph={<EndGlyph />}>{fmt(clip.start + clip.duration)} s</ReadField>
+                {timingFields['start'] ?? <NumberField testId="start" label={t('Start')} glyph={<StartGlyph />} value={clip.start} onCommit={onStartChange} step={0.1} min={0} />}
+                {timingFields['length'] ?? <NumberField testId="length" label={t('Length')} glyph={<LengthGlyph />} value={clip.duration} onCommit={onDurationChange} step={0.1} min={0.02} />}
+                {timingFields.end ?? <ReadField testId="end" label={t('End')} glyph={<EndGlyph />}>{fmt(clip.start + clip.duration)} s</ReadField>}
               </Row>
-              <ClipStrip clip={clip} onTrimStartChange={onTrimStartChange} onTrimEndChange={onTrimEndChange} />
+              <ClipStrip clip={clip} onTrimStartChange={onTrimStartChange} onTrimEndChange={onTrimEndChange} onOpenSource={onOpenSource} />
               <Row>
-                <NumberField testId="trim-start" label={t('Trim start')} glyph={<TrimStartGlyph />} value={clip.trimStart} onCommit={onTrimStartChange} step={0.1} min={0} />
-                <NumberField testId="trim-end" label={t('Trim end')} glyph={<TrimEndGlyph />}
-                  value={Math.max(0, clip.fullDuration - clip.trimStart - clip.duration / clip.stretchFactor)} onCommit={onTrimEndChange} step={0.1} min={0} />
+                {timingFields['trim-start'] ?? <NumberField testId="trim-start" label={t('Trim start')} glyph={<TrimStartGlyph />} value={clip.trimStart} onCommit={onTrimStartChange} step={0.1} min={0} />}
+                {timingFields['trim-end'] ?? <NumberField testId="trim-end" label={t('Trim end')} glyph={<TrimEndGlyph />}
+                  value={Math.max(0, clip.fullDuration - clip.trimStart - clip.duration / clip.stretchFactor)} onCommit={onTrimEndChange} step={0.1} min={0} />}
               </Row>
             </>
           )}
@@ -234,10 +238,10 @@ function ClipPropertiesPanelBody({
           <div className="clip-properties__group" data-group="fades">
           <h3 className="clip-properties__section">{t('Fades')}</h3>
           <Row>
-            <NumberField testId="fade-in" label={t('Fade in')} glyph={<FadeGlyph side="in" shape={inCurve} title="Fade in" />}
-              value={fadeIn} onCommit={onFadeChange && ((n) => onFadeChange('in', n))} step={0.1} min={0} />
-            <NumberField testId="fade-out" label={t('Fade out')} glyph={<FadeGlyph side="out" shape={outCurve} title="Fade out" />}
-              value={fadeOut} onCommit={onFadeChange && ((n) => onFadeChange('out', n))} step={0.1} min={0} />
+            {timingFields['fade-in'] ?? <NumberField testId="fade-in" label={t('Fade in')} glyph={<FadeGlyph side="in" shape={inCurve} title="Fade in" />}
+              value={fadeIn} onCommit={onFadeChange && ((n) => onFadeChange('in', n))} step={0.1} min={0} />}
+            {timingFields['fade-out'] ?? <NumberField testId="fade-out" label={t('Fade out')} glyph={<FadeGlyph side="out" shape={outCurve} title="Fade out" />}
+              value={fadeOut} onCommit={onFadeChange && ((n) => onFadeChange('out', n))} step={0.1} min={0} />}
           </Row>
           <Row>
             <ShapePicker side="in" shapes={fadeShapes} current={fadeInShapeId} own={clip?.fadeInShape} onPick={onFadeShapeChange && ((id) => onFadeShapeChange('in', id))} disabled={fadeIn === 0} />
@@ -256,8 +260,8 @@ function ClipPropertiesPanelBody({
             {t('Pitch & speed')}
           </SectionHeader>
           <Row>
-            <NumberField testId="pitch" label={t('Pitch')} glyph={<PitchGlyph />} value={pitch} onCommit={onPitchChange}
-              step={1} min={-PITCH_LIMIT_SEMITONES} max={PITCH_LIMIT_SEMITONES} digits={2} />
+            {pitchControl ?? <NumberField testId="pitch" label={t('Pitch')} glyph={<PitchGlyph />} value={pitch} onCommit={onPitchChange}
+              step={1} min={-PITCH_LIMIT_SEMITONES} max={PITCH_LIMIT_SEMITONES} digits={2} />}
             <NumberField testId="speed" label={t('Speed')} glyph={<SpeedGlyph />} value={speed} onCommit={onSpeedChange} step={5} min={1} digits={2} />
           </Row>
           {/* Reverse (2026-10-07): a switch in the field look; mixed

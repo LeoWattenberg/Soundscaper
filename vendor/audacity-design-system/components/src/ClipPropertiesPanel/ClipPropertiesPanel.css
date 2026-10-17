@@ -390,3 +390,27 @@
 .clip-properties__field--shape .clip-properties__glyph-cell {
   flex-basis: 30px;
 }
+
+/* The source visual opens the monitor; its edge grips remain separate controls. */
+.clip-properties__strip-open {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  border: 0;
+  border-radius: inherit;
+  background: transparent;
+  cursor: pointer;
+}
+.clip-properties__strip-lane { pointer-events: none; }
+.clip-properties__strip-handle { pointer-events: auto; }
+.clip-properties__palette-trigger {
+  flex: 1;
+  min-width: 0;
+  align-self: stretch;
+  border: 0;
+  padding: 0 8px;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}

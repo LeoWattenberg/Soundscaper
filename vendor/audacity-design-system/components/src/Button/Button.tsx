@@ -3,7 +3,7 @@ import '../assets/fonts/musescore-icon.css';
 import './Button.css';
 import { useTheme } from '../ThemeProvider';
 
-export interface ButtonProps {
+export interface ButtonProps extends Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, 'onClick' | 'children' | 'style'> {
   /**
    * Button variant
    */
@@ -70,6 +70,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(({
   form,
   tabIndex,
   onKeyDown,
+  ...nativeProps
 }, ref) => {
   const { theme } = useTheme();
 
@@ -88,6 +89,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(({
 
   return (
     <button
+      {...nativeProps}
       ref={ref}
       type={type}
       form={form}

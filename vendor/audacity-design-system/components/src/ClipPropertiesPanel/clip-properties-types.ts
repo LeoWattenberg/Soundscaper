@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: GPL-3.0-only
  * Selective port from audacity-design-system 20ce5547. Split for module ownership. */
+import type { ReactNode } from 'react';
 import type { FadeShape } from '../utils/clipCrossfades';
 export interface ClipPropertiesClip {
   id: number | string;
@@ -75,6 +76,11 @@ export interface ClipPropertiesShapeOption extends ClipPropertiesOption {
 
 export interface ClipPropertiesPanelProps {
   labels?: Readonly<Record<string, string>>;
+  /** Host controls retain native color and exact time formats in the same fields. */
+  colorControl?: ReactNode;
+  pitchControl?: ReactNode;
+  timingFields?: Partial<Record<'start' | 'length' | 'end' | 'trim-start' | 'trim-end' | 'fade-in' | 'fade-out', ReactNode>>;
+  onOpenSource?: () => void;
   /** The clip shown, or null for the empty state */
   clip: ClipPropertiesClip | null;
   /** Several selected clips: takes the place of `clip` when set */

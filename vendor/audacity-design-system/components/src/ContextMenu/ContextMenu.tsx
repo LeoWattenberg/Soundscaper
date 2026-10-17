@@ -5,6 +5,7 @@ import './ContextMenu.css';
 
 export interface ContextMenuProps {
   id?: string;
+  ariaLabel?: string;
   /**
    * Whether the menu is open
    */
@@ -52,6 +53,7 @@ export interface ContextMenuProps {
  */
 export const ContextMenu: React.FC<ContextMenuProps> = ({
   id,
+  ariaLabel,
   isOpen,
   onClose,
   x,
@@ -87,7 +89,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
 
     // Find first focusable menu item
     const menu = menuRef.current;
-    const firstItem = Array.from(menu.querySelectorAll<HTMLElement>('[role="menuitem"], [role="menuitemradio"]'))
+    const firstItem = Array.from(menu.querySelectorAll<HTMLElement>('[role="menuitem"], [role="menuitemradio"], [role="menuitemcheckbox"]'))
       .find(item => item.parentNode === menu && item.getAttribute('aria-disabled') !== 'true'
         && !item.hasAttribute('disabled'));
     if (firstItem) {
@@ -136,7 +138,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
       // Only select direct children menu items, not nested submenu items
       // This ensures submenu navigation is isolated
       const items = Array.from(
-        menuRef.current.querySelectorAll(':scope > [role="menuitem"]:not([aria-disabled="true"]), :scope > [role="menuitemradio"]:not([aria-disabled="true"])')
+        menuRef.current.querySelectorAll(':scope > [role="menuitem"]:not([aria-disabled="true"]), :scope > [role="menuitemradio"]:not([aria-disabled="true"]), :scope > [role="menuitemcheckbox"]:not([aria-disabled="true"])')
       ) as HTMLElement[];
 
       if (items.length === 0) return;
@@ -279,6 +281,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
       ref={menuRef}
       className={`context-menu ${className}`}
       role="menu"
+      aria-label={ariaLabel}
       style={{
         position: 'fixed',
         left: `${x}px`,

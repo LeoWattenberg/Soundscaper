@@ -154,7 +154,7 @@ export interface ContextMenuItemProps {
   /**
    * Accessible menu item role
    */
-  role?: 'menuitem' | 'menuitemradio';
+  role?: 'menuitem' | 'menuitemradio' | 'menuitemcheckbox';
 
   /**
    * Keyboard shortcut to display on the right
@@ -296,7 +296,7 @@ export const ContextMenuItem: React.FC<ContextMenuItemProps> = ({
         setSubmenuOpen(true);
         // Keyboard entry focuses the child even when pointer hover opened it.
         setTimeout(() => {
-          const firstSubmenuItem = submenuRef.current?.querySelector(':scope > [role="menuitem"]:not([aria-disabled="true"]), :scope > [role="menuitemradio"]:not([aria-disabled="true"])') as HTMLElement;
+          const firstSubmenuItem = submenuRef.current?.querySelector(':scope > [role="menuitem"]:not([aria-disabled="true"]), :scope > [role="menuitemradio"]:not([aria-disabled="true"]), :scope > [role="menuitemcheckbox"]:not([aria-disabled="true"])') as HTMLElement;
           // Another focus target may have been chosen before this timer runs.
           if (firstSubmenuItem && itemRef.current?.ownerDocument.activeElement === itemRef.current) {
             firstSubmenuItem.focus();
@@ -358,7 +358,7 @@ export const ContextMenuItem: React.FC<ContextMenuItemProps> = ({
     if (rel && rel !== itemRef.current) {
       const parentMenu = itemRef.current?.closest('[role="menu"]');
       const relParentMenu = rel.closest?.('[role="menu"]');
-      const relItem = rel.closest?.('[role="menuitem"], [role="menuitemradio"]');
+      const relItem = rel.closest?.('[role="menuitem"], [role="menuitemradio"], [role="menuitemcheckbox"]');
       if (
         parentMenu
         && relParentMenu === parentMenu
@@ -424,7 +424,7 @@ export const ContextMenuItem: React.FC<ContextMenuItemProps> = ({
       if (!submenu || document.activeElement?.closest('[role="menu"]') !== submenu) return;
 
       const items = Array.from(
-        submenu.querySelectorAll(':scope > [role="menuitem"]:not([aria-disabled="true"]), :scope > [role="menuitemradio"]:not([aria-disabled="true"])')
+        submenu.querySelectorAll(':scope > [role="menuitem"]:not([aria-disabled="true"]), :scope > [role="menuitemradio"]:not([aria-disabled="true"]), :scope > [role="menuitemcheckbox"]:not([aria-disabled="true"])')
       ) as HTMLElement[];
 
       if (items.length === 0 && e.key !== 'Escape') return;
@@ -486,7 +486,7 @@ export const ContextMenuItem: React.FC<ContextMenuItemProps> = ({
       role={role}
       tabIndex={disabled ? -1 : 0}
       aria-disabled={disabled}
-      aria-checked={role === 'menuitemradio' ? Boolean(checked) : undefined}
+      aria-checked={role !== 'menuitem' ? Boolean(checked) : undefined}
       onClick={handleClick}
       onKeyDown={handleKeyDown}
       onMouseEnter={handleMouseEnter}

@@ -181,8 +181,9 @@ const STRIP_KEY_STEP = 0.1;
  *  fades as wedges, trims as the block's edge handles — drag or arrow
  *  them. Lengths along the lane are SOURCE seconds; the clip's visible
  *  length is its timeline length through the stretch. */
-export function ClipStrip({ clip, onTrimStartChange, onTrimEndChange }: {
+export function ClipStrip({ clip, onTrimStartChange, onTrimEndChange, onOpenSource }: {
   clip: ClipPropertiesClip;
+  onOpenSource?: () => void;
   onTrimStartChange?: (seconds: number) => void;
   onTrimEndChange?: (seconds: number) => void;
 }) {
@@ -256,6 +257,8 @@ export function ClipStrip({ clip, onTrimStartChange, onTrimEndChange }: {
   );
   return (
     <div className="clip-properties__strip" data-clip-properties-field="strip" data-tooltip={t('Clip in its source')}>
+      <button type="button" className="clip-properties__strip-open" data-clip-properties-action="open-source"
+        aria-label={t('Clip in its source')} disabled={!onOpenSource} onClick={onOpenSource} />
       <div className="clip-properties__strip-lane" ref={laneRef}>
         <div
           className="clip-properties__strip-clip"

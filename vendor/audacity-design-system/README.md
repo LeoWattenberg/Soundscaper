@@ -631,3 +631,13 @@ are the places where the two keyboard models meet, so a future sync should re-ch
     `tests/audio-editor-clip-properties-switch-contrast.test.ts` retain at least
     3:1 thumb-to-track contrast in both states across the maintained theme palettes.
     Upstream-PR candidate.
+
+80. `ClipPropertiesPanel` accepts host color, pitch and timing field slots so
+    the native color palette, pitch units and sample/musical timecode formats
+    replace the corresponding controls without duplicating the inspector.
+    Its source visual has a separate accessible monitor button beside its trim
+    grips. `Button` forwards native button attributes and `ContextMenu` accepts
+    an accessible label, preserving menu semantics without DOM mutation in
+    consumer code. Covered by the mounted inspector, exact-time and error-routing
+    regressions and ordinary Clip properties browser workflows. Upstream-PR
+    candidates; the selective upstream pin remains unchanged.
