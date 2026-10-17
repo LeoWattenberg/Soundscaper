@@ -40,7 +40,7 @@ interface Props {
 	readonly showFadeShapeHandles: boolean;
 	readonly crossfadedFadeEdges: ReadonlySet<string>;
 	readonly copy: FadeShapeMenuCopy & { readonly fadeIn: string; readonly fadeOut: string; readonly fadeInShape: string; readonly fadeOutShape: string; readonly legacyLinearFadeShape: string };
-	readonly onChange: (id: string, changes: ClipFadeChanges) => void;
+	readonly onChange: (id: string, changes: ClipFadeChanges, editedEdge?: ClipFadeEdge) => void;
 	readonly onEditFades?: (id: string) => void;
 	readonly onTabOut: (id: string) => void;
 }

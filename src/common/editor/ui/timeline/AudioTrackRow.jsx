@@ -99,8 +99,9 @@ export function AudioTrackRow({
 }) {
 	const trackWindowRef = useRef(null);
 	const [fadeDialogId, setFadeDialogId] = useState(null), [fadeDialogPreview, setFadeDialogPreview] = useState(null);
-	const changeFades = (id, changes) => run(() => {
-		const command = clipFadeChangeCommand(project, id, sampleRate, changes);
+	/** @param {import('./clip-fade-geometry.ts').ClipFadeEdge} [editedEdge] */
+	const changeFades = (id, changes, editedEdge) => run(() => {
+		const command = clipFadeChangeCommand(project, id, sampleRate, changes, editedEdge);
 		if (command) controller.actions.edit.commit(command);
 	});
 	const closeFades = useCallback(() => { setFadeDialogId(null); setFadeDialogPreview(null); }, []);
