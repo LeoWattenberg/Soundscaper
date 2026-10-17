@@ -12,7 +12,7 @@ import { expect } from '@playwright/test';
 
 import { createAup3Fixture } from '../../aup3-fixture.js';
 import { SCAPE_MIME_TYPE } from '../../../src/common/editor/scape-project-format.ts';
-import { showClipTimingFields,
+import {
 	addRackEffect,
 	chooseExportProjectFileAction,
 	chooseFileAction,
@@ -22,6 +22,7 @@ import { showClipTimingFields,
 	openClipProperties,
 	openEffectsForTrack,
 } from '../audio-editor-test-helpers.js';
+import { chooseClipMediaSetting, expectClipSampleRate } from '../audio-editor-clip-settings-test-helpers.js';
 import { GUIDE_FIXTURES } from '../../../handbook/guides/fixtures.mjs';
 
 const OPEN_TIMEOUT = 30_000;
@@ -97,15 +98,13 @@ export async function runOpenProjectFile(page, state) {
 
 export async function runResample(page, state, entry, clip) {
 	const properties = await openClipProperties(page, state.editor, clip);
-	await showClipTimingFields(properties);
-	await properties.getByRole('button', { name: 'Resample', exact: true }).click();
+	await chooseClipMediaSetting(properties, 'Resample');
 	const dialog = page.locator('[data-clip-resample-dialog]');
 	await expect(dialog).toBeVisible();
 	await commitInput(dialog.locator('[data-clip-resample-field="sampleRate"] input'), String(entry.rate));
 	await dialog.getByRole('button', { name: 'Resample', exact: true }).click();
 	await expect(dialog).toBeHidden({ timeout: OPEN_TIMEOUT });
-	await expect(properties.locator('[data-clip-source-fact="sampleRate"] .audio-editor-field__value'))
-		.toHaveText(new RegExp(`^${String(entry.rate)}`, 'u'), { timeout: OPEN_TIMEOUT });
+	await expectClipSampleRate(properties, entry.rate);
 	await closeClipProperties(properties);
 }
 

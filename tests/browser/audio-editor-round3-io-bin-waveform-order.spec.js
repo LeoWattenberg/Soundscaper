@@ -12,7 +12,7 @@ test('a reversed bin template shows its audible phrase after its leading pause',
 	const clip = clipByName(editor, 'phrase-then-pause.wav');
 	const properties = await openClipProperties(page, editor, clip);
 	await showClipTimingFields(properties);
-	await properties.getByRole('checkbox', { name: 'Reverse', exact: true }).check();
+	await properties.getByRole('switch', { name: 'Reverse', exact: true }).click();
 	await closeClipProperties(properties);
 	await chooseCommandAction(page, editor, 'Window', 'Project bin');
 	await clip.click({ button: 'right' });

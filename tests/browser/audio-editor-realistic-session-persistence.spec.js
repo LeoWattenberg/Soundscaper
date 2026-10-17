@@ -14,6 +14,7 @@ import { showClipTimingFields,
 	registerAudioEditorHooks,
 	waitForEditor,
 } from './audio-editor-test-helpers.js';
+import { chooseClipMediaSetting, expectClipMediaSettingChecked } from './audio-editor-clip-settings-test-helpers.js';
 import { chooseTrackMenuAction } from './helpers/track-menu.js';
 import {
 	addClipGainPoint,
@@ -203,8 +204,8 @@ async function applyEditorialRevision(page, editor, row, clips, action, projectI
 			const clipId = await clips.last().getAttribute('data-clip-id');
 			const dialog = await openClipProperties(page, editor, clips.last());
 			await showClipTimingFields(dialog);
-			await dialog.getByRole('checkbox', { name: 'Reverse', exact: true }).click();
-			await dialog.getByRole('checkbox', { name: 'Invert', exact: true }).click();
+			await dialog.getByRole('switch', { name: 'Reverse', exact: true }).click();
+			await chooseClipMediaSetting(dialog, 'Invert');
 			await closeClipProperties(dialog);
 			evidence.clipId = clipId;
 			break;
@@ -244,8 +245,8 @@ async function assertRestoredRevision(page, editor, row, action, evidence) {
 			page, editor, editor.locator(`[data-clip-id="${evidence.clipId}"]`),
 		);
 		await showClipTimingFields(dialog);
-		await expect(dialog.getByRole('checkbox', { name: 'Reverse', exact: true })).toBeChecked();
-		await expect(dialog.getByRole('checkbox', { name: 'Invert', exact: true })).toBeChecked();
+		await expect(dialog.getByRole('switch', { name: 'Reverse', exact: true })).toHaveAttribute('aria-checked', 'true');
+		await expectClipMediaSettingChecked(dialog, 'Invert', true);
 		await closeClipProperties(dialog);
 	}
 	if (action === 'accent-delete-undo') {
