@@ -20,7 +20,7 @@ test('Project Bin pointer drop retains its captured clips after selection clears
 		assert.deepEqual(fixture.service.commits, [], 'release after Escape does not move either clip');
 
 		fixture.startDrop();
-		assert.deepEqual(fixture.service.project.selection.clipIds, [], 'dragging already cleared the visible clip selection');
+		assert.deepEqual(fixture.service.project.selection?.clipIds, [], 'dragging already cleared the visible clip selection');
 		await act(async () => fixture.finish(7));
 		assert.deepEqual(fixture.service.commits, [{
 			command: { type: 'project-bin/move-from-timeline', clipIds: ['first', 'second'] },
