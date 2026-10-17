@@ -56,11 +56,11 @@ test('old customized docks, resized geometry, and tab groups retain their placem
 		{ x: 300 }, { y: 100 }, { dock: 'right', column: 1 }, { autoSize: false },
 	]) {
 		const older = oldGeneratedPreferences();
-		const inspector = Object.assign(older.workspace.panels['clip-properties'], patch);
-		const source = Object.assign(older.workspace.panels['source-monitor'], patch);
+		Object.assign(older.workspace.panels['clip-properties'], patch);
+		Object.assign(older.workspace.panels['source-monitor'], patch);
 		const restored = loadAudioEditorPreferencesV1(older).preferences;
-		assert.equal(restored.workspace.panels['clip-properties'].dock, inspector.dock, JSON.stringify(patch));
-		assert.equal(restored.workspace.panels['source-monitor'].dock, source.dock, JSON.stringify(patch));
+		assert.equal(restored.workspace.panels['clip-properties'].dock, older.workspace.panels['clip-properties'].dock, JSON.stringify(patch));
+		assert.equal(restored.workspace.panels['source-monitor'].dock, older.workspace.panels['source-monitor'].dock, JSON.stringify(patch));
 	}
 	const tabbed = oldGeneratedPreferences();
 	Object.assign(tabbed.workspace.panels['clip-properties'], { tabGroup: 'inspection', tabActive: true });
