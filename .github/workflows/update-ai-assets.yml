@@ -54,7 +54,7 @@ jobs:
     name: Publish AI assets / ${{ matrix.target.platform }} / ${{ matrix.target.arch }}
     if: github.ref == 'refs/heads/main' && needs.asset-targets.result == 'success'
     needs: asset-targets
-    timeout-minutes: 90
+    timeout-minutes: ${{ matrix.target.platform == 'win' && 180 || 90 }}
     strategy:
       fail-fast: false
       matrix:

@@ -195,7 +195,7 @@ jobs:
   publish-assistance-runtime-handoff:
     name: Publish AI runtimes / ${{ matrix.target.platform }} / ${{ matrix.target.arch }}
     needs: [quality, tests]
-    timeout-minutes: 90
+    timeout-minutes: ${{ matrix.target.platform == 'win' && 180 || 90 }}
     strategy:
       fail-fast: false
       matrix:
@@ -914,7 +914,7 @@ jobs:
     name: Soundscaper v1 + Framescaper v1 packaged lease matrix / ${{ matrix.target.platform }} / ${{ matrix.target.arch }}
     needs: [quality, tests]
     runs-on: ${{ matrix.target.runner }}
-    timeout-minutes: 90
+    timeout-minutes: ${{ matrix.target.platform == 'win' && 240 || 90 }}
     strategy:
       fail-fast: false
       matrix:
