@@ -41,6 +41,18 @@ test('all selected property mutations are blocked when any owning track is locke
 	assert.equal(clipPropertiesPresentation(project, ['removed'], 'Clip').clip, null);
 });
 
+test('mixed linked selections retain the focused audio or video as the native property target', () => {
+	const video = { ...clip, id: 'camera', kind: 'video' };
+	const linked = { ...project, clips: [video, clip] };
+	const audioView = clipPropertiesPresentation(linked, ['camera', 'one'], 'Clip', 'one');
+	assert.equal(audioView.clip?.id, 'one');
+	assert.equal(audioView.clips[0]?.kind, 'audio');
+	assert.equal(audioView.selection?.count, 2);
+	const videoView = clipPropertiesPresentation(linked, ['one', 'camera'], 'Clip', 'camera');
+	assert.equal(videoView.clip?.id, 'camera');
+	assert.deepEqual(new Set(audioView.clips.map(item => item.id)), new Set(['one', 'camera']));
+});
+
 
 test('loop repetitions change the visible length without changing the displayed source speed', () => {
 	const looped = { ...clip, durationFrames: 192_000, opaqueExtensions: { 'org.soundscaper.clip-loop/v1': { periodFrames: 96_000, offsetFrames: 0 } } };

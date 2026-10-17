@@ -46,9 +46,12 @@ export interface PropertyProject {
 }
 
 /** Seconds are a presentation boundary; the source retains its imported clock. */
-export function clipPropertiesPresentation(project: PropertyProject | null, ids: readonly string[], fallback: string) {
+export function clipPropertiesPresentation(project: PropertyProject | null, ids: readonly string[], fallback: string,
+	preferredClipId: string | null = null) {
 	const selected = new Set(ids);
-	const clips = project?.clips.filter(clip => selected.has(clip.id)) ?? [];
+	const selectedClips = project?.clips.filter(clip => selected.has(clip.id)) ?? [];
+	const preferred = selectedClips.find(clip => clip.id === preferredClipId);
+	const clips = preferred ? [preferred, ...selectedClips.filter(clip => clip !== preferred)] : selectedClips;
 	const tracks = project?.tracks.filter(track => track.clipIds?.some(id => selected.has(id))) ?? [];
 	const views = clips.map((clip): ClipPropertiesClip => {
 		const source = project!.sources.find(source => source.id === clip.sourceId);

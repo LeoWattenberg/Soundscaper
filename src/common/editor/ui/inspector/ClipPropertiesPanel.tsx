@@ -53,7 +53,7 @@ export default function ClipPropertiesPanel({ controller, snapshot, copy, focusR
 		const owner = runtimeProject ?? snapshot.project;
 		return owner ? projectForRuntimeConsumers(owner as RuntimeClipProject) as unknown as PropertyProject : null;
 	}, [runtimeProject, snapshot.project]);
-	const presentation = clipPropertiesPresentation(project, selected.clips.map(clip => clip.id), copy.clip);
+	const presentation = clipPropertiesPresentation(project, selected.clips.map(clip => clip.id), copy.clip, selected.preferredClipId);
 	const blocked = selectAudioEditorEditBlock(snapshot as Parameters<typeof selectAudioEditorEditBlock>[0]).blocked || presentation.locked;
 	const audio = presentation.clips.every(clip => clip.kind === 'audio');
 	const targetKey = JSON.stringify([project?.id, selected.clips.map(clip => clip.id)]);
