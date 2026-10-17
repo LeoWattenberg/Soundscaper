@@ -26,6 +26,8 @@ for (const kind of ['length', 'shape'] as const) {
 			assert.ok(owning);
 			assert.equal(owning.kind, kind === 'length' ? 'fade' : 'fade-shape');
 			assert.deepEqual(fixture.captures, [7]);
+			assert.deepEqual(fixture.rootCaptures, [], 'capture stays on the handle so native clicks retain their target');
+			assert.equal(fixture.ownsCapture(), true);
 			fixture.start(fixture.event(8));
 			assert.equal(fixture.session.current, owning, 'a second press cannot replace the captured group');
 			fixture.move(fixture.event(7, true)); fixture.flushFrames();
@@ -40,6 +42,8 @@ for (const kind of ['length', 'shape'] as const) {
 			assert.equal(fixture.session.current, owning);
 			fixture.finish(fixture.event(7, true));
 			assert.equal(fixture.session.current, null);
+			assert.equal(fixture.ownsCapture(), false);
+			assert.deepEqual(fixture.releases, [7]);
 			assert.equal(fixture.preview(), null);
 			assert.equal(fixture.commands.length, 1);
 			const command = fixture.commands[0];
@@ -78,6 +82,8 @@ for (const kind of ['length', 'shape'] as const) {
 				fixture.move(fixture.event(7, true));
 				fixture.dispatch(cancellation);
 				assert.equal(fixture.session.current, null);
+				assert.equal(fixture.ownsCapture(), false);
+				assert.deepEqual(fixture.releases, cancellation === 'lostpointercapture' ? [] : [7]);
 				assert.equal(fixture.preview(), null);
 				fixture.flushFrames();
 				fixture.finish(fixture.event(7, true));
@@ -157,6 +163,9 @@ async function mountTimeline(kind: Kind, locked = false) {
 	let history = createSoundscaperProjectHistory(initial);
 	const commands: AudioEditorCommand[] = [];
 	const captures: number[] = [];
+	const rootCaptures: number[] = [];
+	const releases: number[] = [];
+	const ownedPointers = new Set<number>();
 	const session: { current: Record<string, unknown> | null } = { current: null };
 	const pointerMoveFlushRef = { current: null as ((cancelled?: boolean) => void) | null };
 	let preview: Preview = null;
@@ -189,13 +198,21 @@ async function mountTimeline(kind: Kind, locked = false) {
 	const render = () => act(async () => { root.render(<Harness />); });
 	await render();
 	const control = dom.one(kind === 'length' ? '[data-clip-fade-handle]' : '[data-clip-fade-shape-handle]');
+	Object.assign(control, {
+		setPointerCapture: (id: number) => { captures.push(id); ownedPointers.add(id); },
+		hasPointerCapture: (id: number) => ownedPointers.has(id),
+		releasePointerCapture: (id: number) => { releases.push(id); ownedPointers.delete(id); },
+	});
 	Object.assign(dom.one('.audio-editor-clip-fade'), { getBoundingClientRect: () => ({ height: 100 }) });
-	const currentTarget = { setPointerCapture: (id: number) => captures.push(id) };
-	return { initial, commands, captures, session, history: () => history, preview: () => preview,
+	const currentTarget = { setPointerCapture: (id: number) => rootCaptures.push(id) };
+	return { initial, commands, captures, rootCaptures, releases, ownsCapture: () => ownedPointers.has(7), session, history: () => history, preview: () => preview,
 		event: (pointerId = 7, moved = false) => pointer(control, currentTarget, pointerId, moved),
 		start: (event: Pointer) => start(event), move: (event: Pointer) => move(event), finish: (event: Pointer, cancelled = false) => finish(event, cancelled),
 		flushFrames: () => { const pending = [...frames.values()]; frames.clear(); pending.forEach(callback => callback(0)); },
-		dispatch: (type: string) => events.dispatchEvent(Object.assign(new Event(type === 'Escape' ? 'keydown' : type), { key: type, pointerId: 7, pointerType: 'pen' })),
+		dispatch: (type: string) => {
+			if (type === 'lostpointercapture') ownedPointers.delete(7);
+			return events.dispatchEvent(Object.assign(new Event(type === 'Escape' ? 'keydown' : type), { key: type, pointerId: 7, pointerType: 'pen' }));
+		},
 		edit: async (command: AudioEditorCommand) => { history = executeSoundscaperProjectCommand(history, command); await render(); },
 		cleanup: async () => {
 			await act(async () => root.unmount());
