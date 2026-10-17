@@ -64,9 +64,6 @@ export function useTimelineMenuActions({
 	const openClipMenu = useCallback((clipId, x, y, openedViaKeyboard = false) => {
 		const clip = project?.clips.find((item) => String(item.id) === String(clipId));
 		if (!clip) return;
-		if (!project.selection?.clipIds?.includes(clip.id)) {
-			run(() => controller.actions.timeline.selectClip(clip.id));
-		}
 		setClipMenu({
 			clipId: clip.id,
 			x: Number.isFinite(x) ? x : 0,

@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import type { AudioEditorCommand } from '../src/common/editor/commands/protocol.ts';
 import { createMemoryFfmpeg } from './helpers/audio-editor-controller-fixtures.js';
 import { createMemoryStore } from './helpers/audio-editor-memory-store-baseline.js';
 import { COPY, createAudioEditorController, createMemoryEngine } from './helpers/audio-editor-controller-harness.js';
@@ -28,9 +29,10 @@ async function fixture() {
 test('Ctrl-drag duplicates at a new time through one undo without moving the original or replacing the clipboard', async context => {
 	const { controller, trackId } = await fixture();
 	context.after(async () => { await controller.dispose(); });
-	controller.actions.timeline.selectClip('original');
+	controller.actions.timeline.setExactSelection(600, 850, { trackIds: [trackId] });
 	controller.actions.edit.copy();
-	const clipboard = controller.getSnapshot().clipboard;
+	const clipboard = controller.getSnapshot().history.hasClipboard;
+	controller.actions.timeline.selectClip('original');
 	const before = snapshot(controller);
 	controller.actions.clip.move('original', trackId, 2000, { duplicate: true });
 	const after = snapshot(controller);
@@ -41,9 +43,14 @@ test('Ctrl-drag duplicates at a new time through one undo without moving the ori
 	assert.equal(copy.sourceStartFrame, 100);
 	assert.equal(copy.durationFrames, 1000);
 	assert.equal(copy.sourceId, 'duplicate-source');
-	assert.equal(controller.getSnapshot().clipboard, clipboard);
+	assert.equal(controller.getSnapshot().history.hasClipboard, clipboard);
 	controller.actions.edit.undo();
 	assert.deepEqual(snapshot(controller).clips, before.clips);
+	controller.actions.timeline.setExactSelection(4000, 4000, { trackIds: [trackId] });
+	controller.actions.transport.seek(4000);
+	controller.actions.edit.pasteOverlap();
+	const pasted = snapshot(controller).clips.find(clip => clip.timelineStartFrame === 4000);
+	assert.equal(pasted?.durationFrames, 250, 'the clipboard still holds the earlier range rather than the dragged whole clip');
 });
 
 test('Ctrl-drag onto a new track creates its copy and destination in the same undo', async context => {
@@ -78,7 +85,7 @@ test('duplicate drag uses the Framescaper native carrier for image bodies and pi
 	const service = createClipTransformService({ lifetime: { assertActive() {} }, copy: { audioClipNotFound: 'Missing clip', track: 'Track', timelineFramesFinite: 'Invalid frame' },
 		getProject: projection, getSelectedClipId: () => null, editingBlocked: () => false, createId, snapTimelineFrame: frame => Math.round(Number(frame)), activeSelection: () => null,
 		createDuplicateClipboard: (_project, options) => runtime.prepareEditClipboardDescriptor(owner, createClipboardDescriptor(runtime.projectForEditClipboardConsumers(owner), options)),
-		prepareDuplicateCommand: (descriptor, command) => { carrierCalls++; return runtime.prepareEditDuplicateCommand(owner, descriptor, command, createId); },
+		prepareDuplicateCommand: (descriptor, command) => { carrierCalls++; return runtime.prepareEditDuplicateCommand(owner, descriptor, command, createId) as unknown as AudioEditorCommand; },
 		commit: command => { owner = runtime.applyCommand(owner, command); },
 	});
 	const image = projection().clips.find(clip => clip.kind === 'image')!;

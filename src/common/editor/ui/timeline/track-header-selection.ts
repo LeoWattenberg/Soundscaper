@@ -14,14 +14,14 @@ interface TrackHeaderSelectionController {
 	} };
 }
 
-/** Bind the existing panel's pointer and Enter selection callbacks to exact time bounds. */
+/** Bind the existing panel's pointer and Enter selection callbacks to exact time bounds; a plain header drops the range. */
 export function selectTrackFromHeader(controller: TrackHeaderSelectionController, trackId: string, mode: 'replace' | 'toggle' | 'range'): unknown {
 	const project = controller.getSnapshot().project;
 	if (!project) return null;
 	const input = { trackIds: project.tracks.map(track => track.id), focusedTrackId: trackId,
 		selectedTrackIds: project.selection?.trackIds ?? [] };
 	const trackIds = mode === 'range' ? audacityTrackRangeSelection(input) : audacityToggledTrackSelection(input, mode);
-	const range = resolveSelectionRange(project) ?? project.selection;
+	const range = mode === 'replace' ? null : resolveSelectionRange(project) ?? project.selection;
 	controller.actions.timeline.selectTrack(trackIds.includes(trackId) ? trackId : null);
 	return controller.actions.timeline.setExactSelection(range?.startFrame ?? 0, range?.endFrame ?? 0, { trackIds });
 }

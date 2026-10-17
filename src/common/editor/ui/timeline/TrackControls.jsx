@@ -1,3 +1,4 @@
+import { trackPanelClickSelection } from './clip-pointer-selection.ts';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { TextInput } from '@soundscaper/design-system/TextInput';
 import { ToggleToolButton } from '@soundscaper/design-system/ToggleToolButton';
@@ -219,7 +220,15 @@ export function TrackControls({
 	};
 
 	return (
-		<div ref={controlsRef} className="audio-editor-track-controls" data-track-header data-selected={selected ? 'true' : 'false'} style={{ width: panelWidth }} onFocusCapture={() => {
+		<div ref={controlsRef} className="audio-editor-track-controls" data-track-header data-selected={selected ? 'true' : 'false'} style={{ width: panelWidth }} onClickCapture={(event) => {
+			if (blocked || event.detail < 2 || event.target.closest('button, input, textarea, select, .track-control-panel__track-name-text')) return;
+			const project = controller.getSnapshot().project;
+			const selection = project && trackPanelClickSelection(project, track.id, event.detail);
+			if (!selection) return;
+			event.preventDefault(); event.stopPropagation();
+			run(() => controller.actions.timeline.setExactSelection(selection.startFrame, selection.endFrame, selection));
+		}} onFocusCapture={(event) => {
+			if (event.target.closest('button, input, textarea, select, [data-tcp-slot]')) return;
 			if (!selected) run(() => controller.actions.timeline.selectTrack(track.id));
 		}} onDoubleClick={(event) => {
 			if (blocked || !(event.target instanceof Element) || !event.target.closest('.track-control-panel__track-name-text')) return;

@@ -38,7 +38,6 @@ export function createClipDragMenuItems(input: ClipDragMenuInput): readonly Clip
 	}, {
 		id: 'clip-move-preserve-time',
 		label: input.copy.moveClipPreserveTime,
-		shortcut: 'Ctrl+drag',
 		disabled: input.blocked || destinations.length === 0,
 		items: destinations.map((track) => ({
 			id: `clip-move-preserve-time-${encodeURIComponent(track.id)}`,

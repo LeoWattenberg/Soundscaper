@@ -8,7 +8,7 @@ import { TrackControls } from '../src/common/editor/ui/timeline/TrackControls.js
 import { ENGLISH_COPY } from '../src/common/i18n/catalogs.js';
 import { installReactTestDom, reactProps } from './helpers/react-test-dom.ts';
 
-test('track-header pointer and Enter modifiers preserve the range while changing its selected tracks', async () => {
+test('track-header modifiers preserve ranges and plain header selection drops them', async () => {
 	const dom = installReactTestDom();
 	const root = createRoot(dom.container as unknown as Element);
 	const globals = globalThis as typeof globalThis & { React?: typeof React; IS_REACT_ACT_ENVIRONMENT?: boolean };
@@ -37,7 +37,7 @@ test('track-header pointer and Enter modifiers preserve the range while changing
 		await click({}); assert.deepEqual(selection.trackIds, ['last']);
 		panel.focus();
 		await act(async () => { reactProps(panel).onKeyDown({ key: 'Enter', ctrlKey: true, target: panel, currentTarget: panel, preventDefault() {}, stopPropagation() {} }); });
-		assert.deepEqual(selection, { startFrame: 101, endFrame: 901, trackIds: [] });
+		assert.deepEqual(selection, { startFrame: 0, endFrame: 0, trackIds: [] });
 	} finally {
 		await act(async () => root.unmount()); dom.restore(); globals.React = previous.react; globals.IS_REACT_ACT_ENVIRONMENT = previous.act;
 	}

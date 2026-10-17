@@ -16,7 +16,7 @@ void test('a clip press records its pointer identity and refuses a foreign press
 		assert.equal(original?.pointerId, 7);
 		fixture.start(fixture.event(1, 'mouse', 110));
 		assert.equal(fixture.session.current, original);
-		assert.deepEqual(fixture.captures, [7]);
+		assert.deepEqual(fixture.captures, [], 'native clicks retain their original target until the drag threshold');
 	} finally { await fixture.cleanup(); }
 });
 

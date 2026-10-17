@@ -26,8 +26,7 @@ test('timeline pointer hooks capture and preserve the roll/ripple trim gesture r
 	assert.match(start, /altKey:\s*event\.altKey/u);
 	assert.match(start, /shiftKey:\s*event\.shiftKey/u);
 	assert.match(start, /rollRippleMode/u);
-	assert.match(start, /rollRippleMode === null && event\.shiftKey/u);
-	assert.match(start, /rollRippleMode === null && \(event\.metaKey \|\| event\.ctrlKey\)/u);
+	assert.doesNotMatch(start.slice(start.indexOf('const rollRippleMode')), /timeline\.selectClip/u);
 
 	assert.match(move, /resolveTimelineRollRippleTrimPointerPreview/u);
 	assert.match(move, /const requestedBoundarySample = frameAtClientX\(event\.clientX, session\.lane\)/u);

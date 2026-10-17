@@ -32,8 +32,7 @@ test('timeline pointer hooks capture immutable slip/slide authority and preserve
 	assert.match(start, /slipSlideMode/u);
 	assert.match(start, /slipSlidePointerAuthority/u);
 	assert.match(start, /touchPointers\.current\.size === 2[\s\S]*?setSelectionPreview\(null\)[\s\S]*?pointerSession\.current = null/u);
-	assert.match(start, /slipSlideMode !== null[\s\S]*?rollRippleMode === null && event\.shiftKey/u);
-	assert.match(start, /rollRippleMode === null && \(event\.metaKey \|\| event\.ctrlKey\)/u);
+	assert.match(start, /slipSlideMode,[\s\S]*?slipSlidePointerAuthority:\s*slipSlideGesture\?\.authority/u);
 	assert.ok(
 		start.indexOf('const slipSlideGesture = captureTimelineSlipSlidePointerGesture')
 			< start.indexOf('&& slipSlideGesture === null'),

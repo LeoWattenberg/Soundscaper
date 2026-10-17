@@ -1,3 +1,4 @@
+import { handleClipPointerClick } from './clip-pointer-selection.ts';
 
 import { useMemo, useRef, useState } from 'react';
 
@@ -216,6 +217,7 @@ export function VideoTrackRow({
 				aria-invalid={overlapPresentation.invalid ? 'true' : undefined}
 				aria-label={track.name}
 				style={{ marginLeft: panelWidth, width: timelineWidth + verticalRulerWidth, height: trackHeight }}
+				onClickCapture={(event) => handleClipPointerClick(event, { tracks: presentationProject.tracks, clips: [...clipLookup.values()] }, controller.actions.timeline, run)}
 				onClick={(event) => {
 					if (event.target.closest('[data-clip-id]')) return;
 					run(() => controller.actions.timeline.selectTrack(track.id));

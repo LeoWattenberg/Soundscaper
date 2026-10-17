@@ -162,6 +162,10 @@ export function VideoFilmstripClip({
 						showStretch={Boolean(rateBadge)} stretchPercent={(rateBadge?.playbackRate ?? 1) * 100}
 						speedLabel={copy.clipSpeedIndicator} onRename={blocked ? undefined : onRename}
 						renameRequestId={renameRequestId} onRenameFinished={onRenameFinished}
+						onClick={(event) => {
+							event.stopPropagation();
+							run(() => controller.actions.timeline.selectClip(clip.id, { additive: Boolean(event.shiftKey), toggle: Boolean(event.ctrlKey || event.metaKey) }));
+						}}
 						onMenuClick={(event) => {
 							const rect = event.currentTarget.getBoundingClientRect();
 							onOpenMenu(clip.id, rect.right, rect.bottom);

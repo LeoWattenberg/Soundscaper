@@ -1,42 +1,43 @@
 import { expect, test, toneA, toneB } from './audio-editor-test-fixtures.js';
 import {
-	bootEditor, clipByName, clipField, closeClipProperties, collectClientErrors,
+	bootEditor, clipByName, clipField, collectClientErrors,
 	importFiles, openClipProperties, registerAudioEditorHooks,
 } from './audio-editor-test-helpers.js';
 
 test.describe('clip header drag modifiers', () => {
 	registerAudioEditorHooks();
 
-	test('Ctrl drag changes tracks while preserving an off-grid start, with one undo', async ({ page }) => {
+	test('Ctrl drag duplicates onto another track at its horizontal destination, with one undo', async ({ page }) => {
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');
 		await importFiles(editor, [toneA]);
 		const clip = clipByName(editor, toneA.name);
 		const source = clip.locator('xpath=ancestor::*[@data-track-row][1]');
 		const sourceId = await source.getAttribute('data-track-id');
+		const originalId = await clip.getAttribute('data-clip-id');
 		const destination = editor.locator('[data-track-row]').filter({ hasNot: clip }).first();
 		const destinationId = await destination.getAttribute('data-track-id');
-		const properties = await openClipProperties(page, editor, clip);
-		await properties.getByText('Media settings', { exact: true }).click();
-		await clipField(properties, 'startFrame').fill('12345');
-		await clipField(properties, 'startFrame').press('Tab');
-		await closeClipProperties(properties);
 		const box = await clip.boundingBox();
 		const lane = await destination.boundingBox();
-		expect(box).not.toBeNull();
-		expect(lane).not.toBeNull();
+		expect(box).not.toBeNull(); expect(lane).not.toBeNull();
 		await page.keyboard.down('Control');
 		await page.mouse.move(box.x + 32, box.y + 10);
 		await page.mouse.down();
 		await page.mouse.move(box.x + 95, lane.y + 60, { steps: 8 });
 		await page.mouse.up();
 		await page.keyboard.up('Control');
-		await expect(clip.locator('xpath=ancestor::*[@data-track-row][1]')).toHaveAttribute('data-track-id', destinationId);
-		const movedProperties = await openClipProperties(page, editor, clip);
-		await expect(clipField(movedProperties, 'startFrame')).toHaveValue('12345');
-		await closeClipProperties(movedProperties);
+		await expect(editor).toHaveAttribute('data-clip-count', '2');
+		const original = editor.locator(`[data-clip-id="${originalId}"]`);
+		await expect(original.locator('xpath=ancestor::*[@data-track-row][1]')).toHaveAttribute('data-track-id', sourceId);
+		expect((await original.boundingBox()).x).toBeCloseTo(box.x, 0);
+		const duplicate = editor.locator(`[data-track-row][data-track-id="${destinationId}"] [data-clip-id]`);
+		await expect(duplicate).toHaveCount(1);
+		await expect(original.locator('.clip-display')).toHaveAttribute('data-selected', 'false');
+		await expect(duplicate.locator('.clip-display')).toHaveAttribute('data-selected', 'true');
+		expect((await duplicate.boundingBox()).x).toBeGreaterThan(box.x + 20);
 		await editor.getByRole('button', { name: 'Undo', exact: true }).click();
-		await expect(clip.locator('xpath=ancestor::*[@data-track-row][1]')).toHaveAttribute('data-track-id', sourceId);
+		await expect(editor).toHaveAttribute('data-clip-count', '1');
+		await expect(original).toBeVisible();
 		expect(errors).toEqual([]);
 	});
 
