@@ -3,6 +3,7 @@
 import { expect, monoTone, test } from './audio-editor-test-fixtures.js';
 import { bootEditor, chooseCommandAction, chooseNestedCommandAction, clipByName, clipField,
 	closeClipProperties, commitInput, importFiles, openClipProperties } from './audio-editor-test-helpers.js';
+import { chooseClipMediaSetting, expectClipMediaSettingChecked } from './audio-editor-clip-settings-test-helpers.js';
 
 test('an ordinary warped recording can bake its linked speed through the Clip menu', async ({ page }) => {
 	const editor = await bootEditor(page, '/embed/en/');
@@ -15,10 +16,10 @@ test('an ordinary warped recording can bake its linked speed through the Clip me
 	await expect(warp).toContainText('Identity warp map created.');
 	await warp.getByRole('button', { name: 'Close', exact: true }).click();
 	const properties = await openClipProperties(page, editor, clip);
-	await properties.getByText('Pitch and tempo', { exact: true }).click();
-	await properties.getByRole('checkbox', { name: 'Link pitch and tempo', exact: true }).check();
-	await commitInput(clipField(properties, 'speedRatio'), '2');
-	await expect(clipField(properties, 'speedRatio')).toHaveValue('2');
+	await chooseClipMediaSetting(properties, 'Link pitch and tempo');
+	await expectClipMediaSettingChecked(properties, 'Link pitch and tempo', true);
+	await commitInput(clipField(properties, 'speedRatio'), '200');
+	await expect(clipField(properties, 'speedRatio')).toHaveValue('200');
 	await closeClipProperties(properties);
 	await clip.getByRole('button', { name: 'Clip menu', exact: true }).click();
 	await page.locator('.audio-editor-clip-context-menu').getByRole('menuitem', { name: 'Render pitch and speed', exact: true }).click();

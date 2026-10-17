@@ -15,6 +15,7 @@ import {
 	openExportDialog,
 	registerAudioEditorHooks,
 } from './audio-editor-test-helpers.js';
+import { chooseClipPitchUnit, expectClipGain, openClipGainDialog } from './audio-editor-clip-settings-test-helpers.js';
 
 test.describe('inspector helper workflows', () => {
 	registerAudioEditorHooks();
@@ -25,35 +26,35 @@ test.describe('inspector helper workflows', () => {
 		await importFiles(editor, [toneA]);
 		const properties = await openClipProperties(page, editor, clipByName(editor, toneA.name));
 
-		await properties.getByText('Normalize', { exact: true }).click();
-		const gain = properties.getByRole('spinbutton', { name: 'Clip gain (dB)', exact: true });
-		await commitInput(gain, '25');
-		await expect(properties.getByRole('alert')).toHaveText('Invalid gain value.');
-		await commitInput(gain, '-6');
-		await expect(properties.getByRole('alert')).toHaveCount(0);
-		await expect(gain).toHaveValue('-6.00');
+		const gainDialog = await openClipGainDialog(properties);
+		const gain = gainDialog.getByRole('textbox', { name: 'Clip gain (dB)', exact: true });
+		await gain.fill('25');
+		await expect(gainDialog.getByRole('button', { name: 'Apply', exact: true })).toBeDisabled();
+		await gain.fill('-6');
+		await gainDialog.getByRole('button', { name: 'Apply', exact: true }).click();
+		await expect(gainDialog).toBeHidden();
+		await expectClipGain(properties, -6);
 
-		await properties.getByText('Normalize', { exact: true }).click();
-		await properties.getByText('Pitch and tempo', { exact: true }).click();
-		let pitch = properties.getByRole('spinbutton', {
-			name: 'Pitch (semitones, −12 to +12)', exact: true,
-		});
+		let pitch = properties.getByRole('textbox', { name: 'Pitch', exact: true });
 		await commitInput(pitch, '13');
-		await expect(properties.getByRole('alert')).toHaveText(
+		const failure = editor.locator('[data-editor-toast="workspace-error"]');
+		await expect(failure).toContainText(
 			'Clip pitch must be between −12 and +12 semitones.',
 		);
+		await expect(pitch).toHaveValue('0');
+		await failure.getByRole('button', { name: 'Close', exact: true }).click();
 		await commitInput(pitch, '1.25');
 		await expect(properties.getByRole('alert')).toHaveCount(0);
 		await expect(pitch).toHaveValue('1.25');
 
-		await properties.getByRole('button', { name: 'Percent change', exact: true }).click();
-		pitch = properties.getByRole('spinbutton', {
+		await chooseClipPitchUnit(properties, 'Percent change');
+		pitch = properties.getByRole('textbox', {
 			name: 'Pitch (percent, −50 to +100)', exact: true,
 		});
 		await expect(pitch).toHaveValue('7.487');
 		await commitInput(pitch, '10');
 		await expect(properties.getByRole('alert')).toHaveCount(0);
-		await expect(pitch).toHaveValue('10.000');
+		await expect(pitch).toHaveValue('10');
 
 		await closeClipProperties(properties);
 		expect(errors).toEqual([]);

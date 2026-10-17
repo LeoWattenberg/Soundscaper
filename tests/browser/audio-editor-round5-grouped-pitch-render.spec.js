@@ -13,7 +13,7 @@ test('rendering one grouped pitched recording preserves its untouched companion'
 	const lead = clipByName(editor, files[0].name);
 	const companion = clipByName(editor, files[1].name);
 	const properties = await openClipProperties(page, editor, lead);
-	await properties.getByText('Pitch and tempo', { exact: true }).click();
+
 	await commitInput(clipField(properties, 'pitchCents'), '2');
 	await closeClipProperties(properties);
 	await lead.press('Enter');

@@ -18,6 +18,7 @@ import {
 	registerAudioEditorHooks,
 	waitForEditor,
 } from './audio-editor-test-helpers.js';
+import { chooseClipMediaSetting, chooseClipPitchUnit } from './audio-editor-clip-settings-test-helpers.js';
 
 const PANEL_ID = 'clip-properties';
 const FIRST_TITLE = toneA.name.replace(/\.[^.]+$/u, '');
@@ -103,22 +104,24 @@ test.describe('live dockable Clip properties', () => {
 		await expect(panel.locator('details')).toHaveCount(0);
 	});
 
-	test('additional properties retain pitch units, native knobs and normalization', async ({ page }) => {
+	test('Media settings retains pitch units, keyboard steps and normalization', async ({ page }) => {
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');
 		await importFiles(editor, [toneA]);
 		const panel = await openClipProperties(page, editor, clipByName(editor, toneA.name));
-		const pitchDrawer = panel.locator('[data-clip-properties-drawer="pitch"]');
-		await pitchDrawer.getByText('Pitch and tempo', { exact: true }).click();
-		await pitchDrawer.getByRole('button', { name: 'Percent change', exact: true }).click();
+		await chooseClipPitchUnit(panel, 'Percent change');
 		await commitInput(clipField(panel, 'pitchCents'), '100');
-		await pitchDrawer.getByRole('button', { name: 'Semitones (half-steps)', exact: true }).click();
-		await expect(clipField(panel, 'pitchCents')).toHaveValue('12.00');
-		await pitchDrawer.locator('[data-clip-knob="pitchCents"]').getByRole('slider').press('ArrowLeft');
-		await expect(clipField(panel, 'pitchCents')).toHaveValue('11.99');
-		await pitchDrawer.getByText('Pitch and tempo', { exact: true }).click();
-		await panel.getByText('Normalize', { exact: true }).click();
-		await expect(panel.getByRole('spinbutton', { name: 'Clip gain (dB)', exact: true })).toBeVisible();
+		await chooseClipPitchUnit(panel, 'Semitones (half-steps)');
+		const pitch = clipField(panel, 'pitchCents');
+		await expect(pitch).toHaveValue('12');
+		await pitch.click();
+		await pitch.press('ArrowDown');
+		await pitch.press('Tab');
+		await expect(pitch).toHaveValue('11');
+		await chooseClipMediaSetting(panel, 'Clip gain (dB)');
+		const gain = page.getByRole('dialog', { name: 'Clip gain (dB)', exact: true });
+		await expect(gain.getByRole('textbox', { name: 'Clip gain (dB)', exact: true })).toBeVisible();
+		await gain.getByRole('button', { name: 'Cancel', exact: true }).click();
 		expect(errors).toEqual([]);
 	});
 

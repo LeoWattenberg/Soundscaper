@@ -6,6 +6,7 @@ import { bootEditor, chooseCommandAction, chooseNestedCommandAction, clickClipIn
 	importFiles, openClipProperties,
 } from './audio-editor-test-helpers.js';
 import { exportSamples } from './helpers/round2-audio-export.js';
+import { expectClipMediaSettingChecked } from './audio-editor-clip-settings-test-helpers.js';
 
 const silence = createWavFixture({ name: 'paste-destination.wav', frequency: 660,
 	channelCount: 1, channelAmplitudes: [0] });
@@ -33,9 +34,8 @@ test('paste into existing audio preserves the pitch of independently sped-up aud
 	await importFiles(editor, [monoTone, silence]);
 	const original = clipByName(editor, monoTone.name);
 	const properties = await openClipProperties(page, editor, original);
-	await properties.getByText('Pitch and tempo', { exact: true }).click();
-	await expect(properties.getByRole('checkbox', { name: 'Link pitch and tempo', exact: true })).not.toBeChecked();
-	await commitInput(clipField(properties, 'speedRatio'), '2');
+	await expectClipMediaSettingChecked(properties, 'Link pitch and tempo', false);
+	await commitInput(clipField(properties, 'speedRatio'), '200');
 	await expect(clipField(properties, 'durationFrame')).toHaveValue('19200');
 	await closeClipProperties(properties);
 	const before = await exportSamples(page, editor);

@@ -4,6 +4,7 @@ import { createWavFixture, expect, test } from './audio-editor-test-fixtures.js'
 import { bootEditor, chooseCommandAction, clipByName, clipField, closeClipProperties, disableNativeSavePicker,
 	importFiles, openClipProperties } from './audio-editor-test-helpers.js';
 import { exportSamples } from './helpers/round2-audio-export.js';
+import { chooseClipMediaSetting, expectClipMediaSettingChecked } from './audio-editor-clip-settings-test-helpers.js';
 
 test('multichannel independent speed refuses before mutation and linked speed remains exportable', async ({ page }) => {
 	test.setTimeout(60_000);
@@ -13,32 +14,30 @@ test('multichannel independent speed refuses before mutation and linked speed re
 		duration: 0.8, channelCount: 6, channelAmplitudes: [0.2, 0.2, 0, 0, 0, 0] });
 	await importFiles(editor, [recording]);
 	const properties = await openClipProperties(page, editor, clipByName(editor, recording.name));
-	await properties.getByText('Pitch and tempo', { exact: true }).click();
-	await expect(properties.getByRole('checkbox', { name: 'Link pitch and tempo', exact: true })).not.toBeChecked();
+	await expectClipMediaSettingChecked(properties, 'Link pitch and tempo', false);
 	const speed = clipField(properties, 'speedRatio');
-	await speed.fill('2'); await speed.press('Enter');
-	await expect(properties.getByRole('alert')).toContainText('mono or stereo');
-	await expect(properties.getByRole('alert')).toContainText('Link pitch and tempo');
-	await expect(speed).toHaveAttribute('aria-invalid', 'true');
+	await speed.fill('200'); await speed.press('Enter');
+	const failure = editor.locator('[data-editor-toast="workspace-error"], [data-editor-toast="workspace-status-error"]').first();
+	await expect(failure).toContainText('mono or stereo');
+	await expect(failure).toContainText('Link pitch and tempo');
+	await expect(speed).toHaveValue('100');
 	await expect(clipField(properties, 'durationFrame')).toHaveValue('38400');
-	await speed.press('Escape');
-	await expect(speed).toHaveValue('1');
+	await failure.getByRole('button', { name: 'Close', exact: true }).click();
 	await closeClipProperties(properties);
 	const unchanged = await exportSamples(page, editor);
 	expect(unchanged).toHaveLength(38400);
 	expect(amplitude(unchanged, 440)).toBeGreaterThan(0.1);
 	const recovery = await openClipProperties(page, editor, clipByName(editor, recording.name));
-	await recovery.getByText('Pitch and tempo', { exact: true }).click();
-	await recovery.getByRole('checkbox', { name: 'Link pitch and tempo', exact: true }).check();
+	await chooseClipMediaSetting(recovery, 'Link pitch and tempo');
 	const linkedSpeed = clipField(recovery, 'speedRatio');
-	await linkedSpeed.fill('2'); await linkedSpeed.press('Enter');
+	await linkedSpeed.fill('200'); await linkedSpeed.press('Enter');
 	await expect(clipField(recovery, 'durationFrame')).toHaveValue('19200');
 	await expect(recovery.getByRole('alert')).toHaveCount(0);
-	const linkage = recovery.getByRole('checkbox', { name: 'Link pitch and tempo', exact: true });
-	await linkage.click();
-	await expect(recovery.getByRole('alert')).toContainText('mono or stereo');
-	await expect(linkage).toBeChecked();
+	await chooseClipMediaSetting(recovery, 'Link pitch and tempo');
+	await expect(failure).toContainText('mono or stereo');
+	await expectClipMediaSettingChecked(recovery, 'Link pitch and tempo', true);
 	await expect(clipField(recovery, 'durationFrame')).toHaveValue('19200');
+	await failure.getByRole('button', { name: 'Close', exact: true }).click();
 	await closeClipProperties(recovery);
 	const linked = await exportSamples(page, editor);
 	expect(linked).toHaveLength(19200);

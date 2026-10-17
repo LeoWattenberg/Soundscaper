@@ -11,13 +11,14 @@ import {
 	openClipProperties,
 	registerAudioEditorHooks,
 } from './audio-editor-test-helpers.js';
+import { chooseClipMediaSetting } from './audio-editor-clip-settings-test-helpers.js';
 
 function pitchField(dialog) {
-	return dialog.getByRole('spinbutton', { name: /^Pitch \(semitones/u });
+	return dialog.getByRole('textbox', { name: 'Pitch', exact: true });
 }
 
 function speedField(dialog) {
-	return dialog.getByRole('spinbutton', { name: 'Speed ratio', exact: true });
+	return dialog.getByRole('textbox', { name: 'Speed', exact: true });
 }
 
 async function expectHighlighted(field) {
@@ -39,23 +40,22 @@ test.describe('clip pitch and speed indicators', () => {
 		await expect(clip).not.toContainText('100%');
 
 		let dialog = await openClipProperties(page, editor, clip);
-		await dialog.getByText('Pitch and tempo', { exact: true }).click();
-		await dialog.getByRole('checkbox', { name: 'Stretch with project tempo changes', exact: true }).check();
+		await chooseClipMediaSetting(dialog, 'Stretch with project tempo changes');
 		await closeClipProperties(dialog);
 		await expect(speed).toHaveCount(0);
 		await expect(clip).not.toContainText('100%');
 
 		for (const [ratio, percentage] of [['0.9999999', '99.9%'], ['1.0000001', '100.1%']]) {
 			dialog = await openClipProperties(page, editor, clip);
-			await dialog.getByText('Pitch and tempo', { exact: true }).click();
-			await commitInput(speedField(dialog), ratio);
+
+			await commitInput(speedField(dialog), String(Number(ratio) * 100));
 			await closeClipProperties(dialog);
 			await expect(speed).toContainText(percentage);
 		}
 
 		dialog = await openClipProperties(page, editor, clip);
-		await dialog.getByText('Pitch and tempo', { exact: true }).click();
-		await commitInput(speedField(dialog), '1');
+
+		await commitInput(speedField(dialog), '100');
 		await closeClipProperties(dialog);
 		await expect(speed).toHaveCount(0);
 		await expect(clip).not.toContainText('100%');
@@ -70,9 +70,9 @@ test.describe('clip pitch and speed indicators', () => {
 		const clip = clipByName(editor, longTone.name);
 		const otherClip = clipByName(editor, otherTone.name);
 		let dialog = await openClipProperties(page, editor, clip);
-		await dialog.getByText('Pitch and tempo', { exact: true }).click();
+
 		await commitInput(pitchField(dialog), '2');
-		await commitInput(speedField(dialog), '1.25');
+		await commitInput(speedField(dialog), '125');
 		await closeClipProperties(dialog);
 		await otherClip.focus();
 		await otherClip.press('Enter');
@@ -108,9 +108,9 @@ test.describe('clip pitch and speed indicators', () => {
 		const pitch = clip.getByRole('button', { name: 'Clip pitch', exact: true });
 		const speed = clip.getByRole('button', { name: 'Clip speed', exact: true });
 		const dialog = await openClipProperties(page, editor, clip);
-		await dialog.getByText('Pitch and tempo', { exact: true }).click();
+
 		await commitInput(pitchField(dialog), '2');
-		await commitInput(speedField(dialog), '1.25');
+		await commitInput(speedField(dialog), '125');
 		await closeClipProperties(dialog);
 
 		await pitch.dblclick();

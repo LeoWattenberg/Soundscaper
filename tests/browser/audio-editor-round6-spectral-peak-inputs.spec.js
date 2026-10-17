@@ -3,6 +3,7 @@
 import { createWavFixture, expect, test } from './audio-editor-test-fixtures.js';
 import { bootEditor, chooseCommandAction, clipByName, clipField, closeClipProperties,
 	importFiles, openClipProperties } from './audio-editor-test-helpers.js';
+import { expectClipMediaSettingChecked } from './audio-editor-clip-settings-test-helpers.js';
 
 for (const mode of ['independent tempo', 'surround channel']) {
 	test(`spectral center snapping includes the sounding ${mode}`, async ({ page }) => {
@@ -15,11 +16,10 @@ for (const mode of ['independent tempo', 'surround channel']) {
 		const clip = clipByName(editor, recording.name);
 		if (mode === 'independent tempo') {
 			const properties = await openClipProperties(page, editor, clip);
-			await properties.getByText('Pitch and tempo', { exact: true }).click();
-			await expect(properties.getByRole('checkbox', { name: 'Link pitch and tempo', exact: true })).not.toBeChecked();
+			await expectClipMediaSettingChecked(properties, 'Link pitch and tempo', false);
 			const speed = clipField(properties, 'speedRatio');
-			await speed.fill('2'); await speed.press('Enter');
-			await expect(speed).toHaveValue('2');
+			await speed.fill('200'); await speed.press('Enter');
+			await expect(speed).toHaveValue('200');
 			await expect(properties.getByRole('alert')).toHaveCount(0);
 			await closeClipProperties(properties);
 		}

@@ -4,8 +4,9 @@ import { createWavFixture, expect, test } from './audio-editor-test-fixtures.js'
 import { bootEditor, chooseCommandAction, chooseNestedCommandAction, clipByName, clipField,
 	closeClipProperties, commitInput, disableNativeSavePicker, importFiles, openClipProperties } from './audio-editor-test-helpers.js';
 import { exportSamples } from './helpers/round2-audio-export.js';
+import { expectClipMediaSettingChecked } from './audio-editor-clip-settings-test-helpers.js';
 
-for (const [field, value] of [['pitchCents', '2'], ['speedRatio', '2']]) {
+for (const [field, value] of [['pitchCents', '2'], ['speedRatio', '200']]) {
 	test(`Render preserves the audible authored warp after an independent ${field} edit`, async ({ page }) => {
 		await disableNativeSavePicker(page);
 		const editor = await bootEditor(page, '/embed/en/');
@@ -24,10 +25,9 @@ for (const [field, value] of [['pitchCents', '2'], ['speedRatio', '2']]) {
 		await expect(warp.getByLabel('Marker 1 source sample', { exact: true })).toHaveValue('36000/1');
 		await warp.getByRole('button', { name: 'Close', exact: true }).click();
 		const properties = await openClipProperties(page, editor, clip);
-		await properties.getByText('Pitch and tempo', { exact: true }).click();
-		await expect(properties.getByRole('checkbox', { name: 'Link pitch and tempo', exact: true })).not.toBeChecked();
+		await expectClipMediaSettingChecked(properties, 'Link pitch and tempo', false);
 		await commitInput(clipField(properties, field), value);
-		await expect(clipField(properties, field)).toHaveValue(field === 'pitchCents' ? '2.00' : value);
+		await expect(clipField(properties, field)).toHaveValue(value);
 		await closeClipProperties(properties);
 		const before = await exportSamples(page, editor);
 		await clip.getByRole('button', { name: 'Clip menu', exact: true }).click();
