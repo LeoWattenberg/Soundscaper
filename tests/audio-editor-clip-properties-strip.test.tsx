@@ -23,15 +23,16 @@ test('clip property strip previews a trim and publishes only release; Escape and
 		const down = () => act(async () => reactProps(handle).onPointerDown({ button: 0, currentTarget: handle, clientX: 10, pointerId: 1, preventDefault() {} }));
 		const move = () => act(async () => reactProps(handle).onPointerMove({ clientX: 30 }));
 		await down(); await move();
+		await act(async () => reactProps(handle).onPointerMove({ clientX: 40 }));
 		assert.deepEqual(changes, []);
 		await act(async () => reactProps(handle).onPointerUp());
-		assert.deepEqual(changes, [3]);
+		assert.deepEqual(changes, [4]);
 		await down(); await move();
 		await act(async () => reactProps(handle).onPointerCancel());
-		assert.deepEqual(changes, [3]);
+		assert.deepEqual(changes, [4]);
 		await down(); await move();
 		await act(async () => reactProps(handle).onKeyDown({ key: 'Escape', preventDefault() {}, stopPropagation() {} }));
 		await act(async () => reactProps(handle).onPointerUp());
-		assert.deepEqual(changes, [3]);
+		assert.deepEqual(changes, [4]);
 	} finally { await act(async () => root.unmount()); globals.IS_REACT_ACT_ENVIRONMENT = previous; dom.restore(); }
 });

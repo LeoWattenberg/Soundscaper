@@ -190,8 +190,9 @@ export function ClipStrip({ clip, onTrimStartChange, onTrimEndChange }: {
   const source = Math.max(clip.fullDuration, 0.001);
   const [preview, setPreview] = React.useState<{ side: 'start' | 'end'; value: number } | null>(null);
   const head = preview?.side === 'start' ? preview.value : clip.trimStart;
-  const shown = clip.duration / clip.stretchFactor - (head - clip.trimStart) - (preview?.side === 'end' ? preview.value - Math.max(0, source - clip.trimStart - clip.duration / clip.stretchFactor) : 0);
-  const trimEnd = Math.max(0, source - clip.trimStart - shown);
+  const originalShown = clip.duration / clip.stretchFactor;
+  const trimEnd = Math.max(0, source - clip.trimStart - originalShown);
+  const shown = originalShown - (head - clip.trimStart) - (preview?.side === 'end' ? preview.value - trimEnd : 0);
   const pct = (seconds: number) => `${Math.max(0, Math.min(100, (seconds / source) * 100))}%`;
   // Fades are timeline seconds; on the lane they are source seconds
   const fadeInPct = pct(clip.fadeIn / clip.stretchFactor);
