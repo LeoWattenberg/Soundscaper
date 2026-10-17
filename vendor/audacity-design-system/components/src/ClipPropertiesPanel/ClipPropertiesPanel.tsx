@@ -263,7 +263,7 @@ function ClipPropertiesPanelBody({
           <Row>
             {pitchControl ?? <NumberField testId="pitch" label={t('Pitch')} glyph={<PitchGlyph />} value={pitch} onCommit={onPitchChange}
               step={1} min={-PITCH_LIMIT_SEMITONES} max={PITCH_LIMIT_SEMITONES} digits={2} />}
-            <NumberField testId="speed" label={t('Speed')} glyph={<SpeedGlyph />} value={speed} onCommit={onSpeedChange} step={5} min={1} digits={2} />
+            <NumberField testId="speed" label={t('Speed')} glyph={<SpeedGlyph />} value={speed} onCommit={onSpeedChange} step={5} min={0.1} digits={2} />
           </Row>
           {/* Reverse (2026-10-07): a switch in the field look; mixed
               reads as neither, and a press sets every clip the same way */}

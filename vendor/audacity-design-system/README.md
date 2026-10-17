@@ -649,7 +649,9 @@ are the places where the two keyboard models meet, so a future sync should re-ch
     panel retains raw speed percentages before display formatting and accepts an
     optional `speedPercent` for native scalar speed, separate from the source
     strip's resolved `stretchFactor`. Without that value the upstream stretch
-    conversion remains in use. Covered by
+    conversion remains in use. The percentage field accepts native speeds down
+    to 0.1%, preserving explicit edits below 1% and their authored precision.
+    Covered by the host inspector speed-range regression,
     `tests/vendored-clip-number-field-precision.test.tsx` and the tiny-speed
     indicator browser workflow. Upstream-PR candidate.
 

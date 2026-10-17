@@ -210,6 +210,15 @@ for (const speedRatio of [0.9999999, 1.0000001]) test(`native tiny speed ${speed
 	} finally { await f.cleanup(); }
 });
 
+for (const percent of [0.1, 0.1256789, 0.5, 0.9999999, 100_000]) test(`explicit clip speed ${percent}% retains its native supported value`, async () => {
+	const f = await fixture();
+	try {
+		await f.render(['one']);
+		await f.typeAndCommit('speed', String(percent));
+		assert.deepEqual(f.timePitch, [{ ids: ['one'], changes: { speedRatio: percent / 100 } }]);
+	} finally { await f.cleanup(); }
+});
+
 test('opening requests focus pitch and speed once when their dock becomes active', async () => {
 	const f = await fixture();
 	try {

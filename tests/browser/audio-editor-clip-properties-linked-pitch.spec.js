@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { expect, test, longTone } from './audio-editor-test-fixtures.js';
+import { expect, test, longTone, createWavFixture } from './audio-editor-test-fixtures.js';
 import {
 	bootEditor, clipByName, clipField, collectClientErrors, commitInput,
 	importFiles, openClipProperties, openSourceMonitor, registerAudioEditorHooks, waitForEditor,
@@ -51,6 +51,25 @@ test.describe('clip properties pitch and normalization', () => {
 		await expect(clipField(panel, 'pitchCents')).toHaveValue('3');
 		await expect(clipField(panel, 'speedRatio')).toHaveValue('50');
 		await expect(panel.getByRole('alert')).toHaveCount(0);
+		expect(errors).toEqual([]);
+	});
+
+	test('clip speeds below one percent retain the native value through reload', async ({ page }) => {
+		const errors = collectClientErrors(page);
+		let editor = await bootEditor(page, '/embed/en/');
+		const recording = createWavFixture({ name: 'slow-clip.wav', frequency: 220, duration: 0.02, channelCount: 1 });
+		await importFiles(editor, [recording]);
+		let panel = await openClipProperties(page, editor, clipByName(editor, recording.name));
+		await chooseClipMediaSetting(panel, 'Link pitch and tempo');
+		for (const percent of ['0.5', '0.1']) {
+			await commitInput(clipField(panel, 'speedRatio'), percent);
+			await expect(clipField(panel, 'speedRatio')).toHaveValue(percent);
+		}
+		await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved');
+		await page.reload();
+		editor = await waitForEditor(page);
+		panel = await openClipProperties(page, editor, clipByName(editor, recording.name));
+		await expect(clipField(panel, 'speedRatio')).toHaveValue('0.1');
 		expect(errors).toEqual([]);
 	});
 
