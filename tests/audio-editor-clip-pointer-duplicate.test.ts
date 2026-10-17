@@ -82,11 +82,12 @@ test('duplicate drag uses the Framescaper native carrier for image bodies and pi
 	let ordinal = 0;
 	const createId = (prefix = 'id') => `${prefix}-pointer-duplicate-${++ordinal}`;
 	let carrierCalls = 0;
+	let activeCopy: string | null | undefined;
 	const service = createClipTransformService({ lifetime: { assertActive() {} }, copy: { audioClipNotFound: 'Missing clip', track: 'Track', timelineFramesFinite: 'Invalid frame' },
 		getProject: projection, getSelectedClipId: () => null, editingBlocked: () => false, createId, snapTimelineFrame: frame => Math.round(Number(frame)), activeSelection: () => null,
 		createDuplicateClipboard: (_project, options) => runtime.prepareEditClipboardDescriptor(owner, createClipboardDescriptor(runtime.projectForEditClipboardConsumers(owner), options)),
 		prepareDuplicateCommand: (descriptor, command) => { carrierCalls++; return runtime.prepareEditDuplicateCommand(owner, descriptor, command, createId) as unknown as AudioEditorCommand; },
-		commit: command => { owner = runtime.applyCommand(owner, command); },
+		commit: (command, selection) => { owner = runtime.applyCommand(owner, command); activeCopy = selection?.selectClipId; },
 	});
 	const image = projection().clips.find(clip => clip.kind === 'image')!;
 	assert.ok(image);
@@ -99,6 +100,7 @@ test('duplicate drag uses the Framescaper native carrier for image bodies and pi
 	const copies = projection().clips.filter(clip => clip.kind === 'image' && clip.id !== image.id);
 	assert.equal(copies.length, 1);
 	assert.equal(copies[0]?.timelineStartFrame, 144_000);
+	assert.equal(activeCopy, copies[0]?.id);
 	owner = runtime.applyCommand(owner, { type: 'batch', commands: [
 		{ type: 'track/update', trackId: 'video-track', changes: { laneGroupId: 'camera-lane' } },
 		{ type: 'track/update', trackId: 'audio-track', changes: { laneGroupId: 'camera-lane' } },
@@ -112,4 +114,5 @@ test('duplicate drag uses the Framescaper native carrier for image bodies and pi
 	assert.ok(linked[0]?.avLinkId);
 	assert.equal(linked[0]?.avLinkId, linked[1]?.avLinkId);
 	assert.notEqual(linked[0]?.avLinkId, picture.avLinkId);
+	assert.equal(activeCopy, linked.find(clip => clip.kind === 'video')?.id);
 });
