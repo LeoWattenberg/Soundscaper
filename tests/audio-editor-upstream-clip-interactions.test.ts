@@ -35,6 +35,14 @@ test('grid snapping and Shift take priority over nearby fade magnets', () => {
 	assert.equal(clipFadePointerEdit({ ...request, gridEnabled: false, shiftKey: true }).fadeInFrames, 42_000, 'Shift enables the grid without magnets');
 });
 
+test('an unreachable grid target leaves a non-grid-aligned clip at the raw fade boundary', () => {
+	const unaligned = { ...clip, timelineStartFrame: 48_001 };
+	const request = { clip: unaligned, edge: 'in' as const, rawDurationFrames: 4_800, sampleRate: 48_000, pixelsPerSecond: 100,
+		playheadFrame: 0, gridEnabled: true, gridFrame: 48_000, shiftKey: false, boundaryFrames: [] };
+	assert.equal(clipFadePointerEdit(request).fadeInFrames, 4_800);
+	assert.equal(clipFadePointerEdit({ ...request, edge: 'out', gridFrame: 144_002 }).fadeOutFrames, 4_800);
+});
+
 test('fade boundaries snap across tracks but never to edges outside the current clip', () => {
 	const change = clipFadePointerEdit({ clip, edge: 'out', rawDurationFrames: 23_100, sampleRate: 48_000, pixelsPerSecond: 100,
 		playheadFrame: 0, gridEnabled: false, gridFrame: 0, shiftKey: false, boundaryFrames: [120_000, 500_000] });

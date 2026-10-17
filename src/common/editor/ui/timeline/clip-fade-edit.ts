@@ -33,7 +33,8 @@ export function clipFadePointerEdit(input: FadePointerInput): ReturnType<typeof 
 	const { clip, edge, sampleRate, pixelsPerSecond } = input;
 	const end = clip.timelineStartFrame + clip.durationFrames;
 	const raw = edge === 'in' ? clip.timelineStartFrame + input.rawDurationFrames : end - input.rawDurationFrames;
-	let boundary = input.gridEnabled !== input.shiftKey ? input.gridFrame : raw;
+	const reachableGrid = input.gridFrame >= clip.timelineStartFrame && input.gridFrame <= end;
+	let boundary = input.gridEnabled !== input.shiftKey && reachableGrid ? input.gridFrame : raw;
 	const tolerance = 6 * sampleRate / Math.max(1, pixelsPerSecond);
 	let distance = tolerance;
 	for (const candidate of input.gridEnabled || input.shiftKey ? [] : [input.playheadFrame, ...input.boundaryFrames]) {
