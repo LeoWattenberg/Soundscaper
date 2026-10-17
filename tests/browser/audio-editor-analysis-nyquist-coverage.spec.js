@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { setClipGain } from './audio-editor-clip-settings-test-helpers.js';
 import {
 	createWavFixture,
 	expect,
@@ -13,7 +14,6 @@ import {
 	clipByName,
 	closeClipProperties, closeDialog,
 	collectClientErrors,
-	commitInput,
 	importFiles,
 	openClipProperties,
 	registerAudioEditorHooks,
@@ -50,8 +50,7 @@ test.describe('analysis and Nyquist dialog coverage', () => {
 		const fixture = clippedTone();
 		await importFiles(editor, [fixture]);
 		const properties = await openClipProperties(page, editor, clipByName(editor, fixture.name));
-		await properties.getByText('Normalize', { exact: true }).click();
-		await commitInput(properties.getByRole('spinbutton', { name: 'Clip gain (dB)', exact: true }), '24');
+		await setClipGain(properties, 24);
 		await closeClipProperties(properties);
 		await chooseCommandAction(page, editor, 'Select', 'Select all');
 

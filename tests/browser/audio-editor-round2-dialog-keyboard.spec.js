@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { expect, test, toneA } from './audio-editor-test-fixtures.js';
+import { expectClipGain, openClipGainDialog } from './audio-editor-clip-settings-test-helpers.js';
 import {
 	bootEditor,
 	chooseNestedCommandAction,
@@ -40,18 +41,21 @@ test('Enter commits an inspector name and Escape discards a later rename draft',
 	await expect(clipByName(editor, 'Opening tone')).toBeVisible();
 });
 
-test('a rejected clip gain is identified as invalid on its field', async ({ page }) => {
+test('the clip gain dialog refuses an out-of-range draft and accepts a completed value', async ({ page }) => {
 	const editor = await bootEditor(page, '/embed/en/');
 	await importFiles(editor, [toneA]);
 	const properties = await openClipProperties(page, editor, clipByName(editor, toneA.name));
-	await properties.getByText('Normalize', { exact: true }).click();
-	const gain = properties.getByRole('spinbutton', { name: 'Clip gain (dB)', exact: true });
+	const dialog = await openClipGainDialog(properties);
+	const gain = dialog.getByRole('textbox', { name: 'Clip gain (dB)', exact: true });
 	await gain.fill('25');
-	await gain.press('Enter');
-	await expect(properties.getByRole('alert')).toHaveText('Invalid gain value.');
-	await expect(gain).toHaveAttribute('aria-invalid', 'true');
+	await expect(dialog.getByRole('button', { name: 'Apply', exact: true })).toBeDisabled();
+	await expect(dialog).toBeVisible();
+	await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
+	await expectClipGain(properties, 0);
+	await openClipGainDialog(properties);
 	await gain.fill('-6');
-	await gain.press('Enter');
-	await expect(properties.getByRole('alert')).toHaveCount(0);
-	await expect(gain).not.toHaveAttribute('aria-invalid', 'true');
+	await expect(dialog.getByRole('button', { name: 'Apply', exact: true })).toBeEnabled();
+	await dialog.getByRole('button', { name: 'Apply', exact: true }).click();
+	await expect(dialog).toBeHidden();
+	await expectClipGain(properties, -6);
 });

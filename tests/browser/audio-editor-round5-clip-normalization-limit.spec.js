@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { expect, test, createWavFixture } from './audio-editor-test-fixtures.js';
+import { chooseClipMediaSetting, expectClipGain } from './audio-editor-clip-settings-test-helpers.js';
 import { bootEditor, clipByName, importFiles, openClipProperties } from './audio-editor-test-helpers.js';
 
 test('normalizing a quiet recording reports an unreachable target without substituting a different gain', async ({ page }) => {
@@ -9,10 +10,8 @@ test('normalizing a quiet recording reports an unreachable target without substi
 	const editor = await bootEditor(page, '/embed/en/');
 	await importFiles(editor, [recording]);
 	const properties = await openClipProperties(page, editor, clipByName(editor, recording.name));
-	await properties.getByText('Normalize', { exact: true }).click();
-	const gain = properties.getByRole('spinbutton', { name: 'Clip gain (dB)', exact: true });
-	await expect(gain).toHaveValue('0.00');
-	await properties.getByRole('button', { name: 'Normalize to −1 dBFS', exact: true }).click();
-	await expect(properties.getByRole('alert')).toContainText('requires more than the maximum clip gain');
-	await expect(gain).toHaveValue('0.00');
+	await expectClipGain(properties, 0);
+	await chooseClipMediaSetting(properties, 'Normalize to −1 dBFS');
+	await expect(page.getByRole('alert').filter({ hasText: 'requires more than the maximum clip gain' })).toBeVisible();
+	await expectClipGain(properties, 0);
 });

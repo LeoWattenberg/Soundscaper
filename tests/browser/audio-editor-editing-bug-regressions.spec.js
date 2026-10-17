@@ -1,7 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { expect, test, toneA, toneB, monoTone, createWavFixture } from './audio-editor-test-fixtures.js';
-import {
+import { chooseClipMediaSetting, expectClipGain } from './audio-editor-clip-settings-test-helpers.js';
+import { showClipTimingFields,
 	bootEditor, chooseCommandAction, chooseNestedCommandAction, clipByName, importFiles, registerAudioEditorHooks, showToolbarButton,
 	openClipProperties, clipField, closeClipProperties,
 } from './audio-editor-test-helpers.js';
@@ -43,7 +44,7 @@ test.describe('ordinary editing regression workflows', () => {
 		const clipAt = (index) => editor.locator(`[data-clip-id="${ids[index]}"]`);
 		for (const [index, frame] of [[1, '24000'], [2, '96000']]) {
 			const properties = await openClipProperties(page, editor, clipAt(index));
-			await properties.getByText('Media settings', { exact: true }).click();
+			await showClipTimingFields(properties);
 			await clipField(properties, 'startFrame').fill(frame);
 			await clipField(properties, 'startFrame').press('Tab');
 			await closeClipProperties(properties);
@@ -53,7 +54,7 @@ test.describe('ordinary editing regression workflows', () => {
 		await chooseNestedCommandAction(page, editor, 'Edit', ['Delete', 'Delete and close gap per track']);
 		await expect(clips).toHaveCount(1);
 		const properties = await openClipProperties(page, editor, clips);
-		await properties.getByText('Media settings', { exact: true }).click();
+		await showClipTimingFields(properties);
 		await expect(clipField(properties, 'startFrame')).toHaveValue('33600');
 	});
 
@@ -131,7 +132,7 @@ test.describe('ordinary editing regression workflows', () => {
 		await expect(copies).toHaveCount(2);
 		for (const clip of [copies.nth(1), clipByName(editor, toneB.name)]) {
 			const properties = await openClipProperties(page, editor, clip);
-			await properties.getByText('Media settings', { exact: true }).click();
+			await showClipTimingFields(properties);
 			await clipField(properties, 'startFrame').fill('96000');
 			await clipField(properties, 'startFrame').press('Tab');
 			await closeClipProperties(properties);
@@ -156,8 +157,7 @@ test.describe('ordinary editing regression workflows', () => {
 		const editor = await bootEditor(page, '/embed/en/');
 		await importFiles(editor, [monoTone]);
 		const properties = await openClipProperties(page, editor, clipByName(editor, monoTone.name));
-		await properties.getByText('Normalize', { exact: true }).click();
-		await properties.getByRole('button', { name: 'Normalize to −1 dBFS', exact: true }).click();
-		await expect(clipField(properties, 'gain')).toHaveValue('8.12');
+		await chooseClipMediaSetting(properties, 'Normalize to −1 dBFS');
+		await expectClipGain(properties, 8.12);
 	});
 });

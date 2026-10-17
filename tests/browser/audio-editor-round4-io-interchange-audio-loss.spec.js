@@ -1,9 +1,10 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { expect, test, monoTone } from './audio-editor-test-fixtures.js';
+import { expectClipGain, setClipGain } from './audio-editor-clip-settings-test-helpers.js';
 import {
-	bootEditor, chooseCommandAction, chooseNestedCommandAction, clipByName, clipField,
-	closeClipProperties, commitInput, disableNativeSavePicker, downloadBytes,
+	bootEditor, chooseCommandAction, chooseNestedCommandAction, clipByName,
+	closeClipProperties, disableNativeSavePicker, downloadBytes,
 	importFiles, openClipProperties,
 } from './audio-editor-test-helpers.js';
 
@@ -12,9 +13,8 @@ test('cut-only interchange delivery reports the authored clip gain it omits', as
 	const editor = await bootEditor(page, '/embed/en/');
 	await importFiles(editor, [monoTone]);
 	const properties = await openClipProperties(page, editor, clipByName(editor, monoTone.name));
-	await properties.getByText('Normalize', { exact: true }).click();
-	await commitInput(clipField(properties, 'gain'), '-6');
-	await expect(clipField(properties, 'gain')).toHaveValue('-6.00');
+	await setClipGain(properties, -6);
+	await expectClipGain(properties, -6);
 	await closeClipProperties(properties);
 	const downloading = page.waitForEvent('download');
 	await chooseNestedCommandAction(page, editor, 'File', ['Export other', 'Export OpenTimelineIO']);

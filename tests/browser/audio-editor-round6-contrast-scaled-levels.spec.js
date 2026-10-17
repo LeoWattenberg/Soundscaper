@@ -1,7 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { createWavFixture, expect, test } from './audio-editor-test-fixtures.js';
-import { bootEditor, chooseCommandAction, chooseDropdown, chooseNestedCommandAction, clipByName, clipField,
+import { expectClipGain, setClipGain } from './audio-editor-clip-settings-test-helpers.js';
+import { bootEditor, chooseCommandAction, chooseDropdown, chooseNestedCommandAction, clipByName,
 	closeClipProperties, commitInput, disableNativeSavePicker, importFiles, openClipProperties,
 	openExportDialog, readDownloadBytes } from './audio-editor-test-helpers.js';
 import { inspectWavBlobPcm, streamWavBlobPcm } from '../../src/common/editor/wav-import.js';
@@ -34,9 +35,8 @@ test('ordinary equal attenuation preserves the foreground/background Contrast de
 		return editor.locator(`[data-track-row][data-track-id="${id}"]`);
 	}));
 	const properties = await openClipProperties(page, editor, clipByName(editor, background.name));
-	await properties.getByText('Normalize', { exact: true }).click();
-	await commitInput(clipField(properties, 'gain'), '-30');
-	await expect(clipField(properties, 'gain')).toHaveValue('-30.00');
+	await setClipGain(properties, -30);
+	await expectClipGain(properties, -30);
 	await closeClipProperties(properties);
 	await rows[1].getByRole('button', { name: 'Mute', exact: true }).click();
 	await chooseCommandAction(page, editor, 'Select', 'Select all');

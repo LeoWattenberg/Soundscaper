@@ -242,10 +242,9 @@ test.describe('Soundscaper exact timing and freeze workflows', () => {
 		expect(trackId).toBeTruthy();
 		expect(projectId).toBeTruthy();
 		const properties = await openClipProperties(page, editor, clipByName(editor, tone.name));
-		await properties.getByText('Pitch and tempo', { exact: true }).click();
-		await commitInput(properties.getByRole('spinbutton', {
-			name: 'Pitch (semitones, −12 to +12)', exact: true,
-		}), '12');
+		const pitch = properties.locator('[data-clip-properties-field="pitch"]').getByRole('textbox');
+		await pitch.fill('12');
+		await pitch.press('Enter');
 		await closeClipProperties(properties);
 		const effectsPanel = await openEffectsForTrack(editor, 1);
 		await addRackEffect(page, effectsPanel, 'track', 'Feedback delay');

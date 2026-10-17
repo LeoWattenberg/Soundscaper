@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { installDesktopSpeedWarmupManifest } from './helpers/desktop-speed-warmup-fixture.js';
+import { setClipGain } from './audio-editor-clip-settings-test-helpers.js';
 import { expect, test, toneA, toneB } from './audio-editor-test-fixtures.js';
 import { encodeWav } from '../../src/common/editor/wav.js';
 import { inspectWavBlobPcm } from '../../src/common/editor/wav-import.js';
@@ -21,7 +22,6 @@ import {
 	clipByName,
 	closeClipProperties,
 	collectClientErrors,
-	commitInput,
 	importFiles,
 	openClipProperties,
 	openNestedCommandMenu,
@@ -335,8 +335,7 @@ for (const productId of ['soundscaper', 'framescaper']) {
 
 		const setGain = async (value) => {
 			const panel = await openClipProperties(page, editor, clipByName(editor, toneA.name));
-			await panel.getByText('Normalize', { exact: true }).click();
-			await commitInput(panel.getByRole('spinbutton', { name: 'Clip gain (dB)', exact: true }), value);
+			await setClipGain(panel, value);
 			await closeClipProperties(panel);
 		};
 		await setGain('-6');

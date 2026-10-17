@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { expect, test, toneA } from './audio-editor-test-fixtures.js';
+import { chooseClipMediaSetting, readClipGain } from './audio-editor-clip-settings-test-helpers.js';
 import { bootEditor, clipByName, closeClipProperties, disableNativeSavePicker, importFiles, openClipProperties } from './audio-editor-test-helpers.js';
 import { exportSamples } from './helpers/round2-audio-export.js';
 
@@ -25,9 +26,8 @@ test('clip peak normalization reaches its stated target with an authored envelop
 	const beforePeak = before.reduce((maximum, sample) => Math.max(maximum, Math.abs(sample)), 0);
 	expect(beforePeak).toBeLessThan(0.25);
 	const properties = await openClipProperties(page, editor, clip);
-	await properties.getByText('Normalize', { exact: true }).click();
-	await properties.getByRole('button', { name: 'Normalize to −1 dBFS', exact: true }).click();
-	await expect(properties.getByRole('spinbutton', { name: 'Clip gain (dB)', exact: true })).not.toHaveValue('0.00');
+	await chooseClipMediaSetting(properties, 'Normalize to −1 dBFS');
+	await expect.poll(() => readClipGain(properties)).not.toBe(0);
 	await closeClipProperties(properties);
 	const after = await exportSamples(page, editor);
 	const peak = after.reduce((maximum, sample) => Math.max(maximum, Math.abs(sample)), 0);
