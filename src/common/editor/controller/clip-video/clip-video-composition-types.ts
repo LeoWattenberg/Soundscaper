@@ -6,6 +6,7 @@ import type { ClipPropertyServiceDependencies } from './internal/clip/clip-prope
 import type { ClipTimePitchRenderServiceDependencies } from './clip-time-pitch-render-service.ts';
 import type { ClipTransformServiceDependencies } from './internal/clip/clip-transform-service.ts';
 import type { EditorControllerLifetime, EditorProjectGeneration } from '../shared/lifecycle.ts';
+import type { ControllerProjectRuntime } from '../document/project-runtime.ts';
 import type { ControllerRuntimeProject } from '../document/project-runtime.ts';
 import type {
 	SampleEditServiceCopy,
@@ -71,7 +72,9 @@ export interface ClipVideoCompositionDependencies {
 	readonly copy: ClipVideoCompositionCopy;
 	readonly lifetime: Pick<EditorControllerLifetime, 'assertActive' | 'signal' | 'startTask'>;
 	readonly projectGeneration: Pick<EditorProjectGeneration, 'capture' | 'assertCurrent'>;
-	readonly projectRuntime: VideoRetimeProgramStateResolverDependencies['projectRuntime'];
+	readonly projectRuntime: VideoRetimeProgramStateResolverDependencies['projectRuntime']
+		& Partial<Pick<ControllerProjectRuntime, 'prepareEditClipboardDescriptor' | 'prepareEditDuplicateCommand'>>
+		& Readonly<{ projectForEditClipboardConsumers?: (project: Readonly<Record<string, unknown>>) => unknown }>;
 	readonly store: ClipVideoCompositionStore;
 	readonly engine: ClipVideoCompositionEngine;
 	readonly ffmpeg: VideoSourceReprobeDependencies['ffmpeg'];

@@ -36,7 +36,8 @@ export function prepareMediaNewTrackPlan(project: ClipTransformProject, clips: r
 			const trackId = createId('track');
 			commands.push(createAddTrackCommand({ type: 'audio', id: trackId,
 				name: `${trackName} ${project.tracks.length + commands.length + 1}`,
-				channelCount: track.channelCount, color: track.color, armed: false }));
+				...(track.channelCount === undefined ? {} : { channelCount: track.channelCount }),
+				...(track.color === undefined ? {} : { color: track.color }), armed: false }));
 			destinationTrackIds.set(track.id, trackId);
 		}
 	}

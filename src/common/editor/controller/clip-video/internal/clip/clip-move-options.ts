@@ -4,6 +4,8 @@ import type { ClipTransformProject, ClipTransformSelection } from './clip-domain
 
 export interface ClipMoveOptions {
 	readonly overwrite?: boolean;
+	/** Copy the captured clips through the native duplicate carrier at the drag destination. */
+	readonly duplicate?: boolean;
 	readonly allOnTrack?: boolean;
 	readonly preserveTime?: boolean;
 	/** Preserve an explicitly aligned physical boundary instead of quantizing it to the time grid. */

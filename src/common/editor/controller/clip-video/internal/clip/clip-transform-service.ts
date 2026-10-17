@@ -3,6 +3,7 @@ import { clipHasLoopRepeats, normalizeInactiveClipLoop } from '../../../../audio
 
 import { publishedCopyFor } from '../../../shared/presentation-localization.ts'; import { createLocalizedError } from '../../../../../i18n/presentation-message.ts'; import { clipTrimSourceFrameCount } from '../../clip-trim-source-frame-count.ts';
 import { hasProjectBinMediaAuthority } from '../../../../project-schema-version.ts';
+import { prepareClipPointerDuplicateCommand, type ClipPointerDuplicateRuntime } from './clip-pointer-duplicate-command.ts';
 import { clipMoveSelection, type ClipMoveOptions } from './clip-move-options.ts';
 import { prepareMediaNewTrackPlan } from './media-new-track-plan.ts';
 import { prepareGroupedLoopTrimCommand } from './grouped-loop-trim-command.ts';
@@ -43,7 +44,7 @@ interface CommitSelection {
 
 
 
-export interface ClipTransformServiceDependencies {
+export interface ClipTransformServiceDependencies extends Pick<ClipPointerDuplicateRuntime, 'createDuplicateClipboard' | 'prepareDuplicateCommand'> {
 	readonly lifetime: Pick<EditorControllerLifetime, 'assertActive'>;
 	readonly copy: ClipTransformCopy;
 	getProject(): ClipTransformProject;
@@ -139,6 +140,10 @@ export function createClipTransformService(
 				changes: { timelineStartFrame: item.timelineStartFrame + deltaFrames },
 			};
 		});
+		if (options.duplicate) {
+			const duplicate = prepareClipPointerDuplicateCommand(dependencies, project, clip, clips, transforms);
+			return dependencies.commit(duplicate.command, { selectTrackId: targetTrack.id, selectClipId: duplicate.activeClipId ?? null });
+		}
 		const transformCommand = prepareTransformClipsCommand(project, transforms, {
 			overwrite: Boolean(options.overwrite),
 		}, dependencies.createId);
@@ -183,6 +188,16 @@ export function createClipTransformService(
 			...(selection && movesClipSelection ? [selection.startFrame] : []),
 		);
 		const deltaFrames = Math.max(requestedDelta, -earliestMovingFrame);
+		if (options.duplicate) {
+			const plan = prepareMediaNewTrackPlan(project, clips, dependencies.createId, publishedCopyFor(dependencies.copy).track);
+			const transforms = clips.map(item => ({ clipId: item.id,
+				trackId: plan.destinationTrackIds.get(findClipTrack(project, item.id)?.id ?? ''),
+				changes: { timelineStartFrame: item.timelineStartFrame + deltaFrames } }));
+			const duplicate = prepareClipPointerDuplicateCommand(dependencies, project, clip, clips, transforms, plan.commands);
+			const trackId = plan.destinationTrackIds.get(sourceTrack.id) ?? null;
+			dependencies.commit(duplicate.command, { selectTrackId: trackId, selectClipId: duplicate.activeClipId ?? null });
+			return trackId;
+		}
 		if (hasProjectBinMediaAuthority(project) && clips.some((item) => item.kind === 'video' || item.kind === 'image' || item.kind === 'still' || item.kind === 'generator')) {
 			return moveMediaClipsToNewTracks(
 				project, clip, sourceTrack, clips, clipSelection,

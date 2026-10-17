@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { createClipboardDescriptor } from '../../commands/clipboard-runtime.js';
+import type { AudioEditorCommand } from '../../commands/protocol.ts';
 import { createAddSourceCommand, createReplaceClipSourceCommand } from '../../commands.js';
 import { prepareThreePointEditCommand } from '../../commands/three-point-edit-runtime.js';
 import { createStableId, findClip, findClipTrack, findSource } from '../../project.js';
@@ -195,6 +197,16 @@ export function createClipVideoComposition(dependencies: ClipVideoCompositionDep
 		snapTimelineFrame: dependencies.snapTimelineFrame,
 		activeSelection: dependencies.activeSelection,
 		commit: dependencies.commit,
+		createDuplicateClipboard: (project, options) => {
+			const runtime = dependencies.projectRuntime;
+			const owner = requireProject();
+			const projection = runtime.projectForEditClipboardConsumers?.(owner) ?? project;
+			const descriptor = createClipboardDescriptor(projection, options);
+			return runtime.prepareEditClipboardDescriptor?.(owner, descriptor) ?? descriptor;
+		},
+		prepareDuplicateCommand: (descriptor, command) => dependencies.projectRuntime.prepareEditDuplicateCommand?.(
+			requireProject(), descriptor, command, createStableId,
+		) as AudioEditorCommand | undefined ?? command,
 	});
 	const clipProperty = createClipPropertyService({
 		lifetime,
