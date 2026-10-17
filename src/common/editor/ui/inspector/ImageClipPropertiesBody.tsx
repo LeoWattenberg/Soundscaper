@@ -11,10 +11,11 @@ interface ImageClipPropertiesBodyProps {
 	readonly clipId: string;
 	readonly copy: Readonly<Record<string, string>>;
 	readonly disabled: boolean;
+	readonly onError?: (failure: unknown) => void;
 }
 
 /** Still-image timing belongs to its sequence; it has no audio sample clock. */
-export default function ImageClipPropertiesBody({ controller, project, clipId, copy, disabled }: ImageClipPropertiesBodyProps) {
+export default function ImageClipPropertiesBody({ controller, project, clipId, copy, disabled, onError }: ImageClipPropertiesBodyProps) {
 	const { clip, source, track, rate, sampleRate } = useImageClipPropertiesTarget(project, clipId);
 	const [error, setError] = usePresentationFeedback(copy);
 	const commit = (field: 'sequenceStartFrame' | 'sequenceFrameCount', value: number): unknown => {
@@ -27,7 +28,7 @@ export default function ImageClipPropertiesBody({ controller, project, clipId, c
 				expectedClip: clip, expectedPlacement: placement, clip: updated, placement });
 			setError('');
 			return result;
-		} catch (cause) { setError(feedbackFailure(cause)); return false; }
+		} catch (cause) { if (onError) onError(cause); else setError(feedbackFailure(cause)); return false; }
 	};
 	return <div className="audio-editor-clip-inspector">
 		<div className="audio-editor-clip-properties" data-clip-fields aria-disabled={disabled}>
@@ -49,6 +50,6 @@ export default function ImageClipPropertiesBody({ controller, project, clipId, c
 				</div>
 			</details>
 		</div>
-		{error && <p className="audio-editor-field-error" role="alert">{error}</p>}
+		{!onError && error && <p className="audio-editor-field-error" role="alert">{error}</p>}
 	</div>;
 }

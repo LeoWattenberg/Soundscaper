@@ -41,7 +41,8 @@ export function clipRenameTitle(rawValue, displayedName) {
 	return title === displayedName ? null : title;
 }
 
-export default function ClipPropertiesBody({ controller, snapshot, copy, clipId = snapshot.selectedClipId, focusField = null }) {
+export default function ClipPropertiesBody({ controller, snapshot, copy, clipId = snapshot.selectedClipId, focusField = null,
+	onError = /** @type {((failure: unknown) => void) | undefined} */ (undefined) }) {
 	const project = snapshot.project;
 	const clip = project && clipId ? findClip(project, clipId) : null;
 	const source = clip ? findSource(project, clip.sourceId) : null;
@@ -52,6 +53,7 @@ export default function ClipPropertiesBody({ controller, snapshot, copy, clipId 
 	const disabled = blocked || !clip || track?.locked === true;
 	const isVideoClip = clip?.kind === 'video';
 	const [error, setError] = usePresentationFeedback(copy);
+	const reportError = cause => { if (onError) onError(cause); else setError(feedbackFailure(cause)); };
 	const [resampleOpen, setResampleOpen] = useState(false);
 	// A pitch shift is stored in cents, but musicians reach for semitones and
 	// sound designers for a percentage of the original frequency. The unit is a
@@ -137,7 +139,7 @@ export default function ClipPropertiesBody({ controller, snapshot, copy, clipId 
 			setError('');
 			return true;
 		} catch (cause) {
-			setError(feedbackFailure(cause));
+			reportError(cause);
 			return false;
 		}
 	};
@@ -159,7 +161,7 @@ export default function ClipPropertiesBody({ controller, snapshot, copy, clipId 
 			}, (cause) => {
 				if (!ownsOperation()) return;
 				activeOperation.current = null;
-				setError(feedbackFailure(cause));
+				reportError(cause);
 			});
 	};
 
@@ -259,7 +261,7 @@ export default function ClipPropertiesBody({ controller, snapshot, copy, clipId 
 						<ActionHook hook="normalize-lufs"><Button disabled={disabled} onClick={() => run(controller.actions.clip.normalizeLoudness)}>{copy.normalizeLufs}</Button></ActionHook>
 					</div>}
 				</ClipPropertiesDrawer>}
-				{isVideoClip && snapshot.capabilities?.videoEffects && <VideoEffectRack clip={clip} controller={controller} copy={copy} disabled={disabled} onError={setError} />}
+				{isVideoClip && snapshot.capabilities?.videoEffects && <VideoEffectRack clip={clip} controller={controller} copy={copy} disabled={disabled} onError={message => { if (message) reportError(message); else setError(''); }} />}
 			</div>
 			{resampleOpen && clip && source && (
 				<ClipResampleDialog
@@ -273,7 +275,7 @@ export default function ClipPropertiesBody({ controller, snapshot, copy, clipId 
 					}}
 				/>
 			)}
-			{error && <p className="audio-editor-field-error" role="alert">{error}</p>}
+			{!onError && error && <p className="audio-editor-field-error" role="alert">{error}</p>}
 		</div>
 	);
 }

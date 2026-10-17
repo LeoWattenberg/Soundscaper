@@ -9,10 +9,11 @@ interface Props {
 	readonly clipId: string;
 	readonly copy: Readonly<Record<string, string>>;
 	readonly disabled: boolean;
+	readonly onError?: (failure: unknown) => void;
 }
 
 /** Generated media uses its existing native timeline edits, never audio-source trimming. */
-export default function GeneratorClipPropertiesBody({ controller, project, clipId, copy, disabled }: Props) {
+export default function GeneratorClipPropertiesBody({ controller, project, clipId, copy, disabled, onError }: Props) {
 	const owner = record(project);
 	const clip = records(owner.clips).find(item => item.id === clipId);
 	const source = records(owner.sources).find(item => item.id === clip?.sourceId);
@@ -31,7 +32,7 @@ export default function GeneratorClipPropertiesBody({ controller, project, clipI
 				? editor.actions.clip.move(clipId, String(track.id), value, { exactFrame: true })
 				: editor.actions.clip.trim(clipId, { durationFrames: value });
 			setError(''); return result;
-		} catch (cause) { setError(feedbackFailure(cause)); return false; }
+		} catch (cause) { if (onError) onError(cause); else setError(feedbackFailure(cause)); return false; }
 	};
 	return <div className="audio-editor-clip-inspector">
 		<div className="audio-editor-clip-properties" data-clip-fields aria-disabled={disabled}>
@@ -52,7 +53,7 @@ export default function GeneratorClipPropertiesBody({ controller, project, clipI
 				</div>
 			</details>
 		</div>
-		{error && <p className="audio-editor-field-error" role="alert">{error}</p>}
+		{!onError && error && <p className="audio-editor-field-error" role="alert">{error}</p>}
 	</div>;
 }
 
