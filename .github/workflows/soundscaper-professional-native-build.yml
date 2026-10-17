@@ -85,7 +85,7 @@ jobs:
       - name: Verify Windows GPU CMake recipes
         if: runner.os == 'Windows'
         timeout-minutes: 5
-        run: node --import tsx --test tests/desktop-assistance-gpu-cmake.test.ts tests/desktop-assistance-sherpa-cmake.test.ts
+        run: node --import tsx --test tests/desktop-assistance-gpu-cmake.test.ts tests/desktop-assistance-sherpa-cmake.test.ts tests/desktop-assistance-vulkan-cmake.test.ts
       - name: Verify durable native manifest staging
         run: node --import tsx --test tests/soundscaper-professional-native-manifest-sync.test.ts
       - name: Install pinned uv for the Kokoro G2P helper

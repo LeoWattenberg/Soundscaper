@@ -11,6 +11,7 @@ import { buildDesktopVulkanCompanion, patchGgmlVulkanShaderGenerator } from '../
 test('Vulkan shader generation selects the Windows host architecture and rejects upstream drift', () => {
 	const source = '    ExternalProject_Add(\n        vulkan-shaders-gen\n        SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/vulkan-shaders';
 	const patched = patchGgmlVulkanShaderGenerator(source);
+	assert.ok(patched.includes('CMAKE_GENERATOR "${CMAKE_GENERATOR}"'));
 	assert.ok(patched.includes('CMAKE_GENERATOR_PLATFORM "${GGML_VULKAN_SHADERS_GEN_PLATFORM}"'));
 	assert.throws(() => patchGgmlVulkanShaderGenerator(patched), /exact source/u);
 	assert.throws(() => patchGgmlVulkanShaderGenerator(`${source}\n${source}`), /exact source/u);

@@ -7,7 +7,7 @@ import { prepareDesktopVulkanBuild } from './desktop-assistance-vulkan-toolchain
 
 const VULKAN_CMAKE_SHA256 = '95b77526cbede60b669abf1bc13657956284d0b20835096e64f24682a5a1a0e2';
 const SHADER_GENERATOR_BEFORE = '    ExternalProject_Add(\n        vulkan-shaders-gen\n        SOURCE_DIR';
-const SHADER_GENERATOR_AFTER = '    ExternalProject_Add(\n        vulkan-shaders-gen\n        CMAKE_GENERATOR_PLATFORM "${GGML_VULKAN_SHADERS_GEN_PLATFORM}"\n        SOURCE_DIR';
+const SHADER_GENERATOR_AFTER = '    ExternalProject_Add(\n        vulkan-shaders-gen\n        CMAKE_GENERATOR "${CMAKE_GENERATOR}"\n        CMAKE_GENERATOR_PLATFORM "${GGML_VULKAN_SHADERS_GEN_PLATFORM}"\n        SOURCE_DIR';
 
 /** Keep the portable CPU executable independent of the optional system Vulkan loader. */
 export async function buildDesktopVulkanCompanion({ plan, source, work, cacheRoot,
@@ -20,7 +20,7 @@ export async function buildDesktopVulkanCompanion({ plan, source, work, cacheRoo
 		if (hash(original) !== VULKAN_CMAKE_SHA256) throw new Error('Vulkan shader-generator patch source changed.');
 		const patched = patchGgmlVulkanShaderGenerator(original);
 		await writeFile(sourcePath, patched);
-		patches.push({ id: 'windows-host-shader-generator-v1', file,
+		patches.push({ id: 'windows-host-shader-generator-v2', file,
 			inputSha256: VULKAN_CMAKE_SHA256, outputSha256: hash(patched),
 			patchSha256: hash(JSON.stringify({ before: SHADER_GENERATOR_BEFORE, after: SHADER_GENERATOR_AFTER })) });
 	}
