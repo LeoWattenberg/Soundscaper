@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { useEffect, useId, useState } from 'react';
+import { useEffect, useId, useState, type SyntheticEvent } from 'react';
+import { createPortal } from 'react-dom';
 import { NumberStepper } from '@soundscaper/design-system/NumberStepper';
 import { DialogFooter } from '@soundscaper/design-system/Footer';
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
@@ -17,13 +18,16 @@ interface Props {
 	readonly sampleRate: number;
 	readonly copy: Readonly<Record<string, string>>;
 	readonly blocked: boolean;
+	readonly portalHost?: Element | null;
 	readonly onPreview: (changes: ClipFadeChanges) => void;
 	readonly onApply: (changes: ClipFadeChanges) => void;
 	readonly onClose: () => void;
 }
 
+function stopPortalEvent(event: SyntheticEvent): void { event.stopPropagation(); }
+
 /** The upstream Fades dialog previews locally and publishes one undoable edit on Apply. */
-export default function ClipFadesDialog({ clip, sampleRate, copy, blocked, onPreview, onApply, onClose }: Props) {
+export default function ClipFadesDialog({ clip, sampleRate, copy, blocked, onPreview, onApply, onClose, portalHost }: Props) {
 	const [changes, setChanges] = useState<ClipFadeChanges>({});
 	const value = { ...clip, ...changes };
 	const labels = clipInteractionCopy(copy);
@@ -35,7 +39,7 @@ export default function ClipFadesDialog({ clip, sampleRate, copy, blocked, onPre
 		if (!blocked && edited) onApply(changes);
 		onClose();
 	};
-	return <AudioEditorDialogShell isOpen title={labels.fades} onClose={onClose}
+	const dialog = <AudioEditorDialogShell isOpen title={labels.fades} onClose={onClose}
 		className="audio-editor-fades-dialog" width={460}
 		footer={<DialogFooter primaryText={labels.apply} secondaryText={copy.cancel} primaryDisabled={blocked}
 			onPrimaryClick={apply} onSecondaryClick={onClose} />}>
@@ -69,4 +73,8 @@ export default function ClipFadesDialog({ clip, sampleRate, copy, blocked, onPre
 			</div>;
 		})}
 	</AudioEditorDialogShell>;
+	const host = portalHost ?? document.activeElement?.closest('[data-audio-editor]') ?? document.body;
+	return createPortal(<div onPointerDown={stopPortalEvent} onPointerUp={stopPortalEvent} onPointerMove={stopPortalEvent}
+		onMouseDown={stopPortalEvent} onMouseUp={stopPortalEvent} onMouseMove={stopPortalEvent}
+		onClick={stopPortalEvent} onDoubleClick={stopPortalEvent} onContextMenu={stopPortalEvent} onWheel={stopPortalEvent}>{dialog}</div>, host);
 }

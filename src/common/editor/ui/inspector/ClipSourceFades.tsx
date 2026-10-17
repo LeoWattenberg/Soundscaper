@@ -39,7 +39,7 @@ export default function ClipSourceFades({ rootRef, clip, startFrame, endFrame, w
 			pixelsPerSecond={width * sampleRate / (endFrame - startFrame)} sampleRate={sampleRate} blocked={blocked} showFadeShapeHandles
 			crossfadedFadeEdges={NO_CROSSFADES} handleTabIndex={0} onChange={onChange} onEditFades={() => setEditingClip(clip)} onTabOut={() => rootRef.current?.focus()}
 			copy={{ ...copy, fadeIn: copy.fadeIn, fadeOut: copy.fadeOut, fadeInShape: copy.fadeInShape, fadeOutShape: copy.fadeOutShape, legacyLinearFadeShape: copy.legacyLinearFadeShape }} />}
-		{editingClip && <div onPointerDown={event => event.stopPropagation()} onContextMenu={event => event.stopPropagation()}><Suspense fallback={null}><ClipFadesDialog clip={editingClip} sampleRate={sampleRate} copy={copy} blocked={blocked}
+		{editingClip && <div onPointerDown={event => event.stopPropagation()} onContextMenu={event => event.stopPropagation()}><Suspense fallback={null}><ClipFadesDialog portalHost={rootRef.current?.closest('[data-audio-editor]')} clip={editingClip} sampleRate={sampleRate} copy={copy} blocked={blocked}
 			onPreview={preview} onClose={close} onApply={changes => onChange(editingClip.id, changes)} /></Suspense></div>}
 	</>;
 }
