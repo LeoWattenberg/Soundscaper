@@ -4,7 +4,7 @@ import { CLIP_CONTENT_OFFSET } from '@soundscaper/design-system/constants';
 import { GhostButton } from '@soundscaper/design-system/GhostButton';
 import { Icon } from '@soundscaper/design-system/Icon';
 import { TimelineLabelChrome } from './TimelineLabelChrome.jsx';
-import { getLabelMetrics, layoutTimelineLabels, moveLabelRange, snapLabelFrame, stretchLabelRange } from './label-design-geometry.ts';
+import { getLabelMetrics, layoutTimelineLabels, moveLabelRange, snapLabelFrame, stretchLabelRange, TIMELINE_LABEL_CONTENT_TOP } from './label-design-geometry.ts';
 
 import { framesToSeconds } from '../../design-system-adapters.js';
 import { TimeSelectionOverlay } from './TimelineOverlayComponents.jsx';
@@ -320,7 +320,7 @@ export function AudacityLabelMarker({
 			onMouseUp={finishDrag}
 			onPointerUp={finishDrag}
 			style={{ left: timelineContentLeft(displayedLeft), width: point ? 1 : displayedWidth,
-				top: 18 + (layout?.row || 0) * metrics.rowHeight }}
+				top: TIMELINE_LABEL_CONTENT_TOP + (layout?.row || 0) * metrics.rowHeight }}
 			role="group"
 			tabIndex={0}
 			aria-label={`${copy.editLabels}: ${label.title || copy.newLabel}`}
@@ -357,7 +357,7 @@ export function AudacityLabelMarker({
 			}}
 		>
 			<TimelineLabelChrome text={label.title || copy.newLabel} point={point} width={displayedWidth}
-				stalkHeight={Math.max(metrics.bannerHeight, trackHeight - 18 - (layout?.row || 0) * metrics.rowHeight)}
+				stalkHeight={Math.max(metrics.bannerHeight, trackHeight - TIMELINE_LABEL_CONTENT_TOP - (layout?.row || 0) * metrics.rowHeight)}
 				metrics={metrics} trackColor={trackColor} selected={selected} editing={editing}
 				leftNeighbor={layout?.leftNeighbor} rightNeighbor={layout?.rightNeighbor} leftNeighborSelected={leftNeighborSelected}
 				onSelect={select} onGesture={beginGesture} onEdit={() => { if (!blocked) { onSelect(); onEdit(); } }}>

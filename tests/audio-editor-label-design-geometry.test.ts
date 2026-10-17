@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
-	getLabelMetrics, layoutTimelineLabels, moveLabelRange, stretchLabelRange,
+	getLabelMetrics, layoutTimelineLabels, moveLabelRange, stretchLabelRange, timelineLabelTrackContentHeight,
 } from '../src/common/editor/ui/timeline/label-design-geometry.ts';
 import { normalizeAppearancePreferences } from '../src/common/editor/appearance-preferences.ts';
 import { createAudioEditorPreferencesV1, loadAudioEditorPreferencesV1, updateAudioEditorPreferencesV1 } from '../src/common/editor/preferences.js';
@@ -28,6 +28,17 @@ test('overlapping labels stack while exact adjacent regions share a single bound
 	assert.equal(layout.get('second')?.row, 0);
 	assert.equal(layout.get('first')?.rightNeighbor?.id, 'second');
 	assert.equal(layout.get('second')?.leftNeighbor?.id, 'first');
+});
+
+test('label content height follows packed text widths, font size and zoom', () => {
+	const labels = [
+		{ id: 'first', title: 'First', startFrame: 0, endFrame: 0 },
+		{ id: 'second', title: 'Second', startFrame: 100, endFrame: 100 },
+	];
+	assert.equal(timelineLabelTrackContentHeight([], 100, 100), 0);
+	assert.equal(timelineLabelTrackContentHeight(labels, 100, 100), 42, 'widely spaced flags share one row');
+	assert.equal(timelineLabelTrackContentHeight(labels, 10, 100), 66, 'zooming out creates a second row');
+	assert.equal(timelineLabelTrackContentHeight(labels, 100, 100, 48), 226, 'large flags pack with the same metrics as the renderer');
 });
 
 test('ear drags collapse at a six pixel detent, invert and magnetically join another edge', () => {

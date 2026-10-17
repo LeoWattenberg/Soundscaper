@@ -27,6 +27,7 @@ import {
 	resolveTrackPanelGeometry,
 } from './constants.ts';
 import { timelineAnnotationsAvailable } from './timeline-annotation-ui-model.ts';
+import { timelineLabelTrackContentHeight } from './label-design-geometry.ts';
 import { useAnchoredTimelineRenderScrollX } from './timeline-render-window.ts';
 import { useTimelineTrackCounts, useTimelineFrequencyRuler, useTimelineOutputDockContentHeight,
 	useTimelineTotalTrackHeight, useTimelineTimeSelection, useTimelineWaveformCacheMembership,
@@ -122,6 +123,11 @@ export function useTimelineViewportModel({
 	const viewportWidth = Math.max(1, timelineSize.width - panelWidth - verticalRulerWidth);
 	const pixelsPerSecond = snapshot.timeline?.pixelsPerSecond || 120;
 	const sampleRate = project?.sampleRate || 48_000;
+	const labelTextSizePt = snapshot.preferences?.appearance?.labelTextSizePt ?? 9;
+	const labelTrackContentHeights = useMemo(() => new Map((project?.tracks || [])
+		.filter(track => track.type === 'label')
+		.map(track => [track.id, timelineLabelTrackContentHeight(track.labels, pixelsPerSecond, sampleRate, labelTextSizePt)])),
+	[project?.tracks, pixelsPerSecond, sampleRate, labelTextSizePt]);
 	const recordingPreviews = snapshot.recordingPreviews?.length
 		? snapshot.recordingPreviews
 		: snapshot.recordingPreview ? [snapshot.recordingPreview] : [];
@@ -188,14 +194,11 @@ export function useTimelineViewportModel({
 	const timeSelection = useTimelineTimeSelection(documentSelection, sampleRate);
 	const visualTrackHeight = useCallback((track) => {
 		const showAutomationControls = automationVisibleTrackIds?.has(track.id) === true;
-		if (trackResizePreview?.trackId === track.id) {
-			return trackVisualHeight(track, showArmControls, trackResizePreview.height, showAutomationControls);
-		}
-		if (autoFitTrackHeightEnabled) return trackVisualHeight(
-			track, showArmControls, fittedTrackHeight, showAutomationControls,
-		);
-		return trackVisualHeight(track, showArmControls, undefined, showAutomationControls);
-	}, [automationVisibleTrackIds, autoFitTrackHeightEnabled, fittedTrackHeight, showArmControls, trackResizePreview]);
+		const heightOverride = trackResizePreview?.trackId === track.id ? trackResizePreview.height
+			: autoFitTrackHeightEnabled ? fittedTrackHeight : undefined;
+		const height = trackVisualHeight(track, showArmControls, heightOverride, showAutomationControls);
+		return Math.max(height, labelTrackContentHeights.get(track.id) ?? 0);
+	}, [automationVisibleTrackIds, autoFitTrackHeightEnabled, fittedTrackHeight, labelTrackContentHeights, showArmControls, trackResizePreview]);
 	const totalTrackHeight = useTimelineTotalTrackHeight(project?.tracks, visualTrackHeight, TRACK_HEIGHT);
 
 	return {

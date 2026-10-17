@@ -60,3 +60,40 @@ test('label text sizing is available from the label menu and scales the strap', 
 	await expect(before).toBeVisible();
 	expect(errors).toEqual([]);
 });
+
+for (const { count, size } of [{ count: 9, size: 9 }, { count: 3, size: 48 }]) {
+	test(`${String(size)} pt packed labels remain inside their track and editable through timeline scrolling`, async ({ page }) => {
+		const errors = collectClientErrors(page);
+		const editor = await bootEditor(page, '/embed/en/');
+		await importFiles(editor, [longTone]);
+		await importFiles(editor, [{ name: 'packed-cues.txt', mimeType: 'text/plain',
+			buffer: Buffer.from(Array.from({ length: count }, (_, index) => {
+				const time = 0.5 + index / 100;
+				return `${String(time)}\t${String(time)}\tCue ${String(index + 1)}\n`;
+			}).join('')) }]);
+		const row = editor.locator('[data-label-track]');
+		await expect(row.locator('[data-label-id]')).toHaveCount(count);
+		if (size !== 9) {
+			await row.locator('[data-label-banner]').first().click({ button: 'right' });
+			await page.getByRole('menuitem', { name: /^Label text size/ }).hover();
+			await page.getByRole('menuitem', { name: `${String(size)} pt`, exact: true }).click();
+		}
+		await expect.poll(() => row.evaluate(element => {
+			const bounds = element.getBoundingClientRect();
+			return [...element.querySelectorAll('[data-label-banner]')].every(banner => {
+				const rect = banner.getBoundingClientRect();
+				return rect.top >= bounds.top && rect.bottom <= bounds.bottom;
+			});
+		})).toBe(true);
+		const last = row.getByRole('group', { name: `Edit labels: Cue ${String(count)}`, exact: true });
+		await last.locator('[data-label-banner]').click();
+		await expect(last).toHaveAttribute('data-selected-label', 'true');
+		await last.locator('[data-label-banner]').dblclick();
+		const title = last.getByRole('textbox');
+		await expect(title).toBeFocused();
+		await title.fill('Last cue edited');
+		await title.press('Enter');
+		await expect(row.getByRole('group', { name: 'Edit labels: Last cue edited', exact: true })).toBeVisible();
+		expect(errors).toEqual([]);
+	});
+}

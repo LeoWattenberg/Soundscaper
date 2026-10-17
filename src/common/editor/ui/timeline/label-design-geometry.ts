@@ -23,6 +23,7 @@ export function getLabelMetrics(sizePt = 9) {
 }
 
 export type TimelineLabelMetrics = ReturnType<typeof getLabelMetrics>;
+export const TIMELINE_LABEL_CONTENT_TOP = 18;
 
 let measureContext: CanvasRenderingContext2D | null | undefined;
 function pointLabelWidth(title: string, metrics: TimelineLabelMetrics): number {
@@ -70,6 +71,18 @@ export function layoutTimelineLabels(
 		layout.set(label.id, item);
 	}
 	return layout;
+}
+
+/** Keep all packed rows inside the native track and its shared timeline scroll space. */
+export function timelineLabelTrackContentHeight(
+	labels: readonly TimelineLabelRange[], pixelsPerSecond: number, sampleRate: number, sizePt = 9,
+): number {
+	if (!labels.length) return 0;
+	const metrics = getLabelMetrics(sizePt);
+	const layout = layoutTimelineLabels(labels, pixelsPerSecond, sampleRate, metrics);
+	let lastRow = 0;
+	for (const item of layout.values()) lastRow = Math.max(lastRow, item.row);
+	return TIMELINE_LABEL_CONTENT_TOP + lastRow * metrics.rowHeight + metrics.bannerHeight + 4;
 }
 
 export function snapLabelFrame(frame: number, targets: readonly number[], pixelsPerSecond: number, sampleRate: number): number {
