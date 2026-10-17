@@ -328,6 +328,8 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(projectBin).not.toHaveAttribute('data-drop-active', 'true');
 		await page.mouse.up();
 		await expect(editor).toHaveAttribute('data-clip-count', '2');
+		await firstClip.locator('.clip-header').click();
+		await secondClip.locator('.clip-header').click({ modifiers: ['Shift'] });
 
 		await page.mouse.move(startX, startY);
 		await page.mouse.down();
