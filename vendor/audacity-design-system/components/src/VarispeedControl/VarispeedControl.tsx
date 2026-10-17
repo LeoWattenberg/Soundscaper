@@ -132,7 +132,11 @@ export function VarispeedControl({ speed, enabled, disabled = false, label = 'Sp
       <span
         className="varispeed__readout"
         data-varispeed-display
-        role="group"
+        role="spinbutton"
+        aria-valuemin={1}
+        aria-valuemax={300}
+        aria-valuenow={speedToSlider(speed)}
+        aria-valuetext={percent}
         aria-label={`${title} ${percent}`}
         tabIndex={disabled ? -1 : 0}
         aria-disabled={disabled || undefined}
