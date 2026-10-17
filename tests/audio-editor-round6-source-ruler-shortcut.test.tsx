@@ -34,7 +34,7 @@ test('the source vertical ruler releases modified context-menu entry before open
 			snapshot: () => ({ clipId: null, focused: false, state: 'stopped', positionFrame: 0, loop: false, loopRange: null }) },
 	} };
 	try {
-		await act(async () => root.render(<ClipSourceEditor controller={controller} project={project}
+		await act(async () => root.render(<ClipSourceEditor run={operation => operation()} controller={controller} project={project}
 			clipId="clip" copy={{ clipSourceWaveform: 'Source waveform' }} blocked={false} />));
 		const ruler = dom.one('.audio-editor-source-vertical-ruler');
 		for (const modifier of ['ctrlKey', 'metaKey', 'altKey', 'defaultPrevented']) {

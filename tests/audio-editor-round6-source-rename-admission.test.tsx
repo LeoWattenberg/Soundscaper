@@ -39,7 +39,7 @@ for (const initiallyBlocked of [true, false]) test(`Source rename releases live 
 				state: 'stopped', positionFrame: 0, loop: false, loopRange: null }) },
 	} };
 	const render = async (blocked: boolean) => {
-		await act(async () => { root.render(<ClipSourceEditor controller={controller} project={project}
+		await act(async () => { root.render(<ClipSourceEditor run={operation => operation()} controller={controller} project={project}
 			clipId={clip.id} copy={ENGLISH_COPY} blocked={blocked} />); });
 	};
 	const begin = async () => {

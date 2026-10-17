@@ -23,9 +23,9 @@ test('clip properties projects persisted beat extents for the source overlay and
 			const controller = { getClipVisualData: () => null, actions: {
 				clip: {}, clipSourcePreview: { snapshot: () => ({ state: 'stopped', positionFrame: 0, loop: false, loopRange: null }) },
 			} };
-			const markup = renderToStaticMarkup(<ClipPropertiesPanel controller={controller} copy={ENGLISH_COPY}
+			const markup = renderToStaticMarkup(<ClipPropertiesPanel run={operation => operation()} controller={controller} copy={ENGLISH_COPY}
 				snapshot={{ project, selectedClipId: 'clip', capabilities: { audioEffects: false } }} />);
-			const sourceMarkup = renderToStaticMarkup(<ClipSourceMonitorPanel controller={controller} copy={ENGLISH_COPY}
+			const sourceMarkup = renderToStaticMarkup(<ClipSourceMonitorPanel run={operation => operation()} controller={controller} copy={ENGLISH_COPY}
 				snapshot={{ project, selectedClipId: 'clip', capabilities: { audioEffects: false } }} />);
 			const overlay = sourceMarkup.match(/class="audio-editor-source-clip"[^>]+/u)?.[0] ?? '';
 			assert.ok(Math.abs(Number(overlay.match(/left:([^p]+)px/u)?.[1]) - left) < 0.001, overlay);

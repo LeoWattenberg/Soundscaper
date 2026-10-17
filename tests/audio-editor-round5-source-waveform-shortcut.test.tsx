@@ -35,7 +35,7 @@ test('Source waveform reserves plain Space while leaving modified transport comm
 			snapshot: () => ({ clipId: null, focused: false, state: 'stopped', positionFrame: 0, loop: false, loopRange: null }) },
 	} };
 	try {
-		await act(async () => root.render(<ClipSourceEditor controller={controller} project={project}
+		await act(async () => root.render(<ClipSourceEditor run={operation => operation()} controller={controller} project={project}
 			clipId="clip" copy={{ clipSourceWaveform: 'Source waveform' }} blocked={false} />));
 		const container = dom.one('[data-clip-source-editor]');
 		const waveform = dom.one('[data-source-frame-count]');

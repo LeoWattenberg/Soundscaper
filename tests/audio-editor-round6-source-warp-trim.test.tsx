@@ -104,7 +104,7 @@ for (const warped of [false, true]) test(`Source keyboard trim forwards ${warped
 				state: 'stopped', positionFrame: 0, loop: false, loopRange: null }) },
 	} };
 	try {
-		await act(async () => root.render(<ClipSourceEditor controller={controller} project={project}
+		await act(async () => root.render(<ClipSourceEditor run={operation => operation()} controller={controller} project={project}
 			clipId={clip.id} copy={{ clipSourceTrimEnd: 'Trim source end' }} blocked={false} />));
 		const handle = dom.one('.audio-editor-source-trim--end');
 		await act(async () => reactProps(handle).onKeyDown({ key: 'ArrowLeft', shiftKey: true,

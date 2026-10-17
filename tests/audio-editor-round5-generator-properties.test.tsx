@@ -42,7 +42,7 @@ test('generator Properties commits native duration without invoking the audio so
 	const { createRoot } = await import('react-dom/client');
 	const root = createRoot(dom.container as unknown as Element);
 	try {
-		await act(async () => { root.render(<ClipPropertiesPanel controller={controller}
+		await act(async () => { root.render(<ClipPropertiesPanel run={operation => operation()} controller={controller}
 			runtimeProject={runtime.projectForRuntimeConsumers(history.present)}
 			snapshot={{ project: history.present, selectedClipId: clip.id, capabilities: { audioEffects: false, videoEffects: true } }} copy={ENGLISH_COPY} />); });
 		const field = dom.one('[data-clip-field="durationFrame"]');

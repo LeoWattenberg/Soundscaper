@@ -38,7 +38,7 @@ test('source trim and stretch controls leave modified commands available and pre
 				loop: false, loopRange: null }) },
 	} };
 	try {
-		await act(async () => root.render(<ClipSourceEditor controller={controller} project={project} clipId="clip"
+		await act(async () => root.render(<ClipSourceEditor run={operation => operation()} controller={controller} project={project} clipId="clip"
 			copy={{ clipSourceTrimStart: 'Trim source start', clipSourceTrimEnd: 'Trim source end' }} blocked={false} />));
 		const controls = [dom.one('[aria-label="Trim source start"]'), dom.one('[aria-label="Trim source end"]'),
 			dom.one('[data-source-sample="19200"]')];

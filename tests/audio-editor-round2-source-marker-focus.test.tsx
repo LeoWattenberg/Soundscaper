@@ -25,7 +25,7 @@ test('source-marker deletion focuses its waveform after publishing the replaceme
 				{ outer: 100, source: 100, mode: 'forward' },
 			] } }],
 	};
-	const render = () => root.render(<ClipSourceEditor controller={controller} project={project}
+	const render = () => root.render(<ClipSourceEditor run={operation => operation()} controller={controller} project={project}
 		clipId="clip" copy={{ clipSourceStretchMarker: 'Stretch marker' }} blocked={false} />);
 	const controller: ClipSourceController = { getClipVisualData: () => null, actions: {
 		clip: { update() {} }, timeline: {}, effects: { setSourceSelection() {} },

@@ -28,7 +28,7 @@ test('image Properties consumes the selected product projection and commits only
 	const { createRoot } = await import('react-dom/client');
 	const root = createRoot(dom.container as unknown as Element);
 	try {
-		await act(async () => { root.render(<ClipPropertiesPanel {...props} />); });
+		await act(async () => { root.render(<ClipPropertiesPanel run={operation => operation()} {...props} />); });
 		const duration = dom.one('[data-clip-field="durationFrame"]');
 		const input = duration.querySelector('input');
 		const wrapper = duration.querySelector('[data-timecode-input]');

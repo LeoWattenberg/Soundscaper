@@ -32,7 +32,7 @@ for (const panel of [false, true]) test(`the ${panel ? 'live panel' : 'propertie
 	const render = async () => {
 		const props = { controller: { project, actions: { clip: {} } },
 			snapshot: { project, selectedClipId: clip.id, capabilities: { audioEffects: true } }, copy: ENGLISH_COPY };
-		await act(async () => root.render(panel ? <ClipPropertiesPanel {...props} /> : <ClipPropertiesBody {...props} />));
+		await act(async () => root.render(panel ? <ClipPropertiesPanel run={operation => operation()} {...props} /> : <ClipPropertiesBody {...props} />));
 	};
 	try {
 		await render();

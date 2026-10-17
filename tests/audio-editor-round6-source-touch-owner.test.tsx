@@ -77,7 +77,7 @@ async function fixture() {
 	const root = createRoot(dom.container as unknown as Element);
 	const render = async (changes: Partial<ClipSourceProject['clips'][number]> = {}) => {
 		project = { ...project, clips: [{ ...project.clips[0]!, ...changes }] };
-		await act(async () => { root.render(<ClipSourceEditor controller={controller} project={project} clipId="clip" copy={ENGLISH_COPY} blocked={false} />); });
+		await act(async () => { root.render(<ClipSourceEditor run={operation => operation()} controller={controller} project={project} clipId="clip" copy={ENGLISH_COPY} blocked={false} />); });
 	};
 	await render();
 	const wave = dom.one('.audio-editor-source-wave-area');

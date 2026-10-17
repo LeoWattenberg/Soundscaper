@@ -78,7 +78,7 @@ async function fixture() {
 	} };
 	const { createRoot } = await import('react-dom/client');
 	const root = createRoot(dom.container as unknown as Element);
-	await act(async () => { root.render(<ClipPropertiesPanel controller={controller} copy={ENGLISH_COPY}
+	await act(async () => { root.render(<ClipPropertiesPanel run={operation => operation()} controller={controller} copy={ENGLISH_COPY}
 		snapshot={{ project, selectedClipId: 'clip', capabilities: { audioEffects: false } }}
 		focusRequest={{ projectId: 'project', clipId: 'clip', field: null }} />); });
 	const body = dom.one('[data-clip-properties-active-clip]');

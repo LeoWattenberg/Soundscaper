@@ -21,7 +21,7 @@ for (const [readOnly, recording, previewDisabled] of [[true, false, false], [tru
 			const controller = { getClipVisualData: () => ({ available: true, buffer: {
 				length: 48_000, numberOfChannels: 1, sampleRate: 48_000, getChannelData: () => new Float32Array(48_000),
 			} }), actions: { clip: {}, effects: {}, clipSourcePreview: { snapshot: () => ({ state: 'stopped', positionFrame: 0, loop: false, loopRange: null }) } } };
-			const markup = renderToStaticMarkup(<ClipPropertiesPanel controller={controller} copy={ENGLISH_COPY}
+			const markup = renderToStaticMarkup(<ClipPropertiesPanel run={operation => operation()} controller={controller} copy={ENGLISH_COPY}
 				snapshot={{ project, selectedClipId: clip.id, readOnly, recording, capabilities: { audioEffects: false } }} />);
 			const play = markup.match(/<button[^>]*aria-label="Play"[^>]*>/u)?.[0];
 			assert.ok(play);
