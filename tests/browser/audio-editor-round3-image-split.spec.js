@@ -22,3 +22,28 @@ test('Split tool divides a normally imported still image and Undo restores its o
 	await expect(clips).toHaveCount(1);
 	await expect.poll(async () => (await clips.boundingBox())?.width).toBe(before.width);
 });
+
+test('Tab and Shift+Tab traverse every split image on one picture track', async ({ page }) => {
+	const editor = await bootEditor(page, '/framescaper/embed/en/');
+	const chooser = page.waitForEvent('filechooser');
+	await chooseNestedCommandAction(page, editor, 'Generate', [EDITOR_ENGLISH_COPY['ui.framescaperMenus.addVideoStill']]);
+	await (await chooser).setFiles({ name: 'poster.png', mimeType: 'image/png', buffer: createPngFixture(16) });
+	const clips = editor.getByRole('group', { name: 'Image clip: poster', exact: true });
+	await expect(clips).toHaveCount(1);
+	const splitTool = editor.getByRole('button', { name: 'Split tool', exact: true });
+	await splitTool.click();
+	await clickClipInterior(page, clips, 0.5);
+	await expect(clips).toHaveCount(2);
+	await clickClipInterior(page, clips.last(), 0.5);
+	await expect(clips).toHaveCount(3);
+	await splitTool.click();
+	await clips.first().focus();
+	for (const index of [1, 2]) {
+		await page.keyboard.press('Tab');
+		await expect(clips.nth(index)).toBeFocused();
+	}
+	for (const index of [1, 0]) {
+		await page.keyboard.press('Shift+Tab');
+		await expect(clips.nth(index)).toBeFocused();
+	}
+});

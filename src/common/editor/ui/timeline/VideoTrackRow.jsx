@@ -13,6 +13,7 @@ import { VideoTrackControls } from './VideoTrackControls.jsx';
 import { timelineContentLeft } from './timeline-scroll-space.ts';
 import { useTrackRowFocusNavigation } from './useTrackRowFocusNavigation.js';
 import { extendTrackRowSelection } from './track-row-selection-extension.ts';
+import { focusAdjacentVideoClip } from './video-clip-focus.ts';
 
 export function VideoTrackRow({
 	controller,
@@ -163,13 +164,15 @@ export function VideoTrackRow({
 				});
 				return true;
 			}
-			if (event.key !== 'Tab') return false;
+			if (event.key !== 'Tab' || event.altKey || event.ctrlKey || event.metaKey) return false;
 			event.preventDefault();
 			event.stopPropagation();
 			const fadeHandle = !event.shiftKey && event.target.querySelector('[data-video-clip-fade-handle]:not(:disabled)');
 			if (fadeHandle) fadeHandle.focus();
-			else if (event.shiftKey) router.focusCurrentPanel(true);
-			else router.focusAfterTrack();
+			else if (!focusAdjacentVideoClip(trackWindowRef.current, String(event.target.dataset.clipId), event.shiftKey ? -1 : 1)) {
+				if (event.shiftKey) router.focusCurrentPanel(true);
+				else router.focusAfterTrack();
+			}
 			return true;
 		},
 	});
@@ -273,7 +276,7 @@ export function VideoTrackRow({
 								color={clip.color === 'auto' ? track.color : clip.color}
 								clipStyle={clipStyle}
 								run={run}
-								onFadeTabOut={focusAfterTrack}
+								onFadeTabOut={() => focusAdjacentVideoClip(trackWindowRef.current, clip.id, 1) || focusAfterTrack()}
 								onOpenMenu={onOpenClipMenu}
 								onRename={renameBlockedRef.current ? undefined : (title) => {
 									const nextTitle = String(title).trim();
