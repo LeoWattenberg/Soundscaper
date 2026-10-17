@@ -330,10 +330,18 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(editor).toHaveAttribute('data-clip-count', '2');
 		await firstClip.locator('.clip-header').click();
 		await secondClip.locator('.clip-header').click({ modifiers: ['Shift'] });
+		await expect(firstClip.locator('.clip-display')).toHaveClass(/clip-display--selected/);
+		await expect(secondClip.locator('.clip-display')).toHaveClass(/clip-display--selected/);
+		const retryHeader = await dragHeader.boundingBox();
+		const retryBin = await projectBin.boundingBox();
+		expect(retryHeader).not.toBeNull();
+		expect(retryBin).not.toBeNull();
+		const retryX = retryHeader.x + Math.min(32, retryHeader.width / 2);
+		const retryY = retryHeader.y + retryHeader.height / 2;
 
-		await page.mouse.move(startX, startY);
+		await page.mouse.move(retryX, retryY);
 		await page.mouse.down();
-		await page.mouse.move(dropX, dropY, { steps: 8 });
+		await page.mouse.move(retryBin.x + retryBin.width / 2, retryBin.y + Math.min(120, retryBin.height / 2), { steps: 8 });
 		await page.mouse.up();
 		await expect(editor).toHaveAttribute('data-clip-count', '0');
 		await expect(projectBin.locator('[data-project-bin-item]')).toHaveCount(2);
