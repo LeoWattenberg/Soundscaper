@@ -23,7 +23,7 @@ type LabelMutationCommand =
 interface EditorLabelActionGroupDependencies {
 	getTrack(): Pick<TrackService, 'addLabel'>;
 	getLabelService(): LabelService;
-	commit(command: LabelMutationCommand): unknown;
+	commit(command: LabelMutationCommand | Readonly<{ type: 'batch'; commands: readonly LabelMutationCommand[] }>): unknown;
 }
 
 const editorLabelActionGroups = new WeakSet<object>();
@@ -39,6 +39,11 @@ export function createEditorLabelActionGroup(dependencies: EditorLabelActionGrou
 		add: addLabel,
 		update: (trackId: string | null, labelId: string, changes: Readonly<Record<string, unknown>>) => (
 			dependencies.commit({ type: 'label/update', trackId, labelId, changes })
+		),
+		updateMany: (trackId: string, updates: readonly Readonly<{ labelId: string; changes: Readonly<Record<string, unknown>> }>[]) => (
+			updates.length ? dependencies.commit({ type: 'batch', commands: updates.map(({ labelId, changes }) => ({
+				type: 'label/update', trackId, labelId, changes,
+			})) }) : undefined
 		),
 		remove: (trackId: string | null, labelId: string) => (
 			dependencies.commit({ type: 'label/remove', trackId, labelId })

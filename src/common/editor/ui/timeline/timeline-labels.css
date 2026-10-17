@@ -1,0 +1,129 @@
+.audio-editor-label-marker .audio-editor-upstream-label {
+	--label-strap: color-mix(in srgb, var(--label-track-color) 50%, white);
+	--label-chrome: var(--label-track-color);
+	position: relative;
+	pointer-events: none;
+}
+
+.audio-editor-label-marker .audio-editor-upstream-label.label-marker--active {
+	--label-strap: color-mix(in srgb, var(--label-track-color) 30%, white);
+	--label-chrome: color-mix(in srgb, var(--label-track-color) 40%, white);
+}
+
+.audio-editor-label-marker .audio-editor-upstream-label .label-marker__label-box {
+	position: absolute;
+	top: 0;
+	display: flex;
+	z-index: 2;
+	box-sizing: border-box;
+	min-width: 0;
+	max-width: none;
+	padding: 0;
+	right: auto;
+	overflow: visible;
+	align-items: center;
+	height: var(--label-banner-height);
+	background: var(--label-strap);
+	color: #14151a;
+	pointer-events: auto;
+	cursor: move;
+	border-radius: 0;
+}
+
+.audio-editor-label-marker .audio-editor-upstream-label.label-marker--point .label-marker__label-box {
+	border-radius: 2px;
+}
+
+.audio-editor-label-marker .audio-editor-upstream-label:not(.label-marker--active) .label-marker__label-box:hover {
+	background: color-mix(in srgb, var(--label-track-color) 70%, white);
+}
+
+.audio-editor-label-marker .audio-editor-upstream-label :is(.label-marker__label-text, .audio-editor-label-title-input) {
+	position: absolute;
+	top: 50%;
+	right: 0;
+	left: 0;
+	box-sizing: border-box;
+	width: 100%;
+	min-width: 0;
+	height: 2.2em;
+	padding: 0 var(--label-padding);
+	transform: translateY(-50%);
+	color: #14151a;
+	font: 500 var(--label-font-size)/2.2 Inter, sans-serif;
+	white-space: nowrap;
+}
+
+.audio-editor-label-marker .audio-editor-upstream-label .label-marker__label-text {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	pointer-events: none;
+}
+
+.audio-editor-label-marker .audio-editor-upstream-label .audio-editor-label-title-input {
+	z-index: 8;
+	border: 0;
+	border-radius: 0;
+	outline: 1px solid #14151a;
+	outline-offset: -1px;
+	background: transparent;
+	cursor: text;
+}
+
+.audio-editor-label-marker[data-point-label='true'] .audio-editor-upstream-label .audio-editor-label-title-input {
+	width: 100%;
+}
+
+.audio-editor-label-marker .audio-editor-upstream-label :is(.label-marker__left-ear, .label-marker__right-ear) {
+	position: absolute;
+	top: 0;
+	z-index: 3;
+	line-height: 0;
+	cursor: ew-resize;
+	pointer-events: auto;
+}
+
+.audio-editor-label-marker .audio-editor-upstream-label svg path {
+	fill: var(--label-chrome);
+}
+
+.audio-editor-label-marker .audio-editor-upstream-label :is(.label-marker__left-stalk, .label-marker__right-stalk) {
+	position: absolute;
+	top: 0;
+	width: 9px;
+	right: auto;
+	bottom: auto;
+	z-index: 1;
+	display: block;
+	transform: none;
+	background: transparent;
+	pointer-events: auto;
+}
+
+.audio-editor-label-marker .audio-editor-upstream-label .label-marker__stalk-line {
+	position: absolute;
+	top: 0;
+	left: 4px;
+	width: 1px;
+	height: 100%;
+	background: var(--label-chrome);
+	pointer-events: none;
+}
+
+.audio-editor-label-marker .audio-editor-upstream-label :is(.label-marker__left-ear:hover, .label-marker__right-ear:hover) svg path,
+.audio-editor-label-marker .audio-editor-upstream-label :is(.label-marker__left-stalk:hover, .label-marker__right-stalk:hover) .label-marker__stalk-line,
+.audio-editor-label-marker .audio-editor-upstream-label:has(.label-marker__left-stalk:hover, .label-marker__right-stalk:hover) svg path,
+.audio-editor-label-marker .audio-editor-upstream-label:has(.label-marker__left-ear:hover) .label-marker__left-stalk .label-marker__stalk-line,
+.audio-editor-label-marker .audio-editor-upstream-label:has(.label-marker__right-ear:hover) .label-marker__right-stalk .label-marker__stalk-line {
+	fill: color-mix(in srgb, var(--label-track-color) 30%, white);
+	background: color-mix(in srgb, var(--label-track-color) 30%, white);
+}
+
+.audio-editor-label-marker .audio-editor-upstream-label.label-marker--active:has([data-label-ear]:hover, [data-label-stalk]:hover) {
+	--label-chrome: color-mix(in srgb, var(--label-track-color) 10%, white);
+}
+
+
+.audio-editor-label-marker .audio-editor-upstream-label :is(.label-marker__label-box, .label-marker__stalk-line)::before {
+	content: none;
+}

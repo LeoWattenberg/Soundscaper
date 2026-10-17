@@ -13,6 +13,9 @@ export const AUDIO_EDITOR_LAYOUTS = Object.freeze(['auto', 'compact', 'desktop']
 /** Default display for tracks that have no individual display override. */
 export const AUDIO_EDITOR_DEFAULT_VIEWS = AUDIO_EDITOR_TRACK_DISPLAY_MODES;
 
+export const LABEL_TEXT_SIZES_PT = Object.freeze([9, 10, 12, 14, 18, 24, 36, 48]);
+const LABEL_TEXT_SIZE_SET = new Set(LABEL_TEXT_SIZES_PT);
+
 const THEME_SET = new Set(AUDIO_EDITOR_THEMES);
 const CLIP_STYLE_SET = new Set(AUDIO_EDITOR_CLIP_STYLES);
 const LAYOUT_SET = new Set(AUDIO_EDITOR_LAYOUTS);
@@ -20,6 +23,7 @@ const DEFAULT_VIEW_SET = new Set(AUDIO_EDITOR_DEFAULT_VIEWS);
 
 export interface AppearancePreferences {
 	skin: SkinId;
+	labelTextSizePt: number;
 	theme: string;
 	clipStyle: 'classic' | 'colorful';
 	layout: 'auto' | 'compact' | 'desktop';
@@ -29,6 +33,7 @@ export interface AppearancePreferences {
 export function normalizeAppearancePreferences(options?: Record<string, unknown>): AppearancePreferences {
 	const legacyContrast = options?.theme === 'high-contrast-light' || options?.theme === 'high-contrast-dark';
 	return {
+		labelTextSizePt: oneOf(options?.labelTextSizePt ?? 9, LABEL_TEXT_SIZE_SET, 'appearance.labelTextSizePt'),
 		skin: legacyContrast ? 'high-contrast' : normalizeSkin(options?.skin),
 		theme: oneOf(legacyContrast ? options.theme === 'high-contrast-dark' ? 'dark' : 'light' : options?.theme ?? 'system', THEME_SET, 'appearance.theme'),
 		clipStyle: oneOf(options?.clipStyle ?? 'colorful', CLIP_STYLE_SET, 'appearance.clipStyle'),

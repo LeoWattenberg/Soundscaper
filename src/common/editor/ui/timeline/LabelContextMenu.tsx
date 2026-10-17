@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { createPortal } from 'react-dom';
+import { LABEL_TEXT_SIZES_PT } from '../../appearance-preferences.ts';
 import { ContextMenu } from '@soundscaper/design-system/ContextMenu';
 import { ContextMenuItem } from '@soundscaper/design-system/ContextMenuItem';
 
@@ -11,7 +12,7 @@ import {
 
 interface LabelContextMenuProps {
 	readonly position: Readonly<{ x: number; y: number; target: Element }> | null;
-	readonly copy: LabeledAudioApplicationMenuCopy & Readonly<{ editLabels: string; deleteLabel: string }>;
+	readonly copy: LabeledAudioApplicationMenuCopy & Readonly<{ editLabels: string; deleteLabel: string; labelTextSize?: string }>;
 	readonly blocked: boolean;
 	readonly audioBlocked: boolean;
 	readonly point: boolean;
@@ -19,6 +20,8 @@ interface LabelContextMenuProps {
 	readonly run: (operation: () => unknown) => unknown;
 	readonly editActions: Readonly<Record<string, (() => unknown) | undefined>>;
 	readonly onEdit: () => void;
+	readonly fontSizePt?: number;
+	readonly onFontSizeChange?: (sizePt: number) => void;
 	readonly onRemove: () => void;
 	readonly onClose: () => void;
 }
@@ -35,6 +38,10 @@ export function LabelContextMenu(props: LabelContextMenuProps) {
 		onKeyDown={(event) => { if (!event.ctrlKey && !event.metaKey && !event.altKey) event.stopPropagation(); }} onDoubleClick={(event) => event.stopPropagation()}>
 		<ContextMenu isOpen x={position.x} y={position.y} onClose={onClose} className="audio-editor-label-context-menu">
 			<ContextMenuItem label={copy.editLabels} shortcut="F2" disabled={blocked} onClick={onEdit} onClose={onClose} />
+			{props.onFontSizeChange && <ContextMenuItem label={copy.labelTextSize || 'Label text size'} hasSubmenu onClose={onClose}>
+				{LABEL_TEXT_SIZES_PT.map(size => <ContextMenuItem key={size} label={`${String(size)} pt`}
+					checked={size === (props.fontSizePt ?? 9)} onClick={() => props.onFontSizeChange?.(size)} onClose={onClose} />)}
+			</ContextMenuItem>}
 			<ContextMenuItem label={copy.deleteLabel} disabled={blocked} onClick={onRemove} onClose={onClose} />
 			{audioMenu && <ContextMenuItem isDivider />}
 			{audioMenu && <ContextMenuItem label={audioMenu.label} hasSubmenu disabled={audioBlocked || point} onClose={onClose}>

@@ -169,7 +169,7 @@ export function createTimelineMenuModel({
 		},
 		...trackOverflowItems.shared,
 		...trackOverflowItems.display,
-		...(menuTrack.type === 'audio' ? [
+		...(menuTrack.type === 'audio' || menuTrack.type === 'label' ? [
 			{ divider: true, label: '' },
 			manifestMenuItem(AUDACITY_TRACK_CONTEXT_ACTION_IDS.changeColor, copy.trackColor, {
 				disabled: mutationsBlocked,
@@ -182,6 +182,8 @@ export function createTimelineMenuModel({
 					});
 				},
 			}, contextLocale, unavailableReason),
+		] : []),
+		...(menuTrack.type === 'audio' ? [
 			{ divider: true, label: '' },
 			{
 				id: 'track-display', label: copy.trackDisplay,

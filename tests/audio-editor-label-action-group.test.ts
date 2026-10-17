@@ -46,7 +46,7 @@ test('the label action group stays frozen and resolves each owner only at invoca
 	});
 
 	assert.equal(Object.isFrozen(labels), true);
-	assert.deepEqual(Object.keys(labels), ['add', 'update', 'remove', 'importFile', 'importCueFile', 'export']);
+	assert.deepEqual(Object.keys(labels), ['add', 'update', 'updateMany', 'remove', 'importFile', 'importCueFile', 'export']);
 	assert.deepEqual([trackReads, labelReads], [0, 0]);
 	assert.equal(labels.add('label-track', { title: 'Marker' }), 'label-created');
 	assert.deepEqual([trackReads, labelReads], [1, 0]);
@@ -80,4 +80,22 @@ test('synchronous owner failures become rejected promises for asynchronous label
 	assert.throws(() => labels.add(), /track unavailable/u);
 	assert.throws(() => labels.update(null, 'label', {}), /document unavailable/u);
 	await assert.rejects(labels.importCueFile(null, 'labels'), /labels unavailable/u);
+});
+
+
+test('a shared label boundary commits both frame updates as one undoable batch', () => {
+	const calls: unknown[] = [];
+	const actions = createEditorLabelActionGroup({
+		getTrack: () => { throw new Error('not needed'); },
+		getLabelService: () => { throw new Error('not needed'); },
+		commit: command => calls.push(command),
+	});
+	actions.updateMany('labels', [
+		{ labelId: 'before', changes: { endFrame: 24_000 } },
+		{ labelId: 'after', changes: { startFrame: 24_000 } },
+	]);
+	assert.deepEqual(calls, [{ type: 'batch', commands: [
+		{ type: 'label/update', trackId: 'labels', labelId: 'before', changes: { endFrame: 24_000 } },
+		{ type: 'label/update', trackId: 'labels', labelId: 'after', changes: { startFrame: 24_000 } },
+	] }]);
 });
