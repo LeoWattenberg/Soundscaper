@@ -4,10 +4,9 @@ import { expect, longTone, test } from './audio-editor-test-fixtures.js';
 import {
 	bootEditor,
 	clipByName,
-	closeClipProperties,
 	collectClientErrors,
 	importFiles,
-	openClipProperties,
+	openSourceMonitor,
 	registerAudioEditorHooks,
 } from './audio-editor-test-helpers.js';
 
@@ -51,21 +50,31 @@ test.describe('double click control defaults', () => {
 		expect(errors).toEqual([]);
 	});
 
-	test('resets the clip fade shape sliders to their default curves', async ({ page }) => {
+	test('resets both Source monitor fade shapes to their default curves', async ({ page }) => {
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');
 		await importFiles(editor, [longTone]);
-		const dialog = await openClipProperties(page, editor, clipByName(editor, longTone.name));
-		await dialog.getByText('Fading', { exact: true }).click();
-		for (const label of ['Fade in shape', 'Fade out shape']) {
-			const slider = dialog.getByRole('slider', { name: label, exact: true });
-			await expect(slider).toHaveValue('1');
-			await slider.press('End');
-			await expect(slider).toHaveValue('6');
-			await slider.dblclick();
-			await expect(slider).toHaveValue('1');
+		const monitor = await openSourceMonitor(page, editor, clipByName(editor, longTone.name));
+		const waveform = monitor.getByRole('region', { name: 'Source waveform', exact: true });
+		for (const label of ['Fade in', 'Fade out']) {
+			const fade = waveform.getByRole('slider', { name: label, exact: true });
+			await fade.press('Home');
+			await fade.press(label === 'Fade in' ? 'Shift+ArrowRight' : 'Shift+ArrowLeft');
 		}
-		await closeClipProperties(dialog);
+		for (const label of ['Fade in shape', 'Fade out shape']) {
+			const slider = waveform.getByRole('slider', { name: label, exact: true });
+			await expect(slider).toHaveAttribute('aria-valuenow', '2');
+			await slider.press('ArrowDown');
+			const custom = await slider.getAttribute('aria-valuenow');
+			expect(Number(custom)).toBeGreaterThan(2);
+			await slider.dblclick();
+			await expect(slider).toHaveAttribute('aria-valuenow', '2');
+			await editor.getByRole('button', { name: 'Undo', exact: true }).click();
+			await expect(slider).toHaveAttribute('aria-valuenow', custom);
+			await editor.getByRole('button', { name: 'Redo', exact: true }).click();
+			await expect(slider).toHaveAttribute('aria-valuenow', '2');
+			await waveform.hover();
+		}
 		expect(errors).toEqual([]);
 	});
 });
