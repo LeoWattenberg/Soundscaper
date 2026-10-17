@@ -12,9 +12,12 @@ test('Project Bin video preview does not restore audio removed through the timel
 	await chooseNestedCommandAction(page, editor, 'Edit', ['Audio clips', 'Unlink audio']);
 	const audio = editor.getByRole('group', { name: /^removed-audio Audio clip,/u });
 	await expect(audio).toBeVisible();
-	await audio.press('Enter');
+	// The imported pair remains selected after unlinking. Pick only the audio
+	// header: Enter on an already selected clip seeks without changing selection.
+	await audio.locator('.clip-header').click();
 	await audio.press('Delete');
 	await expect(audio).toHaveCount(0);
+	await expect(video).toBeVisible();
 	await video.click({ button: 'right' });
 	await page.getByRole('menuitem', { name: 'Move to Project bin', exact: true }).click();
 	const card = editor.getByRole('listitem', { name: 'Project bin: removed-audio', exact: true });

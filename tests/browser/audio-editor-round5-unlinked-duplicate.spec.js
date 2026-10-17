@@ -11,7 +11,7 @@ for (const mode of ['header', 'range']) test(`Duplicate lifts unlinked camera au
 	const audio = editor.getByRole('group', { name: /^camera Audio clip,/u });
 	await audio.press('Enter');
 	await chooseNestedCommandAction(page, editor, 'Edit', ['Audio clips', 'Unlink audio']);
-	await audio.press('Enter');
+	await audio.locator('.clip-header').click();
 	if (mode === 'range') await chooseNestedCommandAction(page, editor, 'Select', ['Region', 'Track start to end']);
 	const tracks = editor.locator('[data-track-row]');
 	const count = await tracks.count();

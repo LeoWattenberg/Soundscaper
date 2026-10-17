@@ -26,6 +26,7 @@ import {
 	expectContiguousSourceClips,
 	persistedProject,
 	revealTimelineClip,
+	selectClipHeader,
 	setProjectTempo,
 	splitClip,
 } from './helpers/complex-editing-workflows.js';
@@ -90,6 +91,9 @@ test.describe('realistic mixed-state session persistence', () => {
 			}
 			const clipCount = await editor.getAttribute('data-clip-count');
 			const trackCount = await editor.getAttribute('data-track-count');
+			// Duplicate keeps a valid multi-selection; reading one clip's native
+			// duration requires picking that header rather than seeking with Enter.
+			await selectClipHeader(clipByName(editor, longTone.name).first());
 			const editedDuration = await clipDurationFrames(
 				page,
 				editor,

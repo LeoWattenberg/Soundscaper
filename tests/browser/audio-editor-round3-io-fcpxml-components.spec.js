@@ -14,9 +14,10 @@ for (const removeAudio of [false, true]) {
 			await editor.getByRole('group', { name: /^Video clip:/u }).first().press('Enter');
 			await chooseNestedCommandAction(page, editor, 'Edit', ['Audio clips', 'Unlink audio']);
 			const audio = editor.getByRole('group', { name: /^camera Audio clip,/u });
-			await audio.press('Enter');
+			await audio.locator('.clip-header').click();
 			await audio.press('Delete');
 			await expect(audio).toHaveCount(0);
+			await expect(editor.getByRole('group', { name: /^Video clip:/u })).toHaveCount(1);
 		}
 		const downloading = page.waitForEvent('download');
 		await chooseNestedCommandAction(page, editor, 'File', ['Export other', 'Export FCPXML']);

@@ -16,6 +16,8 @@ test('opening a time-code format menu ends its preceding digit-key ownership', a
 	await expect(choice).toBeVisible();
 	await page.keyboard.press('ArrowDown');
 	await expect(display).toHaveText(before);
+	await expect(page.getByRole('menuitem', { name: 'Enter value…', exact: true })).toBeFocused();
+	await page.keyboard.press('ArrowDown');
 	await expect(choice).toBeFocused();
 	await page.keyboard.press('Enter');
 	await expect(choice).toHaveCount(0);
@@ -49,6 +51,8 @@ test('the application playhead format popup owns arrows after pointer opening fr
 	await expect(choice).toBeVisible();
 	await page.keyboard.press('ArrowDown');
 	await expect(display).toHaveText(before);
+	await expect(page.getByRole('menuitem', { name: 'Enter value…', exact: true })).toBeFocused();
+	await page.keyboard.press('ArrowDown');
 	await expect(choice).toBeFocused();
 	await page.keyboard.press('Enter');
 	await expect(choice).toHaveCount(0);
