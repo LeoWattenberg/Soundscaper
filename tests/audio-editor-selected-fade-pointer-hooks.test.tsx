@@ -75,6 +75,7 @@ for (const kind of ['length', 'shape'] as const) {
 			try {
 				fixture.start(fixture.event()); fixture.move(fixture.event(7, true)); fixture.flushFrames();
 				assert.ok(fixture.preview());
+				fixture.move(fixture.event(7, true));
 				fixture.dispatch(cancellation);
 				assert.equal(fixture.session.current, null);
 				assert.equal(fixture.preview(), null);
