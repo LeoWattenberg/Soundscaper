@@ -307,7 +307,7 @@ export function useTimelinePointerFinish({
 			const moveOptions = session.boundarySnapped
 				? { ...session.moveOptions, exactFrame: true } : session.moveOptions;
 			if (session.projectBinDrop) {
-				run(() => controller.actions.projectBin.moveFromTimeline(clip.id));
+				run(() => controller.actions.projectBin.moveFromTimeline(session.clipIds ?? [clip.id]));
 				onRevealProjectBin?.();
 				return;
 			}
