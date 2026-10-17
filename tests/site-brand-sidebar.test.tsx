@@ -168,7 +168,7 @@ async function change(node: ReactTestElement, value: string): Promise<void> {
 	await act(async () => { reactProps(node).onChange?.({ target: { value } }); });
 }
 
-for (const productId of ['soundscaper', 'framescaper']) {
+for (const productId of ['soundscaper', 'framescaper', 'motionscaper']) {
 	for (const locale of ['en', 'de']) {
 		test(`${productId}'s ${locale} sidebar links to its latest desktop build`, async () => {
 			const context = harness();
@@ -193,7 +193,7 @@ for (const productId of ['soundscaper', 'framescaper']) {
 			const headings = context.dom.container.querySelectorAll('h1');
 			assert.equal(headings.length, 1);
 			const brand = headings[0]!.querySelector('a');
-			const name = productId === 'framescaper' ? 'Framescaper' : 'Soundscaper';
+			const name = productId === 'framescaper' ? 'Framescaper' : productId === 'motionscaper' ? 'Motionscaper' : 'Soundscaper';
 			assert.equal(brand?.getAttribute('aria-label'), name);
 			assert.equal(brand?.textContent, name);
 			assert.equal(brand?.querySelector('img')?.getAttribute('src'), `/logo/${productId}.svg`);
@@ -240,10 +240,14 @@ test('a Framescaper rail names its own workspace and links across to the other o
 	}
 });
 
-test('the rail reserves product names for its brand and gives both editor links their product logos', async () => {
-	for (const [productId, locale, parentSite, editorLabels] of [
-		['soundscaper', 'en', 'https://mindscaper.org/', ['Audio editor', 'Video editor']],
-		['framescaper', 'de', 'https://mindscaper.org/de/', ['Video-Editor', 'Audio-Editor']],
+test('the rail reserves product names for its brand and gives all editor links their product logos', async () => {
+	for (const [productId, name, locale, parentSite, editorIds, editorLabels] of [
+		['soundscaper', 'Soundscaper', 'en', 'https://mindscaper.org/',
+			['soundscaper', 'framescaper', 'motionscaper'], ['Audio editor', 'Video editor', 'Motion Workspace']],
+		['framescaper', 'Framescaper', 'de', 'https://mindscaper.org/de/',
+			['framescaper', 'soundscaper', 'motionscaper'], ['Video-Editor', 'Audio-Editor', 'Motion-Arbeitsbereich']],
+		['motionscaper', 'Motionscaper', 'en', 'https://mindscaper.org/',
+			['motionscaper', 'soundscaper', 'framescaper'], ['Motion Workspace', 'Audio editor', 'Video editor']],
 	] as const) {
 		const context = harness();
 		try {
@@ -252,22 +256,27 @@ test('the rail reserves product names for its brand and gives both editor links 
 			assert.equal(brand.querySelectorAll('img').length, 1);
 			assert.equal(brand.querySelector('img')?.getAttribute('src'), `/logo/${productId}.svg`);
 			assert.equal(brand.querySelector('img')?.getAttribute('alt'), '');
-			assert.equal(brand.textContent, productId === 'soundscaper' ? 'Soundscaper' : 'Framescaper');
-			const links = context.dom.one('.website-sidebar-nav').querySelectorAll('a');
-			assert.equal(links[0]?.querySelector('img')?.getAttribute('src'), `/logo/${productId}.svg`);
-			assert.equal(links[0]?.querySelector('img')?.getAttribute('alt'), '');
-			assert.equal(links[0]?.textContent, editorLabels[0]);
-			assert.equal(links[1]?.querySelector('img')?.getAttribute('src'),
-				`/logo/${productId === 'soundscaper' ? 'framescaper' : 'soundscaper'}.svg`);
-			assert.equal(links[1]?.querySelector('img')?.getAttribute('alt'), '');
-			assert.equal(links[1]?.textContent, editorLabels[1]);
-			assert.equal(links.some((link) => /Soundscaper|Framescaper/u.test(link.textContent)), false);
+			assert.equal(brand.textContent, name);
+			const navigation = context.dom.one('.website-sidebar-nav');
+			const links = navigation.querySelectorAll('a');
+			const peers = navigation.querySelector('details');
+			assert.ok(peers);
+			assert.equal(peers.hasAttribute('open'), false, 'peer editors are offered through the closed menu');
+			assert.equal(peers.querySelectorAll('a').length, 2);
+			for (const [index, editorId] of editorIds.entries()) {
+				assert.equal(links[index]?.querySelector('img')?.getAttribute('src'), `/logo/${editorId}.svg`);
+				assert.equal(links[index]?.querySelector('img')?.getAttribute('alt'), '');
+				assert.equal(links[index]?.textContent, editorLabels[index]);
+				assert.equal(links[index]?.getAttribute('href'), editorId === 'soundscaper'
+					? `/${locale}/` : `https://${editorId}.org/${locale}/`);
+			}
+			assert.equal(links.some((link) => /Soundscaper|Framescaper|Motionscaper/u.test(link.textContent)), false);
 			assert.equal(links.some((link) => link.getAttribute('href') === `${parentSite}#projects`), false);
-			assert.equal(links[2]?.getAttribute('href'), parentSite);
-			assert.equal(links[2]?.textContent, locale === 'de' ? 'Mach mit' : 'Join us');
-			assert.equal(links[2]?.querySelector('img')?.getAttribute('src'), '/logo/mindscaper.svg');
-			assert.equal(links[2]?.querySelector('img')?.getAttribute('alt'), '');
-			for (const link of links.slice(3)) {
+			assert.equal(links[3]?.getAttribute('href'), parentSite);
+			assert.equal(links[3]?.textContent, locale === 'de' ? 'Mach mit' : 'Join us');
+			assert.equal(links[3]?.querySelector('img')?.getAttribute('src'), '/logo/mindscaper.svg');
+			assert.equal(links[3]?.querySelector('img')?.getAttribute('alt'), '');
+			for (const link of links.slice(4)) {
 				const icon = link.querySelector('svg');
 				assert.ok(icon, `${link.textContent} has a navigation icon`);
 				assert.equal(icon.getAttribute('aria-hidden'), 'true');

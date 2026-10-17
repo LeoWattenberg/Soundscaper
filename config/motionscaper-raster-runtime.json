@@ -1,0 +1,67 @@
+{
+	"schemaVersion": 1,
+	"package": "canvaskit-wasm",
+	"version": "0.42.0",
+	"tarball": "https://registry.npmjs.org/canvaskit-wasm/-/canvaskit-wasm-0.42.0.tgz",
+	"integrity": "sha512-N3ikotmzYwDVAcpQKDMptBT2P5pIEWS9ywdmrQA2awwaMF9cxKEFuxZZHv9ay1Em9kDjxDsPtwUzDm1uNj136g==",
+	"sourceRepository": "https://github.com/google/skia",
+	"sourceRevision": "e2def78fa232884d4aedcf3ad92d4a0dd673b898",
+	"fontPackage": "@fontsource/inter",
+	"fontVersion": "5.3.0",
+	"assets": [
+		{
+			"id": "loader",
+			"source": "canvaskit-wasm/bin/canvaskit.js",
+			"byteLength": 120877,
+			"sha256": "443777592179808354031cf411d8d43cac9f6b98d1227123c5c22d401b0fbf7f"
+		},
+		{
+			"id": "wasm",
+			"source": "canvaskit-wasm/bin/canvaskit.wasm",
+			"byteLength": 7317345,
+			"sha256": "25ebed8e60158c5854f8dc807b936daca21354f8bfb6a2231266b0a93812f301"
+		},
+		{
+			"id": "inter-latin",
+			"source": "@fontsource/inter/files/inter-latin-400-normal.woff2",
+			"byteLength": 23664,
+			"sha256": "8909904ab6c872eb994093482a88a28eca2cd95912d7b6fecd72103b0dc07edc"
+		},
+		{
+			"id": "inter-latin-ext",
+			"source": "@fontsource/inter/files/inter-latin-ext-400-normal.woff2",
+			"byteLength": 35000,
+			"sha256": "6744a7f509ebc6ab220a6cd4ea77e898adf014f03d88dcda5d45d8a9feefb4e9"
+		},
+		{
+			"id": "inter-greek",
+			"source": "@fontsource/inter/files/inter-greek-400-normal.woff2",
+			"byteLength": 7776,
+			"sha256": "c15ddd00a9927b56f5c655a41f976f79bd848a20cce91fc14227751872a1cc27"
+		},
+		{
+			"id": "inter-greek-ext",
+			"source": "@fontsource/inter/files/inter-greek-ext-400-normal.woff2",
+			"byteLength": 5264,
+			"sha256": "eadedd9e13c2582430a9fb1519eb86152fdabb483a6f66d90f8d8a52e977a1b7"
+		},
+		{
+			"id": "inter-cyrillic",
+			"source": "@fontsource/inter/files/inter-cyrillic-400-normal.woff2",
+			"byteLength": 7712,
+			"sha256": "f0bb586459ce8f09b238285040f17e3e9e9538b2c5a7aae0775194e33c36c3c3"
+		},
+		{
+			"id": "inter-cyrillic-ext",
+			"source": "@fontsource/inter/files/inter-cyrillic-ext-400-normal.woff2",
+			"byteLength": 10232,
+			"sha256": "ef572f9187a8be018d9d9c2c6b77c1f6cb2af4199f02fc16c292ea10ab25a2cc"
+		},
+		{
+			"id": "inter-vietnamese",
+			"source": "@fontsource/inter/files/inter-vietnamese-400-normal.woff2",
+			"byteLength": 4972,
+			"sha256": "547ad9fdaeb0ae43487f4b8a02e47c36553c0c0cb73c8aa98f93b7b615f6b55d"
+		}
+	]
+}

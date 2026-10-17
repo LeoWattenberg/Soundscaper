@@ -4,14 +4,14 @@ import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { basename, dirname, resolve } from 'node:path';
 
-// Soundscaper and Framescaper own `src/<product>/`, `desktop/<product>-*` and
+// Each editor owns `src/<product>/`, `desktop/<product>-*` and
 // `native/<product>-*`; everything both products share lives under `src/common`.
 // A Node test therefore belongs to a product when it reaches into that
 // product's own tree, and to `common` otherwise. A test that reaches into both
 // products is cross-product work and belongs to `common` too. The common owner
 // runs as two execution shards to keep one runner from carrying all shared tests.
-const NODE_TEST_OWNER_IDS = Object.freeze(['common', 'framescaper', 'soundscaper']);
-export const NODE_TEST_SHARD_IDS = Object.freeze(['common-1', 'common-2', 'framescaper', 'soundscaper']);
+const NODE_TEST_OWNER_IDS = Object.freeze(['common', 'framescaper', 'soundscaper', 'motionscaper']);
+export const NODE_TEST_SHARD_IDS = Object.freeze(['common-1', 'common-2', 'framescaper', 'soundscaper', 'motionscaper']);
 
 const TEST_FILE_PATTERN = /\.test\.(?:[cm]?[jt]s|[jt]sx)$/u;
 const RELATIVE_SPECIFIER = /(?:from|import|require)\s*\(?\s*['"](\.[^'"]*)['"]/gu;
@@ -26,6 +26,7 @@ const productReferencePattern = (product) =>
 const PRODUCTS = Object.freeze([
 	{ id: 'framescaper', reference: productReferencePattern('framescaper'), name: /framescaper/u },
 	{ id: 'soundscaper', reference: productReferencePattern('soundscaper'), name: /soundscaper/u },
+	{ id: 'motionscaper', reference: productReferencePattern('motionscaper'), name: /motionscaper/u },
 ]);
 
 // This probe asserts that two workers and an AudioWorklet continue while the
@@ -81,6 +82,7 @@ export function partitionNodeTestFiles(repositoryRoot, testFiles = listNodeTestF
 	return shards;
 }
 
+/** @param {string} repositoryRoot @param {{ shard?: string | null }} options */
 export function selectNodeTestFiles(repositoryRoot, { shard = null } = {}) {
 	return shard === null
 		? listNodeTestFiles(repositoryRoot)

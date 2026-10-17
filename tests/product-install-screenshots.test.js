@@ -20,7 +20,7 @@ import {
 } from '../scripts/lib/product-web-manifest.mjs';
 import { webBuildRouting } from '../scripts/lib/product-web-routing.mjs';
 
-const INSTALLED_PRODUCTS = Object.freeze(['soundscaper', 'framescaper']);
+const SCREENSHOT_PRODUCTS = Object.freeze(['soundscaper', 'framescaper']);
 
 /**
  * What a browser will accept as an install-dialog screenshot.
@@ -35,7 +35,7 @@ const MAXIMUM_ASPECT_RATIO = 2.3;
 
 test('every declared screenshot is committed as a PNG of exactly the declared size', async () => {
 	const records = await checkInstallScreenshots();
-	assert.equal(records.length, INSTALLED_PRODUCTS.length * 2);
+	assert.equal(records.length, SCREENSHOT_PRODUCTS.length * 2);
 	for (const record of records) {
 		const bytes = await readFile(record.path);
 		// The declaration, the file's own header, and the manifest entry are three
@@ -71,8 +71,8 @@ test('a screenshot the repository does not have fails the check rather than a br
 	);
 });
 
-test('each product manifest declares one wide and one narrow screenshot inside its scope', async (context) => {
-	for (const productId of INSTALLED_PRODUCTS) {
+test('each product with committed screenshots declares one wide and one narrow image inside its scope', async (context) => {
+	for (const productId of SCREENSHOT_PRODUCTS) {
 		const { manifest, outputRoot } = await productShell(context, productId);
 		assert.deepEqual(manifest.screenshots, productInstallScreenshots(productId), productId);
 		assert.deepEqual(manifest.screenshots.map(({ form_factor }) => form_factor), ['wide', 'narrow'], productId);
@@ -101,6 +101,16 @@ test('each product manifest declares one wide and one narrow screenshot inside i
 		const wide = manifest.screenshots.find(({ form_factor }) => form_factor === 'wide');
 		const [wideWidth, wideHeight] = wide.sizes.split('x').map(Number);
 		assert.ok(wideWidth > wideHeight, `${productId} declares a wide screenshot that is taller than it is wide`);
+	}
+});
+
+test('Motionscaper installs without advertising or retaining another product screenshot', async (context) => {
+	const { audit, manifest, outputRoot } = await productShell(context, 'motionscaper');
+	assert.deepEqual(productInstallScreenshots('motionscaper'), []);
+	assert.deepEqual(manifest.screenshots, []);
+	assert.equal(audit.assets.some(({ url }) => url.startsWith('/install-screenshots/')), false);
+	for (const declaration of installScreenshotDeclarations()) {
+		assert.equal(await readFile(join(outputRoot, declaration.src)).catch(() => null), null);
 	}
 });
 
@@ -156,9 +166,11 @@ async function productShell(context, productId) {
 		'assets/application-abc.js': 'export const application = 1;',
 		'assets/soundscaper-core.js': 'export const soundscaper = 1;',
 		'assets/framescaper-core.js': 'export const framescaper = 1;',
+		'assets/motionscaper-core.js': 'export const motionscaper = 1;',
 		'logo/framescaper.svg': '<svg viewBox="0 0 1 1" />',
 		'logo/soundscaper.svg': '<svg viewBox="0 0 1 1" />',
 		'logo/mindscaper.svg': '<svg viewBox="0 0 1 1" />',
+		'logo/motionscaper.svg': '<svg viewBox="0 0 1 1" />',
 		'.offline-build-manifest.json': JSON.stringify({
 			'index.html': {
 				file: 'assets/application-abc.js',
@@ -166,6 +178,7 @@ async function productShell(context, productId) {
 				dynamicImports: [
 					'src/soundscaper/ui/SoundscaperAudioEditorBootstrap.tsx',
 					'src/framescaper/ui/FramescaperAudioEditorBootstrap.tsx',
+					'src/motionscaper/MotionscaperBootstrap.tsx',
 				],
 			},
 			'src/soundscaper/ui/SoundscaperAudioEditorBootstrap.tsx': {
@@ -173,6 +186,9 @@ async function productShell(context, productId) {
 			},
 			'src/framescaper/ui/FramescaperAudioEditorBootstrap.tsx': {
 				file: 'assets/framescaper-core.js', isDynamicEntry: true,
+			},
+			'src/motionscaper/MotionscaperBootstrap.tsx': {
+				file: 'assets/motionscaper-core.js', isDynamicEntry: true,
 			},
 		}),
 	})) {

@@ -4,10 +4,10 @@ import { createHash, timingSafeEqual } from 'node:crypto';
 import { lstat, readFile, realpath } from 'node:fs/promises';
 import { isAbsolute, resolve, sep } from 'node:path';
 
-import { repositoryRevision } from './e2e-coverage-integrity.mjs';
+import { expectedBrowserCoverageRevision } from './browser-build-source-revision.mjs';
 
 const BUILD_EVIDENCE = '.browser-product-build.json';
-const PRODUCT_IDS = new Set(['framescaper', 'soundscaper']);
+const PRODUCT_IDS = new Set(['framescaper', 'soundscaper', 'motionscaper']);
 const REVISION = /^[a-f\d]{40}$/u;
 const SHA256 = /^[a-f\d]{64}$/u;
 const WASM_PATH = /^(?:[A-Za-z\d][A-Za-z\d._~-]*\/)*[A-Za-z\d][A-Za-z\d._~-]*\.wasm$/u;
@@ -24,7 +24,7 @@ const WASM_PATH = /^(?:[A-Za-z\d][A-Za-z\d._~-]*\/)*[A-Za-z\d][A-Za-z\d._~-]*\.w
  *   sites?: Array<{
  *     origin: string,
  *     outputDirectory: string,
- *     productId: 'framescaper' | 'soundscaper',
+ *     productId: 'framescaper' | 'soundscaper' | 'motionscaper',
  *   }>,
  * }} options
  */
@@ -156,18 +156,4 @@ function plainRecord(value) {
 
 function sha256(bytes) {
 	return createHash('sha256').update(bytes).digest('hex');
-}
-
-async function expectedBrowserCoverageRevision(repositoryRoot) {
-	try {
-		const stage = JSON.parse(await readFile(resolve(repositoryRoot, 'stage-manifest.json'), 'utf8'));
-		if (stage?.kind !== 'soundscaper-desktop-nightly-tests'
-			|| !REVISION.test(stage.sourceRevision ?? '')) {
-			throw new Error('The nightly test stage has no authenticated source revision.');
-		}
-		return stage.sourceRevision;
-	} catch (error) {
-		if (error?.code !== 'ENOENT') throw error;
-		return repositoryRevision(repositoryRoot);
-	}
 }

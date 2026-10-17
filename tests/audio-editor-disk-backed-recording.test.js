@@ -138,6 +138,9 @@ test('many individually small sources share one global byte-bounded AudioBuffer 
 		}
 
 		const snapshot = controller.getSnapshot();
+		// Imports publish the document before the queued playback-source preparation settles.
+		await settleController();
+		assert.deepEqual(engine.project.sources.map((source) => source.id), snapshot.project.sources.map((source) => source.id));
 		const visuals = snapshot.project.clips.map((clip) => controller.getClipVisualData(clip.id));
 		const retainedBytes = visuals.reduce((total, visual) => (
 			total + (visual.buffer?.length || 0) * (visual.buffer?.numberOfChannels || 0) * Float32Array.BYTES_PER_ELEMENT

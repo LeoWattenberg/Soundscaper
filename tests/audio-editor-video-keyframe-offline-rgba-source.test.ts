@@ -6,7 +6,7 @@ import test from 'node:test';
 import {
 	VideoKeyframeOfflineSourceCache,
 	type VideoKeyframeOfflineSourcePresentation,
-} from '../src/common/editor/ui/video-keyframe-offline-rgba-source.ts';
+} from '../src/common/editor/video-keyframe-offline-rgba-source.ts';
 
 test('offline source cache reuses one exact lifecycle and disposes it once', async () => {
 	const fixture = presentation();

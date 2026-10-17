@@ -207,6 +207,17 @@
 			"evidence": ["package-lock.json", "THIRD_PARTY_LICENSES.md"]
 		},
 		{
+			"lockPath": "node_modules/@webgpu/types",
+			"name": "@webgpu/types",
+			"version": "0.1.21",
+			"license": "BSD-3-Clause",
+			"direct": false,
+			"role": "transitive-types-only",
+			"artifactSurfaces": [],
+			"noticeMarker": "`@webgpu/types` 0.1.21",
+			"evidence": ["package-lock.json", "THIRD_PARTY_LICENSES.md"]
+		},
+		{
 			"lockPath": "node_modules/@zip.js/zip.js",
 			"name": "@zip.js/zip.js",
 			"version": "2.8.33",
@@ -216,6 +227,17 @@
 			"artifactSurfaces": ["web-pages-bundle", "electron-renderer"],
 			"noticeMarker": "`@zip.js/zip.js` 2.8.33",
 			"evidence": ["package-lock.json", "THIRD_PARTY_LICENSES.md"]
+		},
+		{
+			"lockPath": "node_modules/canvaskit-wasm",
+			"name": "canvaskit-wasm",
+			"version": "0.42.0",
+			"license": "BSD-3-Clause",
+			"direct": true,
+			"role": "motion-rasterization-runtime",
+			"artifactSurfaces": ["web-pages-bundle", "electron-renderer"],
+			"noticeMarker": "`canvaskit-wasm` 0.42.0",
+			"evidence": ["package-lock.json", "THIRD_PARTY_LICENSES.md", "LICENSES/canvaskit-wasm.txt", "config/motionscaper-raster-runtime.json", "scripts/audit-motionscaper-raster-runtime.mjs"]
 		},
 		{
 			"lockPath": "node_modules/fflate",

@@ -16,7 +16,6 @@ import {
 import {
 	PROJECT_SCHEMA_VERSION,
 	readProjectSchemaIdentity,
-	type ProjectSchemaFamily,
 } from '../project-schema-identity.ts';
 
 export type { AssistanceOperation } from './operation.ts';
@@ -34,7 +33,7 @@ const MAX_ASSISTANCE_ASSETS = 1024;
 
 export interface AssistanceSelectionFence {
 	readonly projectId: string;
-	readonly schemaFamily: ProjectSchemaFamily;
+	readonly schemaFamily: 'soundscaper' | 'framescaper';
 	readonly schemaVersion: typeof PROJECT_SCHEMA_VERSION;
 	readonly revision: number;
 	readonly sequenceId: string;
@@ -275,8 +274,11 @@ export function sameAssistanceSelectionFence(
 function currentProjectIdentity(
 	value: unknown,
 	label: string,
-): Readonly<{ schemaFamily: ProjectSchemaFamily; schemaVersion: typeof PROJECT_SCHEMA_VERSION }> {
+): Readonly<{ schemaFamily: AssistanceSelectionFence['schemaFamily']; schemaVersion: typeof PROJECT_SCHEMA_VERSION }> {
 	const identity = readProjectSchemaIdentity(value);
+	if (identity.schemaFamily !== 'soundscaper' && identity.schemaFamily !== 'framescaper') {
+		throw new RangeError(`The ${label} belongs to an unsupported assistance project family.`);
+	}
 	if (identity.schemaVersion !== PROJECT_SCHEMA_VERSION) {
 		throw new RangeError(`The ${label} must bind the current project schema version.`);
 	}

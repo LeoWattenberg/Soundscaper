@@ -36,7 +36,7 @@ export interface DesktopNightlyProductCoverageWebAssembly extends DesktopNightly
 export interface DesktopNightlyProductCoverageEvidence {
 	readonly schemaVersion: 4;
 	readonly kind: 'soundscaper-e2e-product-build-evidence';
-	readonly productId: 'soundscaper' | 'framescaper';
+	readonly productId: 'soundscaper' | 'framescaper' | 'motionscaper';
 	readonly sourceRevision: string;
 	readonly packageArchive: Omit<DesktopNightlyProductCoverageFile, 'artifactPath'>;
 	readonly executableResources: DesktopNightlyProductCoverageResourceIdentity;

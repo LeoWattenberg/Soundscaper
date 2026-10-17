@@ -28,7 +28,8 @@ import { SCAPE_MIME_TYPE } from '../src/common/editor/scape-project-format.ts';
 import { WORKSPACE_IMPORT_FILE_ACCEPT } from '../src/common/editor/ui/workspace/workspace-file-routing.js';
 import { ACCEPTED_PROJECT_FILE_EXTENSIONS } from '../src/common/project-file-extensions.ts';
 
-const INSTALLED_PRODUCTS = Object.freeze(['soundscaper', 'framescaper']);
+const INSTALLED_PRODUCTS = Object.freeze(['soundscaper', 'framescaper', 'motionscaper']);
+const MEDIA_HANDLER_PRODUCTS = Object.freeze(['soundscaper', 'framescaper']);
 
 /** Every member a product manifest emits, in the order it emits them. */
 const MANIFEST_FIELDS = Object.freeze([
@@ -78,6 +79,7 @@ test('offline shell generation inventories exact route URLs and emits installabl
 		'/',
 		'/assets/application-abc.js',
 		'/assets/framescaper-core.js',
+		'/assets/motionscaper-core.js',
 		'/assets/optional-dialog.js',
 		'/assets/output-worklet.js',
 		'/assets/shared.js',
@@ -101,6 +103,7 @@ test('offline shell generation inventories exact route URLs and emits installabl
 		['/assets/application-abc.js', '/assets/shared.js', '/assets/soundscaper-core.js'],
 	);
 	assert.equal(soundWorker.installUrls.includes('/logo/framescaper.svg'), true);
+	assert.equal(soundWorker.installUrls.includes('/logo/motionscaper.svg'), true);
 	assert.equal(soundWorker.installUrls.includes('/assets/optional-dialog.js'), false);
 	for (const optionalAsset of [
 		'/assets/core-font.woff2',
@@ -222,10 +225,15 @@ test('generation rejects an install-core descriptor above the in-flight byte cei
 	);
 });
 
-test('both installed products declare the same operating-system integration fields', async (context) => {
+test('installed products declare only their maintained operating-system integration fields', async (context) => {
 	for (const productId of INSTALLED_PRODUCTS) {
 		const { manifest } = await productShell(context, productId);
-		assert.deepEqual(Object.keys(manifest), [...MANIFEST_FIELDS], productId);
+		const fields = productId === 'motionscaper' ? MANIFEST_FIELDS.filter((field) => field !== 'share_target') : MANIFEST_FIELDS;
+		assert.deepEqual(Object.keys(manifest), [...fields], productId);
+		if (productId === 'motionscaper') {
+			assert.equal(manifest.file_handlers.length, 1, 'Motion opens projects through the reviewed File workflow');
+			assert.deepEqual(manifest.screenshots, [], 'Motion does not advertise screenshots of another editor');
+		}
 		assert.equal(manifest.display, 'standalone', productId);
 		assert.deepEqual(manifest.display_override, ['window-controls-overlay', 'standalone'], productId);
 		assert.equal(manifest.orientation, 'any', productId);
@@ -258,7 +266,7 @@ test('the project file handler accepts exactly the archive suffixes every produc
 test('each product handles the media it edits, taken from the suffixes its import picker offers', async (context) => {
 	const advertised = WORKSPACE_IMPORT_FILE_ACCEPT.split(',');
 	const edited = { soundscaper: ['audio'], framescaper: ['audio', 'video'] };
-	for (const productId of INSTALLED_PRODUCTS) {
+	for (const productId of MEDIA_HANDLER_PRODUCTS) {
 		const { manifest } = await productShell(context, productId);
 		const media = manifest.file_handlers.at(-1);
 		assert.deepEqual(
@@ -285,7 +293,7 @@ test('each product handles the media it edits, taken from the suffixes its impor
 });
 
 test('the share target takes exactly the media its file handler opens, at a path in scope', async (context) => {
-	for (const productId of INSTALLED_PRODUCTS) {
+	for (const productId of MEDIA_HANDLER_PRODUCTS) {
 		const { manifest } = await productShell(context, productId);
 		const share = manifest.share_target;
 		// A share carries files, and only a multipart POST can carry them.
@@ -372,13 +380,13 @@ test('a maskable icon pads its artwork into the middle 80% over an opaque plate'
 	}
 });
 
-test('the maskable artwork of both product marks stays inside the safe circle', async () => {
+test('the maskable artwork of every product mark stays inside the safe circle', async () => {
 	// Android crops a maskable icon into whatever shape a launcher draws, and the
 	// one region every shape keeps is the circle whose diameter is 80% of the
 	// icon. Padding the artwork by the production safe zone puts it there, and
 	// this measures the result rather than trusting the geometry.
 	const size = 512;
-	for (const source of ['public/logo/soundscaper.svg', 'public/logo/framescaper.svg']) {
+	for (const source of INSTALLED_PRODUCTS.map((productId) => `public/logo/${productId}.svg`)) {
 		const svg = createSquareOfflineIconSvg(await readFile(source, 'utf8'), size, source, { safeZone: MASKABLE_ICON_SAFE_ZONE });
 		const { pixels } = new Resvg(svg, {
 			fitTo: { mode: 'width', value: size },
@@ -399,13 +407,14 @@ test('the maskable artwork of both product marks stays inside the safe circle', 
 
 test('a single-product build retains peer navigation marks while dropping peer install icons', async (context) => {
 	const outputRoot = await shellFixture(context);
-	const stale = ['framescaper-192', 'framescaper-maskable-192', 'framescaper-maskable-512'];
+	const stale = ['framescaper', 'motionscaper'].flatMap((productId) => ['180', '192', '512', 'maskable-192', 'maskable-512'].map((icon) => `${productId}-${icon}`));
 	for (const name of stale) await fixtureFile(outputRoot, `offline-icons/${name}.png`, 'stale');
 	await generateOfflineApplicationShell({ outputRoot, repositoryRoot: resolve('.') });
 	for (const name of stale) {
 		assert.equal(await readFile(join(outputRoot, `offline-icons/${name}.png`)).catch(() => null), null, name);
 	}
 	assert.equal(await readFile(join(outputRoot, 'logo/framescaper.svg'), 'utf8'), '<svg viewBox="0 0 1 1" />');
+	assert.equal(await readFile(join(outputRoot, 'logo/motionscaper.svg'), 'utf8'), '<svg viewBox="0 0 1 1" />');
 
 	const routing = webBuildRouting({ SCAPE_PRODUCT: 'soundscaper' });
 	const assetPath = '/assets/site-entry-AbCd1234.js';
@@ -456,6 +465,7 @@ async function shellFixture(context, routes = ['en', 'embed/en']) {
 		fixtureFile(outputRoot, 'assets/runtime-codec.wasm', 'wasm'),
 		fixtureFile(outputRoot, 'assets/soundscaper-core.js', 'export const soundscaper = 1;'),
 		fixtureFile(outputRoot, 'assets/framescaper-core.js', 'export const framescaper = 1;'),
+		fixtureFile(outputRoot, 'assets/motionscaper-core.js', 'export const motionscaper = 1;'),
 		fixtureFile(outputRoot, 'assets/optional-dialog.js', 'export const optional = 1;'),
 		fixtureFile(outputRoot, 'assets/application-abc.js.map', '{}'),
 		...['soundscaper', 'framescaper'].flatMap((productId) => ['wide', 'narrow'].map((formFactor) => (
@@ -464,6 +474,7 @@ async function shellFixture(context, routes = ['en', 'embed/en']) {
 		fixtureFile(outputRoot, 'logo/framescaper.svg', '<svg viewBox="0 0 1 1" />'),
 		fixtureFile(outputRoot, 'logo/soundscaper.svg', '<svg viewBox="0 0 1 1" />'),
 		fixtureFile(outputRoot, 'logo/mindscaper.svg', '<svg viewBox="0 0 1 1" />'),
+		fixtureFile(outputRoot, 'logo/motionscaper.svg', '<svg viewBox="0 0 1 1" />'),
 		fixtureFile(outputRoot, '_headers', 'test headers'),
 		fixtureFile(outputRoot, STARTUP_GRAPH_REPORT_FILE, '{"product":"soundscaper","graphs":{}}'),
 		fixtureFile(outputRoot, '.offline-build-manifest.json', JSON.stringify({
@@ -474,6 +485,7 @@ async function shellFixture(context, routes = ['en', 'embed/en']) {
 				dynamicImports: [
 					'src/soundscaper/ui/SoundscaperAudioEditorBootstrap.tsx',
 					'src/framescaper/ui/FramescaperAudioEditorBootstrap.tsx',
+					'src/motionscaper/MotionscaperBootstrap.tsx',
 				],
 			},
 			'_shared.js': {
@@ -492,6 +504,9 @@ async function shellFixture(context, routes = ['en', 'embed/en']) {
 			},
 			'src/framescaper/ui/FramescaperAudioEditorBootstrap.tsx': {
 				file: 'assets/framescaper-core.js', imports: ['_shared.js'], isDynamicEntry: true,
+			},
+			'src/motionscaper/MotionscaperBootstrap.tsx': {
+				file: 'assets/motionscaper-core.js', imports: ['_shared.js'], isDynamicEntry: true,
 			},
 			'_optional.js': { file: 'assets/optional-dialog.js', isDynamicEntry: true },
 		})),

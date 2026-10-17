@@ -52,6 +52,16 @@
 			"reason": "Soundscaper's own tree: thin product wiring over the shared editor, so its floor is set by what that wiring actually exercises."
 		},
 		{
+			"id": "motionscaper",
+			"label": "Motionscaper",
+			"thresholds": {
+				"lines": 0,
+				"branches": 0,
+				"functions": 0
+			},
+			"reason": "Temporary unmeasured admission for Motionscaper's newly owned production tree. Zero is not release evidence or a measured floor: collect the complete Node and browser shard union, then ratchet this scope with npm run coverage:tighten before claiming the first-release M12 gate complete. Existing product and shared floors remain unchanged."
+		},
+		{
 			"id": "common-transfer",
 			"label": "Common transfer",
 			"thresholds": {

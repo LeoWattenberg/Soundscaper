@@ -9,7 +9,7 @@ import {
 import type {
 	VideoKeyframeOfflineSourcePresentation,
 	VideoKeyframeOfflineSourceResolver,
-} from './video-keyframe-offline-rgba-source.ts';
+} from '../video-keyframe-offline-rgba-source.ts';
 import {
 	admitVideoKeyframeOfflineHtmlVideoSourceAssets,
 	bindVideoKeyframeOfflineHtmlVideoEntry,

@@ -1,4 +1,4 @@
-import { normalizeProductId } from '../products.js';
+import { normalizeProductId } from '../product-identities.js';
 
 /**
  * The handbook's public base URL.
@@ -14,12 +14,13 @@ const DOCUMENTATION_BASE_PATH = '/docs';
 const DOCUMENTATION_ORIGINS = Object.freeze({
 	soundscaper: 'https://soundscaper.org',
 	framescaper: 'https://framescaper.org',
+	motionscaper: 'https://motionscaper.org',
 });
 type DocumentationProductId = keyof typeof DOCUMENTATION_ORIGINS;
 
 function normalizeDocumentationProductId(productId: string): DocumentationProductId {
 	const normalized = normalizeProductId(productId);
-	if (normalized === 'soundscaper' || normalized === 'framescaper') return normalized;
+	if (normalized === 'soundscaper' || normalized === 'framescaper' || normalized === 'motionscaper') return normalized;
 	throw new RangeError(`Unsupported documentation product: ${normalized}.`);
 }
 
@@ -56,7 +57,8 @@ const DOCUMENTATION_DESTINATION_PATHS = Object.freeze({
 		manual: '',
 		tutorials: 'first-project/',
 	}),
-} satisfies Record<'soundscaper' | 'framescaper', Record<DocumentationDestination, string>>);
+	motionscaper: Object.freeze({ manual: '', tutorials: 'first-project/' }),
+} satisfies Record<DocumentationProductId, Record<DocumentationDestination, string>>);
 
 /**
  * The handbook's path segment for a reader's language, or nothing for the
@@ -85,7 +87,7 @@ export function documentationUrl(
 
 /** Names a fixed desktop destination without passing a renderer URL to the host. */
 export function desktopDocumentationDestination(url: string): string | null {
-	for (const productId of ['soundscaper', 'framescaper']) {
+	for (const productId of Object.keys(DOCUMENTATION_ORIGINS)) {
 		for (const destination of ['manual', 'tutorials'] as const) {
 			for (const locale of ['', ...HANDBOOK_LANGUAGES]) {
 				if (url === documentationUrl(productId, destination, locale)) {

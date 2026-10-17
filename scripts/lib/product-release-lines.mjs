@@ -6,12 +6,12 @@ import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 
 const readFileAsync = promisify(readFile);
-const PRODUCT_IDS = Object.freeze(['soundscaper', 'framescaper']);
+const PRODUCT_IDS = Object.freeze(['soundscaper', 'framescaper', 'motionscaper']);
 const CHANNELS = Object.freeze(['candidate', 'stable']);
 const VERSION_CORE = String.raw`(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)`;
 const PRERELEASE_IDENTIFIER = String.raw`(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*)`;
 const SEMVER = new RegExp(
-	String.raw`^${VERSION_CORE}(?:-(?:beta|rc)\.${PRERELEASE_IDENTIFIER}(?:\.${PRERELEASE_IDENTIFIER})*)?$`, 'u',
+	String.raw`^${VERSION_CORE}(?:-(?:alpha|beta|rc)\.${PRERELEASE_IDENTIFIER}(?:\.${PRERELEASE_IDENTIFIER})*)?$`, 'u',
 );
 const STABLE_SEMVER = new RegExp(`^${VERSION_CORE}$`, 'u');
 const CONFIG_PATH = resolve(
@@ -126,12 +126,12 @@ function validateChannel(value, productId, channel) {
 	if (!SEMVER.test(row.version) || (channel === 'stable' && !STABLE_SEMVER.test(row.version))) {
 		throw new Error(`${productId} ${channel} release version is invalid.`);
 	}
-	if (typeof row.tagPrefix !== 'string' || !/^(?:v|(?:soundscaper|framescaper)-v)$/u.test(row.tagPrefix)) {
+	if (typeof row.tagPrefix !== 'string' || !/^(?:v|(?:soundscaper|framescaper|motionscaper)-v)$/u.test(row.tagPrefix)) {
 		throw new Error(`${productId} ${channel} release tag prefix is invalid.`);
 	}
 	if ((productId === 'soundscaper' && channel === 'stable' && row.tagPrefix !== 'v')
 		|| (channel === 'candidate' && row.tagPrefix !== `${productId}-v`)
-		|| (productId === 'framescaper' && row.tagPrefix !== 'framescaper-v')) {
+		|| (productId !== 'soundscaper' && row.tagPrefix !== `${productId}-v`)) {
 		throw new Error(`${productId} ${channel} release tag ownership is invalid.`);
 	}
 	return { ...row };

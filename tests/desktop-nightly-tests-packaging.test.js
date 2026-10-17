@@ -203,7 +203,7 @@ test('manual nightly-with-tests target selection preserves all targets and selec
 	assert.throws(() => selectDesktopNightlyTestTargets('linux'), /target selection/u);
 });
 
-test('desktop test artifacts build on main pushes and manual target selections without running CI tests', async () => {
+test('desktop test artifacts validate packaged runtimes without rerunning the shared CI suites', async () => {
 	const workflow = await readFile(resolve(ROOT, '.github/workflows/desktop-nightly-tests.yml'), 'utf8');
 	assert.match(workflow, /^ {2}push:\s+branches:\s+- main$/mu);
 	assert.match(workflow, /workflow_dispatch:\s+inputs:\s+nightly_tests_targets:/u);
@@ -214,9 +214,9 @@ test('desktop test artifacts build on main pushes and manual target selections w
 	for (const shared of ['quality', 'tests', 'coverage', 'browser', 'firefox']) {
 		assert.doesNotMatch(workflow, new RegExp(`^  ${shared}:`, 'mu'), `${shared} must not run before packaging`);
 	}
-	assert.doesNotMatch(workflow, /\b(?:npm run (?:check:static|test:|coverage:)|node --import tsx[^\n]* --test|npx playwright test|xvfb-run)\b/u);
+	assert.doesNotMatch(workflow, /\b(?:npm run (?:check:static|test:|coverage:)|node --import tsx[^\n]* --test|npx playwright test)\b/u);
 	const targetsStart = workflow.indexOf('\n  nightly-test-targets:');
-	const targetsEnd = workflow.indexOf('\n  package-with-tests:', targetsStart);
+	const targetsEnd = workflow.indexOf('\n  motionscaper-native-build:', targetsStart);
 	assert.ok(targetsStart >= 0 && targetsEnd > targetsStart);
 	const targetsJob = workflow.slice(targetsStart, targetsEnd);
 	assert.match(targetsJob, /if: github\.ref == 'refs\/heads\/main'/u);
@@ -233,8 +233,10 @@ test('desktop test artifacts build on main pushes and manual target selections w
 	assert.ok(testGuard.startsWith('if: >-'));
 	assert.doesNotMatch(testGuard, /github\.event_name|workflow_run/u);
 	assert.doesNotMatch(testGuard, /inputs\.artifact_variant/u);
-	assert.match(testJob, /needs: \[nightly-test-targets, browser-sites\]/u);
+	assert.match(testJob, /needs: \[nightly-test-targets, motionscaper-native-build, browser-sites\]/u);
 	assert.match(testGuard, /needs\.nightly-test-targets\.result == 'success'/u);
+	assert.match(testGuard, /needs\.motionscaper-native-build\.result == 'success'/u);
+	assert.match(workflow, /motionscaper-native-build:\s+needs: nightly-test-targets\s+uses: \.\/\.github\/workflows\/motionscaper-media-host-native-build\.yml/u);
 	// The package still names the selected commit while reusing an older runtime handoff.
 	const sourceRevision = String.raw`\$\{\{ github\.sha \}\}`;
 	assert.doesNotMatch(workflow, /^ {2}verify-assistance-runtime-handoff:|npm run desktop:publish:assistance-runtimes|R2_MODELS_/mu);
@@ -242,7 +244,8 @@ test('desktop test artifacts build on main pushes and manual target selections w
 	assert.match(testJob, new RegExp(`ref: ${sourceRevision}`, 'u'));
 	assert.match(testJob, new RegExp(
 		String.raw`- name: Package the product runtimes exercised by nightly-with-tests\s+run: node scripts/desktop-nightly-tests-products\.mjs`
-		+ String.raw`\s+env:\s+SOUNDSCAPER_DESKTOP_TARGET_PLATFORM: \$\{\{ matrix\.target\.platform \}\}`
+		+ String.raw`\s+env:\s+MOTIONSCAPER_NATIVE_BUILD_RESULT: \$\{\{ runner\.temp \}\}/motionscaper-native-build-result`
+		+ String.raw`\s+SOUNDSCAPER_DESKTOP_TARGET_PLATFORM: \$\{\{ matrix\.target\.platform \}\}`
 		+ String.raw`\s+SOUNDSCAPER_DESKTOP_TARGET_ARCH: \$\{\{ matrix\.target\.arch \}\}`
 		+ String.raw`\s+SOUNDSCAPER_SOURCE_REVISION: ` + sourceRevision,
 		'u',
@@ -265,6 +268,7 @@ test('desktop test artifacts build on main pushes and manual target selections w
 	assert.ok(browserStart > targetsStart && browserStart < testStart);
 	const browserJob = workflow.slice(browserStart, testStart);
 	assert.match(browserJob, /npm run build:browser:framescaper/u);
+	assert.match(browserJob, /npm run build:browser:motionscaper/u);
 	assert.match(browserJob, /npm run prepare:browser:products/u);
 	assert.match(browserJob, /npm run pretest:browser:dual-origin/u);
 	assert.ok(
@@ -289,7 +293,16 @@ test('desktop test artifacts build on main pushes and manual target selections w
 	assert.doesNotMatch(testJob, /Run packaged Soundscaper audio-device browser gate|packaged-audio-device-browser-diagnostics/u);
 	assert.match(testJob, /npx playwright install --no-shell chromium firefox webkit/u);
 	assert.doesNotMatch(testJob, /playwright install --only-shell/u);
-	assert.doesNotMatch(testJob, /qualification|admission|readiness signature/iu);
+	assert.doesNotMatch(testJob, /admission|readiness signature/iu);
+	assert.deepEqual([...testJob.matchAll(/^\s+run: (.*motionscaper-desktop-smoke\.mjs.*)$/gmu)].map((match) => match[1]), [
+		'xvfb-run -a node scripts/motionscaper-desktop-smoke.mjs --require-native-prores',
+		'node scripts/motionscaper-desktop-smoke.mjs --require-native-prores',
+	]);
+	assert.match(testJob, /if: runner\.os == 'Linux'\s+uses: \.\/\.github\/actions\/motionscaper-linux-qualification/u);
+	assert.match(testJob, /native-result: \$\{\{ runner\.temp \}\}\/motionscaper-native-build-result/u);
+	assert.match(testJob, /motion-package: \$\{\{ github\.workspace \}\}\/release\/desktop-nightly-products\/motionscaper\//u);
+	assert.ok(testJob.indexOf('node scripts/desktop-nightly-tests-products.mjs') < testJob.indexOf('node scripts/motionscaper-desktop-smoke.mjs'));
+	assert.ok(testJob.indexOf('./.github/actions/motionscaper-linux-qualification') < testJob.indexOf('node scripts/desktop-nightly-tests-prepare.mjs'));
 	assert.match(
 		testJob,
 		/ci-electron-builder\.sh[\s\\]*--config electron-builder\.nightly-tests\.config\.cjs/u,

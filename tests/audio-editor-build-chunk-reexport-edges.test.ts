@@ -62,6 +62,19 @@ test('a declaration that opens with export never reaches a later statement for i
 	);
 });
 
+test('an external import never consumes a later type-only relative import', () => {
+	assert.deepEqual(staticRelativeImports([
+		"import { useEffect, useRef } from 'react';",
+		"import type { Plan } from './plan.ts';",
+		"import Default, { type Shape, makeShape } from './shape.ts';",
+		"import External from 'external-package'",
+		"import type { OtherPlan } from './other-plan.ts'",
+		"import * as helpers from './helpers.ts'",
+		"import Named from './named.ts';",
+		"import {\n type OnlyType,\n} from './only-type.ts';",
+	].join('\n')), ['./shape.ts', './helpers.ts', './named.ts']);
+});
+
 test('the guard reads a barrel as imports followed by re-exports', () => {
 	const source = [
 		"import { local } from './local.ts';",

@@ -10,7 +10,7 @@ import type {
 import type {
 	VideoKeyframeOfflineSourcePresentation,
 	VideoKeyframeOfflineSourceResolver,
-} from './video-keyframe-offline-rgba-source.ts';
+} from '../video-keyframe-offline-rgba-source.ts';
 
 const HEADER_BYTES = 59;
 const FRAME_HEADER_BYTES = 32;

@@ -1,0 +1,138 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+/* Generated from strict TypeScript by scripts/build-motionscaper-ae-bridge.mjs. */
+var MotionAeHostProperty = (function () {
+var sampleMotionAeNumericProperty = MotionAeHostSampling.sampleMotionAeNumericProperty;
+"use strict";
+/* SPDX-License-Identifier: AGPL-3.0-only */
+var __assign = (this && this.__assign) || function () {
+    __assign = Object.assign || function(t) {
+        for (var s, i = 1, n = arguments.length; i < n; i++) {
+            s = arguments[i];
+            for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p))
+                t[p] = s[p];
+        }
+        return t;
+    };
+    return __assign.apply(this, arguments);
+};
+/** Reads authored values only. Enabled expressions remain inert, unsupported custody until an explicit sampling operation. */
+function readMotionAeHostProperty(property, host, layerId, path, report, budget, depth) {
+    var _a, _b, _c;
+    if (depth === void 0) { depth = 0; }
+    host.checkCancelled();
+    if (++budget.properties > 65536 || depth > 16)
+        throw new Error('AE bridge property budget exceeded.');
+    var name = property.name, matchName = property.matchName, kind = host.kind(property);
+    if (kind === 'group') {
+        var count_1 = (_a = property.numProperties) !== null && _a !== void 0 ? _a : 0;
+        if (count_1 > 65536)
+            throw new Error('AE bridge property budget exceeded.');
+        var children = [];
+        for (var index = 1; index <= count_1; index++) {
+            var child = property.property(index);
+            children.push(readMotionAeHostProperty(child, host, layerId, path + '/' + String(index - 1) + ':' + child.matchName, report, budget, depth + 1));
+        }
+        if (matchName === 'ADBE Mask Atom' && host.mask)
+            return { kind: kind, name: name, matchName: matchName, children: children, mask: host.mask(property) };
+        if (matchName.indexOf('ADBE Vector ') === 0 || matchName === 'ADBE Gaussian Blur 2') {
+            var style = matchName.indexOf('ADBE Vector ') === 0 ? (_b = host.vector) === null || _b === void 0 ? void 0 : _b.call(host, property) : undefined;
+            return __assign(__assign({ kind: kind, name: name, matchName: matchName, children: children }, (property.canSetEnabled === true && typeof property.enabled === 'boolean' ? { enabled: property.enabled } : {})), (style ? { vectorStyle: style } : {}));
+        }
+        return { kind: kind, name: name, matchName: matchName, children: children };
+    }
+    function unsupported(reason) {
+        report.push({ scopeId: layerId, propertyPath: path, status: 'unsupported', code: 'property', message: reason });
+        return { kind: 'unsupported', name: name, matchName: matchName, reason: reason };
+    }
+    if (kind === 'unsupported')
+        return unsupported('This AE property value needs an explicit mapping or an AE-rendered composition.');
+    var count = (_c = property.numKeys) !== null && _c !== void 0 ? _c : 0;
+    budget.keys += count;
+    if (count > 4096 || budget.keys > 262144)
+        throw new Error('AE bridge key budget exceeded.');
+    var expression = null;
+    if (property.expression) {
+        expression = { source: property.expression, enabled: property.expressionEnabled === true, disposition: 'unsupported' };
+        if (expression.enabled)
+            report.push({ scopeId: layerId, propertyPath: path, status: 'unsupported', code: 'expression', message: 'Expression source is preserved without execution. Sample it explicitly or render the composition in After Effects.' });
+    }
+    var spatial = property.isSpatial === true;
+    function readKeys(read) {
+        var keys = [];
+        for (var index = 1; index <= count; index++) {
+            host.checkCancelled();
+            keys.push({ time: property.keyTime(index), value: read(property.keyValue(index)), inInterpolation: host.interpolation(property.keyInInterpolationType(index)),
+                outInterpolation: host.interpolation(property.keyOutInterpolationType(index)), inEase: copyEase(property.keyInTemporalEase(index)), outEase: copyEase(property.keyOutTemporalEase(index)),
+                inSpatialTangent: spatial ? copyNumbers(property.keyInSpatialTangent(index)) : null, outSpatialTangent: spatial ? copyNumbers(property.keyOutSpatialTangent(index)) : null,
+                roving: spatial && property.keyRoving(index) });
+        }
+        return keys;
+    }
+    var base = property.valueAtTime(0, true);
+    if (kind === 'numeric') {
+        var authored = { kind: kind, name: name, matchName: matchName, value: copyNumbers(base), spatial: spatial, keys: readKeys(copyNumbers), expression: expression };
+        if (host.sampling && (count > 0 || (expression === null || expression === void 0 ? void 0 : expression.enabled))) {
+            try {
+                return sampleMotionAeNumericProperty(authored, property, host.sampling, host.checkCancelled, layerId, path, report, budget);
+            }
+            catch (error) {
+                if (String(error).indexOf('budget') >= 0)
+                    throw error;
+                host.checkCancelled();
+                report.push({ scopeId: layerId, propertyPath: path, status: 'unsupported', code: 'sampling-failed', message: 'AE sampling failed; original authored data is retained: ' + String(error) });
+            }
+        }
+        return authored;
+    }
+    if (kind === 'shape')
+        return { kind: kind, name: name, matchName: matchName, value: copyShape(base), keys: readKeys(copyShape), expression: expression };
+    return { kind: kind, name: name, matchName: matchName, value: host.text(base), keys: readKeys(host.text), expression: expression };
+}
+function copyNumbers(value) {
+    if (typeof value === 'number')
+        return [value];
+    if (Object.prototype.toString.call(value) !== '[object Array]')
+        throw new Error('AE numeric property did not return a numeric value.');
+    var source = value, result = [];
+    if (source.length < 1 || source.length > 4)
+        throw new Error('AE numeric dimension is unsupported.');
+    for (var index = 0; index < source.length; index++) {
+        if (typeof source[index] !== 'number' || !isFinite(source[index]))
+            throw new Error('AE numeric property is not finite.');
+        result.push(source[index]);
+    }
+    return result;
+}
+function copyEase(source) {
+    var result = [];
+    for (var index = 0; index < source.length; index++)
+        result.push({ speed: source[index].speed, influence: source[index].influence });
+    return result;
+}
+function copyShape(input) {
+    var source = input;
+    if (!source || !source.vertices || source.vertices.length > 4096)
+        throw new Error('AE shape vertex budget exceeded.');
+    function points(values) {
+        var result = [];
+        for (var index = 0; index < values.length; index++)
+            result.push([values[index][0], values[index][1]]);
+        return result;
+    }
+    var shape = { closed: source.closed, vertices: points(source.vertices), inTangents: points(source.inTangents), outTangents: points(source.outTangents) };
+    if (source.featherSegLocs && source.featherSegLocs.length) {
+        var count_2 = source.featherSegLocs.length;
+        if (count_2 > 4096)
+            throw new Error('AE shape feather budget exceeded.');
+        var copy = function (values) { if (values.length !== count_2)
+            throw new Error('AE shape feather dimensions differ.'); var result = []; for (var i = 0; i < count_2; i++)
+            result.push(values[i]); return result; };
+        return { closed: shape.closed, vertices: shape.vertices, inTangents: shape.inTangents, outTangents: shape.outTangents,
+            feather: { segmentLocations: copy(source.featherSegLocs), relativeLocations: copy(source.featherRelSegLocs), radii: copy(source.featherRadii),
+                interpolations: copy(source.featherInterps), tensions: copy(source.featherTensions), types: copy(source.featherTypes), cornerAngles: copy(source.featherRelCornerAngles) } };
+    }
+    return shape;
+}
+
+return { readMotionAeHostProperty: readMotionAeHostProperty };
+}());

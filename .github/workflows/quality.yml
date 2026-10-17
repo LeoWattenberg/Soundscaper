@@ -5,6 +5,7 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+  workflow_call:
 
 permissions:
   contents: read
@@ -88,6 +89,8 @@ jobs:
       - name: Build and verify the Framescaper browser site
         run: npm run build:browser:framescaper
 
+      - name: Build and verify the Motionscaper browser site
+        run: npm run build:browser:motionscaper
       - name: Record the checked Soundscaper handbook
         run: node scripts/ci-handbook-build.mjs record
 
@@ -119,6 +122,15 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
+      - name: Upload the verified Motionscaper website build
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: verified-motionscaper-site-build
+          path: .wrangler/browser-products/motionscaper/
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 1
+
       - name: Upload the website build's source maps
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -135,6 +147,13 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
+      - name: Upload the Motionscaper website build's source maps
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: verified-motionscaper-site-source-maps
+          path: .wrangler/browser-products/motionscaper-source-maps/
+          if-no-files-found: error
+          retention-days: 1
       - name: Prepare one fresh desktop test runtime for the common shards
         uses: ./.github/actions/prepare-desktop-runtime-test-fixture
 
@@ -291,8 +310,8 @@ jobs:
       - name: Check the architecture rules
         run: npm run check:architecture
         env:
-          CONTROLLER_DOMAIN_BASE_REVISION: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event_name == 'push' && github.event.before || github.sha }}
-          MAINTAINABILITY_BASE_REVISION: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event_name == 'push' && github.event.before || github.sha }}
+          CONTROLLER_DOMAIN_BASE_REVISION: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event_name == 'push' && github.ref_type == 'branch' && github.event.before || github.sha }}
+          MAINTAINABILITY_BASE_REVISION: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event_name == 'push' && github.ref_type == 'branch' && github.event.before || github.sha }}
 
       - name: Audit the pinned third-party payloads
         run: npm run audit:ci
@@ -392,9 +411,9 @@ jobs:
       # Product ownership still separates Framescaper and Soundscaper tests.
       # The shared tests run in two stable filename-hash partitions, so a
       # four-core runner no longer carries the whole shared suite by itself.
-      # Coverage is checked only after all four shards upload their profiles.
+      # Coverage is checked only after all five shards upload their profiles.
       matrix:
-        shard: [common-1, common-2, framescaper, soundscaper]
+        shard: [common-1, common-2, framescaper, soundscaper, motionscaper]
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
@@ -633,6 +652,12 @@ jobs:
           name: verified-framescaper-site-build
           path: .wrangler/browser-products/framescaper
 
+      - name: Download the verified Motionscaper website build
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: verified-motionscaper-site-build
+          path: .wrangler/browser-products/motionscaper
+
       # Beside each site rather than inside it: the sites are digest-verified
       # file by file, so nothing may be added within them. Every browser verifies
       # the source-map evidence before serving the site; Chromium additionally
@@ -648,6 +673,12 @@ jobs:
         with:
           name: verified-framescaper-site-source-maps
           path: .wrangler/browser-products/framescaper-source-maps
+
+      - name: Download the Motionscaper website build's source maps
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: verified-motionscaper-site-source-maps
+          path: .wrangler/browser-products/motionscaper-source-maps
 
       - name: Run browser workflows against the existing build
         run: npm run test:browser:built -- --project=${{ matrix.project }} --shard=${{ matrix.shard }}/${{ matrix.project == 'webkit' && 8 || 4 }} --workers=${{ matrix.project == 'webkit' && 1 || 2 }}
@@ -666,6 +697,12 @@ jobs:
       - name: Run the reciprocal-origin editable-copy workflow
         if: matrix.project == 'chromium' && matrix.shard == 1
         run: npm run test:browser:dual-origin
+
+      - name: Run saved composition links between real editors
+        if: matrix.project == 'chromium' && matrix.shard == 1
+        run: npm run test:browser:motion-links
+        env:
+          SCAPE_BROWSER_COVERAGE: '1'
 
       - name: Download the checked Soundscaper handbook
         if: matrix.project == 'chromium' && matrix.shard == 1
@@ -797,6 +834,12 @@ jobs:
           name: verified-framescaper-site-build
           path: .wrangler/browser-products/framescaper
 
+      - name: Download the verified Motionscaper website build
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: verified-motionscaper-site-build
+          path: .wrangler/browser-products/motionscaper
+
       - name: Download the website build's source maps
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
@@ -808,6 +851,12 @@ jobs:
         with:
           name: verified-framescaper-site-source-maps
           path: .wrangler/browser-products/framescaper-source-maps
+
+      - name: Download the Motionscaper website build's source maps
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: verified-motionscaper-site-source-maps
+          path: .wrangler/browser-products/motionscaper-source-maps
 
       - name: Run Firefox workflows against the existing build
         # A second Firefox content process can starve the live AudioContext even

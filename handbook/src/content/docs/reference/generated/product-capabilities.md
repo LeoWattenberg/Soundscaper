@@ -1,6 +1,6 @@
 ---
 title: "Product capabilities"
-description: "Soundscaper and Framescaper import, export, editing, and project capabilities."
+description: "Soundscaper, Framescaper and Motionscaper import, export, editing, and project capabilities."
 editUrl: false
 sidebar:
   order: 3
@@ -16,70 +16,78 @@ This page reflects the current product profiles. “Enabled” means that the pr
 | --- | --- | --- |
 | Soundscaper | .sscape, Audacity projects, Audio, Video, Labels | .sscape, AUP3 (audio-only), AUP4 (audio-only), Audio, Video, Labels, Audio stems |
 | Framescaper | .fscape, Audacity projects, Audio, Video, Labels | .fscape, Audio, Video, Labels |
+| Motionscaper | .mscape | .mscape |
 
 Families describe product entry points, not every file extension a decoder might accept. See [Export formats](/reference/generated/formats/) for concrete output formats and runtime conditions.
 
-## Editing and project capabilities
+## Motionscaper development workspace
 
-| Capability | Soundscaper | Framescaper |
-| --- | --- | --- |
-| Audio analysis | Enabled | Not enabled |
-| Audio automation | Enabled | Enabled |
-| Audio effects | Enabled | Not enabled |
-| Audio generators | Enabled | Not enabled |
-| Audio import | Enabled | Enabled |
-| Audio macros | Enabled | Not enabled |
-| Audio mixing | Enabled | Enabled |
-| Audio playback | Enabled | Enabled |
-| Audio recording | Enabled | Not enabled |
-| Audio routing and mixer graph | Enabled | Enabled |
-| Audio timeline editing | Enabled | Enabled |
-| Audio track freeze | Enabled | Not enabled |
-| Audio warping | Enabled | Not enabled |
-| Dissolve video transitions | Not enabled | Enabled |
-| Immersive ADM audio | Enabled | Not enabled |
-| Local assistance assets | Enabled | Enabled |
-| Mastering sequences | Enabled | Not enabled |
-| Multicamera editing | Not enabled | Enabled |
-| Musical timeline | Enabled | Not enabled |
-| Nested sequences | Not enabled | Enabled |
-| OpenFX effects | Not enabled | Enabled |
-| Project bin | Enabled | Enabled |
-| Projects | Enabled | Enabled |
-| Sample-level audio editing | Enabled | Not enabled |
-| Sequence timing | Enabled | Enabled |
-| Source characteristics | Enabled | Enabled |
-| Spectral audio editing | Enabled | Not enabled |
-| Take comping | Enabled | Not enabled |
-| Timeline annotations | Enabled | Enabled |
-| Timeline images | Not enabled | Enabled |
-| Track folders | Enabled | Not enabled |
-| Video adjustment layers | Not enabled | Enabled |
-| Video captions | Not enabled | Enabled |
-| Video color management | Not enabled | Enabled |
-| Video compositing | Not enabled | Enabled |
-| Video denoise | Not enabled | Enabled |
-| Video effects | Not enabled | Enabled |
-| Video export | Enabled | Enabled |
-| Video freeze | Not enabled | Enabled |
-| Video generators | Not enabled | Enabled |
-| Video geometry | Not enabled | Enabled |
-| Video grading | Not enabled | Enabled |
-| Video import | Enabled | Enabled |
-| Video keyframes | Not enabled | Enabled |
-| Video masks and mattes | Not enabled | Enabled |
-| Video motion tracking | Not enabled | Enabled |
-| Video playback | Enabled | Enabled |
-| Video retiming | Not enabled | Enabled |
-| Video stabilization | Not enabled | Enabled |
-| Video stills | Not enabled | Enabled |
-| Video timeline editing | Enabled | Enabled |
-| Video timing assets | Enabled | Enabled |
-| Video transitions | Not enabled | Enabled |
+Motionscaper develops a separate motion workspace reached through menus. It owns layered compositions, property animation, imported font and vector rendering, linear-SDR compositing, masks and mattes, tracking, bounded expressions, 2.5D scenes, retained media, and revision-pinned preview and delivery. The shared Soundscaper/Framescaper capability flags below do not grant authority to this workspace.
+
+Application source 70a02ba9e passed complete Node/static gates, five fixed Linux x64 software workflows, the original 300/1,200-frame native and controlled Chromium duration cases, and four bounded native maximum profiles. Original picture/alpha, native PCM/timestamps, memory and cleanup limits remain unchanged. These are source-bound software profiles, not other hardware/hosts or every maximum combination; lossy Opus is not exact PCM and OPFS does not qualify the OS picker. Its complete ordinary/linked/dual browser gate failed: 7,331 passes, 287 declared skips and eight failures. Linked39 and dual9 passed separately. Later committed playback-start, handbook and browser-probe repairs have focused validation. The affected native successor link/delivery regression subsequently passed on source 48a90f028; fresh complete gates and the accepted Node/Chromium coverage union remain pending. Three historical UI failures did not recur in bounded one-worker and four-worker diagnostics and remain unresolved. The repaired complete Motion Pages build passed local app/docs/staging checks but failed the live predecessor preflight; no deployment occurred. The AE bridge supports a reviewed editable subset; image-only fallback admits at most 256 frames, omits/mutes audio and retains original project/media custody. No universal editable-or-baked or installed-AE fidelity is claimed. Hardware GPU, macOS Safari, remaining native targets, signing, installation/update, installed After Effects and publication remain unqualified. All twelve first-release milestones remain In progress.
+
+## Shared editor capabilities
+
+| Capability | Soundscaper | Framescaper | Motionscaper |
+| --- | --- | --- | --- |
+| Audio analysis | Enabled | Not enabled | Not enabled |
+| Audio automation | Enabled | Enabled | Not enabled |
+| Audio effects | Enabled | Not enabled | Not enabled |
+| Audio generators | Enabled | Not enabled | Not enabled |
+| Audio import | Enabled | Enabled | Not enabled |
+| Audio macros | Enabled | Not enabled | Not enabled |
+| Audio mixing | Enabled | Enabled | Not enabled |
+| Audio playback | Enabled | Enabled | Not enabled |
+| Audio recording | Enabled | Not enabled | Not enabled |
+| Audio routing and mixer graph | Enabled | Enabled | Not enabled |
+| Audio timeline editing | Enabled | Enabled | Not enabled |
+| Audio track freeze | Enabled | Not enabled | Not enabled |
+| Audio warping | Enabled | Not enabled | Not enabled |
+| Dissolve video transitions | Not enabled | Enabled | Not enabled |
+| Immersive ADM audio | Enabled | Not enabled | Not enabled |
+| Local assistance assets | Enabled | Enabled | Not enabled |
+| Mastering sequences | Enabled | Not enabled | Not enabled |
+| Multicamera editing | Not enabled | Enabled | Not enabled |
+| Musical timeline | Enabled | Not enabled | Not enabled |
+| Nested sequences | Not enabled | Enabled | Not enabled |
+| OpenFX effects | Not enabled | Enabled | Not enabled |
+| Project bin | Enabled | Enabled | Not enabled |
+| Projects | Enabled | Enabled | Not enabled |
+| Sample-level audio editing | Enabled | Not enabled | Not enabled |
+| Sequence timing | Enabled | Enabled | Not enabled |
+| Source characteristics | Enabled | Enabled | Not enabled |
+| Spectral audio editing | Enabled | Not enabled | Not enabled |
+| Take comping | Enabled | Not enabled | Not enabled |
+| Timeline annotations | Enabled | Enabled | Not enabled |
+| Timeline images | Not enabled | Enabled | Not enabled |
+| Track folders | Enabled | Not enabled | Not enabled |
+| Video adjustment layers | Not enabled | Enabled | Not enabled |
+| Video captions | Not enabled | Enabled | Not enabled |
+| Video color management | Not enabled | Enabled | Not enabled |
+| Video compositing | Not enabled | Enabled | Not enabled |
+| Video denoise | Not enabled | Enabled | Not enabled |
+| Video effects | Not enabled | Enabled | Not enabled |
+| Video export | Enabled | Enabled | Not enabled |
+| Video freeze | Not enabled | Enabled | Not enabled |
+| Video generators | Not enabled | Enabled | Not enabled |
+| Video geometry | Not enabled | Enabled | Not enabled |
+| Video grading | Not enabled | Enabled | Not enabled |
+| Video import | Enabled | Enabled | Not enabled |
+| Video keyframes | Not enabled | Enabled | Not enabled |
+| Video masks and mattes | Not enabled | Enabled | Not enabled |
+| Video motion tracking | Not enabled | Enabled | Not enabled |
+| Video playback | Enabled | Enabled | Not enabled |
+| Video retiming | Not enabled | Enabled | Not enabled |
+| Video stabilization | Not enabled | Enabled | Not enabled |
+| Video stills | Not enabled | Enabled | Not enabled |
+| Video timeline editing | Enabled | Enabled | Not enabled |
+| Video timing assets | Enabled | Enabled | Not enabled |
+| Video transitions | Not enabled | Enabled | Not enabled |
 
 ## Product-specific application features
 
-| Capability | Soundscaper | Framescaper |
-| --- | --- | --- |
-| Screen and camera capture | Not enabled | Enabled |
-| Web VCR capture | Not enabled | Enabled |
+| Capability | Soundscaper | Framescaper | Motionscaper |
+| --- | --- | --- | --- |
+| Motion graphics workspace | Not enabled | Not enabled | Enabled |
+| Screen and camera capture | Not enabled | Enabled | Not enabled |
+| Web VCR capture | Not enabled | Enabled | Not enabled |

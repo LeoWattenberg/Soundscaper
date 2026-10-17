@@ -13,7 +13,7 @@ export const runDualOriginPhaseFixture: NonNullable<
 	await mkdir(join(options.runRoot, 'e2e-coverage/dual-origin'), { recursive: true });
 	const child = await runPlaywright(createDesktopNightlyTestsDualOriginPlan({
 		...options,
-		origins: origins as { soundscaper: string; framescaper: string },
+		origins: origins as { soundscaper: string; framescaper: string; motionscaper: string },
 	}));
 	return Object.freeze({
 		child,

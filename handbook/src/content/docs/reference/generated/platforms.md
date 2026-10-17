@@ -30,6 +30,10 @@ The editor runs in a browser and as a desktop application. This page lists what 
 | Windows | x64 | Installer; Zip archive | Packaged and started in an automated smoke test |
 | macOS | arm64 | Disk image | Packaged and started in an automated smoke test |
 
+## Motionscaper development qualification
+
+Application source 70a02ba9e passed complete Node/static gates, five fixed Linux x64 software workflows, the original 300/1,200-frame native and controlled Chromium duration cases, and four bounded native maximum profiles. Original picture/alpha, native PCM/timestamps, memory and cleanup limits remain unchanged. These are source-bound software profiles, not other hardware/hosts or every maximum combination; lossy Opus is not exact PCM and OPFS does not qualify the OS picker. Its complete ordinary/linked/dual browser gate failed: 7,331 passes, 287 declared skips and eight failures. Linked39 and dual9 passed separately. Later committed playback-start, handbook and browser-probe repairs have focused validation. The affected native successor link/delivery regression subsequently passed on source 48a90f028; fresh complete gates and the accepted Node/Chromium coverage union remain pending. Three historical UI failures did not recur in bounded one-worker and four-worker diagnostics and remain unresolved. The repaired complete Motion Pages build passed local app/docs/staging checks but failed the live predecessor preflight; no deployment occurred. The AE bridge supports a reviewed editable subset; image-only fallback admits at most 256 frames, omits/mutes audio and retains original project/media custody. No universal editable-or-baked or installed-AE fidelity is claimed. Hardware GPU, macOS Safari, remaining native targets, signing, installation/update, installed After Effects and publication remain unqualified. All twelve first-release milestones remain In progress.
+
 ## Where a capability can run
 
 Capabilities are grouped by what they need from the platform. See [Product capabilities](/reference/generated/product-capabilities/) for which capabilities each product enables.

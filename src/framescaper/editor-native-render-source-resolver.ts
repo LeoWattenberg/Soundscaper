@@ -13,7 +13,7 @@ import type {
 	VideoKeyframeOfflineHtmlVideoSourceAsset,
 	VideoKeyframeOfflineHtmlVideoSourceResolver,
 } from '../common/editor/ui/video-keyframe-offline-html-video-source-resolver.ts';
-import type { VideoKeyframeOfflineSourceResolver } from '../common/editor/ui/video-keyframe-offline-rgba-source.ts';
+import type { VideoKeyframeOfflineSourceResolver } from '../common/editor/video-keyframe-offline-rgba-source.ts';
 import type { FramescaperProjectNativeMedia } from './editor-project-native-media.ts';
 
 export interface FramescaperNativeCarrierSourceResolverNativeMedia {

@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
+import { bindFramescaperVideoFrameConsumer, consumeFramescaperVideoFrames } from './video-export-frame-consumer.ts';
 
 import type { FfmpegOutputSink } from '../common/editor/ffmpeg-output-stream.ts';
 import type {
@@ -74,7 +75,7 @@ export function createFramescaperVideoExportStrategyNativeMedia(
 	);
 	const exports = new WeakMap<object, ExportAuthorityNativeMedia>();
 	const plans = new WeakMap<object, ExportAuthorityNativeMedia>();
-	return Object.freeze({
+	return bindFramescaperVideoFrameConsumer(Object.freeze({
 		createExportProject(request: ProductVideoExportProjectRequest) {
 			const authority = projectAuthority(profile, request.canonicalProject, openFxExecute !== undefined);
 			if (openFxExecute !== undefined) {
@@ -123,6 +124,9 @@ export function createFramescaperVideoExportStrategyNativeMedia(
 			if (!plans.has(plan)) throw new TypeError('Selected nativeMedia timing closure requires an owned plan.');
 			return delegate.captureTimingSourceIds?.(plan) ?? plan.activeSourceIds;
 		},
+	}), (request, consume) => {
+		const authority = ownedPlanAuthority(profile, request, exports, plans);
+		return consumeFramescaperVideoFrames(delegate, { ...request, canonicalProject: authority.inheritedProject }, consume);
 	});
 }
 

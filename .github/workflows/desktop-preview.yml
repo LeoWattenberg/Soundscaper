@@ -11,6 +11,9 @@ on:
       - 'soundscaper-v*-rc.*'
       - 'framescaper-v*-beta.*'
       - 'framescaper-v*-rc.*'
+      - 'motionscaper-v*-alpha.*'
+      - 'motionscaper-v*-beta.*'
+      - 'motionscaper-v*-rc.*'
   workflow_dispatch:
 
 permissions:
@@ -107,7 +110,7 @@ jobs:
       # shared tests run in two stable filename-hash partitions. Wait for lint
       # and typecheck so a static-check failure does not burn the test runners.
       matrix:
-        shard: [common-1, common-2, framescaper, soundscaper]
+        shard: [common-1, common-2, framescaper, soundscaper, motionscaper]
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
@@ -193,6 +196,7 @@ jobs:
           NODE_OPTIONS: --max-old-space-size=8192
 
   publish-assistance-runtime-handoff:
+    if: ${{ !startsWith(github.ref, 'refs/tags/motionscaper-v') }}
     name: Publish AI runtimes / ${{ matrix.target.platform }} / ${{ matrix.target.arch }}
     needs: [quality, tests]
     timeout-minutes: 90
@@ -296,6 +300,7 @@ jobs:
           retention-days: 14
 
   professional-native-source:
+    if: ${{ !startsWith(github.ref, 'refs/tags/motionscaper-v') }}
     name: Verify professional-native sources
     permissions:
       contents: read
@@ -911,6 +916,7 @@ jobs:
           retention-days: 14
 
   soundscaper-project-library-lease-matrix:
+    if: ${{ !startsWith(github.ref, 'refs/tags/motionscaper-v') }}
     name: Soundscaper v1 + Framescaper v1 packaged lease matrix / ${{ matrix.target.platform }} / ${{ matrix.target.arch }}
     needs: [quality, tests]
     runs-on: ${{ matrix.target.runner }}
@@ -1028,3 +1034,10 @@ jobs:
           path: ${{ runner.temp }}/soundscaper-v1-framescaper-v1-lease-matrix-${{ matrix.target.platform }}-${{ matrix.target.arch }}.json
           if-no-files-found: error
           retention-days: 14
+
+  motionscaper-preview:
+    name: Prepare Motion candidate packages and corresponding source
+    if: startsWith(github.ref, 'refs/tags/motionscaper-v')
+    needs: [quality, tests]
+    uses: ./.github/workflows/motionscaper-desktop-preview.yml
+    secrets: inherit

@@ -745,6 +745,170 @@
 					"tests/audio-editor-framescaper-baseline.test.ts"
 				]
 			}
+		},
+		"motionscaper": {
+			"profileEvidence": "src/motionscaper/product.js",
+			"release": {
+				"softwareStatus": "pre-release",
+				"channel": "candidate",
+				"candidateVersion": "0.1.0-alpha.1",
+				"stableTarget": null
+			},
+			"applicationFeatures": {
+				"motionscaperMotionWorkspace": true
+			},
+			"platforms": {
+				"web-core": {
+					"status": "partial",
+					"evidence": [
+						"src/motionscaper/editor-project-runtime-profile.ts",
+						"src/common/editor/ui/motionscaper/MotionscaperDocumentRuntime.tsx",
+						"tests/browser/motionscaper-documents.spec.js",
+						"tests/browser/motionscaper-compositing-delivery.spec.ts"
+					]
+				},
+				"web-enhanced": {
+					"status": "partial",
+					"evidence": [
+						"src/motionscaper/editor-project-store.ts",
+						"src/motionscaper/editor-project-write-lease.ts",
+						"src/motionscaper/editor-delivery-queue.ts",
+						"tests/browser/motionscaper-project-lock.spec.ts",
+						"tests/browser/motionscaper-render-queue.spec.ts",
+						"tests/browser/motionscaper-video-delivery.spec.ts"
+					]
+				},
+				"electron-enhanced": {
+					"status": "partial",
+					"evidence": [
+						"desktop/motionscaper-main.ts",
+						"desktop/motionscaper-file-authority.ts",
+						"desktop/motionscaper-packaged-smoke.ts",
+						"desktop/motionscaper-successor-native-qualification.ts",
+						"desktop/motionscaper-update-check.ts",
+						"tests/motionscaper-update-check.test.ts",
+						"tests/motionscaper-document-desktop.test.ts",
+						"docs/development/motionscaper-desktop-saved-links.md",
+						"desktop/motionscaper-launch-authority.ts",
+						"desktop/motionscaper-launch-ipc.ts",
+						"desktop/motionscaper-launch-native-qualification.ts",
+						"docs/development/motionscaper-native-launch-qualification.md"
+					]
+				},
+				"electron-only": {
+					"status": "partial",
+					"evidence": [
+						"desktop/motionscaper-delivery-authority.ts",
+						"desktop/motionscaper-native-executor.ts",
+						"desktop/motionscaper-native-smoke.ts",
+						"desktop/motionscaper-scene-native-qualification.ts",
+						"docs/development/motionscaper-native-scene-qualification.md",
+						"native/motionscaper-media-host/source-manifest.json",
+						"tests/motionscaper-native-pcm-carrier.test.ts",
+						"docs/development/motionscaper-native-delivery.md"
+					]
+				}
+			},
+			"importFamilies": [
+				"scape"
+			],
+			"exportFamilies": [
+				"scape"
+			],
+			"projectFeatures": {
+				"project": false,
+				"projectBin": false,
+				"audioImport": false,
+				"audioPlayback": false,
+				"audioTimelineEditing": false,
+				"audioMixing": false,
+				"videoImport": false,
+				"videoPlayback": false,
+				"videoTimelineEditing": false,
+				"videoExport": false,
+				"assistanceAssets": false,
+				"audioRecording": false,
+				"audioGenerators": false,
+				"audioEffects": false,
+				"audioSpectralEditing": false,
+				"audioAnalysis": false,
+				"audioMacros": false,
+				"audioSampleEditing": false,
+				"audioAutomation": false,
+				"audioMixerGraph": false,
+				"audioTrackFreeze": false,
+				"videoEffects": false,
+				"videoAdjustmentLayers": false,
+				"videoCompositing": false,
+				"videoFreeze": false,
+				"videoGenerators": false,
+				"videoGeometry": false,
+				"videoKeyframes": false,
+				"videoMasksMattes": false,
+				"multicamera": false,
+				"musicalTimeline": false,
+				"nestedSequences": false,
+				"ofxEffects": false,
+				"timelineAnnotations": false,
+				"trackFolders": false,
+				"takeComp": false,
+				"timelineImages": false,
+				"audioWarp": false,
+				"sequenceTiming": false,
+				"videoRetime": false,
+				"videoCaptions": false,
+				"videoColorManagement": false,
+				"videoDenoise": false,
+				"videoGrading": false,
+				"videoMotionTracking": false,
+				"videoStabilization": false,
+				"videoStills": false,
+				"videoTimingAssets": false,
+				"videoTransitionDissolve": false,
+				"videoTransitions": false,
+				"sourceCharacteristics": false,
+				"masteringSequences": false,
+				"immersiveAdm": false
+			},
+			"projectSchemaIdentity": {
+				"schemaFamily": "motionscaper",
+				"schemaVersion": 1,
+				"evidence": [
+					"src/motionscaper/editor-project.ts",
+					"src/motionscaper/editor-project-runtime-profile.ts",
+					"src/motionscaper/editor-scape.ts",
+					"tests/motionscaper-project-contract.test.ts"
+				]
+			},
+			"development": {
+				"status": "in-progress",
+				"summary": "Motionscaper develops a separate motion workspace reached through menus. It owns layered compositions, property animation, imported font and vector rendering, linear-SDR compositing, masks and mattes, tracking, bounded expressions, 2.5D scenes, retained media, and revision-pinned preview and delivery. The shared Soundscaper/Framescaper capability flags below do not grant authority to this workspace.",
+				"qualificationSummary": "Application source 70a02ba9e passed complete Node/static gates, five fixed Linux x64 software workflows, the original 300/1,200-frame native and controlled Chromium duration cases, and four bounded native maximum profiles. Original picture/alpha, native PCM/timestamps, memory and cleanup limits remain unchanged. These are source-bound software profiles, not other hardware/hosts or every maximum combination; lossy Opus is not exact PCM and OPFS does not qualify the OS picker. Its complete ordinary/linked/dual browser gate failed: 7,331 passes, 287 declared skips and eight failures. Linked39 and dual9 passed separately. Later committed playback-start, handbook and browser-probe repairs have focused validation. The affected native successor link/delivery regression subsequently passed on source 48a90f028; fresh complete gates and the accepted Node/Chromium coverage union remain pending. Three historical UI failures did not recur in bounded one-worker and four-worker diagnostics and remain unresolved. The repaired complete Motion Pages build passed local app/docs/staging checks but failed the live predecessor preflight; no deployment occurred. The AE bridge supports a reviewed editable subset; image-only fallback admits at most 256 frames, omits/mutes audio and retains original project/media custody. No universal editable-or-baked or installed-AE fidelity is claimed. Hardware GPU, macOS Safari, remaining native targets, signing, installation/update, installed After Effects and publication remain unqualified. All twelve first-release milestones remain In progress.",
+				"evidence": [
+					"docs/development/motionscaper-implementation-order.md",
+					"docs/development/motionscaper-after-effects-bridge.md",
+					"tests/motionscaper-capability-register.test.ts",
+					"tests/browser/motionscaper-script-fonts.spec.ts",
+					"tests/browser/motionscaper-scene.spec.ts",
+					"tests/browser/motionscaper-authoring-workflow.spec.ts",
+					"tests/browser/motionscaper-ae-editable-text.spec.ts",
+					"tests/browser/motionscaper-updates.spec.ts",
+					"docs/development/motionscaper-ae-text-qualification.md",
+					"docs/development/motionscaper-native-scene-qualification.md",
+					"docs/development/motionscaper-successor-native-delivery.md",
+					"docs/development/motionscaper-platform-qualification.md",
+					"docs/development/motionscaper-ae-expressions.md",
+					"tests/browser/motionscaper-platform.spec.ts",
+					"tests/browser/motionscaper-ae-expressions.spec.ts",
+					"tests/browser/motionscaper-compositing-delivery.spec.ts",
+					"tests/browser/motionscaper-linked-editors.spec.ts",
+					"tests/browser/motionscaper-linked-native-menu.spec.ts",
+					"tests/browser/motionscaper-desktop-launch.spec.ts",
+					"tests/browser/motionscaper-ae-render-package.spec.ts",
+					"docs/development/motionscaper-ae-render-transfer-qualification.md",
+					"src/common/editor/ui/workspace/product-video-cpu-preview.ts"
+				]
+			}
 		}
 	}
 }

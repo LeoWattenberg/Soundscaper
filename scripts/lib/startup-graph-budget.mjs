@@ -38,7 +38,19 @@ export const STARTUP_GRAPH_REPORTED_METRICS = Object.freeze(['requests', 'rawByt
 export const PRODUCT_BOOTSTRAPS = Object.freeze({
 	soundscaper: '/src/soundscaper/ui/SoundscaperAudioEditorBootstrap.tsx',
 	framescaper: '/src/framescaper/ui/FramescaperAudioEditorBootstrap.tsx',
+	motionscaper: '/src/motionscaper/MotionscaperBootstrap.tsx',
 });
+
+export const FRAMESCAPER_SUCCESSOR_BOOTSTRAP = '/src/common/editor/ui/FramescaperSuccessorBootstrap.tsx';
+const ALL_PRODUCT_BOOTSTRAPS = Object.freeze([...Object.entries(PRODUCT_BOOTSTRAPS), ['framescaper', FRAMESCAPER_SUCCESSOR_BOOTSTRAP]]);
+
+/** @param {string} product @param {{ framescaperLine?: string }} options */
+function selectedProductBootstraps(product, { framescaperLine = 'baseline' } = {}) {
+	if (!['baseline', 'successor'].includes(framescaperLine) || (framescaperLine === 'successor' && product !== 'framescaper')) {
+		throw new RangeError('Startup budgets require an explicit valid Framescaper build line.');
+	}
+	return framescaperLine === 'successor' ? { ...PRODUCT_BOOTSTRAPS, framescaper: FRAMESCAPER_SUCCESSOR_BOOTSTRAP } : PRODUCT_BOOTSTRAPS;
+}
 
 export const BUDGETED_PRODUCT_IDS = Object.freeze(Object.keys(PRODUCT_BOOTSTRAPS));
 
@@ -65,11 +77,13 @@ export function normalizeBudgetedProduct(product) {
 /**
  * @param {Record<string, import('rollup').OutputAsset | import('rollup').OutputChunk>} bundle
  * @param {string} product the product this bundle was built for
+ * @param {{ framescaperLine?: string }} options
  */
-export function assertProductionStartupGraphs(bundle, product) {
+export function assertProductionStartupGraphs(bundle, product, options = {}) {
 	const builtProduct = normalizeBudgetedProduct(product);
-	assertOnlyBuiltProductBootstrapEmitted(bundle, builtProduct);
-	assertProductBootstrapChunkIsAcyclic(bundle, builtProduct);
+	const bootstraps = selectedProductBootstraps(builtProduct, options);
+	assertOnlyBuiltProductBootstrapEmitted(bundle, builtProduct, bootstraps[builtProduct]);
+	assertProductBootstrapChunkIsAcyclic(bundle, builtProduct, options);
 	assertFramescaperBootstrapChunkIsAcyclic(bundle);
 	assertFramescaperProjectCommandChunkIsAcyclic(bundle);
 	assertTransferArchiveRuntimeDoesNotReachProductBootstrap(bundle);
@@ -99,7 +113,7 @@ export function assertProductionStartupGraphs(bundle, product) {
 	// check below: without it the obvious "if absent, continue" turns a build that
 	// emits no bootstrap at all into a build that enforces no product budget at all.
 	const graphs = { initial };
-	for (const [candidate, bootstrapPath] of Object.entries(PRODUCT_BOOTSTRAPS)) {
+	for (const [candidate, bootstrapPath] of Object.entries(bootstraps)) {
 		const bootstrap = Object.values(bundle).find((output) => output.type === 'chunk'
 			&& chunkOwnsModule(output, bootstrapPath));
 		if (!bootstrap) continue;
@@ -111,7 +125,7 @@ export function assertProductionStartupGraphs(bundle, product) {
 	if (!graphs[builtProduct]) {
 		throw new Error(
 			`Startup graph budget asserted no ${builtProduct} product-ready budget: this build's own bootstrap `
-			+ `${PRODUCT_BOOTSTRAPS[builtProduct]} is not in the bundle.`,
+			+ `${bootstraps[builtProduct]} is not in the bundle.`,
 		);
 	}
 	return Object.freeze(graphs);
@@ -125,13 +139,13 @@ export function assertProductionStartupGraphs(bundle, product) {
  *
  * @param {Record<string, import('rollup').OutputAsset | import('rollup').OutputChunk>} bundle
  * @param {keyof typeof PRODUCT_BOOTSTRAPS} builtProduct
+ * @param {string} selectedPath
  */
-function assertOnlyBuiltProductBootstrapEmitted(bundle, builtProduct) {
-	const otherProduct = builtProduct === 'framescaper' ? 'soundscaper' : 'framescaper';
-	const otherBootstrap = Object.values(bundle).find((output) => output.type === 'chunk'
-		&& chunkOwnsModule(output, PRODUCT_BOOTSTRAPS[otherProduct]));
-	if (otherBootstrap) {
-		throw new Error(
+function assertOnlyBuiltProductBootstrapEmitted(bundle, builtProduct, selectedPath) {
+	for (const [otherProduct, path] of ALL_PRODUCT_BOOTSTRAPS.filter(([, path]) => path !== selectedPath)) {
+		const otherBootstrap = Object.values(bundle).find((output) => output.type === 'chunk'
+			&& chunkOwnsModule(output, path));
+		if (otherBootstrap) throw new Error(
 			`${builtProduct} build emitted the ${otherProduct} bootstrap ${otherBootstrap.fileName}; `
 			+ 'select the editor bootstrap from the compile-time product only.',
 		);
@@ -145,10 +159,12 @@ function assertOnlyBuiltProductBootstrapEmitted(bundle, builtProduct) {
  *
  * @param {Record<string, import('rollup').OutputAsset | import('rollup').OutputChunk>} bundle
  * @param {keyof typeof PRODUCT_BOOTSTRAPS} product
+ * @param {{ framescaperLine?: string }} options
  */
-export function assertProductBootstrapChunkIsAcyclic(bundle, product) {
+export function assertProductBootstrapChunkIsAcyclic(bundle, product, options = {}) {
+	const bootstraps = selectedProductBootstraps(product, options);
 	const bootstrap = Object.values(bundle).find((output) => output.type === 'chunk'
-		&& chunkOwnsModule(output, PRODUCT_BOOTSTRAPS[product]));
+		&& chunkOwnsModule(output, bootstraps[product]));
 	if (!bootstrap) return;
 	const visited = new Set();
 	/** @param {string} name @param {string[]} path @returns {string[] | null} */
@@ -232,7 +248,7 @@ export function assertTransferArchiveRuntimeDoesNotReachProductBootstrap(bundle)
 		&& chunkOwnsModule(output, '/src/common/transfer/transfer-archive-runtime.ts'));
 	if (!transfer) return;
 	const bootstrapProducts = new Map();
-	for (const [product, moduleId] of Object.entries(PRODUCT_BOOTSTRAPS)) {
+	for (const [product, moduleId] of ALL_PRODUCT_BOOTSTRAPS) {
 		const bootstrap = Object.values(bundle).find((output) => output.type === 'chunk'
 			&& chunkOwnsModule(output, moduleId));
 		if (bootstrap) bootstrapProducts.set(bootstrap.fileName, product);
@@ -259,12 +275,11 @@ export function assertTransferArchiveRuntimeDoesNotReachProductBootstrap(bundle)
 }
 
 export function assertProductGraphOwnership(product, graph) {
-	const otherProduct = product === 'framescaper' ? 'soundscaper' : 'framescaper';
-	const forbiddenModule = [...graph.moduleIds].find((moduleId) => (
-		moduleId.includes(`/src/${otherProduct}/`)
-	));
-	if (forbiddenModule) {
-		throw new Error(`${product} product-ready graph owns forbidden ${otherProduct} product module ${forbiddenModule}.`);
+	for (const otherProduct of BUDGETED_PRODUCT_IDS.filter((id) => id !== product)) {
+		const forbiddenModule = [...graph.moduleIds].find((moduleId) => moduleId.includes(`/src/${otherProduct}/`));
+		if (forbiddenModule) {
+			throw new Error(`${product} product-ready graph owns forbidden ${otherProduct} product module ${forbiddenModule}.`);
+		}
 	}
 }
 
@@ -339,6 +354,7 @@ export function embedStartupGraphAssetInventory(html, inventory) {
  * The observed size of each asserted graph, in the shape the tighten step reads.
  *
  * @param {string} product the product this build emits
+ * @param {{ framescaperLine?: string }} options
  * @param {Readonly<Record<string, ReturnType<typeof collectStartupGraph>>>} graphs
  */
 export function startupGraphReport(product, graphs) {
@@ -401,6 +417,7 @@ function assertStaticEntryOwnership(graph) {
 		moduleId.includes('/src/common/editor/')
 		|| moduleId.includes('/src/soundscaper/')
 		|| moduleId.includes('/src/framescaper/')
+		|| moduleId.includes('/src/motionscaper/')
 	));
 	if (forbiddenModule) throw new Error(`static entry startup graph owns forbidden editor module ${forbiddenModule}.`);
 }
@@ -423,9 +440,10 @@ function chunkOwnsModule(chunk, suffix) {
 
 /**
  * @param {string} product the product this build emits
+ * @param {{ framescaperLine?: string }} options
  * @returns {import('vite').Plugin}
  */
-export function enforceStartupGraphBudgets(product) {
+export function enforceStartupGraphBudgets(product, options = {}) {
 	const builtProduct = normalizeBudgetedProduct(product);
 	let report = null;
 	return {
@@ -434,7 +452,7 @@ export function enforceStartupGraphBudgets(product) {
 		generateBundle: {
 			order: 'post',
 			handler(_options, bundle) {
-				const graphs = assertProductionStartupGraphs(bundle, builtProduct);
+				const graphs = assertProductionStartupGraphs(bundle, builtProduct, options);
 				const document = bundle['index.html'];
 				if (document?.type !== 'asset' || typeof document.source !== 'string') {
 					throw new Error('Editor startup progress requires the built index.html document.');

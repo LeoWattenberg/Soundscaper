@@ -50,7 +50,8 @@ export function transferProductForOrigin(origin: unknown): TransferProduct | nul
  * Which product wrote a stored project, judged only by its persisted family.
  */
 export function transferProjectProduct(project: unknown): TransferProduct | null {
-	return transferProjectIdentity(project)?.schemaFamily ?? null;
+	const family = transferProjectIdentity(project)?.schemaFamily;
+	return family === 'soundscaper' || family === 'framescaper' ? family : null;
 }
 
 /**
@@ -163,7 +164,7 @@ export async function listTransferProjects(
 	for (const row of inventory.rows) {
 		const record = row.project as { title?: unknown; schemaVersion?: unknown } | null;
 		const identity = transferProjectIdentity(record);
-		const product = identity?.schemaFamily ?? null;
+		const product = transferProjectProduct(record);
 		const schemaFamily = identity?.schemaFamily ?? null;
 		const schemaVersion = identity?.schemaVersion ?? null;
 		const title = typeof record?.title === 'string' && record.title.trim() ? record.title : null;

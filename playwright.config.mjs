@@ -7,16 +7,17 @@ import {
 } from './scripts/lib/browser-product-test-sites.mjs';
 
 const sitePlan = ordinaryBrowserProductSitePlan();
-const [soundscaper, framescaper] = sitePlan.sites;
+const [soundscaper, framescaper, motionscaper] = sitePlan.sites;
 const baseURL = soundscaper.origin;
 process.env.SCAPE_PLAYWRIGHT_PRODUCT_ORIGINS = JSON.stringify({
 	soundscaper: soundscaper.origin,
 	framescaper: framescaper.origin,
+	motionscaper: motionscaper.origin,
 });
 
 export default defineConfig({
 	testDir: './tests/browser',
-	testIgnore: ['handbook/**', 'dual-origin/**', 'audiocity/**'],
+	testIgnore: ['handbook/**', 'dual-origin/**', 'audiocity/**', '**/motionscaper-linked-editors.spec.ts', '**/motionscaper-linked-native-menu.spec.ts', '**/motionscaper-linked-mixed-preview.spec.ts', '**/motionscaper-successor-native-cleanup.spec.ts', '**/motionscaper-successor-shell.spec.ts', '**/motionscaper-successor-opaque-archive.spec.ts'],
 	timeout: 30000,
 	expect: { timeout: 5000 },
 	fullyParallel: true,
@@ -32,7 +33,7 @@ export default defineConfig({
 		? [['github'], ['html', { outputFolder: 'playwright-report', open: 'never' }]]
 		: 'list',
 	outputDir: 'test-results',
-	webServer: [vitePreviewServer(soundscaper), vitePreviewServer(framescaper)],
+	webServer: sitePlan.sites.map((site) => vitePreviewServer(site)),
 	use: {
 		baseURL,
 		serviceWorkers: 'block',

@@ -134,3 +134,24 @@ export const FRAMESCAPER_PROFILE = {
 		category: 'AudioVideo;Video',
 	},
 };
+
+/** M01 registers the shell; authoring capabilities activate with their owning workflows. */
+export const MOTIONSCAPER_PROFILE = {
+	...PRODUCT_IDENTITIES.motionscaper,
+	description: 'A local-first motion graphics and compositing editor for the web and desktop.',
+	projectFileExtension: PROJECT_FILE_EXTENSION_BY_PRODUCT.motionscaper,
+	enabledCommands: ['project', 'motion-workspace'],
+	panels: [],
+	importChoices: ['scape'],
+	exportChoices: ['scape'],
+	shortcuts: { disabledCommandIds: [] },
+	applicationFeatures: { motionscaperMotionWorkspace: true },
+	capabilities: Object.fromEntries(Object.keys(FRAMESCAPER_PROFILE.capabilities).map((id) => [id, false])),
+	desktop: {
+		appId: 'org.motionscaper.desktop',
+		scheme: 'motionscaper-app',
+		sessionPartition: 'persist:motionscaper-production',
+		executableName: 'motionscaper',
+		category: 'AudioVideo;Video;Graphics',
+	},
+};

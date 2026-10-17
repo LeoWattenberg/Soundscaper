@@ -1,0 +1,80 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+/* Generated from strict TypeScript by scripts/build-motionscaper-ae-bridge.mjs. */
+var MotionAeHostExport = (function () {
+var normalizeMotionAeGaussianProfile = MotionAeGaussianProfile.normalizeMotionAeGaussianProfile;
+var stringifyMotionAeHostJson = MotionAeHostJson.stringifyMotionAeHostJson;
+"use strict";
+/* SPDX-License-Identifier: AGPL-3.0-only */
+var __assign = (this && this.__assign) || function () {
+    __assign = Object.assign || function(t) {
+        for (var s, i = 1, n = arguments.length; i < n; i++) {
+            s = arguments[i];
+            for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p))
+                t[p] = s[p];
+        }
+        return t;
+    };
+    return __assign.apply(this, arguments);
+};
+function exportMotionAeHostProject(host, transferId) {
+    var _a, _b;
+    if (!/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(transferId))
+        throw new Error('AE transfer identity is invalid.');
+    host.checkCancelled();
+    var report = [{ scopeId: transferId, propertyPath: '', status: 'unsupported', code: 'qualification',
+            message: 'This development bridge has not been qualified in installed After Effects. Review the transfer report and compare the result before using it.' }];
+    var transaction = host.begin(transferId);
+    try {
+        var compositions = host.compositions(report);
+        var footage = host.footage(report);
+        if (compositions.length > 256 || footage.length > 4096 || report.length > 65536)
+            throw new Error('AE bridge item/report budget exceeded.');
+        var totalBytes = 0, totalLayers = 0;
+        for (var index = 0; index < compositions.length; index++) {
+            totalLayers += compositions[index].layers.length;
+            if (totalLayers > 4096)
+                throw new Error('AE bridge layer budget exceeded.');
+        }
+        for (var index = 0; index < footage.length; index++) {
+            host.checkCancelled();
+            var item = footage[index];
+            if (item.path === null)
+                continue;
+            totalBytes += (_a = item.byteLength) !== null && _a !== void 0 ? _a : 0;
+            if (totalBytes > 274877906944)
+                throw new Error('AE bridge media byte budget exceeded.');
+            transaction.copyMedia(item);
+        }
+        if (transaction.render) {
+            host.checkCancelled();
+            var rendered = transaction.render(compositions);
+            footage = footage.concat(rendered.footage);
+            for (var index = 0; index < rendered.report.length; index++)
+                report.push(rendered.report[index]);
+            for (var index = 0; index < rendered.footage.length; index++)
+                totalBytes += (_b = rendered.footage[index].byteLength) !== null && _b !== void 0 ? _b : 0;
+            if (footage.length > 4096 || report.length > 65536 || totalBytes > 274877906944)
+                throw new Error('AE rendered package item/report/media budget exceeded.');
+        }
+        var exchange = __assign({ format: 'org.motionscaper.ae-exchange', version: 1, transferId: transferId, producer: { application: 'after-effects', version: host.version, bridgeVersion: '0.1.0' }, source: { name: host.projectName, revisionDigest: null }, color: host.color, compositions: compositions, footage: footage, report: report }, (host.gaussianProfile ? { gaussianProfile: normalizeMotionAeGaussianProfile(host.gaussianProfile) } : {}));
+        host.checkCancelled();
+        var serialized = stringifyMotionAeHostJson(exchange);
+        host.checkCancelled();
+        transaction.publish(serialized);
+        return exchange;
+    }
+    catch (error) {
+        try {
+            transaction.rollback();
+        }
+        catch (cleanup) {
+            var cause = { primary: error, cleanup: cleanup }, failure = new Error('AE transfer failed: ' + String(error) + '; package cleanup failed: ' + String(cleanup), { cause: cause });
+            failure.cause = cause; // Older ExtendScript Error constructors ignore the optional options argument.
+            throw failure;
+        }
+        throw error;
+    }
+}
+
+return { exportMotionAeHostProject: exportMotionAeHostProject };
+}());

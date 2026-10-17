@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import {
-	PROJECT_SCHEMA_VERSION,
+	currentProjectSchemaVersion,
 	readProjectSchemaIdentity,
 	type ProjectSchemaFamily,
 	type ProjectSchemaIdentity,
@@ -23,7 +23,7 @@ export interface CreateFamilyOwnedTransferArchiveRuntimeOptions {
 		input: unknown,
 		options: Readonly<{ signal?: AbortSignal }>,
 	) => PromiseLike<Readonly<ProjectSchemaIdentity>> | Readonly<ProjectSchemaIdentity>;
-	readonly runtimes: Readonly<Record<ProjectSchemaFamily, TransferFamilyArchiveRuntime>>;
+	readonly runtimes: Readonly<Partial<Record<ProjectSchemaFamily, TransferFamilyArchiveRuntime>>>;
 }
 
 /**
@@ -53,10 +53,10 @@ export function createFamilyOwnedTransferArchiveRuntime(
 }
 
 function ownerFor(
-	runtimes: Readonly<Record<ProjectSchemaFamily, TransferFamilyArchiveRuntime>>,
+	runtimes: Readonly<Partial<Record<ProjectSchemaFamily, TransferFamilyArchiveRuntime>>>,
 	identity: Readonly<ProjectSchemaIdentity>,
 ): TransferFamilyArchiveRuntime {
-	if (identity.schemaVersion !== PROJECT_SCHEMA_VERSION) {
+	if (identity.schemaVersion !== currentProjectSchemaVersion(identity.schemaFamily)) {
 		throw new RangeError(
 			`Family-owned transfer archive I/O requires family-v1, not ${identity.schemaFamily}`
 				+ ` schema ${String(identity.schemaVersion)}.`,

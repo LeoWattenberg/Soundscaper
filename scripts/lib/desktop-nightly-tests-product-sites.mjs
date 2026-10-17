@@ -5,10 +5,10 @@ import { isAbsolute, join } from 'node:path';
 
 import { startPagesSiteStaticServer } from './pages-site-static-server.mjs';
 
-const PRODUCT_IDS = Object.freeze(['soundscaper', 'framescaper']);
+const PRODUCT_IDS = Object.freeze(['soundscaper', 'framescaper', 'motionscaper']);
 const PRODUCT_ORIGINS_VARIABLE = 'SCAPE_PLAYWRIGHT_PRODUCT_ORIGINS';
 
-/** Start the two independent production-shaped sites used by browser tests. */
+/** Start the independent production-shaped sites used by browser tests. */
 export async function startDesktopNightlyTestsProductSites({
 	payloadRoot,
 	environment = process.env,
@@ -91,7 +91,7 @@ export async function loadDesktopNightlyTestsProductSitePlans(payloadRoot) {
 			host: parsed.hostname, origin, port: Number(parsed.port), productId, root,
 		}));
 	}
-	if (sites[0].origin === sites[1].origin) {
+	if (new Set(sites.map((site) => site.origin)).size !== sites.length) {
 		throw new Error('Desktop nightly tests require distinct product origins.');
 	}
 	return Object.freeze(sites);

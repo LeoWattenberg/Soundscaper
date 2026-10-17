@@ -11,6 +11,6 @@ const productId = process.argv[2];
 const plan = ordinaryBrowserProductSitePlan();
 const site = plan.sites.find((candidate) => candidate.productId === productId);
 if (!site) {
-	throw new Error('build-browser-product-site requires soundscaper or framescaper.');
+	throw new Error('build-browser-product-site requires soundscaper, framescaper, or motionscaper.');
 }
 await buildBrowserProductSite(site);

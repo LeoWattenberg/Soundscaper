@@ -1,0 +1,375 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+/* Generated from strict TypeScript by scripts/build-motionscaper-ae-bridge.mjs. */
+var MotionAeInstalledImport = (function () {
+var chooseMotionAeGaussianProfile = MotionAeInstalledGaussianProfile.chooseMotionAeGaussianProfile;
+var applyMotionAeInstalledGaussian = MotionAeInstalledGaussian.applyMotionAeInstalledGaussian;
+var stringifyMotionAeHostJson = MotionAeHostJson.stringifyMotionAeHostJson;
+var applyMotionAeHostShapes = MotionAeHostApplyShape.applyMotionAeHostShapes;
+var chooseMotionAeShapeProfile = MotionAeInstalledShapeProfile.chooseMotionAeShapeProfile;
+var applyMotionAeInstalledText = MotionAeInstalledText.applyMotionAeInstalledText;
+var verifyMotionAeInstalledTextFont = MotionAeInstalledText.verifyMotionAeInstalledTextFont;
+var prepareMotionAeHostImport = MotionAeHostImportPlan.prepareMotionAeHostImport;
+var importMotionAeHostPlan = MotionAeHostImport.importMotionAeHostPlan;
+var createMotionAeHostSha256 = MotionAeHostSha256.createMotionAeHostSha256;
+"use strict";
+/* SPDX-License-Identifier: AGPL-3.0-only */
+function closeOnError(file, error) {
+    if (!file.close()) {
+        var failure = new Error('AE read failed and its file could not close: ' + String(error), { cause: error });
+        failure.cause = error;
+        throw failure;
+    }
+    throw error;
+}
+function mediaFile(root, item) {
+    var file = new File(root.fsName + '/' + item.path), media = new Folder(root.fsName + '/media');
+    if (root.alias || media.alias || file.alias || !file.exists || file.length !== item.byteLength)
+        throw new Error('Media is missing, aliased, or its byte length changed: ' + item.name);
+    return file;
+}
+function verifyMedia(root, items) {
+    for (var index = 0; index < items.length; index++) {
+        var item = items[index], file = mediaFile(root, item);
+        if (item.sha256 === null)
+            continue;
+        file.encoding = 'BINARY';
+        if (!file.open('r'))
+            throw new Error('Cannot read retained media: ' + item.name);
+        var digest = createMotionAeHostSha256();
+        var read = 0;
+        try {
+            while (read < item.byteLength) {
+                var bytes = file.read(Math.min(1048576, item.byteLength - read));
+                if (!bytes.length)
+                    throw new Error('Media ended before its declared length.');
+                digest.update(bytes);
+                read += bytes.length;
+            }
+            if (read !== item.byteLength || file.length !== item.byteLength || digest.finish() !== item.sha256)
+                throw new Error('Media SHA-256 changed: ' + item.name);
+        }
+        catch (error) {
+            closeOnError(file, error);
+        }
+        if (!file.close())
+            throw new Error('Cannot close retained media: ' + item.name);
+    }
+}
+function applyExpression(target, source, probeTime) {
+    if (source === null)
+        return;
+    if (!target.canSetExpression)
+        throw new Error('This AE target cannot accept the reviewed scalar expression.');
+    target.expression = source;
+    target.expressionEnabled = true;
+    if (!target.expressionEnabled || target.expressionError)
+        throw new Error('AE rejected the reviewed scalar expression: ' + target.expressionError);
+    var value = target.valueAtTime(probeTime, false);
+    if (target.expressionError || typeof value !== 'number' || !isFinite(value))
+        throw new Error('AE scalar expression probe failed or returned a nonfinite value: ' + target.expressionError);
+}
+function applyProperty(target, property, probeTime) {
+    if (target.numKeys !== 0)
+        throw new Error('New AE layer unexpectedly contains authored keys.');
+    var value = function (input) { return input.length === 1 ? input[0] : input; };
+    if (!property.keys.length) {
+        target.setValue(value(property.value));
+        applyExpression(target, property.expression, probeTime);
+        return;
+    }
+    for (var index = 0; index < property.keys.length; index++) {
+        var key = property.keys[index];
+        target.setValueAtTime(key.time, value(key.value));
+    }
+    var interpolation = function (mode) { return mode === 'hold' ? KeyframeInterpolationType.HOLD : mode === 'linear' ? KeyframeInterpolationType.LINEAR : KeyframeInterpolationType.BEZIER; };
+    for (var index = 0; index < property.keys.length; index++) {
+        var key = property.keys[index], position = index + 1;
+        target.setInterpolationTypeAtKey(position, interpolation(key.inInterpolation), interpolation(key.outInterpolation));
+        if (key.inInterpolation === 'bezier' || key.outInterpolation === 'bezier') {
+            target.setTemporalAutoBezierAtKey(position, false);
+            target.setTemporalContinuousAtKey(position, false);
+            var incoming = [], outgoing = [];
+            for (var component = 0; component < key.inEase.length; component++)
+                incoming.push(new KeyframeEase(key.inEase[component].speed, key.inEase[component].influence));
+            for (var component = 0; component < key.outEase.length; component++)
+                outgoing.push(new KeyframeEase(key.outEase[component].speed, key.outEase[component].influence));
+            target.setTemporalEaseAtKey(position, incoming, outgoing);
+        }
+        if (property.spatial) {
+            target.setSpatialAutoBezierAtKey(position, false);
+            target.setSpatialContinuousAtKey(position, false);
+            target.setSpatialTangentsAtKey(position, key.inSpatialTangent, key.outSpatialTangent);
+        }
+    }
+    if (property.spatial)
+        for (var index = 1; index < property.keys.length - 1; index++)
+            target.setRovingAtKey(index + 1, property.keys[index].roving);
+    applyExpression(target, property.expression, probeTime);
+}
+function verifySceneValue(target, property) {
+    var verify = function (value, expected) {
+        var actual = typeof value === 'number' ? [value] : Object.prototype.toString.call(value) === '[object Array]' ? value : [];
+        if (actual.length !== expected.length)
+            throw new Error('AE changed a scene property dimension.');
+        for (var axis = 0; axis < expected.length; axis++)
+            if (typeof actual[axis] !== 'number' || !isFinite(actual[axis]) || Math.abs(actual[axis] - expected[axis]) > Math.max(1, Math.abs(expected[axis])) * 1e-6)
+                throw new Error('AE clamped or changed a reviewed scene value.');
+    };
+    if (!property.keys.length)
+        verify(target.value, property.value);
+    else {
+        if (target.numKeys !== property.keys.length)
+            throw new Error('AE changed the scene key count.');
+        for (var index = 0; index < property.keys.length; index++)
+            verify(target.keyValue(index + 1), property.keys[index].value);
+    }
+}
+function beginImport(project, root, plan, shapeProfile) {
+    app.beginUndoGroup('Import Motionscaper exchange');
+    var folder;
+    try {
+        folder = project.items.addFolder('Motionscaper ' + plan.transferId);
+    }
+    catch (error) {
+        app.endUndoGroup();
+        throw error;
+    }
+    var created = [folder], items = {}, comps = {}, layers = {};
+    var ended = false;
+    return {
+        footage: function (item) {
+            var options = new ImportOptions(mediaFile(root, item));
+            options.sequence = false;
+            options.importAs = ImportAsType.FOOTAGE;
+            var imported = project.importFile(options);
+            created.push(imported);
+            imported.parentFolder = folder;
+            imported.name = item.name;
+            items[item.id] = imported;
+        },
+        composition: function (item) {
+            var comp = project.items.addComp(item.name, item.width, item.height, item.pixelAspect, item.duration, item.frameRate);
+            created.push(comp);
+            comp.parentFolder = folder;
+            comp.displayStartTime = item.displayStartTime;
+            comp.bgColor = item.background;
+            comps[item.id] = comp;
+            items[item.id] = comp;
+        },
+        layer: function (comp, item) {
+            var target = comps[comp.id], layer = item.scene ? item.scene.kind === 'camera' ? target.layers.addCamera(item.name, [comp.width / 2, comp.height / 2]) : target.layers.addLight(item.name, [comp.width / 2, comp.height / 2]) : item.shapes ? target.layers.addShape() : item.text ? target.layers.addBoxText(item.text.layout.size, item.text.text) : item.kind === 'null' ? target.layers.addNull(comp.duration) : target.layers.add(items[item.sourceId]);
+            layers[item.id] = layer;
+            layer.name = item.name;
+            if (item.scene) {
+                layer.autoOrient = AutoOrientType.NO_AUTO_ORIENT;
+                if (layer.autoOrient !== AutoOrientType.NO_AUTO_ORIENT)
+                    throw new Error('AE did not apply the reviewed scene orientation.');
+                if (item.scene.kind === 'ambient') {
+                    layer.lightType = LightType.AMBIENT;
+                    if (layer.lightType !== LightType.AMBIENT)
+                        throw new Error('AE did not create the reviewed ambient light type.');
+                }
+            }
+            else {
+                layer.threeDLayer = item.threeD;
+                if (item.blendMode !== 'normal') {
+                    var mode = BlendingMode[item.blendMode.toUpperCase()];
+                    if (layer.collapseTransformation !== false) {
+                        if (layer.canSetCollapseTransformation !== true)
+                            throw new Error('This AE layer cannot disable collapse transformations for the admitted blend. Use the complete rendered fallback.');
+                        layer.collapseTransformation = false;
+                    }
+                    layer.preserveTransparency = false;
+                    layer.blendingMode = mode;
+                    if (layer.blendingMode !== mode || layer.preserveTransparency !== false || layer.collapseTransformation !== false)
+                        throw new Error('AE changed the admitted named blend mode or compositing switches.');
+                }
+            }
+            layer.stretch = item.stretch;
+            layer.startTime = item.startTime;
+            layer.inPoint = item.inPoint;
+            layer.outPoint = item.outPoint;
+            layer.enabled = item.enabled;
+            if (plan.muteAudio && !item.scene)
+                layer.audioEnabled = false;
+        },
+        parent: function (item) { layers[item.id].setParentWithJump(layers[item.parentId]); },
+        properties: function (item) {
+            var _a;
+            if ((_a = item.gaussian) === null || _a === void 0 ? void 0 : _a.length) {
+                if (!plan.gaussianProfile)
+                    throw new Error('Reviewed Gaussian profile is missing.');
+                applyMotionAeInstalledGaussian(layers[item.id], item.gaussian, plan.gaussianProfile);
+            }
+            if (item.shapes) {
+                if (!shapeProfile)
+                    throw new Error('Choose a reviewed shape profile before creating editable shapes.');
+                applyMotionAeHostShapes(layers[item.id].property('ADBE Root Vectors Group'), item.shapes, shapeProfile, { hold: KeyframeInterpolationType.HOLD, linear: KeyframeInterpolationType.LINEAR, shape: function (input) {
+                        var shape = new Shape();
+                        shape.closed = input.closed;
+                        shape.vertices = input.vertices;
+                        shape.inTangents = input.inTangents;
+                        shape.outTangents = input.outTangents;
+                        return shape;
+                    } });
+            }
+            if (item.text)
+                applyMotionAeInstalledText(layers[item.id].property('ADBE Text Properties').property('ADBE Text Document'), item.text);
+            if (item.matte) {
+                var target = layers[item.id], source = layers[item.matte.layerId];
+                if (!target.setTrackMatte)
+                    throw new Error('This AE host does not provide setTrackMatte. Use AE 23 or newer or render the original composition.');
+                var type = item.matte.type === 'alpha' ? TrackMatteType.ALPHA : item.matte.type === 'alpha-inverted' ? TrackMatteType.ALPHA_INVERTED : item.matte.type === 'luma' ? TrackMatteType.LUMA : TrackMatteType.LUMA_INVERTED;
+                target.setTrackMatte(source, type);
+            }
+            var transform = layers[item.id].property('ADBE Transform Group');
+            for (var index = 0; index < item.properties.length; index++) {
+                var property = item.properties[index];
+                applyProperty(transform.property(property.matchName), property, item.inPoint);
+            }
+            if (item.scene) {
+                var group = layers[item.id].property(item.scene.kind === 'camera' ? 'ADBE Camera Options Group' : 'ADBE Light Options Group');
+                for (var index = 0; index < item.scene.properties.length; index++) {
+                    var property = item.scene.properties[index], target = group.property(property.matchName);
+                    applyProperty(target, property, item.inPoint);
+                    verifySceneValue(target, property);
+                }
+                for (var index = 0; index < item.properties.length; index++) {
+                    var property = item.properties[index];
+                    verifySceneValue(transform.property(property.matchName), property);
+                }
+            }
+            for (var index = 0; index < item.masks.length; index++) {
+                var mask = item.masks[index], target = layers[item.id].property('ADBE Mask Parade').addProperty('ADBE Mask Atom');
+                target.name = mask.name;
+                target.maskMode = MaskMode[mask.metadata.mode.toUpperCase()];
+                target.inverted = mask.metadata.inverted;
+                target.rotoBezier = false;
+                target.maskFeatherFalloff = mask.metadata.featherFalloff === 'linear' ? MaskFeatherFalloff.FFO_LINEAR : MaskFeatherFalloff.FFO_SMOOTH;
+                target.maskMotionBlur = mask.metadata.motionBlur === 'off' ? MaskMotionBlur.OFF : MaskMotionBlur.SAME_AS_LAYER;
+                var path = target.property('ADBE Mask Shape'), value = function (input) { var shape = new Shape(); shape.closed = input.closed; shape.vertices = input.vertices; shape.inTangents = input.inTangents; shape.outTangents = input.outTangents; return shape; };
+                if (path.numKeys !== 0)
+                    throw new Error('New AE mask unexpectedly has authored keys.');
+                if (!mask.path.keys.length)
+                    path.setValue(value(mask.path.value));
+                for (var key = 0; key < mask.path.keys.length; key++)
+                    path.setValueAtTime(mask.path.keys[key].time, value(mask.path.keys[key].value));
+                for (var key = 0; key < mask.path.keys.length; key++)
+                    path.setInterpolationTypeAtKey(key + 1, mask.path.keys[key].inInterpolation === 'hold' ? KeyframeInterpolationType.HOLD : KeyframeInterpolationType.LINEAR, mask.path.keys[key].outInterpolation === 'hold' ? KeyframeInterpolationType.HOLD : KeyframeInterpolationType.LINEAR);
+                applyProperty(target.property('ADBE Mask Opacity'), mask.opacity, item.inPoint);
+                target.property('ADBE Mask Feather').setValue([0, 0]);
+                target.property('ADBE Mask Offset').setValue(0);
+            }
+        },
+        finish: function () {
+            // Host matte assignment can change source switches. Restore the explicit exchange visibility after all bindings.
+            for (var comp = 0; comp < plan.compositions.length; comp++)
+                for (var index = 0; index < plan.compositions[comp].layers.length; index++) {
+                    var item = plan.compositions[comp].layers[index];
+                    layers[item.id].enabled = item.enabled;
+                }
+            app.endUndoGroup();
+            ended = true;
+        },
+        rollback: function () {
+            var failures = [];
+            for (var index = created.length - 1; index >= 0; index--)
+                try {
+                    created[index].remove();
+                }
+                catch (error) {
+                    failures.push(String(error));
+                }
+            if (!ended) {
+                try {
+                    app.endUndoGroup();
+                }
+                catch (error) {
+                    failures.push(String(error));
+                }
+                ended = true;
+            }
+            if (failures.length)
+                throw new Error('Created-object cleanup failed: ' + failures.join('; '));
+        }
+    };
+}
+/** Import into new AE items. The original project file, existing objects and media are never saved or overwritten. */
+function runMotionAeInstalledImport() {
+    var _a;
+    try {
+        var project_1 = app.project;
+        if (!project_1)
+            throw new Error('Open a destination project in After Effects first.');
+        var file_1 = File.openDialog('Choose motionae.json from a Motionscaper exchange package.');
+        if (!file_1)
+            return;
+        if (file_1.alias || file_1.length > 16777216)
+            throw new Error('Exchange manifest is aliased or exceeds its byte budget.');
+        file_1.encoding = 'UTF-8';
+        if (!file_1.open('r'))
+            throw new Error('Cannot read the exchange manifest.');
+        var json = void 0;
+        try {
+            json = file_1.read();
+        }
+        catch (error) {
+            closeOnError(file_1, error);
+        }
+        if (!file_1.close())
+            throw new Error('Cannot close exchange manifest.');
+        var plan = prepareMotionAeHostImport(json);
+        var needsShapes = false, hasExpressions = false, needsGaussian = false;
+        for (var comp = 0; comp < plan.compositions.length; comp++)
+            for (var index = 0; index < plan.compositions[comp].layers.length; index++) {
+                var layer = plan.compositions[comp].layers[index];
+                if ((_a = layer.gaussian) === null || _a === void 0 ? void 0 : _a.length)
+                    needsGaussian = true;
+                if (layer.blendMode !== 'normal' && (typeof BlendingMode === 'undefined' || BlendingMode[layer.blendMode.toUpperCase()] === undefined))
+                    throw new Error('This AE host lacks the admitted named blend enum. Use the complete rendered fallback.');
+                for (var property = 0; property < layer.properties.length; property++)
+                    if (layer.properties[property].expression !== null)
+                        hasExpressions = true;
+                for (var mask = 0; mask < layer.masks.length; mask++)
+                    if (layer.masks[mask].opacity.expression !== null)
+                        hasExpressions = true;
+                if (plan.compositions[comp].layers[index].shapes)
+                    needsShapes = true;
+                var text = plan.compositions[comp].layers[index].text;
+                if (text)
+                    verifyMotionAeInstalledTextFont(text.font);
+                if (plan.compositions[comp].layers[index].matte && !(parseFloat(app.version) >= 23))
+                    throw new Error('Editable track mattes require After Effects 23 or newer. Use rendered fallback on older hosts.');
+            }
+        if (needsGaussian) {
+            var selected = chooseMotionAeGaussianProfile();
+            if (!selected)
+                return;
+            if (stringifyMotionAeHostJson(selected) !== stringifyMotionAeHostJson(plan.gaussianProfile))
+                throw new Error('Select the exact reviewed Gaussian profile retained by this exchange. No items were created.');
+        }
+        var shapeProfile_1 = needsShapes ? chooseMotionAeShapeProfile() : null;
+        if (needsShapes && !shapeProfile_1)
+            return;
+        if (project_1.workingSpace !== plan.color.workingSpace || project_1.linearBlending !== plan.color.linearBlending || project_1.bitsPerChannel !== plan.color.bitsPerChannel)
+            throw new Error('Open a separate AE project with matching working space, linear blending and bit depth. This script does not change existing project color settings.');
+        var warning = 'This development bridge has no installed-AE qualification. It creates new items and never saves the original project. Compare the result before using it.';
+        if (hasExpressions)
+            warning += '\n\nThis package activates validated scalar Math/time/value expressions. Each target receives one evaluation probe at its layer in-point. This is not proof for every frame or subframe; compare the animation and retain the original.';
+        for (var index = 0; index < Math.min(plan.warnings.length, 8); index++)
+            warning += '\n\n' + plan.warnings[index];
+        if (plan.warnings.length > 8)
+            warning += '\n\nAdditional warnings: ' + String(plan.warnings.length - 8);
+        if (!confirm(warning + '\n\nCreate this separate imported folder?'))
+            return;
+        var host = { checkCancelled: function () { }, verifyMedia: function (items) { return verifyMedia(file_1.parent, items); }, begin: function (input) { return beginImport(project_1, file_1.parent, input, shapeProfile_1); } };
+        importMotionAeHostPlan(plan, host);
+        alert('Exchange imported into a new Motionscaper folder. Original files were not saved. Review unsupported content and compare reference frames; actual AE qualification remains pending.');
+    }
+    catch (error) {
+        alert('Motionscaper import did not complete: ' + String(error));
+    }
+}
+
+return { runMotionAeInstalledImport: runMotionAeInstalledImport };
+}());

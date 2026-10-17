@@ -10,6 +10,7 @@ export function createVideoFilmstripFrameRequests(
 		sourceUrl: string | null;
 		point: Readonly<{ timelineFrame: number }>;
 	}>[],
+	sourceAuthority?: 'product-generated',
 ): readonly ProductVideoTimelineFilmstripFrameRequest[] {
 	const first = clip.timelineStartFrame;
 	const last = first + clip.durationFrames - 1;
@@ -18,7 +19,7 @@ export function createVideoFilmstripFrameRequests(
 		throw new RangeError('Filmstrip clip samples must form a bounded non-empty interval.');
 	}
 	return models.flatMap((model) => {
-		if (!model.sourceUrl) return [];
+		if (!model.sourceUrl && sourceAuthority !== 'product-generated') return [];
 		if (!Number.isFinite(model.point.timelineFrame)) {
 			throw new RangeError('Filmstrip timeline coordinates must be finite.');
 		}
@@ -26,7 +27,7 @@ export function createVideoFilmstripFrameRequests(
 			key: model.key,
 			clipId: clip.id,
 			sourceId: clip.sourceId,
-			sourceUrl: model.sourceUrl,
+			...(sourceAuthority === 'product-generated' ? { sourceAuthority } : { sourceUrl: model.sourceUrl! }),
 			timelineSample: Math.max(first, Math.min(last, Math.round(model.point.timelineFrame))),
 		}];
 	});

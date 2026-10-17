@@ -1,16 +1,12 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import type {
-	VideoKeyframeVideoEncoderRequest,
-	VideoKeyframeVideoEncoderResult,
-	VideoKeyframeVideoSinkEncoderResult,
-} from '../video-keyframe-video-encoder.ts';
+import type { VideoKeyframeVideoEncoderRequest } from '../video-keyframe-video-encoder.ts';
 import type { VideoKeyframeOfflineHtmlVideoSourceResolver } from './video-keyframe-offline-html-video-source-resolver.ts';
 import type { VideoKeyframeOfflineRgbaRenderer } from './video-keyframe-offline-rgba-renderer.ts';
 
 type Awaitable<Value> = PromiseLike<Value> | Value;
 
-export async function runVideoKeyframeOfflineVideoResources<Output>(
+export async function runVideoKeyframeOfflineVideoResources<Result>(
 	createResolver: () => VideoKeyframeOfflineHtmlVideoSourceResolver,
 	createRenderer: (
 		resolver: VideoKeyframeOfflineHtmlVideoSourceResolver,
@@ -20,19 +16,19 @@ export async function runVideoKeyframeOfflineVideoResources<Output>(
 	}>,
 	run: (
 		request: VideoKeyframeVideoEncoderRequest,
-	) => Promise<VideoKeyframeVideoEncoderResult | VideoKeyframeVideoSinkEncoderResult<Output>>,
+	) => Promise<Result>,
 	assertCurrent?: () => void,
-): Promise<VideoKeyframeVideoEncoderResult | VideoKeyframeVideoSinkEncoderResult<Output>> {
+): Promise<Result> {
 	let resolver: VideoKeyframeOfflineHtmlVideoSourceResolver | null = null;
 	let renderer: VideoKeyframeOfflineRgbaRenderer | null = null;
-	let result: VideoKeyframeVideoEncoderResult | VideoKeyframeVideoSinkEncoderResult<Output> | null = null;
+	let result: Result | undefined; let completed = false;
 	let primary: unknown;
 	let hasPrimary = false;
 	try {
 		resolver = createResolver();
 		const resources = createRenderer(resolver);
 		renderer = resources.renderer;
-		result = await run(resources.request);
+		result = await run(resources.request); completed = true;
 	} catch (error) {
 		primary = error;
 		hasPrimary = true;
@@ -50,7 +46,7 @@ export async function runVideoKeyframeOfflineVideoResources<Output>(
 		try { assertCurrent(); } catch (error) { primary = error; hasPrimary = true; }
 	}
 	if (hasPrimary || cleanupFailures.length > 0) {
-		if (result && 'bytes' in result) result.bytes.fill(0);
+		if (result && typeof result === 'object' && 'bytes' in result && result.bytes instanceof Uint8Array) result.bytes.fill(0);
 		if (hasPrimary && cleanupFailures.length === 0) throw primary;
 		if (!hasPrimary && cleanupFailures.length === 1) throw cleanupFailures[0];
 		throw new AggregateError(
@@ -59,8 +55,8 @@ export async function runVideoKeyframeOfflineVideoResources<Output>(
 			{ ...(hasPrimary ? { cause: primary } : {}) },
 		);
 	}
-	if (!result) throw new Error('Offline video export produced no exact encoded result.');
-	return result;
+	if (!completed) throw new Error('Offline video export produced no exact result.');
+	return result as Result;
 }
 
 async function retryCleanup(

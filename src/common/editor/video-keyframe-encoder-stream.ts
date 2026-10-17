@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
+import { normalizeVideoRgbaOutput, type VideoRgbaOutput } from './video-planar-pixels.ts';
 
 import {
 	admitVideoKeyframeEncoderWorkload,
@@ -85,6 +86,7 @@ export interface VideoKeyframeEncoderFfmpegPort {
 }
 
 export interface VideoKeyframeEncoderRequest extends VideoKeyframeEncoderWorkloadRequest {
+	readonly rgbaOutput?: VideoRgbaOutput;
 	readonly producer: VideoKeyframeRgbaFrameProducer;
 	readonly audioSource?: VideoKeyframeAudioInputSource;
 	readonly ffmpeg: VideoKeyframeEncoderFfmpegPort;
@@ -184,6 +186,7 @@ export async function encodeVideoKeyframeFrames(
 		assertReady(signal, assertCurrent);
 		target = new Uint8Array(workload.frameBytes);
 		webCodecs = validateWebCodecs(request);
+		const rgbaOutput = normalizeVideoRgbaOutput(Object.hasOwn(request, 'rgbaOutput') ? dataProperty(request, 'rgbaOutput', 'video keyframe encoder request') : undefined);
 		returnedVideoStream = await ffmpeg.createInputStream(
 			workload.inputPath,
 			workload.ringCapacityBytes,
@@ -216,6 +219,7 @@ export async function encodeVideoKeyframeFrames(
 				producer,
 				workload,
 				webCodecs,
+				rgbaOutput,
 				...(signal ? { signal } : {}),
 				...(assertCurrent ? { assertCurrent } : {}),
 			})
@@ -280,7 +284,7 @@ const ENCODER_FIELDS = new Set([
 	'frameSource', 'format', 'quality', 'inputPath', 'audioInputPath', 'outputPath', 'ringCapacityBytes',
 	'audioRingCapacityBytes', 'audioSource',
 	'maximumWidth', 'maximumHeight', 'maximumFrameCount', 'maximumTotalRgbaBytes',
-	'producer', 'ffmpeg', 'webCodecs', 'signal', 'assertCurrent',
+	'producer', 'rgbaOutput', 'ffmpeg', 'webCodecs', 'signal', 'assertCurrent',
 ]);
 const WORKLOAD_OPTION_FIELDS = [
 	'quality', 'ringCapacityBytes', 'audioInputPath', 'audioRingCapacityBytes',

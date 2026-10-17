@@ -1,0 +1,51 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+export const FRAMESCAPER_SUCCESSOR_ENGLISH_COPY = Object.freeze({
+	nativeDeliveryMenu: 'Export sequence as ProRes 4444…',
+	menu: 'Upgrade archive for Framescaper 1.1 development…',
+	title: 'Framescaper 1.1 development — archive upgrade',
+	description: 'Upgrade a complete Framescaper 1.0 archive into a separate library. Your project identity and original archive are retained. Open the upgraded project in this successor editor. Upgraded archives use schema v2.',
+	linksMenu: 'Linked compositions…', linksTitle: 'Linked Motionscaper compositions', openProject: 'Open in successor editor',
+	linksDescription: 'Connect a saved composition using a pairing URL. Saved revisions update automatically while connected; accepted revisions and their media remain available offline.',
+	nativeDescription: 'Choose a saved .mscape file. Its primary composition updates automatically when Motionscaper saves the file; accepted revisions and media remain available offline. Closing this dialog keeps the file connected.',
+	nativeChoose: 'Choose saved .mscape file', nativeRefresh: 'Refresh saved revision', nativeSelecting: 'Choosing a saved composition', nativeConnected: 'Watching saved revisions', nativeUnavailable: 'The selected file is temporarily unavailable', nativeFailed: 'The saved composition could not be updated', nativeDisconnecting: 'Disconnecting saved file',
+	connect: 'Create pairing URL', disconnect: 'Disconnect', pairingUrl: 'Pairing URL', pairingHelp: 'Paste this URL in Motionscaper’s Send Composition dialog. Keep both editors and bridge windows open. Closing this dialog keeps the connection active.',
+	connectionIdle: 'Disconnected', connectionPending: 'Waiting for Motionscaper…', connectionReady: 'Connected — accepting saved revisions', connectionReceived: 'Saved revision received',
+	accepted: 'Accepted revision', pending: 'Pending output change', paused: 'Updates pinned by history', conform: 'Conform pending revision', resume: 'Resume automatic updates', emptyLinks: 'No compositions are linked to this project.',
+	conformReview: 'Review composition change', conformPolicy: 'Fit source windows to the new revision. Timeline starts, durations, keyframes, and nested sequence timing stay unchanged. Source windows and playback rates below will change together; existing retime curves keep their shape with rescaled source positions.',
+	conformRounding: 'Source positions round to the nearest whole frame or sample; exact ties round away from zero. Review every affected clip before applying.',
+	before: 'Before', after: 'After', framesPerSecond: 'frames/s', samplesPerSecond: 'samples/s', seconds: 'seconds', sourceWindow: 'Source window', sourceDuration: 'Source duration', timelineDuration: 'Timeline duration', playbackRate: 'Authored rate parameter', sourceTrims: 'Trim handles (start / end)',
+	affectedClips: 'Affected clips', clip: 'Clip', projectBin: 'Project bin', timeline: 'Timeline', video: 'Video', audio: 'Audio', noAffectedClips: 'No existing clips use this source.',
+	conformClamped: 'Window fits within the shorter source.', conformReversed: 'Reverse playback retained.', conformRetime: 'Source positions in the retime curve will be rescaled.', conformWarp: 'Source positions in the audio warp map will be rescaled.',
+	cancelReview: 'Cancel review', applyReview: 'Apply reviewed changes',
+	choose: 'Choose archive to upgrade', close: 'Close', opening: 'Opening successor library…',
+	retained: '{count} upgraded projects retained in the successor library.',
+	verifying: 'Verifying complete archive and retaining original bytes…', schema: 'schema v2',
+	original: 'Download original v1 archive', upgraded: 'Download upgraded v2 archive',
+});
+const EN = FRAMESCAPER_SUCCESSOR_ENGLISH_COPY;
+const DE: Readonly<Record<keyof typeof EN, string>> = Object.freeze({
+	nativeDeliveryMenu: 'Sequenz als ProRes 4444 exportieren…',
+	menu: 'Archiv für Framescaper 1.1 Entwicklung aktualisieren…',
+	title: 'Framescaper 1.1 Entwicklung — Archiv aktualisieren',
+	description: 'Ein vollständiges Framescaper-1.0-Archiv wird in eine separate Bibliothek übernommen. Projektidentität und Originalarchiv bleiben erhalten. Das aktualisierte Projekt kann in diesem Nachfolgeeditor geöffnet werden. Aktualisierte Archive verwenden Schema v2.',
+	linksMenu: 'Verknüpfte Kompositionen…', linksTitle: 'Verknüpfte Motionscaper-Kompositionen', openProject: 'Im Nachfolgeeditor öffnen',
+	linksDescription: 'Eine gespeicherte Komposition wird über eine Verbindungs-URL verbunden. Gespeicherte Revisionen werden während der Verbindung automatisch übernommen; akzeptierte Revisionen und Medien bleiben offline verfügbar.',
+	nativeDescription: 'Eine gespeicherte .mscape-Datei auswählen. Ihre Hauptkomposition wird bei jedem Speichern durch Motionscaper automatisch aktualisiert; akzeptierte Revisionen und Medien bleiben offline verfügbar. Das Schließen dieses Dialogs beendet die Verbindung nicht.',
+	nativeChoose: 'Gespeicherte .mscape-Datei auswählen', nativeRefresh: 'Gespeicherte Revision erneut lesen', nativeSelecting: 'Gespeicherte Komposition auswählen', nativeConnected: 'Gespeicherte Revisionen werden überwacht', nativeUnavailable: 'Die ausgewählte Datei ist vorübergehend nicht verfügbar', nativeFailed: 'Die gespeicherte Komposition konnte nicht aktualisiert werden', nativeDisconnecting: 'Dateiverbindung wird getrennt',
+	connect: 'Verbindungs-URL erstellen', disconnect: 'Verbindung trennen', pairingUrl: 'Verbindungs-URL', pairingHelp: 'Diese URL im Motionscaper-Dialog „Komposition senden“ einfügen. Beide Editoren und Brückenfenster geöffnet lassen. Das Schließen dieses Dialogs beendet die Verbindung nicht.',
+	connectionIdle: 'Nicht verbunden', connectionPending: 'Warten auf Motionscaper…', connectionReady: 'Verbunden — gespeicherte Revisionen werden übernommen', connectionReceived: 'Gespeicherte Revision empfangen',
+	accepted: 'Akzeptierte Revision', pending: 'Ausstehende Ausgabeänderung', paused: 'Aktualisierungen durch Verlauf angehalten', conform: 'Ausstehende Revision anpassen', resume: 'Automatische Aktualisierung fortsetzen', emptyLinks: 'Mit diesem Projekt sind keine Kompositionen verknüpft.',
+	conformReview: 'Kompositionsänderung prüfen', conformPolicy: 'Quellbereiche an die neue Revision anpassen. Startpositionen, Dauer, Keyframes und das Timing verschachtelter Sequenzen bleiben unverändert. Die folgenden Quellbereiche und Wiedergaberaten ändern sich gemeinsam; vorhandene Zeitkurven behalten ihre Form mit neu skalierten Quellpositionen.',
+	conformRounding: 'Quellpositionen werden auf das nächste ganze Bild oder Sample gerundet; bei gleichem Abstand von null weg. Vor dem Anwenden jeden betroffenen Clip prüfen.',
+	before: 'Vorher', after: 'Nachher', framesPerSecond: 'Bilder/s', samplesPerSecond: 'Samples/s', seconds: 'Sekunden', sourceWindow: 'Quellbereich', sourceDuration: 'Quelldauer', timelineDuration: 'Dauer in der Zeitleiste', playbackRate: 'Bearbeiteter Geschwindigkeitsparameter', sourceTrims: 'Trim-Reserven (Anfang / Ende)',
+	affectedClips: 'Betroffene Clips', clip: 'Clip', projectBin: 'Projektablage', timeline: 'Zeitleiste', video: 'Video', audio: 'Audio', noAffectedClips: 'Keine vorhandenen Clips verwenden diese Quelle.',
+	conformClamped: 'Bereich an die kürzere Quelle angepasst.', conformReversed: 'Rückwärtswiedergabe bleibt erhalten.', conformRetime: 'Quellpositionen der Zeitkurve werden neu skaliert.', conformWarp: 'Quellpositionen der Audio-Zeitverzerrung werden neu skaliert.',
+	cancelReview: 'Prüfung abbrechen', applyReview: 'Geprüfte Änderungen anwenden',
+	choose: 'Archiv zum Aktualisieren auswählen', close: 'Schließen', opening: 'Nachfolgebibliothek wird geöffnet…',
+	retained: '{count} aktualisierte Projekte in der Nachfolgebibliothek gespeichert.',
+	verifying: 'Vollständiges Archiv wird geprüft und das Original aufbewahrt…', schema: 'Schema v2',
+	original: 'Originalarchiv v1 herunterladen', upgraded: 'Aktualisiertes Archiv v2 herunterladen',
+});
+export function framescaperSuccessorCopy(locale: string): Readonly<Record<keyof typeof EN, string>> {
+	return locale.toLowerCase().startsWith('de') ? DE : EN;
+}

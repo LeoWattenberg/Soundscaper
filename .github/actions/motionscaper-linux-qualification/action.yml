@@ -1,0 +1,72 @@
+name: Qualify complete Linux Motion workflows
+description: Real packaged launch, authored title, 2.5D delivery and offline Frame successor workflows; complete qualification currently requires Linux x64.
+inputs:
+  target:
+    required: true
+    description: Native Linux target, linux-x64 or linux-arm64.
+  arch:
+    required: true
+    description: Native x64 or arm64 architecture.
+  native-result:
+    required: true
+    description: Absolute verified native helper result directory.
+  motion-package:
+    required: true
+    description: Absolute unpacked Motion package directory.
+runs:
+  using: composite
+  steps:
+    - name: Download the separate source-bound test decoder
+      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+      with:
+        name: motionscaper-reference-decoder-${{ inputs.target }}
+        path: ${{ runner.temp }}/motionscaper-reference-decoder
+    - name: Install real GTK and X11 test dependencies
+      shell: bash
+      run: npx playwright install-deps chromium
+    - name: Prepare the explicitly isolated Frame successor stage
+      shell: bash
+      run: node scripts/desktop-prepare.mjs
+      env:
+        SCAPE_PRODUCT: framescaper
+        SCAPE_FRAMESCAPER_LINE: successor
+        SCAPE_FRAMESCAPER_DESKTOP_PROFILE: framescaper-successor-v2
+        FRAMESCAPER_SUCCESSOR_NATIVE_BUILD_RESULT: ${{ inputs.native-result }}
+        SOUNDSCAPER_SOURCE_REVISION: ${{ github.sha }}
+        SOUNDSCAPER_DESKTOP_TARGET_PLATFORM: linux
+        SOUNDSCAPER_DESKTOP_TARGET_ARCH: ${{ inputs.arch }}
+    - name: Package the separate development successor without publication
+      shell: bash
+      run: >-
+        npx electron-builder --config electron-builder.framescaper-successor.cjs
+        --linux --${{ inputs.arch }} --dir --publish never
+      env:
+        SCAPE_PRODUCT: framescaper
+        SCAPE_FRAMESCAPER_LINE: successor
+        SCAPE_FRAMESCAPER_DESKTOP_PROFILE: framescaper-successor-v2
+    - name: Preserve the successor sandbox
+      shell: bash
+      run: |
+        mapfile -t sandboxes < <(find release/framescaper-successor -type f -name chrome-sandbox -print)
+        if [[ "${#sandboxes[@]}" -ne 1 ]]; then exit 1; fi
+        sudo chown root:root -- "${sandboxes[0]}"
+        sudo chmod 4755 -- "${sandboxes[0]}"
+    - name: Require all four real packaged workflows
+      shell: bash
+      run: >-
+        xvfb-run -a node scripts/motionscaper-linux-qualification.ts
+        --target=${{ inputs.target }} --native-result="${{ inputs.native-result }}"
+        --decoder-artifact="${{ runner.temp }}/motionscaper-reference-decoder"
+        --motion-stage="${{ github.workspace }}/.desktop-build"
+        --motion-package="${{ inputs.motion-package }}"
+        --successor-stage="${{ github.workspace }}/.desktop-build/framescaper-successor"
+        --successor-package="${{ github.workspace }}/release/framescaper-successor/${{ inputs.arch == 'x64' && 'linux-unpacked' || 'linux-arm64-unpacked' }}"
+        --output="${{ runner.temp }}/motionscaper-linux-qualification"
+    - name: Retain source-bound receipts and failure diagnostics
+      if: always()
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      with:
+        name: motionscaper-linux-qualification-${{ inputs.target }}
+        path: ${{ runner.temp }}/motionscaper-linux-qualification/
+        if-no-files-found: warn
+        retention-days: 14

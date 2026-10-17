@@ -1,6 +1,6 @@
 import { getLocaleDescriptor } from '../i18n/locales.js';
 import { PRODUCT_IDS } from '../product-identities.js';
-import { isTransferRoutePath } from '../transfer/transfer-routes.js';
+import { isTransferRoutePath } from '../transfer/transfer-route-path.ts';
 
 /**
  * The product this bundle was built for.
@@ -51,7 +51,7 @@ export async function resolveApplicationRoute(scope = globalThis) {
 		const environment = await desktop.getEnvironment();
 		return createRoute(BUILT_PRODUCT_ID, environment?.locale, true, true);
 	}
-	if (isTransferRoutePath(scope.location?.pathname)) return mountTransferDocument(scope);
+	if (BUILT_PRODUCT_ID !== 'motionscaper' && isTransferRoutePath(scope.location?.pathname)) return mountTransferDocument(scope);
 	if (scope.location?.pathname === '/') scope.location.replace('/en/');
 
 	const { productId, locale, embedded, privacyPolicy } = resolveWebRoute(scope.location?.pathname);
@@ -76,7 +76,11 @@ export async function resolveApplicationRoute(scope = globalThis) {
  * @returns {Promise<never>}
  */
 async function mountTransferDocument(scope) {
-	const { mountTransferPageFromLocation } = await import('../transfer/transfer-page-entry.ts');
+	const { mountTransferPageFromLocation } = await (
+		typeof __SCAPE_PRODUCT__ === 'string' && __SCAPE_PRODUCT__ === 'motionscaper'
+			? Promise.reject(new Error('Motionscaper project transfer is not available.'))
+			: import('../transfer/transfer-page-entry.ts')
+	);
 	await mountTransferPageFromLocation(scope);
 	return new Promise(() => {});
 }

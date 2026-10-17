@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
+import type { VideoRgbaOutput } from './video-planar-pixels.ts';
 
 import type { FileSizeWarningConfirmation } from './controller/shared/file-size-warning.ts';
 import { admitVideoKeyframeAudioInput } from './video-keyframe-audio-input.ts';
@@ -71,6 +72,7 @@ export interface VideoKeyframeVideoRgbaProducer {
 }
 
 export interface VideoKeyframeVideoEncoderRequest {
+	readonly rgbaOutput?: VideoRgbaOutput;
 	readonly frameSource: VideoKeyframeExportFrameSource;
 	readonly producer: VideoKeyframeVideoRgbaProducer;
 	readonly format: VideoKeyframeEncoderFormat;
@@ -313,6 +315,7 @@ async function encodeManaged<Output>(
 				workload: admittedWorkload,
 				frameSource: request.frameSource,
 				producer: managedProducer.value,
+				rgbaOutput: request.rgbaOutput,
 				webCodecs: request.webCodecs,
 				...(audioSource ? { audioSource, audioBitrate } : {}),
 				maximumOutputBytes: request.maximumOutputBytes, confirmFileSizeWarning: request.confirmFileSizeWarning,
@@ -334,6 +337,7 @@ async function encodeManaged<Output>(
 						lease,
 						workload: workloadRequest,
 						producer: managedProducer.value,
+						rgbaOutput: request.rgbaOutput,
 						...(audioSource ? { audioSource } : {}),
 						outputPath: paths.output,
 						format: request.format,

@@ -19,8 +19,10 @@
  * back the chunks it happened to get.
  */
 
+import { normalizeVideoRgbaOutput, videoI420ByteLength, videoRgbaI420Pixels, VIDEO_I420_COLOR_SPACE, type VideoRgbaOutput } from './video-planar-pixels.ts';
 import { raceAbortablePromise } from './abort-race.ts';
 import { createVideoElementaryStreamWriter } from './video-elementary-stream.ts';
+import { createVideoAvcColorNormalizer } from './video-avc-color-description.ts';
 
 const MICROSECONDS_PER_SECOND = 1_000_000;
 
@@ -83,6 +85,7 @@ interface RgbaProducerLike {
 }
 
 export interface VideoWebCodecsProduceRequest {
+	readonly rgbaOutput?: VideoRgbaOutput;
 	readonly hardwareAcceleration?: 'prefer-hardware';
 	readonly frameSource: FrameSourceLike;
 	readonly producer: RgbaProducerLike;
@@ -109,7 +112,7 @@ export interface VideoWebCodecsChunkProduceRequest
 	extends Omit<VideoWebCodecsProduceRequest, 'write'> {
 	/** MP4 consumes length-prefixed AVC; the legacy elementary-stream path consumes Annex-B. */
 	readonly h264Format?: 'annexb' | 'avc';
-	/** Receives each browser chunk with the exact metadata emitted beside it. */
+	/** Receives browser packets with explicit own-709 AVC signaling; picture bytes/timing remain exact. */
 	readonly writeChunk: (
 		chunk: VideoWebCodecsEncodedChunk,
 		metadata?: EncodedVideoChunkMetadata,
@@ -192,7 +195,7 @@ export async function produceVideoWebCodecsStream(
 	return Object.freeze({ ...encoded, byteLength });
 }
 
-/** Encode every exact frame while preserving WebCodecs chunk timing and decoder metadata. */
+/** Encode exact frames, retaining timing/picture bytes and completing missing own AVC color signaling. */
 export async function produceVideoWebCodecsChunks(
 	request: VideoWebCodecsChunkProduceRequest,
 ): Promise<VideoWebCodecsProduceResult> {
@@ -217,9 +220,12 @@ export async function produceVideoWebCodecsChunks(
 	request.signal?.addEventListener('abort', onAbort, { once: true });
 	let chunkCount = 0;
 	let byteLength = 0;
+	const normalizeAvc = request.videoCodec === 'h264' && request.h264Format === 'avc'
+		? createVideoAvcColorNormalizer(width, height) : undefined;
 	const drain = async () => {
 		while (pending.length > 0) {
-			const next = pending.shift()!;
+			const emitted = pending.shift()!;
+			const next = normalizeAvc ? normalizeAvc(emitted.chunk, emitted.metadata) : emitted;
 			chunkCount += 1;
 			byteLength += next.chunk.byteLength;
 			await request.writeChunk(next.chunk, next.metadata);
@@ -235,13 +241,15 @@ export async function produceVideoWebCodecsChunks(
 			...(request.hardwareAcceleration ? { hardwareAcceleration: request.hardwareAcceleration } : {}),
 			...(request.h264Format ? { h264Format: request.h264Format } : {}),
 		}));
+		const rgbaOutput = normalizeVideoRgbaOutput(request.rgbaOutput);
 		const rgba = new Uint8Array(producer.byteLength);
+		const planar = new Uint8Array(videoI420ByteLength(width, height));
 		for (let index = 0; index < frameSource.frameCount; index += 1) {
 			assertReady(request, failure);
 			await producer.produce(frameSource.frame(index), rgba, signalOptions(request.signal));
 			assertReady(request, failure);
-			const videoFrame = new videoFrameClass(rgba, {
-				format: 'RGBA',
+			const videoFrame = new videoFrameClass(videoRgbaI420Pixels(rgba, width, height, rgbaOutput, planar), {
+				format: 'I420', colorSpace: VIDEO_I420_COLOR_SPACE,
 				codedWidth: width,
 				codedHeight: height,
 				timestamp: frameTimestamp(index, frameRate),

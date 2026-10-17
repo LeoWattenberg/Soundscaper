@@ -1,0 +1,92 @@
+---
+title: Motionscaper
+description: Create animated compositions and retain editable motion projects locally.
+sidebar:
+  order: 1
+---
+
+Motionscaper is the motion graphics editor in the Scaper family. A project
+contains compositions, layers, animation, and retained media. Its project file
+extension is `.mscape`.
+
+This is a development release. Start with a copy of important source material
+and keep exported project archives alongside your working library.
+
+## Start a composition {#start-a-composition}
+
+Choose **File → New Composition**. The **Layer** menu opens text, shape,
+animation, compositing, tracking, expression, and 3D scene tools. **View →
+Composition Preview** opens playback; new editing surfaces appear when you
+choose them from a menu.
+
+Choose **View → Composition Canvas** to select, move, scale or rotate layers with
+static 2D transforms. Animated transforms remain editable through the property
+and timeline tools.
+
+In **View → Timeline**, select existing layers to rename, enable, disable or
+remove them. Renaming preserves property references and animation. Removing a
+layer keeps its original media; include its dependent layers or detach their
+links first. **Undo** restores removed layers. A selected footage layer also
+offers an audio checkbox when its retained source contains audio.
+
+Follow [your first motion project](/motionscaper/first-project/) to create,
+animate, save, and render a composition.
+
+## Save and deliver {#save-and-deliver}
+
+**File → Save** publishes a saved revision. **Save Copy** exports the current
+snapshot as an `.mscape` archive without publishing a new saved revision.
+Imported original media and fonts travel with the archive. The **Project
+Library** opens projects retained on this device.
+
+**File → Render** offers transparent PNG frames in a TAR archive,
+opaque MP4 or WebM video, and ProRes 4444 when the desktop encoder is available.
+PNG sequences exclude audio. Browser video retains authored audio when its
+encoder supports the requested format. Native ProRes reports its effective
+color and alpha precision in the render dialog. **File → Render Queue** keeps
+jobs available across dialog closes and project switches. It retains up to eight
+jobs and 128 MiB of browser downloads; each download admits up to 64 MiB. Choose
+a streaming file destination for larger output and remove finished jobs to
+release retained downloads. If native output cleanup fails, use **Retry Output
+Cleanup** in this queue. The job keeps its destination until cleanup succeeds;
+you can then remove it or retry the submitted revision with a fresh destination.
+
+## Link to Framescaper {#link-to-framescaper}
+
+Linked compositions require the separate Framescaper 1.1 development line.
+In its **File → Linked compositions** dialog, create a pairing URL. Paste it
+into Motionscaper's **File → Send Composition to Framescaper** dialog, connect,
+and keep the editors and bridge windows open. Later **Save** operations send
+new revisions automatically; **Save Copy** does not.
+
+Framescaper retains each accepted revision and its complete media closure for
+offline use. Undo pins a prior revision until you resume updates. Changes to
+output size, timing, or the audio grid require an explicit Conform review.
+The desktop receiver can instead watch a saved `.mscape` file you select.
+
+## Check desktop updates {#check-desktop-updates}
+
+Choose **Help → Check for Updates** in the desktop app. This manual check looks
+for compatible Motionscaper releases in the project's GitHub repository. Preview
+versions can receive newer preview releases; stable versions receive stable
+releases. Choose **View Release** to open the verified release page. The check
+does not download or install an update. Browser builds omit this menu command.
+
+## After Effects exchange {#after-effects-exchange}
+
+**File → After Effects Bridge** provides readable scripts and reviews supported
+exchange data before importing. `.aep` and `.aepx` files are opened through an
+installed copy of After Effects and the bridge scripts. The development bridge
+has not yet been qualified against installed After Effects. Review its report;
+unsupported scene intent and original media remain preserved in project custody.
+
+The dialog offers separate import and export options for supported scalar
+opacity expressions using arithmetic, composition time, the value before the
+expression and standard Math functions. Both options start off. Review the new
+report after changing an option; other expression forms require explicit
+sampling or rendering. Original expression source remains in the retained
+exchange or `original.mscape` archive.
+
+The renderer supports SDR color and alpha with 2.5D layers, cameras, lights,
+shutter sampling, and depth of field. It does not claim HDR, full 3D meshes,
+advanced AI masking, or arbitrary After Effects plug-in compatibility.

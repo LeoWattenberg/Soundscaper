@@ -6,6 +6,7 @@ import {
 } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
+import { NIGHTLY_MOTION_FIXTURE_INPUTS } from '../../scripts/lib/desktop-nightly-tests-motion-fixture-inputs.mjs';
 import nativeFixtureSources from '../../scripts/lib/desktop-nightly-tests-native-fixture-inputs.cjs';
 
 const BURN_IN_FONT_FILES = [
@@ -39,6 +40,7 @@ export async function createFixture(context) {
 		...await Promise.all(nativeFixtureSources.map(async (source) => [
 			source, await readFile(new URL(`../../${source}`, import.meta.url), 'utf8'),
 		])),
+		...await Promise.all(NIGHTLY_MOTION_FIXTURE_INPUTS.map(async ({ source }) => [source, await readFile(new URL(`../../${source}`, import.meta.url))])),
 		['LICENSE', 'AGPL fixture\n'],
 		['THIRD_PARTY_LICENSES.md', '# Fixture notices\n'],
 		['LICENSES/GPL-3.0.txt', 'GPL fixture\n'],
@@ -88,6 +90,7 @@ export async function createFixture(context) {
 		['scripts/lib/desktop-nightly-tests-dual-origin.mjs', 'export const dualOrigin = true;\n'],
 		['scripts/lib/pages-site-static-server.mjs', 'export const pagesServer = true;\n'],
 		['scripts/lib/product-web-routing.mjs', 'export const routing = true;\n'],
+		['scripts/lib/build-worker-chunks.mjs', 'export const workerChunkGroups = [];\n'],
 		['scripts/lib/desktop-nightly-tests-local-assistance.mjs', 'export const realModels = true;\n'],
 		['scripts/lib/local-model-real-test-cases.mjs', 'export const modelCases = true;\n'],
 		['scripts/lib/local-model-mirror-publication.mjs', 'export const publicDelivery = true;\n'],
@@ -150,13 +153,17 @@ export async function createFixture(context) {
 		['.wrangler/dual-origin-browser/soundscaper/en/index.html', '<p>Soundscaper reciprocal fixture</p>'],
 		['.wrangler/dual-origin-browser/framescaper/.browser-product-build.json', `${JSON.stringify({ schemaVersion: 2, productId: 'framescaper', origin: 'http://127.0.0.1:4333' })}\n`],
 		['.wrangler/dual-origin-browser/framescaper/en/index.html', '<p>Framescaper reciprocal fixture</p>'],
+		['.wrangler/dual-origin-browser/motionscaper/.browser-product-build.json', `${JSON.stringify({ schemaVersion: 2, productId: 'motionscaper', origin: 'http://127.0.0.1:4334' })}\n`],
+		['.wrangler/dual-origin-browser/motionscaper/en/index.html', '<p>Motionscaper peer fixture</p>'],
 		['.wrangler/dual-origin-browser/soundscaper-source-maps/app.js.map', '{}\n'],
 		['.wrangler/dual-origin-browser/framescaper-source-maps/app.js.map', '{}\n'],
+		['.wrangler/dual-origin-browser/motionscaper-source-maps/app.js.map', '{}\n'],
 		['handbook/guides/steps.mjs', 'export const steps = true;\n'],
 		['handbook/src/content/docs/reference/macro-programs.md', '# Macro programs\n\n```js\nsound.log("fixture");\n```\n'],
 		['vendor/audacity-design-system/tokens/src/themes/dark.v2.ts', 'export const darkTheme = {};\n'],
 		['vendor/audacity-design-system/tokens/src/themes/light.v2.ts', 'export const lightTheme = {};\n'],
 		['vendor/audacity-design-system/components/src/utils/roseus-colormap.ts', 'export const getSpectrogramColor = () => "#010101";\n'],
+		['vendor/audacity-design-system/components/src/Slider/native-range-touch-owner.ts', await readFile(new URL('../../vendor/audacity-design-system/components/src/Slider/native-range-touch-owner.ts', import.meta.url), 'utf8')],
 		['handbook/guides/soundscaper/volume.mjs', 'export const guide = true;\n'],
 		['tests/browser/example.spec.js', 'export const test = true;\n'],
 		['tests/browser/dual-origin/framescaper-service-worker.spec.js', 'export const framescaperWorker = true;\n'],
@@ -201,6 +208,15 @@ export async function createFixture(context) {
 		// build host installed instead.
 		['esbuild', { licenses: ['LICENSE.md'] }],
 		['@esbuild/linux-x64', {}],
+		['@vitejs/plugin-react', { licenses: ['LICENSE'] }],
+		['canvaskit-wasm', { licenses: ['LICENSE'], dependencies: { '@webgpu/types': '0.1.21' } }],
+		['@webgpu/types', {}],
+		['vite', { licenses: ['LICENSE.md'], dependencies: { rolldown: '1.0.0', lightningcss: '1.0.0' } }],
+		['rolldown', { optionalDependencies: { [`@rolldown/binding-${process.platform}-${process.arch}`]: '1.0.0' } }],
+		[`@rolldown/binding-${process.platform}-${process.arch}`, { os: [process.platform], cpu: [process.arch] }],
+		['lightningcss', { optionalDependencies: { [`lightningcss-${process.platform}-${process.arch}`]: '1.0.0' } }],
+		[`lightningcss-${process.platform}-${process.arch}`, { os: [process.platform], cpu: [process.arch] }],
+		['react', {}], ['react-dom', { dependencies: { scheduler: '1.0.0' } }], ['scheduler', {}],
 		['fflate', { licenses: ['LICENSE'] }],
 		['mediabunny', { dependencies: {
 			'@types/dom-mediacapture-transform': '0.1.12', '@types/dom-webcodecs': '0.1.13',
@@ -249,6 +265,8 @@ export async function writeFixturePackage(repositoryRoot, name, metadata) {
 		name,
 		version: metadata.version ?? '1.0.0',
 		...(metadata.dependencies ? { dependencies: metadata.dependencies } : {}),
+		...(metadata.optionalDependencies ? { optionalDependencies: metadata.optionalDependencies } : {}),
+		...(metadata.os ? { os: metadata.os, cpu: metadata.cpu } : {}),
 	})}\n`);
 	await writeFixtureFile(repositoryRoot, `node_modules/${name}/index.js`, 'module.exports = {};\n');
 	for (const license of metadata.licenses ?? []) {

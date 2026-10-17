@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { requiredFinishing } from './selected-finishing-exact-frame-support.ts';
+import type { FramescaperVideoRgbaOutput } from './video-export-frame-consumer.ts';
 import type { FileSizeWarningConfirmation } from '../common/editor/controller/shared/file-size-warning.ts';
 import type { ProductVideoExportStrategyEncodeRequest } from '../common/editor/controller/export/product-video-export-strategy.ts';
 import type { VideoKeyframeExportFrame } from '../common/editor/video-keyframe-export-frame-source.ts';
@@ -18,7 +20,7 @@ import {
 	type FramescaperVideoExportPictureDispositionFinishing,
 	type FramescaperVideoExportVisualAssetStoreFinishing,
 } from './video-export-visual-execution-finishing.ts';
-import { createFramescaperVideoFrameAddressFinishing } from './video-frame-address-finishing.ts';
+import { createFramescaperVideoFrameAddressFinishing, type FramescaperVideoFrameAddressFinishing } from './video-frame-address-finishing.ts';
 import type { FramescaperSelectedOpenFxExecutionNativeMedia } from './selected-native-media-openfx-exact-planes.ts';
 
 export type CreateFramescaperOpenFxExactExecutionNativeMedia = (options: Readonly<{
@@ -51,9 +53,13 @@ export type CreateFramescaperVideoExportSupplementalPictureExecutionFinishing = 
 
 export interface FramescaperVideoExportExactExecutionFinishing {
 	readonly compositor: VideoKeyframeOfflineRgbaCompositor;
+	readonly rgbaOutput: FramescaperVideoRgbaOutput;
 	disposition(): FramescaperVideoExportPictureDispositionFinishing;
 	dispose(): Promise<void>;
 }
+export type CreateFramescaperVideoExportSourceFramesFinishing = (options: Readonly<{
+	canonicalProject: Readonly<Record<string, unknown>>; encoded: FramescaperVideoFrameAddressFinishing;
+}>) => PromiseLike<FramescaperVideoFrameAddressFinishing> | FramescaperVideoFrameAddressFinishing;
 
 /** Own the authenticated V13 source-layer route and all of its frame-addressed resources. */
 export async function createFramescaperVideoExportExactExecutionFinishing(options: Readonly<{
@@ -67,6 +73,7 @@ export async function createFramescaperVideoExportExactExecutionFinishing(option
 	readonly outputFrameRate?: Readonly<{ readonly num: number; readonly den: number }>;
 	readonly createOpenFxExecution?: CreateFramescaperOpenFxExactExecutionNativeMedia;
 	readonly createSupplementalPictureExecution?: CreateFramescaperVideoExportSupplementalPictureExecutionFinishing;
+	readonly createSourceFrames?: CreateFramescaperVideoExportSourceFramesFinishing;
 }>): Promise<FramescaperVideoExportExactExecutionFinishing> {
 	const timingViewsBySourceId = rawTiming(options.request);
 	const visual = await createFramescaperVideoExportVisualExecutionFinishing({
@@ -74,11 +81,12 @@ export async function createFramescaperVideoExportExactExecutionFinishing(option
 		timingViewsBySourceId,
 		signal: options.request.signal, assertCurrent: options.request.assertCurrent,
 	});
-	const sourceFrames = createFramescaperVideoFrameAddressFinishing({
+	let sourceFrames = createFramescaperVideoFrameAddressFinishing({
 		sources: options.request.videoBlobs, timingViewsBySourceId,
 	});
 	let exact: Awaited<ReturnType<typeof createFramescaperSelectedExactFrameExecutionFinishing>>;
 	try {
+		if (options.createSourceFrames) sourceFrames = await options.createSourceFrames({ canonicalProject: options.request.canonicalProject, encoded: sourceFrames });
 		exact = await createFramescaperSelectedExactFrameExecutionFinishing({
 			project: options.project, plan: visual.exactPlan, timingSidecars: visual.timingSidecars,
 			...(options.store ? { store: options.store } : {}),
@@ -169,7 +177,8 @@ export async function createFramescaperVideoExportExactExecutionFinishing(option
 		try { visual.dispose(); } catch (error) { failures.push(error); }
 		if (failures.length > 0) throw new AggregateError(failures, 'finishing exact export cleanup failed.');
 	}
-	return Object.freeze({ compositor, disposition, dispose });
+	const rgbaOutput: FramescaperVideoRgbaOutput = Object.freeze({ encoding: requiredFinishing(visual.exactPlan).colorContext.outputSpace, alphaMode: 'straight', precision: 'unorm8' });
+	return Object.freeze({ compositor, rgbaOutput, disposition, dispose });
 }
 
 function assertSupplementalExecution(

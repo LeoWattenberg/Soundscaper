@@ -2,6 +2,7 @@
 
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
+import { setImmediate as nextTask } from 'node:timers/promises';
 import test from 'node:test';
 
 import { createSoundscaperProject } from '../src/soundscaper/editor-project.ts';
@@ -96,8 +97,21 @@ test('a launch-bound sender selects one source and downloads its destination-fam
 		['soundscaper:sound-source', true],
 		['soundscaper:other-source', false],
 	]);
-	await sender.document.clickButton('Download the ticked archives');
-	await settle();
+	const download = sender.document.body.querySelectorAll('button')
+		.find(button => button.textContent === 'Download the ticked archives');
+	assert.ok(download);
+	async function downloadSelection(): Promise<void> {
+		assert.equal(download!.disabled, false, 'the download action must be available before clicking');
+		await sender.document.clickButton('Download the ticked archives');
+		const deadline = performance.now() + 1000;
+		// A repeat includes the previous group's release timer and a MessageChannel
+		// task. The button's finally handler marks completion across both tasks.
+		while (download!.disabled) {
+			assert.ok(performance.now() < deadline, 'the download action did not finish');
+			await nextTask();
+		}
+	}
+	await downloadSelection();
 
 	assert.deepEqual(exported, ['sound-source']);
 	assert.deepEqual(sender.saved, [
@@ -108,8 +122,7 @@ test('a launch-bound sender selects one source and downloads its destination-fam
 	assert.equal(sender.blobs.live, 2);
 	assert.equal(sender.blobs.revoked.length, 0);
 
-	await sender.document.clickButton('Download the ticked archives');
-	await settle();
+	await downloadSelection();
 	assert.deepEqual(exported, ['sound-source', 'sound-source']);
 	assert.deepEqual(sender.saved, [
 		'Interview mix.fscape',

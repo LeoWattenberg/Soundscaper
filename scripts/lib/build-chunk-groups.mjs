@@ -62,6 +62,7 @@ import {
 	editorOptionalSurfaceModule,
 	editorPath,
 } from './build-chunk-tests.mjs';
+import { motionChunkGroups } from './build-motion-chunks.mjs';
 import { withUiPreparationChunkTest } from './build-chunk-ui-preparation.mjs';
 
 // The membership patterns keep their long-standing import site.
@@ -92,6 +93,7 @@ export {
 
 /** @type {import('rolldown').CodeSplittingGroup[]} */
 export const chunkGroups = [
+	...motionChunkGroups,
 	{ name: 'editor-assistance-model-preflight', test: EDITOR_ASSISTANCE_MODEL_PREFLIGHT_CHUNK_TEST,
 		priority: 100, minSize: 0, maxSize: 400_000,
 		includeDependenciesRecursively: false },
@@ -382,7 +384,7 @@ export const chunkGroups = [
 		includeDependenciesRecursively: false,
 	},
 	{
-		name: 'editor-codec-foundations',
+		name: 'editor-codec-foundations', minSize: 0,
 		test: EDITOR_CODEC_FOUNDATION_CHUNK_TEST,
 		priority: 98,
 		maxSize: 490_000,
@@ -454,15 +456,13 @@ export const chunkGroups = [
 	},
 	{
 		name: 'editor-shell',
-		test: new RegExp(`(?:${editorPath}(?!${editorOptionalSurfaceModule}$)ui[\\\\/](?!(?:dialogs[\\\\/](?!(?:editor-dialog-model\\.js|AssistanceLoadingDialog\\.tsx)$)|inspector[\\\\/]))|src[\\\\/]common[\\\\/](?:products\\.js|url\\.ts)$|src[\\\\/]common[\\\\/]offline[\\\\/](?:file-handler-launch|install-prompt|share-target-launch)\\.ts$|src[\\\\/]soundscaper[\\\\/](?:editor-capture-toolbar-control|editor-framescaper-overlay-model|editor-video-preview-product-runtime|editor-application-menu-product-runtime|editor-workspace-application-menu-runtime|editor-workspace-panel-runtime)\\.(?:js|tsx?)$|src[\\\\/]framescaper[\\\\/]editor-soundscaper-workflow-product-runtime\\.tsx$)`),
+		test: new RegExp(`(?:${editorPath}documentation-links\\.ts$|${editorPath}(?!${editorOptionalSurfaceModule}$)ui[\\\\/](?!(?:dialogs[\\\\/](?!(?:editor-dialog-model\\.js|AssistanceLoadingDialog\\.tsx)$)|inspector[\\\\/]|motionscaper[\\\\/](?!(?:MotionscaperShell\\.tsx|shell-menu\\.ts|motionscaper-copy\\.ts|motionscaper-documentation\\.ts|motionscaper-updates\\.ts|motionscaper-shell\\.css)$)))|src[\\\\/]common[\\\\/](?:products\\.js|url\\.ts)$|src[\\\\/]common[\\\\/]offline[\\\\/](?:file-handler-launch|install-prompt|share-target-launch)\\.ts$|src[\\\\/]soundscaper[\\\\/](?:editor-capture-toolbar-control|editor-framescaper-overlay-model|editor-video-preview-product-runtime|editor-application-menu-product-runtime|editor-workspace-application-menu-runtime|editor-workspace-panel-runtime)\\.(?:js|tsx?)$|src[\\\\/]framescaper[\\\\/]editor-soundscaper-workflow-product-runtime\\.tsx$)`),
 		priority: 70,
 		maxSize: 400_000,
 		includeDependenciesRecursively: false,
 	},
 	{
 		// The schema, planners, assistance domain, and value tables the shell and dialogs share.
-		// They are owned here rather than placed by reachability; see the module
-		// comment for what an unowned shared leaf does to the boot path.
 		name: 'editor-domain',
 		test: EDITOR_DOMAIN_CHUNK_TEST,
 		priority: 65,
@@ -486,53 +486,17 @@ export const chunkGroups = [
 		maxSize: 400_000,
 	},
 	{
-		// Own only the HTML/main/site entry role. Editor and product modules retain
-		// their semantic owners even when they sit in the selected startup graph.
+		// $initial marks every input; keep the separate composition-link entry in its explicit semantic owners.
 		name: 'site-entry',
 		tags: ['$initial'],
-		priority: 110,
+		test: (id) => !motionChunkGroups.some((group) => group.test.test(id)),
+		priority: 120,
 		maxSize: 400_000,
 		includeDependenciesRecursively: false,
 	},
 ];
 
-/** Saxes and the XML character tables it imports inside maintained workers. */
-export const WORKER_XML_VENDOR_CHUNK_TEST = /node_modules[\\/](?:saxes|xmlchars)[\\/]/;
-
-/** Effect metadata and the dependency-closed canonical copy registry used by workers. */
-export const WORKER_EFFECT_CONTRACT_CHUNK_TEST = /(?:src[\\/]common[\\/]i18n[\\/](?:canonical-extras(?:-(?:audacity-(?:effects|presets)|standard-effects))?|locale)\.js|src[\\/]common[\\/]editor[\\/]audacity-effects[\\/]audacity-filter-release\.ts|src[\\/]common[\\/]editor[\\/]staffpad[\\/]parameters\.js|src[\\/]common[\\/]editor[\\/]nyquist[\\/]audio-budget\.ts|src[\\/]common[\\/]editor[\\/]first-party-effects[\\/](?:parametric-eq[\\/]coefficients\.ts|standard[\\/](?:definition|filters-definition|filters-coefficients|modulation-definition|noise-gate-definition|delay-definition|delay-pitch-admission|delay-selection-contract|parameter-range|effect-tail|nyquist-replacements|selection-contract)\.ts))$/;
-
-/** @type {import('rolldown').CodeSplittingGroup[]} */
-export const workerChunkGroups = [
-	{
-		name: 'vendor-sqlite-worker',
-		test: /node_modules[\\/]@sqlite\.org[\\/]sqlite-wasm[\\/]/,
-		priority: 100,
-		maxSize: 400_000,
-	},
-	{
-		// Keep the parser and its character tables under one explicit owner instead
-		// of placing either by reachability. Non-recursive ownership keeps future
-		// dependency growth from silently broadening this worker vendor surface.
-		name: 'vendor-xml-worker',
-		test: WORKER_XML_VENDOR_CHUNK_TEST,
-		priority: 99,
-		maxSize: 400_000,
-		includeDependenciesRecursively: false,
-	},
-	{
-		// Archive workers describe imported effects without running their DSP.
-		// Keep that shared metadata and its complete copy dependency closure apart
-		// from the database protocol, without absorbing their consumers recursively.
-		// Delay capacity also reads StaffPad parameters; leaving that leaf unowned
-		// creates a cycle back into the worker entry during contract initialization.
-		name: 'editor-effect-contracts-worker',
-		test: WORKER_EFFECT_CONTRACT_CHUNK_TEST,
-		priority: 98,
-		maxSize: 400_000,
-		includeDependenciesRecursively: false,
-	},
-];
+export { WORKER_XML_VENDOR_CHUNK_TEST, WORKER_EFFECT_CONTRACT_CHUNK_TEST, workerChunkGroups } from './build-worker-chunks.mjs';
 
 /**
  * The group that claims one repository-relative module path, or null.

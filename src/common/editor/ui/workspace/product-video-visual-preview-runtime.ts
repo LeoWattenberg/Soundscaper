@@ -29,6 +29,8 @@ export interface ProductVideoVisualPreviewFrame {
 }
 
 export interface ProductVideoVisualPreviewSession {
+	/** Virtual source pixels must be materialized asynchronously during playback too. */
+	readonly requiresAsyncFrames?: boolean;
 	resolve(timelineSample: number): ProductVideoVisualPreviewFrame;
 	resolveTransitionWeight(clipId: string, timelineSample: number): number | null;
 	renderExact?(request: Readonly<{
@@ -36,6 +38,8 @@ export interface ProductVideoVisualPreviewSession {
 		readonly mediaLayers: readonly unknown[];
 	}>): Promise<Readonly<{
 		readonly frame: ProductVideoVisualPreviewFrame;
+		/** A complete, already composited picture from the owned finishing executor. */
+		readonly cpuFrame?: Readonly<{ width: number; height: number; pixels: Uint8Array<ArrayBuffer>; encoding: 'srgb'; alphaMode: 'straight' }>;
 		readonly layers: readonly Readonly<Record<string, unknown>>[];
 		readonly renderedEffectIds: readonly string[];
 		readonly openFxDispositions?: readonly Readonly<{
@@ -79,12 +83,18 @@ export interface ProductVideoVisualProjectBinThumbnail {
 	readonly maskIds: readonly string[];
 }
 
-export interface ProductVideoTimelineFilmstripFrameRequest {
+export type ProductVideoTimelineFilmstripFrameRequest = Readonly<{
 	readonly key: string;
 	readonly clipId: string;
 	readonly sourceId: string;
 	readonly timelineSample: number;
-	readonly sourceUrl: string;
+}> & (Readonly<{ sourceUrl: string; sourceAuthority?: never }> | Readonly<{ sourceAuthority: 'product-generated'; sourceUrl?: never }>);
+
+export interface ProductVideoGeneratedSourceRuntime {
+	ownsSource(project: unknown, sourceId: string): boolean;
+	createFrame(request: ProductVideoVisualPreviewCreateRequest & Readonly<{
+		sourceId: string; sourceFrame: number; signal?: AbortSignal;
+	}>): Promise<Readonly<{ width: number; height: number; pixels: Uint8Array<ArrayBuffer> }> | null>;
 }
 
 export interface ProductVideoTimelineFilmstripRequest
@@ -102,6 +112,7 @@ export interface ProductVideoTimelineFilmstripFrame {
 }
 
 export interface ProductVideoVisualPreviewRuntime {
+	readonly generatedSources?: ProductVideoGeneratedSourceRuntime;
 	create(request: ProductVideoVisualPreviewCreateRequest): Promise<ProductVideoVisualPreviewSession | null>;
 	createProjectBinThumbnail?(
 		request: ProductVideoVisualProjectBinThumbnailRequest,
@@ -118,6 +129,7 @@ export function createProductVideoVisualPreviewRuntime(
 	create: ProductVideoVisualPreviewRuntime['create'],
 	createProjectBinThumbnail?: ProductVideoVisualPreviewRuntime['createProjectBinThumbnail'],
 	createTimelineFilmstrip?: ProductVideoVisualPreviewRuntime['createTimelineFilmstrip'],
+	generatedSources?: ProductVideoGeneratedSourceRuntime,
 ): ProductVideoVisualPreviewRuntime {
 	if (typeof create !== 'function') throw new TypeError('A product visual-preview factory is required.');
 	if (createProjectBinThumbnail !== undefined && typeof createProjectBinThumbnail !== 'function') {
@@ -126,10 +138,12 @@ export function createProductVideoVisualPreviewRuntime(
 	if (createTimelineFilmstrip !== undefined && typeof createTimelineFilmstrip !== 'function') {
 		throw new TypeError('A product timeline-filmstrip factory must be a function.');
 	}
+	if (generatedSources !== undefined && (typeof generatedSources.ownsSource !== 'function' || typeof generatedSources.createFrame !== 'function')) throw new TypeError('Generated visual sources require exact ownership and frame factories.');
 	const runtime = Object.freeze({
 		create,
 		...(createProjectBinThumbnail ? { createProjectBinThumbnail } : {}),
 		...(createTimelineFilmstrip ? { createTimelineFilmstrip } : {}),
+		...(generatedSources ? { generatedSources: Object.freeze({ ...generatedSources }) } : {}),
 	});
 	RUNTIMES.add(runtime);
 	return runtime;

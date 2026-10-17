@@ -37,7 +37,7 @@ export async function preserveDesktopNightlyProductCoverageEvidence({
 	productOutput,
 	sourceRevision,
 }) {
-	if (!['soundscaper', 'framescaper'].includes(productId)) {
+	if (!['soundscaper', 'framescaper', 'motionscaper'].includes(productId)) {
 		throw new TypeError('Desktop nightly coverage evidence needs a known product.');
 	}
 	const build = requiredAbsolutePath(buildRoot, 'build root');

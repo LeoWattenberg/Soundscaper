@@ -45,6 +45,17 @@ import { ABOUT_DIALOG_COPY_BY_LOCALE } from './editor-about-dialog-copy.ts';
 import { ORIGINAL_FILE_OVERWRITE_COPY_BY_LOCALE } from './editor-original-file-overwrite-copy.ts';
 import { BLENDER_COPY_BY_LOCALE } from './editor-blender-copy.ts';
 import { ID3_METADATA_COPY_BY_LOCALE } from './editor-id3-metadata-copy.ts';
+import { MOTIONSCAPER_COPY_BY_LOCALE } from './editor-motionscaper-copy.ts';
+import { MOTION_LINK_BRIDGE_COPY_BY_LOCALE } from './editor-motion-link-bridge-copy.ts';
+import { MOTIONSCAPER_SCENE_COPY_BY_LOCALE } from './editor-motionscaper-scene-copy.ts';
+import { MOTIONSCAPER_APPEARANCE_COPY_BY_LOCALE } from './editor-motionscaper-appearance-copy.ts';
+import { MOTIONSCAPER_CANVAS_COPY_BY_LOCALE } from './editor-motionscaper-canvas-copy.ts';
+import { MOTIONSCAPER_IMPORT_COPY_BY_LOCALE } from './editor-motionscaper-import-copy.ts';
+import { MOTIONSCAPER_UPDATES_COPY_BY_LOCALE } from './editor-motionscaper-updates-copy.ts';
+import { MOTIONSCAPER_QUEUE_COPY_BY_LOCALE } from './editor-motionscaper-queue-copy.ts';
+import { MOTIONSCAPER_LINK_COPY_BY_LOCALE } from './editor-motionscaper-link-copy.ts';
+import { MOTIONSCAPER_AE_COPY_BY_LOCALE } from './editor-motionscaper-ae-copy.ts';
+import { MOTIONSCAPER_TRACKING_COPY_BY_LOCALE } from './editor-motionscaper-tracking-copy.ts';
 
 export interface EditorCopyOwner {
 	readonly owner: string;
@@ -165,6 +176,17 @@ const inventory = buildEditorCopyInventory(ENGLISH_COPY, GERMAN_COPY, [
 	{ owner: 'freesoundAttribution', ...FREESOUND_ATTRIBUTION_INVENTORY_COPY_BY_LOCALE },
 	{ owner: 'audiocom', ...AUDIOCOM_INVENTORY_COPY_BY_LOCALE },
 	{ owner: 'id3Metadata', ...ID3_METADATA_COPY_BY_LOCALE },
+	{ owner: 'motionscaper', ...MOTIONSCAPER_COPY_BY_LOCALE },
+	{ owner: 'motion-link-bridge', ...MOTION_LINK_BRIDGE_COPY_BY_LOCALE },
+	{ owner: 'motionscaper-scene', ...MOTIONSCAPER_SCENE_COPY_BY_LOCALE },
+	{ owner: 'motionscaper-appearance', ...MOTIONSCAPER_APPEARANCE_COPY_BY_LOCALE },
+	{ owner: 'motionscaper-canvas', ...MOTIONSCAPER_CANVAS_COPY_BY_LOCALE },
+	{ owner: 'motionscaper-queue', ...MOTIONSCAPER_QUEUE_COPY_BY_LOCALE },
+	{ owner: 'motionscaper-import', ...MOTIONSCAPER_IMPORT_COPY_BY_LOCALE },
+	{ owner: 'motionscaper-updates', ...MOTIONSCAPER_UPDATES_COPY_BY_LOCALE },
+	{ owner: 'motionscaper-link', ...MOTIONSCAPER_LINK_COPY_BY_LOCALE },
+	{ owner: 'motionscaper-ae', ...MOTIONSCAPER_AE_COPY_BY_LOCALE },
+	{ owner: 'motionscaper-tracking', ...MOTIONSCAPER_TRACKING_COPY_BY_LOCALE },
 	{ owner: 'selectedVisualAuthoring', en: SELECTED_VISUAL_AUTHORING_COPY },
 	...Object.entries(SELECTED_VISUAL_AUTHORING_SURFACE_COPY).map(([surface, en]) => ({
 		owner: `selectedVisualAuthoring.surfaces.${surface}`, en,

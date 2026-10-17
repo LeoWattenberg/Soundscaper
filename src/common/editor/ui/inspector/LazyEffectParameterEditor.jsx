@@ -3,7 +3,7 @@
 import { Suspense } from 'react';
 import { lazyEditorModule } from '../../../offline/lazy-module.tsx';
 
-const EffectParameterEditor = lazyEditorModule(() => import('./EffectParameterEditor.jsx'));
+export const EffectParameterEditor = lazyEditorModule(() => import('./EffectParameterEditor.jsx'));
 
 export default function LazyEffectParameterEditor(props) {
 	return <Suspense fallback={null}><EffectParameterEditor {...props} /></Suspense>;

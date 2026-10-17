@@ -4,7 +4,6 @@ import assert from 'node:assert/strict';
 import { access, readFile } from 'node:fs/promises';
 import test from 'node:test';
 
-import { PRODUCT_IDS } from '../src/common/products.js';
 import { OPFS_SYNC_OPERATION_IDS } from '../src/common/editor/storage/opfs-sync-worker-protocol.ts';
 
 import { assertOrderedClaim } from './helpers/ordered-evidence-claim.js';
@@ -56,9 +55,9 @@ test('milestone 2 closes the exact dedicated OPFS worker boundary', async () => 
 	assert.doesNotMatch(openItems, /^- `m2-opfs-worker-boundary`$/mu);
 });
 
-test('both web products pin worker and IndexedDB fallback evidence', async () => {
+test('Soundscaper and Framescaper pin their dedicated OPFS worker and IndexedDB fallback evidence', async () => {
 	const capabilities = JSON.parse(await readFile(capabilitiesUrl, 'utf8'));
-	for (const productId of PRODUCT_IDS) {
+	for (const productId of ['soundscaper', 'framescaper']) {
 		const tier = capabilities.products[productId].platforms['web-enhanced'];
 		assert.equal(tier.status, 'partial');
 		for (const path of WEB_EVIDENCE) {
@@ -66,6 +65,21 @@ test('both web products pin worker and IndexedDB fallback evidence', async () =>
 			await assert.doesNotReject(access(new URL(`../${path}`, import.meta.url)), path);
 		}
 	}
+});
+
+test('Motionscaper pins its own IndexedDB store and write leases without claiming the shared OPFS worker', async () => {
+	const capabilities = JSON.parse(await readFile(capabilitiesUrl, 'utf8'));
+	const tier = capabilities.products.motionscaper.platforms['web-enhanced'];
+	assert.equal(tier.status, 'partial');
+	for (const path of [
+		'src/motionscaper/editor-project-store.ts',
+		'src/motionscaper/editor-project-write-lease.ts',
+		'tests/browser/motionscaper-project-lock.spec.ts',
+	]) {
+		assert.ok(tier.evidence.includes(path), `Motionscaper is missing ${path}`);
+		await assert.doesNotReject(access(new URL(`../${path}`, import.meta.url)), path);
+	}
+	assert.deepEqual(tier.evidence.filter(path => WEB_EVIDENCE.includes(path)), []);
 });
 
 test('quality policy limits the dedicated OPFS worker claim to proved behavior', async () => {

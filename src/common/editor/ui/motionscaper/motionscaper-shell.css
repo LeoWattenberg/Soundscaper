@@ -1,0 +1,69 @@
+.motionscaper-shell {
+	min-height: 100%;
+	background: var(--website-color-surface);
+	color: var(--website-color-text);
+}
+
+.motionscaper-workspace {
+	padding: 1.5rem;
+}
+
+.motionscaper-settings-form fieldset {
+	display: grid;
+	gap: 0.75rem;
+	border: 0;
+	padding: 0;
+}
+
+.motionscaper-number-field {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 1rem;
+}
+
+.motionscaper-number-field input {
+	width: 8rem;
+}
+
+.motionscaper-project-list {
+	list-style: none;
+	padding: 0;
+	display: grid;
+	gap: 1rem;
+}
+
+.motionscaper-preview-canvas {
+	display: block; width: 100%; max-height: 60vh; object-fit: contain;
+	background: repeating-conic-gradient(#d3d3d3 0% 25%, #f2f2f2 0% 50%) 50% / 20px 20px;
+}
+.motionscaper-preview-controls { display: flex; align-items: center; gap: 1rem; margin-top: 1rem; }
+.motionscaper-preview-controls label { display: flex; align-items: center; gap: .5rem; }
+.motionscaper-preview-controls input { width: 7rem; }
+
+.motionscaper-timeline-toolbar, .motionscaper-timeline-actions { display: flex; align-items: center; flex-wrap: wrap; gap: .75rem; }
+.motionscaper-timeline-actions { margin-top: 1rem; padding: .75rem; }
+.motionscaper-timeline-actions label { display: flex; gap: .5rem; align-items: center; }
+.motionscaper-timeline-actions input { width: 6rem; }
+.motionscaper-timeline-list { list-style: none; padding: 0; max-height: 35vh; overflow: auto; }
+.motionscaper-timeline-row { display: grid; grid-template-columns: minmax(8rem, 1fr) 7rem minmax(10rem, 3fr); gap: .5rem; align-items: center; margin: .5rem 0; }
+.motionscaper-timeline-row label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.motionscaper-timeline-track { position: relative; height: 2rem; background: #80808020; overflow: hidden; }
+.motionscaper-timeline-bar { position: absolute; min-width: .5rem; height: 100%; background: #4a80ff55; color: inherit; border: 1px solid #4a80ff; touch-action: none; overflow: hidden; cursor: grab; }
+.motionscaper-timeline-bar:focus-visible { outline: 2px solid currentColor; outline-offset: -3px; }
+.motionscaper-keyframe-list { list-style: none; padding: 0; max-height: 25vh; overflow: auto; }
+.motionscaper-keyframe-list li { display: grid; grid-template-columns: 1fr 1fr 1fr; padding: .4rem; gap: .75rem; }
+.motionscaper-property-graph { margin-top: 1rem; }
+.motionscaper-property-graph > label { margin-right: .75rem; }
+.motionscaper-property-graph svg { display: block; width: 100%; touch-action: none; }
+.motionscaper-graph-grid line { stroke: currentColor; opacity: .12; }
+.motionscaper-graph-grid text { fill: currentColor; font-size: 11px; }
+.motionscaper-graph-curve { stroke: #4a80ff; stroke-width: 2; fill: none; }
+.motionscaper-graph-tangent { stroke: #c78223; stroke-width: 1; stroke-dasharray: 4 3; }
+.motionscaper-graph-key, .motionscaper-graph-handle { cursor: grab; stroke: currentColor; stroke-width: 1; }
+.motionscaper-graph-key { fill: #4a80ff; }
+.motionscaper-graph-key[aria-pressed="true"] { stroke-width: 3; }
+.motionscaper-graph-handle { fill: #e5a348; }
+.motionscaper-graph-key:focus-visible, .motionscaper-graph-handle:focus-visible { outline: 2px solid currentColor; outline-offset: 3px; }
+.audio-editor-controlled-dialog__body.motionscaper-property-body { display: block; }
+.motionscaper-plane { display: block; width: 100%; touch-action: none; }

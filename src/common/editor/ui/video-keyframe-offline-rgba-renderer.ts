@@ -18,7 +18,7 @@ import {
 	VIDEO_KEYFRAME_OFFLINE_MAXIMUM_PINNED_OCCURRENCES,
 	VideoKeyframeOfflineSourceCache,
 	type VideoKeyframeOfflineSourceResolver,
-} from './video-keyframe-offline-rgba-source.ts';
+} from '../video-keyframe-offline-rgba-source.ts';
 
 export type {
 	VideoKeyframeOfflineRgbaCompositor,

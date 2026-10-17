@@ -8,6 +8,7 @@ import {
 import type { EditorExportState } from './export-state.ts';
 import type { BlenderRenderProject, BlenderPublishRequest } from './blender-publication.ts';
 import type { RenderedAudio } from '../../rendered-audio-channels.ts';
+import { loadProductVideoExportStrategyOptions } from './product-video-export-strategy.ts';
 
 export type DeferredEditorExportModule = typeof import('./internal/export-service.ts');
 type EditorExportService = ReturnType<DeferredEditorExportModule['createEditorExportService']>;
@@ -51,8 +52,9 @@ export function createDeferredEditorExportService<Runtime extends DeferredEditor
 	const loadService = (): Promise<EditorExportService> => {
 		servicePromise ??= Promise.resolve()
 			.then(loadModule)
-			.then((module) => {
-				const service = module.createEditorExportService({ ...runtime, exportSnapshotRenderer });
+			.then(async (module) => {
+				const options = await loadProductVideoExportStrategyOptions(runtime.options);
+				const service = module.createEditorExportService({ ...runtime, options, exportSnapshotRenderer });
 				loadedService = service;
 				return service;
 			})

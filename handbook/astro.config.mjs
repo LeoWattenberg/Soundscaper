@@ -14,7 +14,8 @@ import { SOUNDSCAPER_GUIDE_GROUPS } from './guides/soundscaper.mjs';
 
 const routing = webBuildRouting();
 const { productId } = routing;
-const isFramescaper = productId === 'framescaper';
+const isSoundscaper = productId === 'soundscaper';
+const productName = { soundscaper: 'Soundscaper', framescaper: 'Framescaper', motionscaper: 'Motionscaper' }[productId];
 
 const soundscaperSidebar = [
 	{ ...chromeLabel('sidebar.start'), items: [{ autogenerate: { directory: 'start' } }] },
@@ -80,11 +81,11 @@ export default defineConfig({
 			// The site's own copy and the sidebar headings are the only navigation
 			// a page title does not translate on its own, so they come from
 			// `scripts/lib/handbook-chrome.mjs` with whatever each language has.
-			title: chromeRecord(isFramescaper ? 'site.title.framescaper' : 'site.title'),
+			title: chromeRecord(isSoundscaper ? 'site.title' : `site.title.${productId}`),
 			// Starlight takes one site description rather than one per language;
 			// the description a reader sees is the page's own frontmatter.
-			description: `Guides and reference documentation for ${isFramescaper ? 'Framescaper' : 'Soundscaper'}.`,
-			favicon: isFramescaper ? '/favicon-framescaper.svg' : '/favicon.svg',
+			description: `Guides and reference documentation for ${productName}.`,
+			favicon: isSoundscaper ? '/favicon.svg' : `/favicon-${productId}.svg`,
 			editLink: {
 				baseUrl: 'https://github.com/LeoWattenberg/Soundscaper/edit/main/handbook/',
 			},
@@ -102,9 +103,8 @@ export default defineConfig({
 					href: 'https://github.com/LeoWattenberg/Soundscaper',
 				},
 			],
-			sidebar: isFramescaper
-				? [{ ...chromeLabel('sidebar.framescaper'), items: [{ autogenerate: { directory: '' } }] }]
-				: soundscaperSidebar,
+			sidebar: isSoundscaper ? soundscaperSidebar
+				: [{ ...chromeLabel(`sidebar.${productId}`), items: [{ autogenerate: { directory: productId } }] }],
 			customCss: ['./src/styles/custom.css'],
 		}),
 	],

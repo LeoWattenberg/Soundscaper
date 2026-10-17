@@ -27,7 +27,7 @@ test('bundled Playwright config uses only absolute launcher-provided paths', asy
 		);
 
 		assert.equal(config.testDir, resolve(payloadRoot, 'tests/browser'));
-		assert.deepEqual(config.testIgnore, ['handbook/**', 'dual-origin/**']);
+		assert.deepEqual(config.testIgnore, ['handbook/**', 'dual-origin/**', '**/motionscaper-linked-editors.spec.ts', '**/motionscaper-linked-native-menu.spec.ts', '**/motionscaper-linked-mixed-preview.spec.ts', '**/motionscaper-successor-native-cleanup.spec.ts', '**/motionscaper-successor-shell.spec.ts', '**/motionscaper-successor-opaque-archive.spec.ts']);
 		assert.equal(config.outputDir, resolve(runRoot, 'test-results'));
 		assert.equal(config.use.baseURL, 'http://127.0.0.1:41000');
 		assert.equal(config.webServer, undefined);
@@ -186,7 +186,7 @@ test('package scripts expose local preparation and packaging of the diagnostic f
 	);
 	assert.equal(
 		packageMetadata.scripts['desktop:nightly-tests:dist'],
-		'npm run build && npm run build:browser:framescaper && npm run prepare:browser:products && npm run pretest:browser:dual-origin && npm run desktop:nightly-tests:products && npm run desktop:nightly-tests:prepare && electron-builder --config electron-builder.nightly-tests.config.cjs --publish never',
+		'npm run build && npm run build:browser:framescaper && npm run build:browser:motionscaper && npm run prepare:browser:products && npm run pretest:browser:dual-origin && npm run desktop:nightly-tests:products && npm run desktop:nightly-tests:prepare && electron-builder --config electron-builder.nightly-tests.config.cjs --publish never',
 	);
 });
 

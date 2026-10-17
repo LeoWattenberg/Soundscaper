@@ -112,7 +112,7 @@ test('a run writes the headings a language owes and drops the ones that were rem
 				locale: 'fr',
 				translations: Object.fromEntries(Object.entries(labels).map(([key, label]) => [
 					key,
-					/^(?:Soundscaper|Framescaper)$/u.test(label) ? label : `Le ${label}`,
+					/^(?:Soundscaper|Framescaper|Motionscaper)$/u.test(label) ? label : `Le ${label}`,
 				])),
 			};
 		},
@@ -126,6 +126,7 @@ test('a run writes the headings a language owes and drops the ones that were rem
 	const catalog = readChromeCatalog('fr', directory);
 	assert.equal(catalog.entries['sidebar.help'][1], 'Le Help');
 	assert.equal(catalog.entries['sidebar.framescaper'][1], 'Framescaper');
+	assert.equal(catalog.entries['sidebar.motionscaper'][1], 'Motionscaper');
 	assert.equal(catalog.entries['sidebar.retired'], undefined);
 	assert.equal(catalog.provenance.promptVersion, 'docs-chrome-v1');
 

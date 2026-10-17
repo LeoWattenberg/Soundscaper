@@ -16,7 +16,7 @@ test('nightly targets consume the four revision-bound browser configurations fro
 	assert.match(producer, /name: nightly-browser-sites-\$\{\{ github\.sha \}\}/u);
 	assert.match(producer, /include-hidden-files: true/u);
 	assert.match(producer, /\.wrangler\/browser-products\/[\s\S]*?\.wrangler\/dual-origin-browser\//u);
-	assert.match(consumer, /needs: \[nightly-test-targets, browser-sites\]/u);
+	assert.match(consumer, /needs: \[nightly-test-targets, motionscaper-native-build, browser-sites\]/u);
 	assert.match(consumer, /name: nightly-browser-sites-\$\{\{ github\.sha \}\}/u);
 	assert.doesNotMatch(consumer, /npm run (?:build|build:browser:framescaper|prepare:browser:products|pretest:browser:dual-origin)\s*\n/u);
 	assert.ok(consumer.indexOf('Download the verified browser product sites')

@@ -104,6 +104,9 @@ const DESKTOP_EXTERNAL_FFMPEG_CONTROL_RUNTIME_FILES = Object.freeze([
 	'desktop/external-ffmpeg-video-verification.js',
 	'desktop/external-ffmpeg-video-verified-capabilities.js',
 	'desktop/external-ffmpeg-video-session-cleanup.js',
+	'src/common/editor/video-avc-color-description.js',
+	'src/common/editor/video-avc-native-configuration.js',
+	'src/common/editor/video-color-transfer.js',
 	'src/common/editor/video-elementary-stream.js',
 	'src/common/editor/video-keyframe-audio-input.js',
 	'src/common/editor/video-keyframe-encoder-execution.js',
@@ -114,6 +117,7 @@ const DESKTOP_EXTERNAL_FFMPEG_CONTROL_RUNTIME_FILES = Object.freeze([
 	'src/common/editor/video-keyframe-rgba-producer-guard.js',
 	'src/common/editor/video-keyframe-webcodecs-execution.js',
 	'src/common/editor/video-keyframe-video-container.js',
+	'src/common/editor/video-planar-pixels.js',
 	'src/common/editor/video-webcodecs-producer.js',
 ]);
 

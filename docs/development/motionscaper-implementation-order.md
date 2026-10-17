@@ -1,8 +1,8 @@
 # Motionscaper implementation order
 
-Status: **Planned**. This document owns the agreed Motionscaper scope,
-implementation order, dependencies, and completion gates. It describes future
-work, not capabilities already shipped. All packages below are required for the
+Status: **In progress** on `feat/motionscaper`. This document owns the agreed
+Motionscaper scope, implementation order, dependencies, and completion gates.
+It describes the release target, not capabilities already shipped. All packages below are required for the
 first public release; internal milestones do not reduce that release scope.
 
 Motionscaper is a new local-first motion-graphics and compositing program for
@@ -70,6 +70,441 @@ controls. Keyboard shortcuts may supplement the menu entry.
 The table is the default execution order. Its prerequisites identify the
 minimum dependency closure; a later package does not make an unfinished earlier
 package complete.
+
+### Implementation status
+
+M01–M12 are **In progress**; named implementations do not close release gates.
+The latest integrated repairs (`fc38539a6`) include shared playback-start
+preparation, product handbook navigation, stable source identity in peak probes
+and native whole-minute timed-recording input normalization. Focused regressions
+pass, including 57 playback controls and nine browser cases across three engines.
+Fresh complete gates on the combined source remain required.
+
+Application source `70a02ba9e` passed the complete static gate and all five Node
+partitions: 27,451 passes, 17 declared skips and zero failures, including all
+1,224 Motion cases. Its fixed Linux x64 software profile passed all five
+installed workflows, the original 300/1,200-frame native duration and four
+maintained maximum profiles. One controlled Chromium 300/1,200-frame run also
+passed; lossy Opus is not exact PCM, and OPFS does not qualify the OS picker.
+Its complete browser gate failed: 7,331 passes, 287 declared skips and eight
+failures across ordinary, linked and dual-origin suites. Linked39 and dual9
+passed separately. The three UI failures did not recur in bounded one-worker
+and four-worker diagnostics; their historical cause remains unresolved.
+
+The handbook repair passes Motion58 and Frame87 page/navigation checks. The
+complete Motion Pages build passed local app/docs/staging/asset checks, then
+failed its live predecessor preflight because no deployment answered the
+canonical origin. No deployment or bypass was performed. Accepted coverage,
+installed AE, other hardware/targets, signing, installation, update and
+publication remain open. Source-specific evidence and remaining work are in
+[final validation status](motionscaper-final-integration-validation.md).
+
+### Earlier source-attributed implementation and validation
+
+The following notes preserve their original dates, sources and outcomes,
+including the pending prerequisites at each boundary. Later passes do not
+promote earlier failures or establish their causes.
+
+The final scope audit found two locale seams and missing generated Motion copy.
+The editor admission fix (`2e10bc63e`) now covers all ten Motion copy owners and
+the shared effect labels it consumes. Its actual loader/resolver regression
+failed before the fix; all 18 focused controls, strict types, lint and size
+checks pass. The bridge locale fix (`3ad4bda4e`) also admits complete catalog
+tags, retains them through both bridge windows and resolves late-arriving copy
+without reconnecting. Its 13 combined catalog/locale/lifetime controls pass;
+the real French cross-origin case awaits the fresh browser run.
+Integration `f6eb44aa9` contains all 26 generated languages, adding 19,032 current
+Motion/bridge strings and 52 Motion handbook pages through the maintained
+writers and validators. Each language adds 732 keys while preserving its 4,019
+prior entries, the other catalogs and loader index. The final handoff contains
+exactly 78 translation files; root independently matched their bytes and all
+104,494 prior entries. Whole-language handbook completeness is not claimed.
+The new
+incompatible-morph UI case (`ce13106ed`) has static checks only; browser runtime
+proof is pending. Codec tests (`4fa4b3450`) now retain their actual encoded or
+refused branch, parsed facts and output bytes; no new encoding result is claimed.
+These changes require fresh applicable final gates; the earlier results below
+retain their exact source attribution.
+The full gates on `361418fee` closed failed: Node reported 27,406 passes,
+45 failures and 17 skips, with all 1,224 Motion cases passing. Forty-four
+failures reached missing reference-reader or dependency-path prerequisites;
+one caught the expanded Hindi catalog's chunk size. The static gate also
+refused seven oversized locale chunks. Repair `802026569` separates complete
+catalogs into lazy core/Motion owners. Its production-bundler test round-trips
+all 59 catalogs, and the normal application build passes with a largest chunk
+of 486,512 bytes and its startup graph within the unchanged limits. The test
+environment repair and fresh full gates remain required; neither failed gate
+is promoted by these focused results.
+Substantial implementations and focused browser/native workflows pass. The
+complete static gate on `c6033a71a` passed full lint, types, architecture,
+audits, documentation and production build, with the 12 GiB heap confined to
+that static command. Source/package, owned-copy, process and output guards
+passed; startup tightening changed no budget. The earlier `db4e586d0` static
+pass remains separately attributed. The earlier `2f1ffce7f` package-directory
+symlink refusal remains failed and source-attributed.
+All five exhaustive Node partitions on `c6033a71a` passed: 27,442 passed,
+zero failed or cancelled and 14 declared skips out of 27,456 tests. All 1,212
+Motion cases passed. Input, sampled-process and stable raw-profile guards
+passed, without a Node test heap override; coverage remains unparsed and
+unadmitted. The current receipt is `current-c6033a71a-node/qualification.json`.
+The earlier `db4e586d0` gate remains separately passed with 27,434 passes,
+zero failures and 14 declared skips out of 27,448 tests.
+The earlier `2f1ffce7f` run remains failed with 27,433 passes,
+one nightly-payload import-closure failure and 14 skips. Earlier source-attributed
+Node passes remain separate. The later native-selection draft repair (`2934d6a70`,
+integrated as `8b2325853`) passed 22 unit controls and nine component cases across
+Chromium, Firefox and WebKit. Untouched automatic headroom and exact native/keyboard
+replacement pass; the controlled earlier failure remains failed and the historical
+guide cause remains unproven. Those focused results postdate the `db4e586d0`
+complete gates and retain separate source attribution.
+Six native preparation phases on `c6033a71a` passed helper verification,
+Motion/successor staging, unsigned directory packaging and resource verification.
+All 1,946 generated files and the source/npm/prefix/prior-package guards passed;
+17 recorded identities and six sessions were absent. At that preparation boundary,
+the new packaged sandbox helpers were ordinary user-owned 0755 copies. This gate
+ran no native/reference compiler, decoder or application workflow. The later
+five-workflow installed aggregate on `c6033a71a` passed with 74 recorded identities
+and seven sessions absent. Its separate broad-substring observer refusal remains
+recorded with an unproven cause; the exact-scope reconciliation passed without
+application replay. The same source's native 300/1,200-frame duration gate and
+independent audit passed all six MOV picture/alpha, PCM and timestamp checks,
+467 raw memory rows and 75 genuine encoder observations. Original memory limits
+and cleanup gates passed. Browser, maximum and external AE/platform gates remain
+open; none of these results qualifies later application changes.
+The complete 32-case handbook browser gate passed on
+`322c8a6b1`. That source's complete ordinary browser run closed failed:
+7,228 passed, 48 failed and 287 skipped. The Motion-named subset passed 436
+cases with two declared skips; this does not qualify shared behavior or the
+whole suite. The older complete run on `3e8b3e942` remains failed: 7,215 passed,
+40 failed and 287 skipped. The fresh linked suite
+passed 38 of 39 cases, with one Chromium transient-playback polling failure;
+the separate nine-case dual-origin suite passed all three engines. A sampling
+repair then passed all six original mixed-preview cases with unchanged pixel
+limits and timeouts. That focused result does not replace the failed full linked
+run. The newer complete linked suite on `453f03c4b` also passed all six mixed
+cases and finished with 38/39 passes. Its sole failure is now Chromium's Conform
+review wait while project activation remained pending; all Firefox/WebKit cases
+and source/site/process/writer guards passed. The activation delay is unresolved.
+The fresh Linux five-workflow aggregate passed with an external Xvfb launcher that waits
+for its owned child; this qualifies only the tested software-rendered x64
+profile. The earlier strict aggregate failure remains recorded. The M06
+keyboard repair and animated multilingual-title workflow
+have focused evidence across all three engines. M08 final-export diagnostics and
+an animated M09 camera reference now have focused checks. The coupled M10
+saved-update/export regression is repaired and passes all three browser engines;
+captured picture, PCM and originals remain pinned until cleanup completes.
+Failed physical cleanup retains its retry capability. These focused results do
+not close the combined gates. Combined coverage acceptance,
+remaining regressions, broader workload/host and external gates remain open.
+The controlled browser-duration check on `322c8a6b1` failed its existing memory ceiling
+before completing the first preview frame; the rejected sample was not retained,
+so the exact failing operand remains unknown. Two asynchronous touch-test
+assertions are repaired and all five original Chromium workflows pass, with
+native inputs and drag/Undo/Redo checks unchanged.
+The sampler now retains the exact rejected operands on future memory refusals,
+with the original limits unchanged; all 1,127 Motion tests pass on `7ae10f1b0`.
+This diagnostic repair does not resolve or reinterpret the failed browser run.
+A fresh unchanged-limit run on `7ae10f1b0` retained the rejecting operands:
+aggregate RSS exceeded 2 GiB by 7,041,024 bytes, while PSS, JS heap and WASM stayed
+within their limits. Allocation cause remains unknown. Four additive browser
+diagnostics passed with original assertions and timeouts; they did not reproduce
+or explain the earlier meter, spectral-menu, EQ and timeline failures.
+A separate single-run diagnostic again exceeded the same RSS ceiling, by
+9,338,880 bytes. Its later snapshot retained all 16 process records, with 12 CDP
+roles identified; it does not establish the allocation cause.
+Preview audio now opens its default AudioContext on Play (`d78e8401c`), avoiding
+an eager output allocation when opening or seeking the visual preview. All
+1,131 Motion Node cases and 15 focused browser cases across the three engines
+pass on that source. Its fresh unchanged-limit duration run completed the entire
+300-frame preview/PNG/WebM/cancel/retry workflow, then failed during the
+1,200-frame preview: RSS exceeded 2 GiB by 1,724,416 bytes. Long exports and the
+duration-tail comparison were not reached; that invocation remains failed.
+The observer now retains already-returned backing/embedder and Linux
+private/shared memory details (`036899f59`), without extra requests or changed
+limits. All 1,179 Motion Node cases, full repository lint, strict Node-test
+types, architecture/size checks and normal three-product builds pass on that
+source. One fresh duration run passed both 300 and 1,200 frames, including all
+preview/output/reference/cancel/retry/tail/cleanup checks. Its peak RSS was
+2,029,117,440 bytes; all optional accounting fields were available. This is a
+fixed software-profile pass, not an explanation of the earlier refusals or
+complete application-browser/coverage acceptance.
+Current-source Linux Motion and successor stages and unsigned directory
+packages also pass resource verification, reusing the authenticated native
+helper. The five-workflow installed aggregate then passed native launch,
+animated scene, authored title, successor delivery and saved-file linking.
+Its output, source, package and process-closure audits passed. This qualifies
+the fixed Linux x64 software profile. The separate current-source native
+duration invocation failed during the 300-frame encoder-cancellation retry:
+the save chooser remained open after selection. The 1,200-frame workload and
+independent output checks were not reached. Source, package, output-preservation
+and process-closure audits passed; the chooser cause remains unknown. Current
+maximum profiles passed separately as recorded below. Bounded passive chooser
+observations now retain window, owner, focus and phase evidence for future runs;
+27 offline controls pass with original actions and predicates unchanged. A
+separate liveness repair treats a vanished `/proc` ESRCH read as absence; all
+29 shutdown/observation controls pass while other read and signalling errors
+remain failures. Neither change reinterprets or repeats the failed native run.
+Maximum-workload fixtures, independent oracles and the bounded native driver
+(`a4e851dc3`) are integrated as `2978ab0cc`. Installed source `322c8a6b1` passed
+64×64 shutter/lens sampling, 64 contributing planes and 32 lights. The
+32,768-frame export completed but failed its unchanged 64 MiB PSS-growth limit
+by 3,879,424 bytes. Separate file-only verification passed every timestamp,
+all 52,428,800 stereo PCM sample frames and selected pictures of that retained
+movie; it does not clear the memory failure. All four original maximum profiles
+then passed once each on `036899f59`, with unchanged actions, memory limits and
+deadlines: shutter/lens quality with real shadows, 64 planes, 32 lights and the
+32,768-frame index. The index passed refusal, cancellation/original-revision
+retry, contiguous timestamps, exact stereo PCM and retained-memory checks;
+PSS growth was 38,149,120 bytes against the unchanged 67,108,864-byte ceiling.
+All source/package/helper/prefix and process/writer checks passed. This is
+separate fixed Linux x64 software-profile evidence, not a cause or retrospective
+clearance of the earlier failure. Two Conform diagnostic runs passed
+the original workflow without reproducing its historical 15-second failure;
+the second retained all 25 activation-phase pairs. No activation fix is claimed.
+Earlier installed source `322c8a6b1` passed both 300 and 1,200 native frames,
+including preview/ProRes, upload/encoder cancellation and retry, independent
+picture/timestamp/exact-PCM checks, memory tails and cleanup. That result does
+not close the browser, maximum-workload or broader platform gates.
+The shared Amplify field now reserves native select-all draft intent before
+pending automatic headroom can replace it (`3330272ef`, integrated as
+`b91204a52`). Eleven Amplify controls, three existing keyboard/blur controls and
+both real-controller browser cases in all three engines pass, as do strict
+types, changed lint and the normal build. This fixes the reproduced keyboard
+case; the historical full-suite Amplify failure has no established cause.
+Installed After Effects validation is unavailable.
+Earlier results below are historical; fresh results and failures are recorded in
+[final validation status](motionscaper-final-integration-validation.md). Typed project contracts, atomic
+history, deterministic evaluation, streamed `.mscape` archives, durable
+saved/recovery storage, paragraph/vector rasterization, and linear-light CPU
+and WebGL2 compositing have focused Motionscaper coverage. Menu-driven document
+workflows, offline reopen, successor archive custody, and GPU context loss pass
+in Chromium. Motion DB2 appends storage-only write leases; saved pointers and
+recovery drafts are atomically fenced, and competing windows retain one authoring
+owner. Motion File Open preserves foreign/future archives as private read-only
+custody, with exact Save Copy and the previous document/history unchanged.
+Same-identity File Open reviews Copy/Replace/Keep and Saved/Recover choices;
+failed post-adoption native release retains an explicit cleanup retry.
+The [packaged Linux native launch workflow](motionscaper-native-launch-qualification.md)
+covers cold/warm OS arguments, original-file Save, deferred collision review,
+opaque custody and renderer-reload reissue through main-private capabilities.
+Lease release keeps its durable fence and navigator lock until deletion succeeds.
+English/German Help-menu destinations open the Motion handbook through bounded
+browser/native adapters. The desktop Help menu also offers a manual, bounded
+own-tag release check with a verified repository link; release installation and
+cross-platform updater qualification remain open. Retained imported Arabic and CJK fonts have shaping,
+wrapping, pixel, portable-archive and offline-seek qualification.
+M05 has a revision-pinned, cancellable render queue, menu-opened
+worker preview and delivery, transparent PNG sequences, and browser MP4/WebM
+round trips. The queue survives dialog closure and project switches, serializes
+one renderer, and bounds retained intent and downloads. Retry retains the original
+revision and obtains a fresh destination. Failed active native cancellation retains
+the destination cleanup capability: **Retry Output Cleanup** must succeed before
+removing the job or retrying its original revision. Queue disposal also retains
+failed cleanup for another attempt. Header/publication failure and a real browser
+render-to-queue workflow cover this ownership. Shared bounded PCM mixing, an audio sample clock, retained-media
+decoding, and audio/video muxing pass a menu-driven media import, save/reopen,
+preview, export, and re-import workflow. WebM declares its millisecond container
+timing resolution. The separate float-carrier native helper and own-origin
+desktop delivery pass a packaged Linux ProRes 4444 publication smoke test with
+authenticated PCM24 audio. Other desktop targets remain unqualified. Flat MOV
+delivery admits at most 32,768 frames so its retained sample index is bounded.
+The [sustained drivers](motionscaper-sustained-browser-native-qualification.md)
+measure worker preview, retained PCM and physical browser/native output as
+duration grows. Fresh source `fa68087f7` passed the fixed 300/1,200-frame
+software Chromium profile, including independent output, cancellation/retry,
+memory and cleanup checks. Its native workload failed encoder observation after
+300-frame delivery; output-only picture, timestamp and exact PCM checks passed.
+The later source `5ca4a2ea1` attempt failed shutdown after three 300-frame movies.
+Source `1202edeba` subsequently passed the complete fixed native profile at both
+durations, including preview/ProRes, cancellation/retry, all six references,
+memory tails and cleanup. The earlier c80 native success has lost receipts and
+remains historical. Source `322c8a6b1` also passed this complete fixed native
+profile, with all six independently decoded MOVs and 427 audited memory rows.
+Its separate browser attempt failed the existing memory ceiling before completing
+a preview frame. The four current maximum profiles have separate evidence above;
+broader combinations and host qualification remain open.
+Preview and render leases retain bounded digest-bound font providers.
+M06 has menu-opened layer/audio timelines, property/keyframe editing, portable
+clipboard commands, and exact source timing. Opt-in value/speed graphs and
+spatial/path editing pass actual browser workflows, including pixel preview,
+undo, and save/reopen. Ordered shape operators and shaped text animators have
+actual CanvasKit and worker/CPU preview coverage and menu-opened operator editing.
+Exact work areas, composition selection, retained cross-project clipboard, and
+source timing/remapping pass browser editing, history and reopen workflows.
+The opt-in Composition Canvas has direct selection, move/scale/rotate handles,
+parent-coordinate conversion, keyboard controls and one-step Undo for static 2D
+transforms. A maintained title-and-shape browser workflow combines retained fonts,
+fill editing, canvas manipulation, eased curves, null parenting and nesting, then
+saves/reopens and exports PNG pixels matching preview within one channel code.
+M07 includes bounded local masks, ordered effects,
+alpha/luma mattes, backdrop adjustments, revision-bound tracking commands, and
+projective corner pins. Tracking freshness stops preview/export before resource
+acquisition; point analysis/correction, planar pins, stabilization, cancellation,
+history and reopen pass menu-driven workflows using actual encoded footage.
+Keyed footage with a corrected animated mask, a tracked overlay and a planar
+corner pin survive save/reopen and produce delivered PNG pixels identical to
+the matching preview frames.
+Menu-opened masks, effects, blend modes, mattes and adjustments pass browser
+editing and property-animation workflows. Timeline layer lifecycle controls
+rename without rebinding expressions, enable/disable picture layers, mute
+retained footage audio and remove dependency-closed selections with atomic Undo.
+Chromium verifies referenced opacity pixels, removal refusal and Save/reopen.
+M08
+includes a closed expression parser/interpreter, shared exact scene/audio
+clocks, stable references, bounded queries, and atomic source/baking commands;
+bounded native-PCM amplitude now drives preview/export pixels and mixed gain,
+with asynchronous baking and expression asset custody. Menu-driven source
+editing, diagnostics, evaluation and baking pass browser preview, history and
+reopen workflows, including retained PCM amplitude and cancellation. M09 has perspective/orthographic cameras, depth-sorted translucent
+planes, linear-SDR materials/lights, transparent shadow casters and deterministic
+thin-lens sampling. Actual worker/WebGL and host/CPU preview fixtures agree;
+matching-quality shutter/lens preview and final export agree, including exact
+nested quality and arbitrary seeks. Menu-driven camera, lighting, material and
+quality authoring pass actual Chromium preview, undo/redo and save/reopen.
+The [packaged Linux scene qualification](motionscaper-native-scene-qualification.md)
+drives real native file dialogs and the unchanged encoder, with authored camera,
+light, shadow, shutter and lens quality. Software preview and decoded ProRes agree
+within declared color/alpha bounds and retain exact rational frame timestamps.
+Hardware GPU and remaining native platform qualification remain open.
+The [Linux package CI gate](motionscaper-linux-ci-qualification.md) now requires
+real native launch, this authored scene, authored title, offline successor
+picture/PCM delivery and saved-file links for candidate/nightly Linux artifacts.
+A complete local x64 aggregate on `1a788b61b` produced all five required
+source-bound receipts. The complete aggregate admits x64; ARM64 and other targets
+still need actual receipts; configuring those jobs does not qualify them.
+M10 has versioned composition
+offers, bounded streamed closure verification, compatible/pending update and
+Undo/Resume rules, and atomic receiver-owned successor storage with retained
+historical revisions, with atomic owning-project/history CAS and private
+preparations. Saved-revision picture and PCM adapters use the shared scene and
+retained bytes after offline receiver reopen. An active native delivery retains
+its captured revision and independent audio resources when a compatible saved
+revision is accepted. Focused controller and three-engine browser checks cover
+the concurrent update, exact old/new picture and PCM, retained originals and
+cleanup before publication; failed physical cleanup remains retryable.
+The explicit successor browser
+shell exposes composition connections through File, with paired picture/PCM
+placement, atomic editing and Undo/Redo, and lazy exact preview/delivery.
+Authenticated generated video sources pass the actual Frame finishing exporter
+without encoded proxy bodies. Fresh and edited family-v2 archives export and
+import with retained ordinary media and linked closure; Chromium covers failed
+publication, retry, reopen, deliberate media-cache loss and portable re-export.
+The successor site builds within unchanged startup and chunk limits. Generated
+bin thumbnails, exact filmstrips and muted source-monitor Play/Pause/Mark use
+the retained renderer without encoded proxy URLs. Standard File Copy/Replace
+retain original archives, rebind conflicting ordinary media and fence atomic
+owner publication; focused tests cover complete cache recovery and prior-v1
+custody. The dedicated real-editor browser gate covers saved sender updates,
+Undo/Resume, width Conform, portable File Save/Open and offline reopen. Actual
+video delivery now passes fresh portable reopen and decoded MP4 pixels matching
+the blue preview. Duration/FPS Conform has an exact fit-window review, unchanged
+intent on Cancel, stale-review refusal, atomic Apply and one-step Undo. The
+packaged Linux x64 GTK/X11 saved-file link passes actual chooser, watch-generation,
+closed-dialog update, corruption refusal and Disconnect custody checks. Native
+generated-source delivery now has a real [Linux package qualification](motionscaper-successor-native-delivery.md):
+offline owner reopen after removing the original source, actual GTK Save,
+authenticated ProRes pictures and mixed PCM, exact timing and decoded pixels
+matching the software WebGL preview within one display code. A subsequent actual
+Chromium workflow verifies complete CPU finishing preview for retained linked
+compositions when WebGL is unavailable or loses its context, context restoration,
+offline receiver reload, and clearing the picture for a new document. Preview
+converts declared Rec.709 finishing bytes to sRGB without changing delivery bytes.
+Complete CPU finishing also covers retained timeline-image layers mixed with
+linked scenes, through the same authenticated supplemental-picture executor as
+export. Actual Chromium disables WebGL2 globally and verifies File Open,
+animated-image playback, Stop, reopen and project replacement. Exact NTSC
+random-seek pixels match export in either painter order. Inherited Frame
+adjustment effects that require WebGL2 remain an explicit unavailable-render
+error when WebGL2 is absent; no incomplete frame is reported as rendered.
+The remaining native platform matrix remains unfinished.
+M11 has a bounded
+exchange schema, custody/report validation, readable installed-AE exporter and
+limited importer scripts with media digest verification, a bounded script
+download, explicit numeric sampling and limited editable exchange conversion.
+Editable path geometry and hard-edge masks have bidirectional conversion,
+closed host metadata, readable ES3 scripts, and a real Chromium bridge
+import/pixel/save/reverse-package workflow. Unsupported temporal/path topology,
+feathering and expansion remain explicitly reported.
+Normal, Multiply, Screen, Overlay, Darken, Lighten and Difference have closed
+bidirectional blend mappings with readable host preflight and readback. Chromium
+verifies import pixels, Save/reopen and reverse packages. Non-neutral compositing
+switches, adjustment/3D semantics and other blends remain inert report items
+with original custody. These structural checks do not establish installed-AE
+blend or color/alpha parity.
+Gaussian Blur 2 exchange requires an explicitly selected reviewed profile for
+the exact AE version, build and language, with a complete bounded neutral control
+tree and a declared blurriness-to-sigma scale. Readable calibration/export/import
+scripts verify fresh AV switches, effect controls, authored hold/linear keys and
+readback, rolling back failed writes. The File workflow verifies mismatch refusal,
+review invalidation, Save/reopen custody and reverse-package values. This is a
+structural editable subset; installed-AE kernel, bounds, color and alpha parity
+remain unqualified, with complete rendered fallback available.
+Reviewed editable paragraph text includes retained font bytes, explicit PostScript
+bindings, source custody and a real Chromium import/save/reopen/reverse-package
+workflow. The readable host importer preflights fonts before mutation and requires
+AE 24.6 or newer for text. Ordered shape project conversion is wired in both
+directions; readable installed-host shape creation preflights an exact reviewed
+version/build/language style profile, ordered path/paint operations and admitted
+keys before mutation. Named style readback failures roll back new objects.
+Separate menu-dialog expression opt-ins translate closed scalar opacity syntax
+with explicit percentage units and preserved keys/source custody. Independent
+ES3 validation precedes host activation, with error/nonfinite checks at one
+bounded sample and owned-object rollback. Chromium exchange and Save/reopen
+reproduce the authored opacity pixels. These structural checks do not qualify
+installed AE expression, style, color or subframe fidelity.
+Atomic import retains original exchange/report custody and every media file
+through normal Save/reopen and portable archives, including unsupported null
+placeholders. The opt-in File bridge workflow passes actual Chromium import,
+preview-pixel, save/reopen, original-media custody and refusal checks; AEP/AEPX
+selection routes to installed-AE guidance. The explicit whole-composition PNG
+fallback has a bounded installed-host adapter, generated entry and complete
+256-frame image-layer carrier with distinct-frame Chromium pixel checks.
+The reverse [rendered Motion-to-AE transfer](motionscaper-ae-render-transfer-qualification.md)
+uses full authored shutter/lens quality at every frame, verifies frame bytes
+against normal PNG delivery, and retains the complete original project and
+source media. Refusal, cancellation and failed output cleanup publish no package.
+Installed-AE settings/cancellation/color/alpha and actual export/re-import
+reference qualification remain unfinished. Additional composition authoring passes an actual nested picture/PCM
+preview and save/reopen workflow; retained font and gradient authoring pass
+Chromium pixel/history workflows.
+Fresh source `3e8b3e942` Motion Node tests passed all 1,086 cases without skips.
+The complete five-partition run failed two existing-product/cross-product cases:
+desktop AudioWorklet deadline admission and paired-download test synchronization.
+The latter has a focused test repair; the desktop failure's cause remains unknown.
+Source `1887abecc` subsequently qualified all 45 linked/dual-origin browser cases
+without skips or retries. Source `1202edeba` qualified both fixed native duration
+workloads, with all six MOV references, memory samples and cleanup audited.
+These source-attributed results do not replace complete combined acceptance.
+The complete source-328 browser run passed all 139 Motion-named Chromium cases
+but failed existing-product workflows; current combined acceptance remains open.
+These results do not close a package; complete accepted coverage remains pending.
+The [platform fixture](motionscaper-platform-qualification.md) passes twelve
+actual Chromium, Firefox and Linux WebKit workflows covering keyboard menus,
+retained fonts, authored keys, Save/reopen, same-engine PNG/preview and offline
+reopen with the origin shut down. Chromium and Firefox produce actual VP9 WebM;
+Linux WebKit refuses before an independently reproduced native encoder crash.
+Different engines' whole-frame hashes are not claimed identical. Broader maximum
+combinations, full existing-product regression, hardware GPU, macOS Safari and
+credentialed native distribution still require their own gates.
+The capability register owns Motion's independent workspace and bounded claims.
+Own Pages tables, stable-release and source-bound deployment preparation exist;
+activation/publication and credentialed target qualification remain separate.
+
+The current [2.5D rendering contract](motionscaper-2-5d-rendering.md) declares
+M09's camera, depth-group, lighting and quality semantics. It does not claim
+After Effects pixel parity.
+
+The current [composition link foundations](motionscaper-composition-links.md)
+declare M10's revision, closure, history and rendering authority. Fresh
+bounded Linux delivery, complete linked/dual-origin suites and fixed native
+duration have source-attributed evidence in the final validation status.
+Combined regression/coverage acceptance, broader workload combinations, remaining
+targets and hardware qualification remain open.
+
+During implementation, run only Motionscaper-specific tests. Run the complete
+repository and existing-product regression gates at M12. Keep at most ten
+task worktrees active and remove each after its work is integrated and it is
+no longer needed. The integration worktree is `Soundscaper-motionscaper`.
 
 ## M01. Product registration and platform seams
 

@@ -54,6 +54,7 @@ export function VideoFilmstripClip({
 		projectSampleRate: sampleRate,
 	}), [clip, source, sampleRate]);
 	const visualData = useVideoClipVisualData(controller, clip);
+	const generatedSource = useMemo(() => productVideoVisualPreviewRuntimeFor(controller)?.generatedSources?.ownsSource(project, clip.sourceId) ?? false, [controller, project, clip.sourceId]);
 	const thumbnailPoints = useMemo(() => {
 		if (!source || visibleEndFrame <= visibleStartFrame) return [];
 		try {
@@ -101,7 +102,7 @@ export function VideoFilmstripClip({
 			: videoThumbnailUrl(thumbnailData, point, index, timestampLookup),
 	})), [clip.kind, clip.sourceId, thumbnailPoints, thumbnailData, timestampLookup]);
 	const presentationThumbnails = useProductTimelineFilmstrip({
-		controller, project, clip, thumbnailModels,
+		controller, project, clip, thumbnailModels, generatedSource,
 	});
 	const cells = useVideoFilmstripCells(thumbnailPoints, visibleStartFrame, visibleEndFrame, sampleRate, pixelsPerSecond);
 	return (
@@ -212,7 +213,7 @@ export function VideoFilmstripClip({
 	);
 }
 
-function useProductTimelineFilmstrip({ controller, project, clip, thumbnailModels }) {
+function useProductTimelineFilmstrip({ controller, project, clip, thumbnailModels, generatedSource }) {
 	const runtime = useMemo(() => productVideoVisualPreviewRuntimeFor(controller), [controller]);
 	const createTimelineFilmstrip = runtime?.createTimelineFilmstrip;
 	const supported = Boolean(
@@ -223,8 +224,8 @@ function useProductTimelineFilmstrip({ controller, project, clip, thumbnailModel
 		sourceId: clip.sourceId,
 		timelineStartFrame: clip.timelineStartFrame,
 		durationFrames: clip.durationFrames,
-	}, thumbnailModels) : [], [
-		clip.durationFrames, clip.id, clip.sourceId, clip.timelineStartFrame, supported, thumbnailModels,
+	}, thumbnailModels, generatedSource ? 'product-generated' : undefined) : [], [
+		clip.durationFrames, clip.id, clip.sourceId, clip.timelineStartFrame, supported, thumbnailModels, generatedSource,
 	]);
 	const [state, setState] = useState(() => ({ pending: false, error: null, values: new Map() }));
 	useEffect(() => {

@@ -334,6 +334,10 @@
 		,
 		{ "path": "src/common/editor/mixer-signal-topology-v21.ts", "kind": "persisted-contract", "justification": "mixer-signal-topology-v21.ts is a persisted mixer routing topology revision independent of product schema." }
 		,
+		{ "path": "src/common/editor/motion-native-frame-carrier-v1.ts", "kind": "native-contract", "justification": "motion-native-frame-carrier-v1.ts defines the independently versioned float32 frame carrier with pinned revision identity, exact cadence and explicit linear color and premultiplied alpha across the native delivery boundary." }
+		,
+		{ "path": "src/common/editor/motion-native-pcm-carrier-v1.ts", "kind": "native-contract", "justification": "motion-native-pcm-carrier-v1.ts defines the independently versioned interleaved float32 PCM carrier with pinned revision identity, exact frame cadence, sample count and sequential bounded packets across the native delivery boundary." }
+		,
 		{ "path": "src/common/editor/native-audio-session-request-v1.ts", "kind": "ipc-contract", "justification": "native-audio-session-request-v1.ts is the session a renderer asks the milestone-5A native audio tier to open, named on both sides of the preload bridge, so it is an independently versioned cross-process carrier contract." }
 		,
 		{ "path": "src/common/editor/native-media-evaluated-carrier-v1.ts", "kind": "ipc-contract", "justification": "native-media-evaluated-carrier-v1.ts is an independently versioned persisted or cross-process carrier contract." }

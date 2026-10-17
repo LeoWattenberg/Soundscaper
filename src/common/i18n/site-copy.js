@@ -4,6 +4,10 @@ import { localeLanguage } from './locale.js';
 import { SITE_SIDEBAR_COPY_BY_LOCALE } from './site-sidebar-copy.js';
 
 const SITE_COPY_ENTRIES = Object.freeze([
+	['motionscaperTitle', 'Motionscaper', 'Motionscaper'],
+	['motionscaperMetaDescription', 'Motion graphics and compositing.', 'Motion-Design und Compositing.'],
+	['workspaceMotion', 'Motion Workspace', 'Motion-Arbeitsbereich'],
+	['otherEditors', 'Other editors', 'Weitere Editoren'],
 	['framescaperEyebrow', 'Local video editing', 'Video lokal bearbeiten'],
 	['framescaperTitle', 'Framescaper', 'Framescaper'],
 	['framescaperIntro', 'Edit video and sound nondestructively, combine layers and effects, and export the finished video.', 'Schneide Video und Ton nondestruktiv, kombiniere Ebenen und Effekte und exportiere das fertige Video.'],

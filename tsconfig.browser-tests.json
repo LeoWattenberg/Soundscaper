@@ -1,0 +1,10 @@
+{
+	"extends": "./tsconfig.base.json",
+	"compilerOptions": {
+		"incremental": true,
+		"tsBuildInfoFile": "./node_modules/.cache/typescript/browser-tests.tsbuildinfo",
+		"types": ["node", "vite/client"]
+	},
+	"include": ["src/vite-env.d.ts", "tests/browser/**/*.ts", "tests/browser/**/*.tsx"],
+	"exclude": ["dist", "node_modules", "test-results"]
+}

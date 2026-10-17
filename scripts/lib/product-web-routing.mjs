@@ -17,16 +17,20 @@
  * documents, install metadata, or service worker.
  */
 
-const PRODUCT_IDS = Object.freeze(['soundscaper', 'framescaper']);
+import { motionLinkWebRoute, motionLinkHeaderRule } from './motion-link-web-routing.mjs';
+
+const PRODUCT_IDS = Object.freeze(['soundscaper', 'framescaper', 'motionscaper']);
 
 const PRODUCT_SITES = Object.freeze({
 	soundscaper: Object.freeze({ variable: 'SOUNDSCAPER_SITE', origin: 'https://soundscaper.org' }),
 	framescaper: Object.freeze({ variable: 'FRAMESCAPER_SITE', origin: 'https://framescaper.org' }),
+	motionscaper: Object.freeze({ variable: 'MOTIONSCAPER_SITE', origin: 'https://motionscaper.org' }),
 });
 
 const RETIRED_PRODUCT_BASE_PATHS = Object.freeze({
 	soundscaper: Object.freeze({ framescaper: '/framescaper' }),
 	framescaper: Object.freeze({}),
+	motionscaper: Object.freeze({}),
 });
 
 const RETIRED_HANDBOOK_PAGES = Object.freeze({
@@ -61,6 +65,7 @@ const SEALED_CAPTURE_POLICY =
 const PRODUCT_POLICIES = Object.freeze({
 	soundscaper: Object.freeze({ standard: EDITOR_CAPTURE_POLICY, embedded: EDITOR_CAPTURE_POLICY }),
 	framescaper: Object.freeze({ standard: CAMERA_CAPTURE_POLICY, embedded: SEALED_CAPTURE_POLICY }),
+	motionscaper: Object.freeze({ standard: SEALED_CAPTURE_POLICY, embedded: SEALED_CAPTURE_POLICY }),
 });
 
 /** The cross-origin isolation every product deployment shares byte for byte. */
@@ -87,6 +92,7 @@ export function webBuildProductId(environment = process.env) {
 export function webBuildRouting(environment = process.env) {
 	const productId = webBuildProductId(environment);
 	const plans = [documentPlan(productId, '')];
+	const compositionLink = motionLinkWebRoute(productId, environment);
 	const handbook = handbookPlan(productId);
 	const workers = plans.map((plan) => Object.freeze({
 		productId: plan.productId,
@@ -100,6 +106,7 @@ export function webBuildRouting(environment = process.env) {
 		// other product's path, where it reports the wrong product and cannot
 		// boot. Declining leaves an honest network error instead.
 		foreignScopes: Object.freeze([
+			...(compositionLink ? ['/composition-link/'] : []),
 			...plans
 				.filter(({ scope }) => scope !== plan.scope && scope.startsWith(plan.scope))
 				.map(({ scope }) => scope),
@@ -116,6 +123,7 @@ export function webBuildRouting(environment = process.env) {
 	}));
 	return Object.freeze({
 		productId,
+		compositionLink,
 		site: buildSite(productId, environment),
 		plans: Object.freeze(plans),
 		workers: Object.freeze(workers),
@@ -271,7 +279,7 @@ export function composeProductHeaders(shared, routing) {
 		replaceMarker(shared, DOCUMENT_RULES_MARKER, documentRules(routing.plans, routing.handbook)),
 		WORKER_RULES_MARKER,
 		workerRules(routing.workers),
-	);
+	) + motionLinkHeaderRule(routing.compositionLink);
 	auditComposedHeaders(composed, routing);
 	return composed;
 }
@@ -366,6 +374,12 @@ export function auditComposedHeaders(text, routing) {
 		}
 		if (rule.pattern === ISOLATION_PATTERN) continue;
 		const opener = rule.directives.filter(({ name }) => name === 'cross-origin-opener-policy');
+		if (opener.length > 0) {
+			const permitted = new Map([['/transfer/send/', 'same-origin-allow-popups'], ['/transfer/receive/', 'unsafe-none']]);
+			if (routing.compositionLink) permitted.set(routing.compositionLink.path, routing.compositionLink.opener);
+			if (opener.length !== 2 || !opener[0].detached || opener[1].detached || opener[1].value !== permitted.get(rule.pattern)) throw new Error(`Cloudflare opener exception is not an admitted exact bridge route: ${rule.pattern}.`);
+		}
+		if (rule.directives.some(({ name }) => name === 'cross-origin-embedder-policy')) throw new Error('Cloudflare routes must retain the shared COEP policy.');
 		if (opener.length > 0 && !opener[0].detached) {
 			throw new Error(`Cloudflare rule ${rule.pattern} relaxes Cross-Origin-Opener-Policy without detaching it.`);
 		}

@@ -26,6 +26,12 @@ function documents() {
 					candidate: { version: '1.0.0-rc.1', tagPrefix: 'framescaper-v' },
 					stable: { version: '1.0.0', tagPrefix: 'framescaper-v' },
 				},
+				motionscaper: {
+					productId: 'motionscaper', applicationVersionChannel: 'candidate',
+					releaseChannel: 'candidate',
+					candidate: { version: '0.1.0-alpha.1', tagPrefix: 'motionscaper-v' },
+					stable: { version: '1.0.0', tagPrefix: 'motionscaper-v' },
+				},
 			},
 		},
 		packageMetadata: { name: 'soundscaper', version: '1.0.0-rc.1', private: true },
@@ -42,7 +48,14 @@ function documents() {
 }
 
 test('release preparation selects the stable line and synchronizes version metadata', () => {
-	const prepared = createSoundscaperReleasePreparation(documents(), '1.0.0');
+	const input = documents();
+	const before = structuredClone(input);
+	const prepared = createSoundscaperReleasePreparation(input, '1.0.0');
+	assert.deepEqual(input, before, 'Soundscaper preparation leaves its input unchanged');
+	for (const product of ['framescaper', 'motionscaper']) {
+		assert.deepEqual(prepared.releaseLines.products[product], before.releaseLines.products[product],
+			`${product} keeps its independent release line`);
+	}
 	assert.equal(prepared.releaseLines.products.soundscaper.applicationVersionChannel, 'stable');
 	assert.equal(prepared.releaseLines.products.soundscaper.releaseChannel, 'stable');
 	assert.equal(prepared.releaseLines.products.soundscaper.stable.version, '1.0.0');

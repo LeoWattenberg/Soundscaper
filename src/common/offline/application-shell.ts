@@ -17,8 +17,8 @@ interface OfflineServiceWorkerContainer {
 
 export interface RegisterOfflineApplicationShellOptions {
 	readonly desktop: boolean;
-	readonly productId: 'framescaper' | 'soundscaper';
-	readonly builtProductId?: 'framescaper' | 'soundscaper';
+	readonly productId: 'framescaper' | 'soundscaper' | 'motionscaper';
+	readonly builtProductId?: 'framescaper' | 'soundscaper' | 'motionscaper';
 	readonly location?: Pick<URL, 'protocol'>;
 	readonly serviceWorker?: OfflineServiceWorkerContainer;
 }
@@ -81,6 +81,8 @@ export async function registerOfflineApplicationShell(
 			type: 'classic',
 			updateViaCache: 'none',
 		});
+		const { replayDocumentApplicationFonts } = await import('./application-shell-used-fonts.js');
+		await replayDocumentApplicationFonts(serviceWorker, registration, scriptUrl);
 		return Object.freeze({ status: 'registered', registration });
 	} catch (error) {
 		return Object.freeze({ status: 'failed', error });

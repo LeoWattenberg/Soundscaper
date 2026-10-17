@@ -20,11 +20,12 @@ test('the registry names one suffix per product and admits every one of them', (
 	assert.deepEqual(PROJECT_FILE_EXTENSION_BY_PRODUCT, {
 		soundscaper: '.sscape',
 		framescaper: '.fscape',
+		motionscaper: '.mscape',
 		lightscaper: '.liscape',
 	});
 	assert.equal(LEGACY_PROJECT_FILE_EXTENSION, '.scape');
-	assert.deepEqual([...ACCEPTED_PROJECT_FILE_EXTENSIONS], ['.sscape', '.fscape', '.liscape', '.scape']);
-	assert.equal(ACCEPTED_PROJECT_FILE_EXTENSION_LIST, '.sscape,.fscape,.liscape,.scape');
+	assert.deepEqual([...ACCEPTED_PROJECT_FILE_EXTENSIONS], ['.sscape', '.fscape', '.mscape', '.liscape', '.scape']);
+	assert.equal(ACCEPTED_PROJECT_FILE_EXTENSION_LIST, '.sscape,.fscape,.mscape,.liscape,.scape');
 	assert.equal(new Set(ACCEPTED_PROJECT_FILE_EXTENSIONS).size, ACCEPTED_PROJECT_FILE_EXTENSIONS.length);
 	for (const extension of Object.values(PROJECT_FILE_EXTENSION_BY_PRODUCT)) {
 		assert.ok(ACCEPTED_PROJECT_FILE_EXTENSIONS.includes(extension));
@@ -47,6 +48,7 @@ test('every product profile declares the suffix the registry assigns it', () => 
 	}
 	assert.equal(PRODUCT_PROFILES.soundscaper.projectFileExtension, '.sscape');
 	assert.equal(PRODUCT_PROFILES.framescaper.projectFileExtension, '.fscape');
+	assert.equal(PRODUCT_PROFILES.motionscaper.projectFileExtension, '.mscape');
 });
 
 test('`.liscape` is reserved for a product that has no runtime profile yet', () => {
@@ -59,6 +61,7 @@ test('`.liscape` is reserved for a product that has no runtime profile yet', () 
 test('a product suffix is resolved case-insensitively and unknown products are refused', () => {
 	assert.equal(projectFileExtensionForProduct('Soundscaper'), '.sscape');
 	assert.equal(projectFileExtensionForProduct('FRAMESCAPER'), '.fscape');
+	assert.equal(projectFileExtensionForProduct('MotionScaper'), '.mscape');
 	for (const unknown of ['', null, undefined, 'audacity', 'scape', 0]) {
 		assert.throws(
 			() => projectFileExtensionForProduct(unknown),
@@ -85,6 +88,8 @@ test('a disguised or partial suffix is not a project file', () => {
 		'mix.sscape.zip',
 		'mix.scape.exe',
 		'mix.fscape.txt',
+		'motion.mscape.zip',
+		'motion.mscape ',
 		'mix.sscape ',
 		'mixsscape',
 		'mix.sscapex',
@@ -117,6 +122,8 @@ test('saving replaces a recognized suffix and otherwise appends the active one',
 	assert.equal(withProjectFileExtension('Mix.sscape', '.fscape'), 'Mix.fscape');
 	assert.equal(withProjectFileExtension('Mix.scape', '.sscape'), 'Mix.sscape');
 	assert.equal(withProjectFileExtension('Mix.LISCAPE', '.sscape'), 'Mix.sscape');
+	assert.equal(withProjectFileExtension('Motion.MSCAPE', '.fscape'), 'Motion.fscape');
+	assert.equal(withProjectFileExtension('Motion.fscape', '.mscape'), 'Motion.mscape');
 	assert.equal(withProjectFileExtension('Mix', '.fscape'), 'Mix.fscape');
 	assert.equal(withProjectFileExtension('Mix.sscape', '.sscape'), 'Mix.sscape');
 	assert.equal(withProjectFileExtension('Mix.SSCAPE', '.sscape'), 'Mix.sscape');

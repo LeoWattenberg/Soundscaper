@@ -1,4 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { productVideoVisualPreviewRuntimeFor } from './product-video-visual-preview-runtime.ts';
+import ProductGeneratedSourceCanvas from './ProductGeneratedSourceCanvas.tsx';
+import { sourceMonitorIdentityIsCurrent } from './source-monitor-identity.ts';
 
 import '../audio-editor-design-system/23-source-monitor.css';
 
@@ -12,19 +15,30 @@ import '../audio-editor-design-system/23-source-monitor.css';
  */
 export default function SourceMonitorPanel({ controller, snapshot, copy, run, blocked }) {
 	const videoRef = useRef(null);
-	const [playing, setPlaying] = useState(false);
+	const [playback, setPlayback] = useState(null);
 	const view = controller.actions.video.sourceMonitor.view();
+	const playing = playback?.sourceId === view.sourceId && playback?.project === snapshot.project && playback?.openRevision === view.openRevision;
 	const visual = view.sourceId ? controller.actions.video.getSourceVisualData(view.sourceId) : null;
 	const mediaUrl = visual?.available === false ? null : visual?.mediaUrl || null;
+	const generatedRuntime = productVideoVisualPreviewRuntimeFor(controller)?.generatedSources;
+	const generated = view.sourceId && generatedRuntime?.ownsSource(snapshot.project, view.sourceId) ? generatedRuntime : null;
 	const disabled = blocked || snapshot.readOnly;
+	const generatedIsCurrent = useCallback(() => sourceMonitorIdentityIsCurrent(controller, {
+		sourceId: view.sourceId, openRevision: view.openRevision, project: snapshot.project,
+	}), [controller, view.sourceId, view.openRevision, snapshot.project]);
+	const publishGenerated = useCallback(frame => {
+		if (generatedIsCurrent()) controller.actions.video.sourceMonitor.seek(frame);
+	}, [controller, generatedIsCurrent]);
 
 	// Playing a source is a viewing action; stopping it is what makes the
 	// controller's frame authoritative again.
 	const stop = useCallback(() => {
 		videoRef.current?.pause?.();
-		setPlaying(false);
+		setPlayback(null);
 	}, []);
-	useEffect(() => { stop(); }, [stop, view.sourceId, view.openRevision]);
+	const stopGenerated = useCallback(() => { if (generatedIsCurrent()) stop(); }, [generatedIsCurrent, stop]);
+	const generatedPlayingChanged = useCallback(value => { if (!value) stopGenerated(); }, [stopGenerated]);
+	useEffect(() => { stop(); }, [stop, view.sourceId, view.openRevision, snapshot.project]);
 	useEffect(() => {
 		const media = videoRef.current;
 		if (!media || playing || !Number.isFinite(view.mediaSeconds)) return;
@@ -61,6 +75,10 @@ export default function SourceMonitorPanel({ controller, snapshot, copy, run, bl
 		});
 	};
 	const togglePlay = () => {
+		if (generated) {
+			if (playing) stop(); else setPlayback({ sourceId: view.sourceId, project: snapshot.project, openRevision: view.openRevision });
+			return;
+		}
 		const media = videoRef.current;
 		if (!media) return;
 		if (playing) {
@@ -68,7 +86,7 @@ export default function SourceMonitorPanel({ controller, snapshot, copy, run, bl
 			run(() => controller.actions.video.sourceMonitor.seekMediaTime(Number(media.currentTime) || 0));
 			return;
 		}
-		setPlaying(true);
+		setPlayback({ sourceId: view.sourceId, project: snapshot.project, openRevision: view.openRevision });
 		void media.play?.().catch(() => stop());
 	};
 
@@ -80,7 +98,8 @@ export default function SourceMonitorPanel({ controller, snapshot, copy, run, bl
 		data-source-monitor-mark-out={view.markOut == null ? '' : view.markOut}
 	>
 		<div className="kw-audio-editor__source-monitor-picture">
-			{mediaUrl
+			{generated ? <ProductGeneratedSourceCanvas runtime={generated} project={snapshot.project} sourceId={view.sourceId} sourceFrame={view.positionFrame}
+				width={640} height={360} frameRate={view.frameRate} sourceFrameCount={view.sourceFrameCount} playing={playing} onPosition={publishGenerated} onPlayingChanged={generatedPlayingChanged} unavailable={copy.videoPreviewUnavailable} label={`${copy.panelSourceMonitor}: ${view.sourceName || copy.videoClip}`} onError={stopGenerated} /> : mediaUrl
 				? <video
 					ref={videoRef}
 					data-source-monitor-video
@@ -116,7 +135,7 @@ export default function SourceMonitorPanel({ controller, snapshot, copy, run, bl
 				data-source-monitor-action="play"
 				aria-label={playing ? copy.pause : copy.play}
 				aria-pressed={playing}
-				disabled={!mediaUrl}
+				disabled={!mediaUrl && !generated}
 				onClick={togglePlay}
 			>{playing ? '❚❚' : '▶'}</button>
 			<button

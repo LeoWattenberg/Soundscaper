@@ -13,6 +13,7 @@
 export const PROJECT_FILE_EXTENSION_BY_PRODUCT = Object.freeze({
 	soundscaper: '.sscape',
 	framescaper: '.fscape',
+	motionscaper: '.mscape',
 	// Lightscaper is roadmap-only. Its suffix is reserved here so that the
 	// products that ship today already open what it will one day write, and so
 	// that no later product can claim it by accident.
@@ -28,6 +29,7 @@ export const LEGACY_PROJECT_FILE_EXTENSION = '.scape';
 export const ACCEPTED_PROJECT_FILE_EXTENSIONS = Object.freeze([
 	'.sscape',
 	'.fscape',
+	'.mscape',
 	'.liscape',
 	'.scape',
 ] as const);

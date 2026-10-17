@@ -1,0 +1,56 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+/* Generated from strict TypeScript by scripts/build-motionscaper-ae-bridge.mjs. */
+var MotionAeHostImport = (function () {
+
+"use strict";
+/* SPDX-License-Identifier: AGPL-3.0-only */
+/** Input must come from prepareMotionAeHostImport. All created AE objects remain transaction-owned. */
+function importMotionAeHostPlan(plan, host) {
+    host.checkCancelled();
+    host.verifyMedia(plan.footage);
+    host.checkCancelled();
+    var transaction = host.begin(plan);
+    try {
+        for (var index = 0; index < plan.footage.length; index++) {
+            host.checkCancelled();
+            transaction.footage(plan.footage[index]);
+        }
+        for (var index = 0; index < plan.compositions.length; index++) {
+            host.checkCancelled();
+            transaction.composition(plan.compositions[index]);
+        }
+        for (var index = 0; index < plan.compositions.length; index++) {
+            var comp = plan.compositions[index];
+            for (var layer = comp.layers.length - 1; layer >= 0; layer--) {
+                host.checkCancelled();
+                transaction.layer(comp, comp.layers[layer]);
+            }
+        }
+        for (var index = 0; index < plan.compositions.length; index++) {
+            var comp = plan.compositions[index];
+            for (var layer = 0; layer < comp.layers.length; layer++) {
+                host.checkCancelled();
+                var item = comp.layers[layer];
+                if (item.parentId !== null)
+                    transaction.parent(item);
+                transaction.properties(item);
+            }
+        }
+        host.checkCancelled();
+        transaction.finish();
+    }
+    catch (error) {
+        try {
+            transaction.rollback();
+        }
+        catch (cleanup) {
+            var cause = { primary: error, cleanup: cleanup }, failure = new Error('AE import failed: ' + String(error) + '; removal of created objects failed: ' + String(cleanup), { cause: cause });
+            failure.cause = cause;
+            throw failure;
+        }
+        throw error;
+    }
+}
+
+return { importMotionAeHostPlan: importMotionAeHostPlan };
+}());

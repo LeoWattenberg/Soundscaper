@@ -21,7 +21,7 @@
  * failing test.
  */
 export const SCAPE_PROJECT_MIME_TYPE = 'application/vnd.soundscaper.scape+zip';
-export const PROJECT_FILE_EXTENSIONS = Object.freeze(['.sscape', '.fscape', '.liscape', '.scape']);
+export const PROJECT_FILE_EXTENSIONS = Object.freeze(['.sscape', '.fscape', '.mscape', '.liscape', '.scape']);
 
 /**
  * The media a product hands the operating system, by kind.
@@ -94,11 +94,13 @@ export const INSTALL_SCREENSHOTS = Object.freeze([
 
 /** Every screenshot file one product commits, without its directory or suffix. */
 export function productScreenshotNames(productId) {
+	if (productId === 'motionscaper') return [];
 	return INSTALL_SCREENSHOTS.map(({ formFactor }) => `${productId}-${formFactor}`);
 }
 
 /** The screenshot resources one product's manifest declares, in dialog order. */
 export function productInstallScreenshots(productId) {
+	if (productId === 'motionscaper') return [];
 	return INSTALL_SCREENSHOTS.map(({ formFactor, width, height, label }) => ({
 		src: `${INSTALL_SCREENSHOT_DIRECTORY}/${productId}-${formFactor}.png`,
 		sizes: `${String(width)}x${String(height)}`,
@@ -175,8 +177,8 @@ export function productWebManifest(product) {
 		],
 		screenshots: productInstallScreenshots(product.id),
 		launch_handler: { client_mode: ['navigate-existing', 'auto'] },
-		file_handlers: productFileHandlers(product),
-		share_target: productShareTarget(product),
+		file_handlers: product.id === 'motionscaper' ? productFileHandlers(product).slice(0, 1) : productFileHandlers(product),
+		...(product.id === 'motionscaper' ? {} : { share_target: productShareTarget(product) }),
 		shortcuts: productShortcuts(product),
 	};
 }

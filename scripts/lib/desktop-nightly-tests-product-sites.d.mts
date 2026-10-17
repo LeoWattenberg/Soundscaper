@@ -6,7 +6,7 @@ import type {
 export interface DesktopNightlyTestsProductSites {
 	readonly origins: Readonly<{
 		readonly soundscaper: string;
-		readonly framescaper: string;
+		readonly framescaper: string; readonly motionscaper: string;
 	}>;
 	readonly browserEnvironment: DesktopNightlyTestsEnvironment;
 	close(): Promise<void>;
@@ -16,7 +16,7 @@ export interface DesktopNightlyTestsProductSitePlan {
 	readonly host: '127.0.0.1';
 	readonly origin: string;
 	readonly port: number;
-	readonly productId: 'soundscaper' | 'framescaper';
+	readonly productId: 'soundscaper' | 'framescaper' | 'motionscaper';
 	readonly root: string;
 }
 

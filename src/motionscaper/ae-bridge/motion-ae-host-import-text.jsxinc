@@ -1,0 +1,67 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+/* Generated from strict TypeScript by scripts/build-motionscaper-ae-bridge.mjs. */
+var MotionAeHostImportText = (function () {
+
+"use strict";
+/* SPDX-License-Identifier: AGPL-3.0-only */
+function record(value) { if (!value || typeof value !== 'object' || Object.prototype.toString.call(value) === '[object Array]')
+    throw new Error('AE text expected an object.'); return value; }
+function array(value, maximum) { if (Object.prototype.toString.call(value) !== '[object Array]' || value.length > maximum)
+    throw new Error('AE text array budget exceeded.'); return value; }
+function number(value, minimum, maximum) { if (typeof value !== 'number' || !isFinite(value) || value < minimum || value > maximum)
+    throw new Error('AE text numeric range is invalid.'); return value; }
+function text(value, maximum) { if (typeof value !== 'string' || value.length > maximum)
+    throw new Error('AE text string budget exceeded.'); return value; }
+function pair(value, minimum) { var values = array(value, 2); if (values.length !== 2)
+    throw new Error('AE text box dimensions differ.'); return [number(values[0], minimum, 32768), number(values[1], minimum, 32768)]; }
+/** A bounded host-operation whitelist; no exchange expression is activated. */
+function readMotionAeImportText(input, warnings, budget) {
+    var roots = array(input, 65536);
+    var result = null, found = false;
+    for (var root = 0; root < roots.length; root++) {
+        var group = record(roots[root]);
+        if (group.matchName !== 'ADBE Text Properties')
+            continue;
+        if (found || group.kind !== 'group')
+            throw new Error('AE text requires one captured Text group.');
+        found = true;
+        var children = array(group.children, 65536);
+        for (var index = 0; index < children.length; index++) {
+            if (++budget.properties > 65536)
+                throw new Error('AE text property budget exceeded.');
+            var property = record(children[index]);
+            if (property.matchName !== 'ADBE Text Document') {
+                if (property.kind === 'group' && array(property.children, 65536).length === 0)
+                    continue;
+                throw new Error('AE editable text has unmapped layer controls. Use a reviewed Motion text export or rendered fallback.');
+            }
+            if (result || property.kind !== 'text' || array(property.keys, 4096).length !== 0 || (property.expression !== null && record(property.expression).enabled !== false))
+                throw new Error('AE text must have one static Source Text without an enabled expression.');
+            var value = record(property.value), layout = record(value.layout);
+            if (value.styleScope !== 'uniform' || value.styleSupport !== 'basic' || value.applyFill !== true || value.applyStroke !== false || layout.kind !== 'box' || layout.orientation !== 'horizontal')
+                throw new Error('AE editable text requires reviewed uniform basic fill-only horizontal paragraph text.');
+            if (value.justification !== 'left' && value.justification !== 'center' && value.justification !== 'right')
+                throw new Error('AE paragraph justification is unsupported.');
+            if (typeof value.autoLeading !== 'boolean')
+                throw new Error('AE text leading flag is invalid.');
+            var color = array(value.fillColor, 3);
+            if (color.length !== 3)
+                throw new Error('AE text color dimensions differ.');
+            var font = text(value.font, 512);
+            if (!font.length)
+                throw new Error('AE text PostScript font name is empty.');
+            result = { text: text(value.text, 65536), font: font, fontSize: number(value.fontSize, 1, 1296), applyFill: true, applyStroke: false,
+                fillColor: [number(color[0], 0, 1), number(color[1], 0, 1), number(color[2], 0, 1)], strokeColor: [0, 0, 0], strokeWidth: 0,
+                tracking: number(value.tracking, -1e6, 1e6), leading: number(value.leading, 0, 1e6), autoLeading: value.autoLeading,
+                justification: value.justification, styleScope: 'uniform', styleSupport: 'basic', layout: { kind: 'box', orientation: 'horizontal', size: pair(layout.size, 1), position: pair(layout.position, -32768) } };
+        }
+    }
+    if (found && !result)
+        throw new Error('AE text layer lacks Source Text.');
+    if (result)
+        warnings.push('Text uses explicitly reviewed paragraph reflow and an exact installed PostScript face. Baselines, kerning, wrapping and shaping remain unqualified; compare the original reference.');
+    return result;
+}
+
+return { readMotionAeImportText: readMotionAeImportText };
+}());

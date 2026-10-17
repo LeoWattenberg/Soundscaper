@@ -265,7 +265,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 	const sources = createSourceRuntimeComposition({
 		state, playbackCacheState: transportAccess, copy, lifetime, projectGeneration, store, engine, sourceBuffers, sourceChunkProviders, sourcePeaks,
 		timePitchCache: clipTimePitchCache, sourceResolver: clipTimePitchSourceResolver, createRenderEngine: (renderOptions) => renderEngineFactory(renderOptions),
-		playbackProjects: playbackProjectService, createProjectVisualService, resolveProductVideoPreviewMedia: options.resolveProductVideoPreviewMedia, projectDurationFrames,
+		playbackProjects: playbackProjectService, createProjectVisualService, resolveProductVideoPreviewMedia: options.resolveProductVideoPreviewMedia, resolveProductVideoSource: options.resolveProductVideoSource, resolveProductAudioSource: options.resolveProductAudioSource, projectDurationFrames,
 		getProject: () => documentState.project, publishDocumentSnapshot, setStatus: bindings.setStatus, handleError: bindings.handleError,
 	});
 	const preferences = createPreferencesComposition({

@@ -1,6 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
+import { normalizeVideoRgbaOutput, type VideoRgbaOutput } from '../video-planar-pixels.ts';
 
 import type { FileSizeWarningConfirmation } from '../controller/shared/file-size-warning.ts';
+import { snapshotVideoExportGeneratedSources, type VideoExportGeneratedSources } from '../video-export-generated-sources.ts';
 import {
 	offlineVideoExportRecord as record, offlineVideoExportData as data,
 	offlineVideoExportDenseArray as denseArray, offlineVideoExportBoundedId as boundedId,
@@ -69,6 +71,7 @@ export interface VideoKeyframeOfflineVideoSourceInput {
 }
 
 export interface VideoKeyframeOfflineVideoExportRequest {
+	readonly generatedSources?: VideoExportGeneratedSources;
 	readonly project: Readonly<Record<string, unknown>>;
 	readonly timingBySourceId: ReadonlyMap<string, BoundVideoSourceTimingView>;
 	readonly sources: readonly VideoKeyframeOfflineVideoSourceInput[];
@@ -94,6 +97,7 @@ export interface VideoKeyframeOfflineVideoExportRequest {
 	readonly sourceTimeoutMs?: number;
 	readonly rgbaPostprocessor?: VideoKeyframeOfflineRgbaPostprocessor;
 	readonly rgbaCompositor?: import('./video-keyframe-offline-rgba-renderer.ts').VideoKeyframeOfflineRgbaCompositor;
+	readonly rgbaOutput?: VideoRgbaOutput;
 	readonly signal: AbortSignal;
 	readonly assertCurrent: () => void;
 	readonly confirmFileSizeWarning?: FileSizeWarningConfirmation;
@@ -114,6 +118,7 @@ export interface VideoKeyframeOfflineVideoExportDependencies {
 }
 
 interface NormalizedRequest {
+	readonly generatedSources?: VideoExportGeneratedSources;
 	readonly project: Readonly<Record<string, unknown>>;
 	readonly timingBySourceId: ReadonlyMap<string, BoundVideoSourceTimingView>;
 	readonly sources: readonly Readonly<{ sourceId: string; blob: Blob }>[];
@@ -129,6 +134,7 @@ interface NormalizedRequest {
 	readonly sourceTimeoutMs?: number;
 	readonly rgbaPostprocessor?: VideoKeyframeOfflineRgbaPostprocessor;
 	readonly rgbaCompositor?: import('./video-keyframe-offline-rgba-renderer.ts').VideoKeyframeOfflineRgbaCompositor;
+	readonly rgbaOutput?: VideoRgbaOutput;
 	readonly signal: AbortSignal;
 	readonly assertCurrent: () => void;
 	readonly confirmFileSizeWarning?: FileSizeWarningConfirmation;
@@ -139,7 +145,7 @@ const REQUEST_FIELDS = [
 	'format', 'quality', 'webCodecs', 'editorFfmpeg', 'audioMix', 'ringCapacityBytes', 'audioRingCapacityBytes',
 	'maximumAudioBytes', 'maximumWidth', 'maximumHeight',
 	'maximumFrameCount', 'maximumTotalRgbaBytes', 'maximumOutputBytes',
-	'maximumOutputChunkBytes', 'sourceTimeoutMs', 'rgbaPostprocessor', 'rgbaCompositor', 'signal', 'assertCurrent', 'confirmFileSizeWarning',
+	'maximumOutputChunkBytes', 'sourceTimeoutMs', 'rgbaPostprocessor', 'rgbaCompositor', 'rgbaOutput', 'signal', 'assertCurrent', 'confirmFileSizeWarning', 'generatedSources',
 ] as const;
 const ENCODER_OPTION_FIELDS = [
 	'ringCapacityBytes', 'audioRingCapacityBytes', 'maximumAudioBytes',
@@ -159,6 +165,10 @@ const DEFAULT_DEPENDENCIES: VideoKeyframeOfflineVideoExportDependencies = Object
 	createRenderer: createVideoKeyframeOfflineRgbaRenderer,
 	encodeVideo: encodeVideoKeyframeVideo,
 	encodeVideoToSink: encodeVideoKeyframeVideoToSink,
+});
+const EMPTY_ENCODED_RESOLVER: VideoKeyframeOfflineHtmlVideoSourceResolver = Object.freeze({
+	resolveSource() { throw new ReferenceError('Generated-only export has no admitted encoded media source.'); },
+	dispose() {},
 });
 
 /** Authenticate and encode one dormant exact browser RGBA export, publishing only after cleanup. */
@@ -193,17 +203,26 @@ export async function encodeVideoKeyframeOfflineVideoToSink<Output>(
 	}
 }
 
-async function executeOfflineVideo<Output>(
+/** Consume final RGBA with bounded backpressure; no encoded-container receipt is fabricated. */
+export async function consumeVideoKeyframeOfflineFrames(
+	request: VideoKeyframeOfflineVideoExportRequest,
+	consume: (request: VideoKeyframeVideoEncoderRequest) => Promise<void>,
+	dependencies: VideoKeyframeOfflineVideoExportDependencies = DEFAULT_DEPENDENCIES,
+): Promise<void> {
+	if (typeof consume !== 'function') throw new TypeError('An exact frame consumer is required.');
+	await executeOfflineVideo(request, dependencies, () => consume, true);
+}
+
+async function executeOfflineVideo<Result>(
 	requestValue: VideoKeyframeOfflineVideoExportRequest,
 	dependenciesValue: VideoKeyframeOfflineVideoExportDependencies,
 	createEncoder: (
 		dependencies: VideoKeyframeOfflineVideoExportDependencies,
 		request: NormalizedRequest,
-	) => (encoderRequest: VideoKeyframeVideoEncoderRequest) => Promise<
-		VideoKeyframeVideoEncoderResult | VideoKeyframeVideoSinkEncoderResult<Output>
-	>,
-): Promise<VideoKeyframeVideoEncoderResult | VideoKeyframeVideoSinkEncoderResult<Output>> {
-	const request = normalizeRequest(requestValue);
+	) => (encoderRequest: VideoKeyframeVideoEncoderRequest) => Promise<Result>,
+	rawFrames = false,
+): Promise<Result> {
+	const request = normalizeRequest(requestValue, rawFrames);
 	const dependencies = normalizeDependencies(dependenciesValue);
 	const encode = createEncoder(dependencies, request);
 	assertReady(request);
@@ -246,7 +265,7 @@ async function executeOfflineVideo<Output>(
 	);
 	assertReady(request);
 	const result = await runVideoKeyframeOfflineVideoResources(
-		() => dependencies.createResolver(Object.freeze({
+		() => assets.length === 0 ? EMPTY_ENCODED_RESOLVER : dependencies.createResolver(Object.freeze({
 			sources: assets,
 			...(request.sourceTimeoutMs === undefined ? {} : { timeoutMs: request.sourceTimeoutMs }),
 		})),
@@ -257,7 +276,7 @@ async function executeOfflineVideo<Output>(
 			const renderer = dependencies.createRenderer(Object.freeze({
 				frameSource,
 				canvas,
-				resolveSource: resolver.resolveSource,
+				resolveSource: sourcePlan.resolveSource(resolver.resolveSource),
 				...(request.rgbaPostprocessor === undefined ? {} : {
 					postprocess: request.rgbaPostprocessor,
 				}),
@@ -274,7 +293,7 @@ async function executeOfflineVideo<Output>(
 	return result;
 }
 
-function normalizeRequest(value: unknown): NormalizedRequest {
+function normalizeRequest(value: unknown, rawFrames = false): NormalizedRequest {
 	const request = closedRecord(value, 'offline video export request', REQUEST_FIELDS);
 	if (request.format !== 'mp4' && request.format !== 'webm') {
 		throw new RangeError('Offline video export format must be mp4 or webm.');
@@ -302,6 +321,7 @@ function normalizeRequest(value: unknown): NormalizedRequest {
 			request.sourceTimeoutMs, MAXIMUM_SOURCE_TIMEOUT_MS, 'offline video export sourceTimeoutMs',
 		);
 	const project = snapshotProject(request.project);
+	const generatedSources = snapshotVideoExportGeneratedSources(request.generatedSources);
 	const timingBySourceId = snapshotTiming(request.timingBySourceId);
 	const sourceValues = denseArray(request.sources, 'offline video export sources', MAXIMUM_SOURCE_COUNT);
 	const sources: Readonly<{ sourceId: string; blob: Blob }>[] = [];
@@ -323,14 +343,15 @@ function normalizeRequest(value: unknown): NormalizedRequest {
 		&& (request.audioRingCapacityBytes !== undefined || request.maximumAudioBytes !== undefined)) {
 		throw new TypeError('Offline video export audio options require audioMix.');
 	}
-	const webCodecs = request.webCodecs === undefined
+	const webCodecs = rawFrames || request.webCodecs === undefined
 		? undefined
 		: snapshotWebCodecs(request.webCodecs);
-	const editorFfmpeg = webCodecs === undefined
+	const editorFfmpeg = !rawFrames && webCodecs === undefined
 		? snapshotEditorFfmpeg(request.editorFfmpeg)
 		: undefined;
 	return Object.freeze({
 		project,
+		...(generatedSources ? { generatedSources } : {}),
 		timingBySourceId,
 		sources: Object.freeze(sources),
 		canvas: snapshotCanvas(request.canvas),
@@ -338,11 +359,12 @@ function normalizeRequest(value: unknown): NormalizedRequest {
 		...(endFrame === undefined ? {} : { endFrame }),
 		format: request.format,
 		quality: normalizeVideoDeliveryQuality(request.quality, 'offline video export quality'),
-		...(webCodecs === undefined ? { editorFfmpeg } : { webCodecs }),
+		...(rawFrames ? {} : webCodecs === undefined ? { editorFfmpeg } : { webCodecs }),
 		...(request.audioMix === undefined ? {} : {
 			audioMix: canonicalMediaContentBlob(request.audioMix),
 		}),
 		encoderOptions: Object.freeze(encoderOptions),
+		rgbaOutput: normalizeVideoRgbaOutput(request.rgbaOutput),
 		...(request.confirmFileSizeWarning === undefined ? {} : { confirmFileSizeWarning: request.confirmFileSizeWarning as FileSizeWarningConfirmation }),
 		...(sourceTimeoutMs === undefined ? {} : { sourceTimeoutMs }),
 		...(request.rgbaPostprocessor === undefined ? {} : {

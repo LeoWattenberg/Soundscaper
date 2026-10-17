@@ -76,3 +76,36 @@ async function capturedFrames(page) {
 		} finally { database.close(); }
 	}, SOUNDSCAPER_DATABASE_NAME);
 }
+
+test('stored peak probes distinguish duplicate display names by source identity', async ({ page }) => {
+	const editor = await bootEditor(page, '/embed/en/');
+	const projectId = await editor.getAttribute('data-project-id');
+	expect(projectId).toBeTruthy();
+	const initial = await persistedProject(page, projectId);
+	const knownIds = new Set((initial?.sources ?? []).map(source => source.id));
+	const name = 'duplicate-peak-identity.wav';
+	const selected = [];
+	for (const amplitude of [.25, .75]) {
+		await importFiles(editor, [createWavFixture({ name, frequency: 375, duration: .1,
+			sampleRate: 48_000, channelCount: 1, channelAmplitudes: [amplitude] })]);
+		await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved');
+		const saved = await persistedProject(page, projectId);
+		expect(saved).not.toBeNull();
+		const added = saved.sources.filter(source => !knownIds.has(source.id));
+		expect(added).toHaveLength(1);
+		const [source] = added;
+		expect(source.name).toBe(name);
+		expect(source.channelCount).toBe(1);
+		selected.push({ source, amplitude });
+		for (const source of saved.sources) knownIds.add(source.id);
+	}
+	expect(new Set(selected.map(({ source }) => source.id)).size).toBe(2);
+	expect(selected.map(({ source }) => source.name)).toEqual([name, name]);
+	// At 375 Hz / 48 kHz, each period includes samples at both sine extrema.
+	// One signed-PCM16 step bounds quantization and normalized decoder scaling.
+	const pcm16Step = 1 / 32_768;
+	for (const { source, amplitude } of [...selected, ...selected.slice().reverse()]) {
+		await expect.poll(async () => Math.abs(await sourcePeakById(page, source.id) - amplitude))
+			.toBeLessThanOrEqual(pcm16Step);
+	}
+});

@@ -23,6 +23,7 @@ import {
 } from '../direct/direct-video-export.ts';
 import {
 	captureProductVideoExportTimingSourceIds,
+	captureProductVideoExportGeneratedSources,
 	resolveProductVideoExportStrategy,
 	type ProductVideoExportPlan,
 } from '../../product-video-export-strategy.ts';
@@ -130,7 +131,7 @@ export function createEditorVideoExportAction(
 			}, { signal: abort.signal, assertCurrent: assertVideoExportCurrent });
 			const descriptor = getVideoExportFormat(formatValue) as Readonly<{ id: 'mp4' | 'webm' }>;
 			const format = descriptor.id;
-			const includeAudio = exportProject.clips.some((clip: RuntimeValue) => clip.kind === 'audio');
+			const includeAudio = productStrategy?.hasAudio?.(exportProject) ?? exportProject.clips.some((clip: RuntimeValue) => clip.kind === 'audio');
 			const requestedRange = requestedSettings.range || 'project';
 			assertVideoExportCurrent();
 			const productPlan = productStrategy?.createPlan({
@@ -228,8 +229,11 @@ export function createEditorVideoExportAction(
 			state.deliveryReport = plannedDeliveryReport;
 			pendingDirectDestination = directPreparation.destination;
 			const videoBlobs = new Map();
+			const generatedSources = productPlan ? captureProductVideoExportGeneratedSources(productStrategy!, productPlan) : undefined;
+			const generatedSourceIds = new Set(generatedSources?.sourceIds);
 			for (const input of plan.inputs.filter((candidate: RuntimeValue) => candidate.kind === 'video-source')) {
 				throwIfAborted(abort.signal);
+				if (generatedSourceIds.has(String(input.sourceId))) continue;
 				const blob = admittedFallbacks.videoBlob && input.sourceId === delivery.videoRenderedFallback?.sourceId
 					? admittedFallbacks.videoBlob
 					: await loadVideoExportOriginal({
@@ -322,7 +326,7 @@ export function createEditorVideoExportAction(
 								assertVideoExportCurrent, browserMaximumOutputBytes, runtime.options?.confirmFileSizeWarning,
 								encoderDecision.tier === 'webcodecs'
 									? { codec: encoderDecision.codec!, bitrate: encoderDecision.bitrate!, ...(encoderDecision.hardwareAcceleration ? { hardwareAcceleration: encoderDecision.hardwareAcceleration } : {}) }
-									: null,
+									: null, generatedSources,
 							),
 							pendingDirectDestination,
 						)
@@ -355,7 +359,7 @@ export function createEditorVideoExportAction(
 						assertVideoExportCurrent, browserMaximumOutputBytes, runtime.options?.confirmFileSizeWarning,
 						encoderDecision.tier === 'webcodecs'
 							? { codec: encoderDecision.codec!, bitrate: encoderDecision.bitrate!, ...(encoderDecision.hardwareAcceleration ? { hardwareAcceleration: encoderDecision.hardwareAcceleration } : {}) }
-							: null,
+							: null, generatedSources,
 					))
 					: await ffmpeg.encodeVideo(videoBlobs, audioMixBlob, plan, {
 						signal: abort.signal, maximumOutputBytes: browserMaximumOutputBytes, confirmFileSizeWarning: runtime.options?.confirmFileSizeWarning,
@@ -481,6 +485,7 @@ function productEncodeRequest(
 	maximumOutputBytes: unknown,
 	confirmFileSizeWarning: FileSizeWarningConfirmation | undefined,
 	webCodecs: Readonly<{ codec: string; bitrate: number; hardwareAcceleration?: 'prefer-hardware' }> | null,
+	generatedSources?: import('../../../../video-export-generated-sources.ts').VideoExportGeneratedSources,
 ) {
 	if (!timingIndexes) throw new Error('Keyed video export lost its exact timing lease.');
 	return Object.freeze({
@@ -490,6 +495,7 @@ function productEncodeRequest(
 		timingBySourceId: timingIndexes.timingBySourceId,
 		timingViewsBySourceId: timingIndexes.timingViewsBySourceId,
 		videoBlobs,
+		...(generatedSources ? { generatedSources } : {}),
 		audioMix,
 		editorFfmpeg,
 		webCodecs,

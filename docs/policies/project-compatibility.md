@@ -170,29 +170,30 @@ neither transferred nor reconstructed.
 
 ## Product-native project file suffixes
 
-Soundscaper writes `.sscape`, Framescaper writes `.fscape`, and the
-roadmap-only Lightscaper reserves `.liscape`. Every product accepts all three
-plus the legacy `.scape`, case-insensitively, so a project archive is never
-refused for carrying the suffix another product gave it.
-
-- A suffix is a routing hint only. The manifest/root family-and-version tuple,
-  archive format, capability, and digest validation remain authoritative, and a
-  disguised terminal name such as `mix.sscape.zip` is not a project.
-- Saving replaces any recognized project suffix with the active product's and
-  otherwise appends it, so a Soundscaper `Mix.sscape` saved from Framescaper
-  becomes `Mix.fscape`. A retained future-schema archive is renamed the same
-  way and still copied byte for byte.
-- Save pickers and operating-system associations advertise only the active
-  product's suffix plus legacy `.scape`. Neither shipping app claims
-  `.liscape`.
-- Every accepted suffix takes the safe-integer `scape-range-v1` desktop read profile;
-  none falls back to bounded materialization.
-
-The archive is now the family-qualified format-1 baseline. The
-`application/vnd.soundscaper.scape+zip` media type, `scape-project` format,
-`scape-range-v1` profile, and `.scapefx` plug-in suffix retain their independent
-values. Legacy `.scape` remains a routing suffix; it does not make a family-less
-archive readable.
+<!-- policy-narrative:current-product-native-project-file-suffix -->
+Soundscaper writes .sscape, Framescaper writes .fscape, Motionscaper writes
+.mscape, and the roadmap-only Lightscaper reserves .liscape. All five accepted
+suffixes, including legacy `.scape`, are case-insensitive routing hints in
+browser open inputs and native open or positional-launch admission. A suffix is
+a routing hint only: the manifest/root schema-family tuple, archive format,
+capability, and digest validation remain authoritative, and a disguised terminal
+name such as mix.sscape.zip is not a project. Soundscaper and Framescaper retain
+the 65 GiB scape-range-v1 desktop read profile for every accepted suffix.
+Motionscaper uses its independent pathless file authority with bounded 4 MiB
+chunks and fingerprint validation; suffix admission does not grant the other
+products' range profile. Saving replaces any recognized project suffix with the
+active product's and otherwise appends it: a Soundscaper `Mix.sscape` saved from
+Framescaper becomes `Mix.fscape`. Retained opaque custody follows the same
+naming rule and is copied byte for byte. Motionscaper saves through its
+.mscape-only picker when the opened archive has another suffix; its existing
+.mscape destination supports ordinary Save. Soundscaper and Framescaper save
+pickers offer their active suffix plus legacy .scape. Packaged OS association
+declarations advertise only the active product's suffix plus legacy .scape; no
+shipping product claims .liscape. Actual installed association qualification
+remains platform-specific. The application/vnd.soundscaper.scape+zip media type,
+scape-project format, scape-range-v1 profile, and .scapefx plug-in suffix retain
+their independent protocol identities.
+<!-- /policy-narrative:current-product-native-project-file-suffix -->
 
 ## Family-v1 product isolation
 

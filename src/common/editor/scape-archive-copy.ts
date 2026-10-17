@@ -15,6 +15,7 @@ import {
 	classifyProjectSchemaIdentity,
 	type ProjectSchemaFamily,
 	type ProjectSchemaIdentity,
+	type ProjectSchemaReleaseLine,
 } from './project-schema-identity.ts';
 import { parseOpaqueScapeProjectDocument } from './scape-project-document.ts';
 import type { ScapeProjectAssetExtension } from './scape-project-asset-extension.ts';
@@ -26,6 +27,8 @@ const TEXT_ENCODER = new TextEncoder();
 export interface ScapeArchiveCopyOptions {
 	readonly archiveLimits?: Partial<ScapeArchiveLimits>;
 	readonly currentProjectSchemaFamily: ProjectSchemaFamily;
+	readonly releaseLine?: ProjectSchemaReleaseLine;
+	readonly allowOpaqueAssetKinds?: boolean;
 	readonly projectAssetExtension?: ScapeProjectAssetExtension;
 	readonly signal?: AbortSignal;
 }
@@ -61,9 +64,11 @@ export async function copyFutureScapeArchive(
 			signal,
 			options.projectAssetExtension?.assetKinds,
 			isDesktopScapeArchiveByteSource(input),
+			{},
+			options.allowOpaqueAssetKinds ? { family: options.currentProjectSchemaFamily, line: options.releaseLine ?? 'baseline' } : undefined,
 		);
 		verifyScapeAssetBytes(TEXT_ENCODER.encode(projectText), manifest.project, 'project document');
-		return opaqueProjectIdentity(manifest.project, projectText, options.currentProjectSchemaFamily);
+		return opaqueProjectIdentity(manifest.project, projectText, options.currentProjectSchemaFamily, options.releaseLine);
 	});
 	throwIfScapeAborted(signal);
 	const source = archiveByteSource(input);
@@ -96,16 +101,17 @@ function opaqueProjectIdentity(
 	declared: ProjectSchemaIdentity,
 	projectText: string,
 	currentFamily: ProjectSchemaFamily,
+	releaseLine: ProjectSchemaReleaseLine = 'baseline',
 ): Readonly<ProjectSchemaIdentity> {
 	const document = parseOpaqueScapeProjectDocument(projectText, {
 		currentProjectSchemaFamily: currentFamily,
 	});
-	const classification = classifyProjectSchemaIdentity(document, currentFamily);
+	const classification = classifyProjectSchemaIdentity(document, currentFamily, releaseLine);
 	if (declared.schemaFamily !== classification.identity.schemaFamily
 		|| declared.schemaVersion !== classification.identity.schemaVersion) {
 		throw new Error('The Scape manifest project identity does not match its project document.');
 	}
-	if (classification.disposition === 'current') {
+	if (classification.disposition !== 'future' && classification.disposition !== 'foreign') {
 		throw new Error('Only an opaque foreign-family or future-schema Scape archive can be saved as an unchanged copy.');
 	}
 	return classification.identity;

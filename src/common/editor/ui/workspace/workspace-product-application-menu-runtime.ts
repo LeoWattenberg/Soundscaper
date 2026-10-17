@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { framescaperSuccessorMenuRuntimeFor } from '../framescaper-successor-menu-runtime.ts';
+
 // Vite replaces this entire boundary with Soundscaper's closed implementation
 // for selected builds, so the Framescaper services below never enter that graph.
 import { framescaperVideoProxyActionRuntimeFor } from '../../framescaper-video-proxy-action-runtime-registry.ts';
@@ -85,6 +87,7 @@ export function createProductWorkspaceApplicationMenuRuntime({
 	});
 	const candidateAuthoringRuntime = framescaperCandidateAuthoringActionRuntimeFor(controller);
 	return Object.freeze({
+		framescaperSuccessor: framescaperSuccessorMenuRuntimeFor(controller),
 		framescaperNativeServices: wrapFramescaperNativeServicesMenuRuntime(nativeServicesRuntime, run),
 		framescaperCandidateAuthoring: candidateAuthoringRuntime === null ? null : Object.freeze({
 			surfaces: candidateAuthoringRuntime.surfaces,

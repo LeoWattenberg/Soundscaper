@@ -19,6 +19,8 @@ import {
 import type {
 	VideoKeyframeOfflineHtmlVideoSourceAsset,
 } from './video-keyframe-offline-html-video-source-resolver.ts';
+import type { VideoKeyframeOfflineSourceResolver, VideoKeyframeOfflineSourcePresentation } from '../video-keyframe-offline-rgba-source.ts';
+import { snapshotVideoExportGeneratedSources, type VideoExportGeneratedSources } from '../video-export-generated-sources.ts';
 
 export interface VideoKeyframeOfflineVideoSourceInputSnapshot {
 	readonly sourceId: string;
@@ -29,6 +31,7 @@ export interface VideoKeyframeOfflineVideoSourcePlan {
 	readonly project: Readonly<Record<string, unknown>>;
 	readonly activeClipIds: readonly string[];
 	readonly activeSourceIds: readonly string[];
+	resolveSource(fallback: VideoKeyframeOfflineSourceResolver): VideoKeyframeOfflineSourceResolver;
 	authenticate(
 		sources: readonly VideoKeyframeOfflineVideoSourceInputSnapshot[],
 		presentationForEntry: VideoKeyframeOfflineHtmlVideoSourceAsset['presentationForEntry'],
@@ -56,6 +59,7 @@ export function planVideoKeyframeOfflineVideoSources(requestValue: Readonly<{
 	readonly timingBySourceId: ReadonlyMap<string, BoundVideoSourceTimingView>;
 	readonly startFrame?: number;
 	readonly endFrame?: number;
+	readonly generatedSources?: VideoExportGeneratedSources;
 }>): VideoKeyframeOfflineVideoSourcePlan {
 	const inventoryRequest = Object.freeze({
 		project: requestValue.project,
@@ -64,24 +68,40 @@ export function planVideoKeyframeOfflineVideoSources(requestValue: Readonly<{
 	});
 	const inventory = createVideoKeyframeExportInventory(inventoryRequest);
 	const project = inventory.project;
-	const canonical = captureCanonicalSources(project, requestValue.timingBySourceId);
+	const generated = snapshotVideoExportGeneratedSources(requestValue.generatedSources);
+	const generatedIds = new Set(generated?.sourceIds);
+	const canonical = captureCanonicalSources(project, requestValue.timingBySourceId, generatedIds);
+	if ([...generatedIds].some(id => !canonical.has(id))) throw new ReferenceError('Generated video sources must be visible and canonical.');
 	return Object.freeze({
 		project,
 		activeClipIds: inventory.activeClipIds,
 		activeSourceIds: inventory.activeSourceIds,
+		resolveSource: (fallback: VideoKeyframeOfflineSourceResolver) => async (entry: Readonly<Record<string, unknown>>, options: Readonly<{ signal: AbortSignal }>) => {
+			const sourceId = boundedId(data(entry, 'sourceId', 'generated video entry'), 'sourceId');
+			if (!generatedIds.has(sourceId)) return fallback(entry, options);
+			const expected = canonical.get(sourceId)!;
+			if (!expected.clipIds.includes(boundedId(data(entry, 'clipId', 'generated video entry'), 'clipId'))) throw new ReferenceError('Generated video clip is not canonical.');
+			options.signal.throwIfAborted(); const presentation = await generated!.resolveSource(entry, options);
+			try {
+				options.signal.throwIfAborted(); assertGeneratedPresentation(presentation, expected); return presentation;
+			} catch (error) {
+				try { await presentation.dispose(); } catch (cleanup) { throw new AggregateError([error, cleanup], 'Generated video presentation and cleanup failed.', { cause: cleanup }); }
+				throw error;
+			}
+		},
 		async authenticate(
 			sources: readonly VideoKeyframeOfflineVideoSourceInputSnapshot[],
 			presentationForEntry: VideoKeyframeOfflineHtmlVideoSourceAsset['presentationForEntry'],
 			options: Readonly<{ signal: AbortSignal; assertCurrent: () => void }>,
 		) {
-			if (sources.length !== canonical.size) {
+			if (sources.length !== canonical.size - generatedIds.size) {
 				throw new RangeError('Offline video export requires exactly one Blob for every visible video source.');
 			}
 			const assets: VideoKeyframeOfflineHtmlVideoSourceAsset[] = [];
 			for (const input of sources) {
 				assertReady(options);
 				const expected = canonical.get(input.sourceId);
-				if (!expected) throw new ReferenceError(`Offline video source ${input.sourceId} is not visible and canonical.`);
+				if (!expected || generatedIds.has(input.sourceId)) throw new ReferenceError(`Offline video source ${input.sourceId} is not an encoded visible canonical source.`);
 				const digest = await digestMediaContent(input.blob, { signal: options.signal });
 				assertReady(options);
 				if (digest !== expected.contentSha256) {
@@ -104,9 +124,18 @@ export function planVideoKeyframeOfflineVideoSources(requestValue: Readonly<{
 	});
 }
 
+function assertGeneratedPresentation(presentation: VideoKeyframeOfflineSourcePresentation, expected: CanonicalVideoSource): void {
+	if (!presentation || typeof presentation !== 'object') throw new TypeError('Generated video presentation is invalid.');
+	for (const [key, value] of Object.entries({ sourceId: expected.sourceId, identity: expected.contentSha256,
+		decodedWidth: expected.decodedWidth, decodedHeight: expected.decodedHeight, displayWidth: expected.displayWidth, displayHeight: expected.displayHeight })) {
+		if (data(presentation, key, 'generated video presentation') !== value) throw new RangeError(`Generated video presentation ${key} differs from canonical source identity or geometry.`);
+	}
+}
+
 function captureCanonicalSources(
 	project: Readonly<Record<string, unknown>>,
 	timingBySourceId: ReadonlyMap<string, BoundVideoSourceTimingView>,
+	generatedIds: ReadonlySet<string>,
 ): ReadonlyMap<string, CanonicalVideoSource> {
 	const sources = denseArray(data(project, 'sources', 'offline video export project'), 'project.sources', MAXIMUM_SOURCE_COUNT);
 	const clips = denseArray(data(project, 'clips', 'offline video export project'), 'project.clips', MAXIMUM_CLIP_COUNT);
@@ -129,6 +158,7 @@ function captureCanonicalSources(
 		if (result.has(sourceId)) throw new RangeError(`Duplicate video source ID ${sourceId}.`);
 		const ids = clipIds.get(sourceId);
 		if (!ids || ids.length < 1) continue;
+		if (source.mimeType === 'application/vnd.motionscaper.composition' && !generatedIds.has(sourceId)) throw new TypeError('Motion composition video requires injected product source authority.');
 		const identity = data(source, 'contentSha256', `offline video export source ${sourceId}`);
 		if (typeof identity !== 'string' || !SHA256.test(identity)) {
 			throw new TypeError(`Offline video source ${sourceId} requires a lowercase SHA-256 digest.`);

@@ -4,11 +4,15 @@ import { TextInput } from '@soundscaper/design-system/TextInput';
 
 import PreferenceCheckbox from '../EditorPreferenceCheckbox.tsx';
 import { cancelDraftEditOnEscape, createDraftBlurCommitGuard, draftBlurShouldCommit } from '../draft-blur-commit.ts';
+import { observeNativeDraftSelection } from './native-draft-selection.ts';
 
-export function CommitField({ label, name, value, type = 'text', disabled, readOnly, multiline, hookName = 'clip-field', visuallyHiddenLabel = false, onCommit }) {
+export function CommitField({ label, name, value, type = 'text', disabled, readOnly, multiline, hookName = 'clip-field', visuallyHiddenLabel = false, onCommit, onDraftChange = undefined }) {
 	const [draft, setDraft] = useState(String(value ?? ''));
 	const [error, setError] = useState(false);
 	const blurCommitGuard = useRef(createDraftBlurCommitGuard()).current;
+	const fieldOwner = useRef(null);
+	useEffect(() => observeNativeDraftSelection(fieldOwner.current?.querySelector('input, textarea') ?? null,
+		disabled || readOnly ? undefined : onDraftChange), [disabled, readOnly, multiline, onDraftChange]);
 	useEffect(() => {
 		setDraft(String(value ?? ''));
 		setError(false);
@@ -23,8 +27,13 @@ export function CommitField({ label, name, value, type = 'text', disabled, readO
 	};
 	const hook = { [`data-${hookName}`]: name };
 	return (
-		<label className="audio-editor-field" {...hook} onKeyDown={(event) => {
+		<label ref={fieldOwner} className="audio-editor-field" {...hook} onKeyDown={(event) => {
 			if (disabled || readOnly || event.nativeEvent?.isComposing) return;
+			if ((event.key === 'a' || event.key === 'A') && (event.ctrlKey || event.metaKey)
+				&& !(event.ctrlKey && event.metaKey) && !event.altKey && !event.shiftKey && !event.defaultPrevented) {
+				// Reserve replacement intent before an asynchronous default can collapse the native selection.
+				onDraftChange?.();
+			}
 			if (event.key === 'Enter' && !multiline) {
 				event.preventDefault();
 				event.stopPropagation();
@@ -44,7 +53,11 @@ export function CommitField({ label, name, value, type = 'text', disabled, readO
 				multiline={multiline}
 				disabled={disabled || readOnly}
 				error={error}
-				onChange={setDraft}
+				onChange={(next) => {
+					if (disabled || readOnly) return;
+					onDraftChange?.();
+					setDraft(next);
+				}}
 				onBlur={commit}
 				width="100%"
 			/>

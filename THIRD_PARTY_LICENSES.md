@@ -690,6 +690,11 @@ The artifact also retains each staged npm package's installed `LICENSE`,
 distribution does not change the dependency surface of the normal Soundscaper
 or Framescaper desktop executables.
 
+## Motionscaper rasterization
+
+- `canvaskit-wasm` 0.42.0 — BSD-3-Clause; Copyright 2011 Google Inc.; upstream: <https://github.com/google/skia>; full package license: `LICENSES/canvaskit-wasm.txt`. The exact registry archive, source revision, loader/WASM hashes, and bundled Inter fallback-font hashes are retained in `config/motionscaper-raster-runtime.json`. The regular Latin, Greek, Cyrillic and Vietnamese Inter subsets use the existing SIL Open Font License 1.1 font distribution recorded below. `node scripts/audit-motionscaper-raster-runtime.mjs` checks the pinned installed assets before bundling. CanvasKit is loaded only when motion rasterization is requested.
+- `@webgpu/types` 0.1.21 — BSD-3-Clause; compile-time WebGPU definitions used by CanvasKit; upstream: <https://github.com/gpuweb/types>.
+
 ## Interchange conformance reference implementations
 
 The opt-in interchange reference tests execute these pinned Python packages as
@@ -725,6 +730,7 @@ The browser tools can distribute the following pinned browser-side packages as p
 - `@fontsource-variable/jost` 5.3.0 — SIL Open Font License 1.1; self-hosted variable Jost for the site sidebar, Copyright 2020 The Jost Project Authors; upstream: <https://github.com/indestructible-type/Jost>; full license: `LICENSES/jost-variable.txt`
 - `@fontsource/inter` 5.3.0 — SIL Open Font License 1.1; self-hosted WOFF/WOFF2 distribution of Inter, Copyright 2016 The Inter Project Authors; source metadata and font files: <https://github.com/fontsource/font-files/tree/main/fonts/google/inter>; upstream font source: <https://github.com/rsms/inter>; full license text is retained in the installed package's `LICENSE` file
 - `@fontsource/nunito-sans` 5.3.0 — SIL Open Font License 1.1; self-hosted editor skin fonts, Copyright 2016 The Nunito Sans Project Authors; upstream: <https://github.com/Fonthausen/NunitoSans>; full license: `LICENSES/nunito-sans.txt`
+- Test-only Noto Sans Arabic regular Arabic subset from `@fontsource/noto-sans-arabic` 5.2.10 and Noto Sans SC regular Simplified Chinese subset from `@fontsource/noto-sans-sc` 5.2.8 — SIL Open Font License 1.1; Copyright 2022 The Noto Project Authors / Google Inc. Upstreams: <https://github.com/notofonts/arabic>, <https://github.com/notofonts/noto-cjk>. Unmodified WOFF2 bytes, full package licenses, exact archive/file hashes and reproduction notes live in `tests/fixtures/motionscaper-fonts/`. These imported-font fixtures are excluded from application/runtime bundles.
 - `@fontsource/jetbrains-mono` 5.3.0 — SIL Open Font License 1.1; self-hosted editor skin fonts, Copyright 2020 The JetBrains Mono Project Authors; upstream: <https://github.com/JetBrains/JetBrainsMono>; full license: `LICENSES/jetbrains-mono.txt`
 - `@sqlite.org/sqlite-wasm` 3.53.0-build1 — official SQLite WebAssembly distribution; SQLite core is dedicated to the public domain; source and blessing: <https://sqlite.org/wasm/doc/trunk/index.md> and <https://sqlite.org/copyright.html>
 - `@zip.js/zip.js` 2.8.33 — BSD-3-Clause; Copyright © 2023 Gildas Lormeau; source and license: <https://github.com/gildas-lormeau/zip.js/tree/v2.8.33>

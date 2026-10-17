@@ -23,19 +23,21 @@ test('nightly test staging rejects symlinked repository content and escaping bro
 	const fixture = await createFixture(context);
 	const outside = join(dirname(fixture.repositoryRoot), 'outside-index.html');
 	await writeFile(outside, '<p>outside</p>');
-	await rm(join(fixture.repositoryRoot, '.wrangler/dual-origin-browser/soundscaper/en/index.html'));
-	await symlink(outside, join(fixture.repositoryRoot, '.wrangler/dual-origin-browser/soundscaper/en/index.html'));
-	await assert.rejects(
-		() => stageDesktopNightlyTests({
-			repositoryRoot: fixture.repositoryRoot,
-			outputRoot: fixture.outputRoot,
-			browserSourceRoot: fixture.browserSourceRoot,
-		}),
-		/verified reciprocal Soundscaper browser site.*symbolic link/iu,
-	);
-
-	await rm(join(fixture.repositoryRoot, '.wrangler/dual-origin-browser/soundscaper/en/index.html'));
-	await writeFile(join(fixture.repositoryRoot, '.wrangler/dual-origin-browser/soundscaper/en/index.html'), '<p>inside</p>');
+	for (const productId of ['soundscaper', 'framescaper', 'motionscaper']) {
+		const entry = join(fixture.repositoryRoot, `.wrangler/dual-origin-browser/${productId}/en/index.html`);
+		await rm(entry);
+		await symlink(outside, entry);
+		await assert.rejects(
+			() => stageDesktopNightlyTests({
+				repositoryRoot: fixture.repositoryRoot,
+				outputRoot: fixture.outputRoot,
+				browserSourceRoot: fixture.browserSourceRoot,
+			}),
+			new RegExp(`verified ${productId} browser site.*symbolic link`, 'iu'),
+		);
+		await rm(entry);
+		await writeFile(entry, '<p>inside</p>');
+	}
 	await symlink(outside, join(fixture.browserSourceRoot, 'firefox-102/escape'));
 	await assert.rejects(
 		() => stageDesktopNightlyTests({

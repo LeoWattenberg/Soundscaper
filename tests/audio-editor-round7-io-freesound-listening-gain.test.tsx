@@ -55,7 +55,12 @@ for (const initialGain of [0, 1]) test(`Freesound listening gain starts at ${Str
 		const audio = audios[0]!;
 		assert.equal(audio.volume, initialGain, 'the actual new preview inherits the current listening output');
 		assert.equal(audio.playCount, 1);
+		audio.volume = initialGain === 1 ? 0 : 1;
+		audio.dispatchEvent(new Event('loadedmetadata'));
+		assert.equal(audio.volume, initialGain, 'media readiness restores the current gain after a native load reset');
 		await render(0.25);
+		audio.volume = 0;
+		audio.dispatchEvent(new Event('loadeddata'));
 		assert.equal(audio.volume, 0.25);
 		assert.equal(audio.playCount, 1, 'changing listening gain retains the current preview transport');
 		await clickPreview('Pause preview');
@@ -65,6 +70,13 @@ for (const initialGain of [0, 1]) test(`Freesound listening gain starts at ${Str
 		assert.equal(audios.length, 1);
 		assert.equal(audio.playCount, 2);
 		assert.equal(audio.volume, 0, 'resume retains the listening gain applied while paused');
+		await act(async () => reactProps(dom.one('form')).onSubmit({ preventDefault() {} }));
+		await clickPreview('Play preview');
+		assert.equal(audios.length, 2);
+		audio.volume = 0.75;
+		audio.dispatchEvent(new Event('loadeddata'));
+		assert.equal(audio.volume, 0.75, 'replaced previews release gain readiness listeners');
+		assert.equal(audios[1]?.volume, 0);
 	} finally {
 		await act(async () => root.unmount());
 		globalThis.Audio = priorAudio; globalThis.fetch = priorFetch;
@@ -72,12 +84,11 @@ for (const initialGain of [0, 1]) test(`Freesound listening gain starts at ${Str
 	}
 });
 
-class PreviewAudio {
+class PreviewAudio extends EventTarget {
 	volume = 1;
 	preload = '';
 	playCount = 0;
-	constructor(public src: string) {}
-	addEventListener(): void {}
+	constructor(public src: string) { super(); }
 	play(): Promise<void> { this.playCount += 1; return Promise.resolve(); }
 	pause(): void {}
 	load(): void {}

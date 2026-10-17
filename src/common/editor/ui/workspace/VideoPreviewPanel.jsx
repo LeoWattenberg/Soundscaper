@@ -20,7 +20,7 @@ import { createVideoPreviewEffectBypass } from './video-preview-effect-bypass.ts
 import { useFramescaperVideoProxyPreviewPressure } from './framescaper-video-proxy-pressure.ts';
 import VideoPreviewClip from './VideoPreviewClip.jsx';
 import { composeProductVideoVisualPreviewLayers } from './product-video-visual-preview-composition.ts';
-import { resolveVideoPreviewVisual } from './video-preview-visual.ts';
+import { resolveVideoPreviewMediaLayers } from './video-preview-media-layers.ts';
 import { useProductVideoVisualPreviewSession } from './use-product-video-visual-preview-session.ts';
 import { createVideoPreviewTimelineState } from './video-preview-timeline-state.js';
 import {
@@ -47,9 +47,12 @@ import {
 } from './video-preview-openfx-status.jsx';
 import { videoPreviewPanelStateAttributes } from './video-preview-panel-state-attributes.js';
 import { useVideoPreviewTransportState } from './use-video-preview-transport-state.js';
+import { renderProductVideoCpuPreview } from './product-video-cpu-preview.ts';
+import VideoPreviewCanvases from './VideoPreviewCanvases.tsx';
 
 export default function VideoPreviewPanel({ controller, snapshot, copy, run }) {
 	const canvasRef = useRef(null);
+	const cpuCanvasRef = useRef(null);
 	const previewRootRef = useRef(null);
 	const compositorRef = useRef(null);
 	const videoElementsRef = useRef(new Map());
@@ -67,7 +70,7 @@ export default function VideoPreviewPanel({ controller, snapshot, copy, run }) {
 	});
 	const animationFrameRef = useRef(0);
 	const [exactRenders] = useState(() => createExactPreviewRenderCoordinator(() => {
-		if (compositorRef.current) requestProductVisualFrameRef.current();
+		if (compositorRef.current || cpuCanvasRef.current) requestProductVisualFrameRef.current();
 	}));
 	const requestProductVisualFrameRef = useRef(() => {});
 	const freezeCaptureProjectRef = useRef(null);
@@ -171,24 +174,8 @@ export default function VideoPreviewPanel({ controller, snapshot, copy, run }) {
 	);
 	const resolvedLayers = useMemo(() => {
 		void mediaErrorRevision;
-		return layers.map((layer) => ({
-			...layer,
-			clips: (layer.clips || []).map((entry) => {
-				const visual = resolveVideoPreviewVisual(controller, entry.clipId, entry.sourceId);
-				const sourceUrl = visual?.mediaUrl || visual?.url || null;
-				return {
-					...entry,
-					sourceUrl,
-					available: Boolean(
-						entry.source
-						&& sourceUrl
-						&& visual?.available !== false
-						&& (visual?.mediaKind === 'proxy' || !missingSourceIds.has(entry.sourceId))
-						&& failedVideoSourcesRef.current.get(entry.clipId) !== sourceUrl,
-					),
-				};
-			}),
-		}));
+		return resolveVideoPreviewMediaLayers({ layers, controller, missingSourceIds,
+			failedSources: failedVideoSourcesRef.current });
 	}, [controller, layers, mediaErrorRevision, missingSourceIds]);
 	const activeEntries = resolvedLayers.flatMap((layer) => layer.clips);
 	useFramescaperVideoProxyPreviewPressure({ reporter: controller.actions.video?.reportPreviewPressure || null, entries: activeEntries, elements: videoElementsRef, canvas: canvasRef, referenceWidth: referenceCanvas.width, referenceHeight: referenceCanvas.height, playing: transportState === 'playing', run });
@@ -232,19 +219,6 @@ export default function VideoPreviewPanel({ controller, snapshot, copy, run }) {
 			const engineFrame = Number(controller.engine?.getPositionFrames?.());
 			if (Number.isFinite(engineFrame)) timelineFrame = Math.max(0, engineFrame);
 		}
-		if (!compositor) {
-			// The product visual session must still resolve while the WebGL
-			// compositor is unavailable: without this the session state stays
-			// pending forever, hiding the disclosed DOM-fallback warning.
-			const visualSession = visualSessionRef.current;
-			if (!visualSession) return;
-			try {
-				updateVisualPreviewFrame(visualSession.resolve(timelineFrame));
-			} catch (error) {
-				updateVisualPreviewFrame(null, error instanceof Error ? error.message : String(error));
-			}
-			return;
-		}
 		let layersSynchronized;
 		try {
 			layersSynchronized = synchronizeVideoPreviewCompositorLayers(
@@ -261,8 +235,17 @@ export default function VideoPreviewPanel({ controller, snapshot, copy, run }) {
 			updateCompositorState('fallback');
 			return;
 		}
-		if (layersSynchronized) {
+		if (layersSynchronized && compositor) {
 			releaseRetiredVideoPreviewElements(compositor, retiredVideoElementsRef.current);
+		}
+		if (!compositor || compositor.contextLost) {
+			const session = visualSessionRef.current;
+			if (session && !layersSynchronized) return;
+			renderProductVideoCpuPreview({ session, canvas: cpuCanvasRef.current, timelineSample: timelineFrame, mediaLayers: compositorLayersRef.current,
+				coordinator: exactRenders, isCurrent: () => visualSessionRef.current === session && (!compositorRef.current || compositorRef.current.contextLost),
+				updateFrame: updateVisualPreviewFrame, updateIssue: updateRenderIssue, updateOpenFx: updateOpenFxIssue, updateState: updateCompositorState,
+				onPublished: () => { if (previewRootRef.current) previewRootRef.current.dataset.videoPreviewEvaluatedTimelineSample = String(timelineFrame); if (playhead.transportState === 'playing') requestProductVisualFrameRef.current(); },
+			}); return;
 		}
 		const failProductFrame = (error) => {
 			composedLayersRef.current = [];
@@ -388,6 +371,7 @@ export default function VideoPreviewPanel({ controller, snapshot, copy, run }) {
 						composedLayersRef.current,
 					));
 					updateCompositorState('fallback');
+					requestStablePreviewFrame();
 				},
 				onContextRestored: () => {
 					updateCompositorState('webgl');
@@ -505,13 +489,7 @@ export default function VideoPreviewPanel({ controller, snapshot, copy, run }) {
 					</div>
 				);
 			})}
-			<canvas
-				ref={canvasRef}
-				className="kw-audio-editor__video-preview-canvas"
-				data-video-preview-canvas
-				data-renderer-state={compositorState}
-				aria-hidden="true"
-			/>
+			<VideoPreviewCanvases gpu={canvasRef} cpu={cpuCanvasRef} state={compositorState} />
 			{!renderableCount && !visualPreviewState.pending && (
 				<div className="kw-audio-editor__video-preview-empty" role={keyframePreviewFailed || visualPreviewState.error ? 'alert' : 'status'}>
 					{visualPreviewState.error

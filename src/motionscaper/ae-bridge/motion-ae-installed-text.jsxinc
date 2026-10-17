@@ -1,0 +1,52 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+/* Generated from strict TypeScript by scripts/build-motionscaper-ae-bridge.mjs. */
+var MotionAeInstalledText = (function () {
+var captureMotionAeTextStyle = MotionAeHostText.captureMotionAeTextStyle;
+var applyMotionAeHostText = MotionAeHostText.applyMotionAeHostText;
+var verifyMotionAeHostFont = MotionAeHostText.verifyMotionAeHostFont;
+"use strict";
+/* SPDX-License-Identifier: AGPL-3.0-only */
+var __assign = (this && this.__assign) || function () {
+    __assign = Object.assign || function(t) {
+        for (var s, i = 1, n = arguments.length; i < n; i++) {
+            s = arguments[i];
+            for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p))
+                t[p] = s[p];
+        }
+        return t;
+    };
+    return __assign.apply(this, arguments);
+};
+function enums() {
+    return { horizontal: LineOrientation.HORIZONTAL, verticalRight: LineOrientation.VERTICAL_RIGHT_TO_LEFT, verticalLeft: LineOrientation.VERTICAL_LEFT_TO_RIGHT,
+        left: ParagraphJustification.LEFT_JUSTIFY, center: ParagraphJustification.CENTER_JUSTIFY, right: ParagraphJustification.RIGHT_JUSTIFY,
+        metricKern: AutoKernType.METRIC_KERN, baseline: BaselineDirection.BASELINE_WITH_STREAM, normalCaps: FontCapsOption.FONT_NORMAL_CAPS, normalBaseline: FontBaselineOption.FONT_NORMAL_BASELINE,
+        leftToRight: ParagraphDirection.DIRECTION_LEFT_TO_RIGHT, defaultDigits: DigitSet.DEFAULT_DIGITS, romanLeading: LeadingType.ROMAN_LEADING_TYPE,
+        boxNone: BoxAutoFitPolicy.NONE, boxTop: BoxVerticalAlignment.TOP, boxAscent: BoxFirstBaselineAlignment.ASCENT };
+}
+/** First-character values remain custody, never proof that the full range is uniform. */
+function readMotionAeInstalledText(input) {
+    var text = input;
+    if (text.justification !== ParagraphJustification.LEFT_JUSTIFY && text.justification !== ParagraphJustification.CENTER_JUSTIFY && text.justification !== ParagraphJustification.RIGHT_JUSTIFY)
+        throw new Error('This paragraph alignment needs an explicit text mapping.');
+    var metadata = { styleScope: 'unavailable', styleSupport: 'unavailable' };
+    if (parseFloat(app.version) >= 24.6)
+        metadata = captureMotionAeTextStyle(text, enums());
+    return __assign({ text: text.text, font: text.font, fontSize: text.fontSize, fillColor: text.applyFill ? [text.fillColor[0], text.fillColor[1], text.fillColor[2]] : [0, 0, 0], applyFill: text.applyFill, applyStroke: text.applyStroke, strokeColor: text.applyStroke ? [text.strokeColor[0], text.strokeColor[1], text.strokeColor[2]] : [0, 0, 0], strokeWidth: text.strokeWidth, tracking: text.tracking, leading: text.leading, autoLeading: text.autoLeading, justification: text.justification === ParagraphJustification.CENTER_JUSTIFY ? 'center' : text.justification === ParagraphJustification.RIGHT_JUSTIFY ? 'right' : 'left' }, metadata);
+}
+function verifyMotionAeInstalledTextFont(name) {
+    if (!(parseFloat(app.version) >= 24.6) || !app.fonts || typeof app.fonts.getFontsByPostScriptName !== 'function')
+        throw new Error('Editable paragraph text requires After Effects 24.6 or newer and its font registry.');
+    return verifyMotionAeHostFont(name, function (value) { return app.fonts.getFontsByPostScriptName(value); });
+}
+function applyMotionAeInstalledText(property, text) {
+    var font = verifyMotionAeInstalledTextFont(text.font), document = property.value;
+    applyMotionAeHostText(document, text, enums(), font);
+    property.setValue(document);
+    var applied = property.value, actual = applied.fontObject;
+    if (!actual || actual.postScriptName !== text.font || actual.isSubstitute !== false || actual.hasDesignAxes !== false)
+        throw new Error('AE substituted the requested text font. Import was rolled back.');
+}
+
+return { readMotionAeInstalledText: readMotionAeInstalledText, applyMotionAeInstalledText: applyMotionAeInstalledText, verifyMotionAeInstalledTextFont: verifyMotionAeInstalledTextFont };
+}());

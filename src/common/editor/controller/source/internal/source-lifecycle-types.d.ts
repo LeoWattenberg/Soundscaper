@@ -170,6 +170,9 @@ export interface SourceLifecycleServiceRuntime<
 		source: SourceLifecycleSource,
 		metadata: Metadata | null | undefined,
 	) => Provider | null;
+	readonly resolveProductAudioSource?: (request: Readonly<{
+		project: Project; source: SourceLifecycleSource; signal?: AbortSignal; assertCurrent(): void;
+	}>) => Awaitable<Provider | null>;
 	readonly engine: SourceLifecycleEngine<Provider>;
 	readonly findClip: (project: Project, clipId: string) => SourceLifecycleClip | null | undefined;
 	readonly findSource: (project: Project, sourceId: string) => SourceLifecycleSource | null | undefined;

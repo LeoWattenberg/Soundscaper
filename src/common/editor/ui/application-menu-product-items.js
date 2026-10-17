@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { createFramescaperSuccessorMigrationMenuItems } from './framescaper-successor-migration-menu.ts';
 import { createFramescaperNestedSequenceMenuItems } from './framescaper-nested-sequence-menu.ts';
 import { createFramescaperMulticameraMenuItems } from './framescaper-multicamera-menu.ts';
 import { createFramescaperCandidateAuthoringMenuItems } from './framescaper-candidate-authoring-menu.ts';
@@ -111,7 +112,7 @@ export function createApplicationMenuProductItems({
 			...nativeServices.tools, ...appendParallelStackProcessingMenu(soundscaperNativeServices.tools,
 				actions.parallelStackProcessing ? { ...actions.parallelStackProcessing, productId, copy } : null,
 				(patch) => actions.parallelStackProcessing?.change(patch))]),
-		fileImport: nativeServices.fileImport,
+		fileImport: [...nativeServices.fileImport, ...createFramescaperSuccessorMigrationMenuItems(productId, actions.framescaperSuccessor)],
 		fileExport: nativeServices.fileExport,
 		view: nativeServices.view,
 	});

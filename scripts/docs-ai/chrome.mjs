@@ -33,11 +33,11 @@ export const CHROME_SYSTEM_PROMPT = `You translate the navigation of the Soundsc
 The request is a closed packet. Translate every entry of "labels" and nothing else. Return JSON with exactly two fields: "locale", the requested target locale, and "translations", an object with exactly the same keys as "labels" whose values are the translated labels.
 Rules:
 - These are navigation headings. Keep them short, in the register documentation navigation uses in the target language, and follow that language's conventions for capitalisation.
-- Keep the product names Soundscaper, Framescaper, Audacity, Nyquist and StaffPad, and technical names such as Nyquist plug-ins, unless the target language has an established translation for them.
+- Keep the product names Soundscaper, Framescaper, Motionscaper, Audacity, Nyquist and StaffPad, and technical names such as Nyquist plug-ins, unless the target language has an established translation for them.
 - Never add an ellipsis, a full stop, or any explanation. A label that is only a product name stays exactly as it is.`;
 
 /** Names a translation must not change: the products and technologies the handbook documents. */
-const PROTECTED_NAMES = Object.freeze(['Soundscaper', 'Framescaper', 'Audacity', 'Nyquist', 'StaffPad']);
+const PROTECTED_NAMES = Object.freeze(['Soundscaper', 'Framescaper', 'Motionscaper', 'Audacity', 'Nyquist', 'StaffPad']);
 /** Labels per request; the whole navigation is a few dozen short strings. */
 export const DEFAULT_CHROME_BATCH_SIZE = 12;
 const MAXIMUM_LABEL_GROWTH = 3;

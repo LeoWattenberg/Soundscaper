@@ -1,0 +1,307 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+/* Generated from strict TypeScript by scripts/build-motionscaper-ae-bridge.mjs. */
+var MotionAeInstalledExport = (function () {
+var chooseMotionAeGaussianProfile = MotionAeInstalledGaussianProfile.chooseMotionAeGaussianProfile;
+var chooseMotionAeShapeProfile = MotionAeInstalledShapeProfile.chooseMotionAeShapeProfile;
+var motionAeShapeStyle = MotionAeHostShapeProfile.motionAeShapeStyle;
+var stringifyMotionAeHostJson = MotionAeHostJson.stringifyMotionAeHostJson;
+var readMotionAeInstalledText = MotionAeInstalledText.readMotionAeInstalledText;
+var renderMotionAeInstalledComposition = MotionAeInstalledRender.renderMotionAeInstalledComposition;
+var exportMotionAeHostProject = MotionAeHostExport.exportMotionAeHostProject;
+var readMotionAeHostProperty = MotionAeHostProperty.readMotionAeHostProperty;
+"use strict";
+/* SPDX-License-Identifier: AGPL-3.0-only */
+var __assign = (this && this.__assign) || function () {
+    __assign = Object.assign || function(t) {
+        for (var s, i = 1, n = arguments.length; i < n; i++) {
+            s = arguments[i];
+            for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p))
+                t[p] = s[p];
+        }
+        return t;
+    };
+    return __assign.apply(this, arguments);
+};
+function propertyHost(profile, sampling) {
+    return {
+        sampling: sampling,
+        checkCancelled: function () { }, // AE's Escape interruption unwinds the running script; no event-pump globals are modified.
+        kind: function (property) {
+            if (property.propertyType !== PropertyType.PROPERTY)
+                return 'group';
+            var type = property.propertyValueType;
+            if (type === PropertyValueType.SHAPE)
+                return 'shape';
+            if (type === PropertyValueType.TEXT_DOCUMENT)
+                return 'text';
+            if (type === PropertyValueType.OneD || type === PropertyValueType.TwoD || type === PropertyValueType.ThreeD || type === PropertyValueType.TwoD_SPATIAL || type === PropertyValueType.ThreeD_SPATIAL || type === PropertyValueType.COLOR)
+                return 'numeric';
+            return 'unsupported';
+        },
+        interpolation: function (value) { if (value === KeyframeInterpolationType.HOLD)
+            return 'hold'; if (value === KeyframeInterpolationType.LINEAR)
+            return 'linear'; if (value === KeyframeInterpolationType.BEZIER)
+            return 'bezier'; throw new Error('Unsupported AE interpolation.'); },
+        mask: function (property) {
+            var mask = property;
+            var names = ['none', 'add', 'subtract', 'intersect', 'lighten', 'darken', 'difference'];
+            var mode = null;
+            for (var index = 0; index < names.length; index++)
+                if (MaskMode[names[index].toUpperCase()] === mask.maskMode)
+                    mode = names[index];
+            if (mode === null || (mask.maskFeatherFalloff !== MaskFeatherFalloff.FFO_LINEAR && mask.maskFeatherFalloff !== MaskFeatherFalloff.FFO_SMOOTH)
+                || (mask.maskMotionBlur !== MaskMotionBlur.SAME_AS_LAYER && mask.maskMotionBlur !== MaskMotionBlur.ON && mask.maskMotionBlur !== MaskMotionBlur.OFF))
+                throw new Error('Unsupported AE mask metadata.');
+            return { mode: mode, inverted: mask.inverted, rotoBezier: mask.rotoBezier, featherFalloff: mask.maskFeatherFalloff === MaskFeatherFalloff.FFO_LINEAR ? 'linear' : 'smooth',
+                motionBlur: mask.maskMotionBlur === MaskMotionBlur.ON ? 'on' : mask.maskMotionBlur === MaskMotionBlur.OFF ? 'off' : 'same-as-layer' };
+        },
+        vector: function (group) { return motionAeShapeStyle(group.matchName, function (name) {
+            var _a;
+            var count = (_a = group.numProperties) !== null && _a !== void 0 ? _a : 0;
+            for (var index = 1; index <= count; index++) {
+                var property = group.property(index);
+                if (property.matchName !== name)
+                    continue;
+                if (property.numKeys !== 0 || property.expressionEnabled)
+                    return null;
+                var value = property.valueAtTime(0, true);
+                return typeof value === 'number' && isFinite(value) ? value : null;
+            }
+            return null;
+        }, profile); },
+        text: readMotionAeInstalledText
+    };
+}
+function layerKind(layer) {
+    var _a;
+    if (layer instanceof CameraLayer)
+        return 'camera';
+    if (layer instanceof LightLayer)
+        return 'light';
+    if (layer instanceof TextLayer)
+        return 'text';
+    if (layer instanceof ShapeLayer)
+        return 'shape';
+    if (layer.nullLayer)
+        return 'null';
+    if (layer.source instanceof CompItem)
+        return 'composition';
+    if ((_a = layer.source) === null || _a === void 0 ? void 0 : _a.file)
+        return 'footage';
+    return 'solid';
+}
+function sceneMetadata(layer, kind) {
+    if (kind !== 'camera' && kind !== 'light')
+        return undefined;
+    var orientation = [['NO_AUTO_ORIENT', 'none'], ['CAMERA_OR_POINT_OF_INTEREST', 'point-of-interest'], ['ALONG_PATH', 'along-path'], ['CHARACTERS_TOWARD_CAMERA', 'characters']];
+    var autoOrient = 'unavailable';
+    for (var index = 0; index < orientation.length; index++)
+        if (AutoOrientType[orientation[index][0]] !== undefined && layer.autoOrient === AutoOrientType[orientation[index][0]])
+            autoOrient = orientation[index][1];
+    if (kind === 'camera')
+        return { autoOrient: autoOrient };
+    var types = [['AMBIENT', 'ambient'], ['POINT', 'point'], ['SPOT', 'spot'], ['PARALLEL', 'parallel'], ['ENVIRONMENT', 'environment']];
+    var lightType = 'unavailable';
+    for (var index = 0; index < types.length; index++)
+        if (LightType[types[index][0]] !== undefined && layer.lightType === LightType[types[index][0]])
+            lightType = types[index][1];
+    return { autoOrient: autoOrient, lightType: lightType };
+}
+function blendMode(value) {
+    var names = ['NORMAL', 'MULTIPLY', 'SCREEN', 'OVERLAY', 'ADD', 'DARKEN', 'LIGHTEN', 'DIFFERENCE', 'EXCLUSION'];
+    for (var i = 0; i < names.length; i++)
+        if (BlendingMode[names[i]] !== undefined && BlendingMode[names[i]] === value)
+            return names[i].toLowerCase();
+    return 'unsupported';
+}
+function readComposition(comp, report, budget, sampled, profile) {
+    var id = 'comp-' + String(comp.id), layers = [], reader = propertyHost(profile, sampled ? { frameRate: comp.frameRate, duration: comp.duration } : undefined);
+    var roots = ['ADBE Transform Group', 'ADBE Mask Parade', 'ADBE Effect Parade', 'ADBE Root Vectors Group', 'ADBE Text Properties', 'ADBE Camera Options Group', 'ADBE Light Options Group', 'ADBE Material Options Group', 'ADBE Audio Group', 'ADBE Time Remapping'];
+    budget.layers += comp.numLayers;
+    if (budget.layers > 4096)
+        throw new Error('AE bridge layer budget exceeded.');
+    for (var index = 1; index <= comp.numLayers; index++) {
+        var source = comp.layer(index), layerId = id + '-layer-' + String(index), kind = layerKind(source), properties = [];
+        for (var root = 0; root < roots.length; root++) {
+            var property = source.property(roots[root]);
+            if (!property)
+                continue;
+            var path = String(properties.length) + ':' + property.matchName;
+            try {
+                properties.push(readMotionAeHostProperty(property, reader, layerId, path, report, budget));
+            }
+            catch (error) {
+                if (String(error).indexOf('budget') >= 0)
+                    throw error;
+                var reason = 'Property could not be captured: ' + String(error);
+                properties.push({ kind: 'unsupported', matchName: property.matchName, name: property.name, reason: reason });
+                report.push({ scopeId: layerId, propertyPath: path, status: 'unsupported', code: 'property', message: reason });
+            }
+        }
+        var matte = null;
+        if (source.trackMatteType !== undefined && source.trackMatteType !== TrackMatteType.NO_TRACK_MATTE) {
+            var target = source.trackMatteLayer;
+            var supported = source.trackMatteType === TrackMatteType.ALPHA || source.trackMatteType === TrackMatteType.ALPHA_INVERTED || source.trackMatteType === TrackMatteType.LUMA || source.trackMatteType === TrackMatteType.LUMA_INVERTED;
+            if (target && supported)
+                matte = { layerId: id + '-layer-' + String(target.index), type: source.trackMatteType === TrackMatteType.ALPHA ? 'alpha' : source.trackMatteType === TrackMatteType.ALPHA_INVERTED ? 'alpha-inverted' : source.trackMatteType === TrackMatteType.LUMA ? 'luma' : 'luma-inverted' };
+            else
+                report.push({ scopeId: layerId, propertyPath: '', status: 'unsupported', code: 'matte', message: 'This AE version does not expose a supported matte source/type. Use AE 23 or newer, or render the composition.' });
+        }
+        var scene = sceneMetadata(source, kind);
+        var compositing = !scene && typeof source.preserveTransparency === 'boolean' && typeof source.collapseTransformation === 'boolean' ? { preserveTransparency: source.preserveTransparency, collapseTransformation: source.collapseTransformation } : undefined;
+        layers.push(__assign(__assign(__assign(__assign({}, (typeof source.effectsActive === 'boolean' ? { effectsActive: source.effectsActive } : {})), (compositing ? { compositing: compositing } : {})), (scene ? { scene: scene } : {})), { id: layerId, name: source.name, kind: kind, sourceId: kind === 'composition' ? 'comp-' + String(source.source.id) : kind === 'footage' ? 'footage-' + String(source.source.id) : null, parentId: source.parent ? id + '-layer-' + String(source.parent.index) : null, matte: matte, startTime: source.startTime, inPoint: source.inPoint, outPoint: source.outPoint, stretch: source.stretch, enabled: source.enabled, threeD: source.threeDLayer === true || kind === 'camera' || kind === 'light', adjustment: source.adjustmentLayer === true, blendMode: source.blendingMode === undefined ? 'normal' : blendMode(source.blendingMode), properties: properties }));
+        if (kind === 'shape' && !profile)
+            report.push({ scopeId: layerId, propertyPath: 'ADBE Root Vectors Group', status: 'unsupported', code: 'shape-style-profile', message: 'Shape style metadata is unavailable without a separately selected, user-reviewed profile for this exact AE version/build/language. Use the calibration scripts then Export-Shapes, or rendered fallback. Ordinary export does not mutate source layers.' });
+        report.push({ scopeId: layerId, propertyPath: '', status: 'unsupported', code: 'mapping', message: 'Captured authored data requires feature mapping and reference comparison; plug-ins, text runs, mask attributes, solids, footage interpretation and expressions may require an AE-rendered composition.' });
+    }
+    return { id: id, name: comp.name, width: comp.width, height: comp.height, pixelAspect: comp.pixelAspect, frameRate: comp.frameRate,
+        duration: comp.duration, displayStartTime: comp.displayStartTime, background: [comp.bgColor[0], comp.bgColor[1], comp.bgColor[2]], layers: layers };
+}
+function transaction(parent, transferId, sourceFiles, renderedComposition) {
+    var directory = new Folder(parent.fsName + '/' + transferId), media = new Folder(directory.fsName + '/media'), created = [];
+    if (directory.exists)
+        throw new Error('The transfer folder already exists. Choose another destination.');
+    if (!directory.create())
+        throw new Error('The transfer folder could not be created. Enable script file access in AE preferences if needed.');
+    if (!media.create()) {
+        if (!directory.remove())
+            throw new Error('Could not create media folder or remove the empty transfer folder.');
+        throw new Error('Could not create media folder.');
+    }
+    return {
+        render: renderedComposition ? function (compositions) {
+            var source;
+            for (var index = 0; index < compositions.length; index++)
+                if (compositions[index].id === 'comp-' + String(renderedComposition.id))
+                    source = compositions[index];
+            if (!source)
+                throw new Error('The active composition is absent from the captured exchange.');
+            return renderMotionAeInstalledComposition(source, renderedComposition, media.fsName, function (entry) { created.push(entry); });
+        } : undefined,
+        copyMedia: function (item) {
+            if (!item.path || !/^media\/[A-Za-z0-9_-]+\.[A-Za-z0-9]{1,12}$/.test(item.path))
+                throw new Error('Unsafe bridge media path.');
+            var source = sourceFiles[item.id], destination = new File(directory.fsName + '/' + item.path);
+            if (!source || !source.exists || source.length !== item.byteLength || destination.exists)
+                throw new Error('Source media changed or destination already exists.');
+            created.push(destination);
+            if (!source.copy(destination.fsName) || destination.length !== item.byteLength || source.length !== item.byteLength)
+                throw new Error('Media copy failed or its byte length changed.');
+        },
+        publish: function (manifest) {
+            var file = new File(directory.fsName + '/motionae.json.part'), final = new File(directory.fsName + '/motionae.json');
+            if (file.exists || final.exists)
+                throw new Error('Manifest destination already exists.');
+            created.push(file);
+            file.encoding = 'UTF-8';
+            if (!file.open('w'))
+                throw new Error('Cannot open transfer manifest.');
+            var written;
+            try {
+                written = file.write(manifest);
+            }
+            catch (error) {
+                if (!file.close()) {
+                    var failure = new Error('Manifest write failed and its file could not close: ' + String(error), { cause: error });
+                    failure.cause = error;
+                    throw failure;
+                }
+                throw error;
+            }
+            if (!file.close())
+                throw new Error('Cannot close transfer manifest.');
+            if (!written || !file.rename('motionae.json'))
+                throw new Error('Cannot publish transfer manifest.');
+        },
+        rollback: function () {
+            var failed = false;
+            for (var index = created.length - 1; index >= 0; index--)
+                if (created[index].exists && !created[index].remove())
+                    failed = true;
+            if (!media.remove())
+                failed = true;
+            if (!directory.remove())
+                failed = true;
+            if (failed)
+                throw new Error('Some files in the new transfer folder could not be removed. Original source files were not changed.');
+        }
+    };
+}
+/** Entry point for the readable installed-AE JSX. It never saves, imports, or modifies the source project. */
+function runMotionAeInstalledExport(sampled, rendered, reviewedShapes, reviewedGaussian) {
+    var _a, _b;
+    if (sampled === void 0) { sampled = false; }
+    if (rendered === void 0) { rendered = false; }
+    if (reviewedShapes === void 0) { reviewedShapes = false; }
+    if (reviewedGaussian === void 0) { reviewedGaussian = false; }
+    try {
+        var project_1 = app.project;
+        if (!project_1)
+            throw new Error('Open the source project in After Effects first.');
+        if (sampled && rendered)
+            throw new Error('Choose numeric sampling or whole-composition rendering separately.');
+        var active_1 = rendered ? project_1.activeItem : undefined;
+        if (rendered && !(active_1 instanceof CompItem))
+            throw new Error('Select the complete composition to render in After Effects first.');
+        if (rendered && !confirm('Render the complete active composition into a new 8-bit PNG sequence? Choose your installed full-size RGB+Alpha PNG template. This staged carrier accepts at most 256 frames and no audio. Alpha/color and installed-AE behavior remain unqualified. The native render call blocks; use AE cancellation controls, whose Escape behavior is unqualified. Existing queue items must be removed by you first. Original project and media files are never overwritten.'))
+            return;
+        if (sampled && !confirm('Evaluate existing numeric expressions and animated numeric properties in After Effects at each composition frame? This keeps original keys and expression text, but frame samples do not preserve subframe motion or motion blur. At most 4096 samples per property are allowed. Native expression calls may take time and cannot be interrupted by the bridge between calls.'))
+            return;
+        var shapeProfile_1 = reviewedShapes ? chooseMotionAeShapeProfile() : null;
+        if (reviewedShapes && !shapeProfile_1)
+            return;
+        var gaussianProfile = reviewedGaussian ? chooseMotionAeGaussianProfile() : null;
+        if (reviewedGaussian && !gaussianProfile)
+            return;
+        var parent_1 = Folder.selectDialog('Choose a parent folder for a new Motionscaper exchange package.');
+        if (!parent_1)
+            return;
+        var transferId_1 = 'motion-transfer-' + String(new Date().getTime()), sourceFiles_1 = {}, budget_1 = { properties: 0, keys: 0, layers: 0 };
+        var host = __assign(__assign({}, (gaussianProfile ? { gaussianProfile: gaussianProfile } : {})), { version: app.version, projectName: (_b = (_a = project_1.file) === null || _a === void 0 ? void 0 : _a.name) !== null && _b !== void 0 ? _b : 'Untitled.aep', color: { workingSpace: project_1.workingSpace, linearBlending: project_1.linearBlending, bitsPerChannel: project_1.bitsPerChannel }, checkCancelled: function () { }, begin: function (id) { return transaction(parent_1, id, sourceFiles_1, active_1 instanceof CompItem ? active_1 : undefined); }, compositions: function (report) {
+                var result = [];
+                if (shapeProfile_1)
+                    report.push({ scopeId: transferId_1, propertyPath: '', status: 'editable', code: 'shape-style-profile', message: 'User-reviewed dropdown calibration; this is not installed-host visual qualification. ' + stringifyMotionAeHostJson(shapeProfile_1) });
+                if (project_1.numItems > 8192)
+                    throw new Error('AE project item budget exceeded.');
+                for (var index = 1; index <= project_1.numItems; index++) {
+                    var item = project_1.item(index);
+                    if (item instanceof CompItem) {
+                        if (result.length >= 256)
+                            throw new Error('AE composition budget exceeded.');
+                        result.push(readComposition(item, report, budget_1, sampled, shapeProfile_1));
+                    }
+                }
+                if (!result.length)
+                    throw new Error('The project has no compositions.');
+                return result;
+            }, footage: function (report) {
+                var _a, _b;
+                var result = [];
+                for (var index = 1; index <= project_1.numItems; index++) {
+                    var item = project_1.item(index);
+                    if (!(item instanceof FootageItem) || !item.file)
+                        continue;
+                    if (result.length >= 4096)
+                        throw new Error('AE footage budget exceeded.');
+                    var id = 'footage-' + String(item.id), extension = /\.([A-Za-z0-9]{1,12})$/.exec(item.file.name);
+                    var sequence = ((_a = item.mainSource) === null || _a === void 0 ? void 0 : _a.isStill) !== true && extension !== null && /^(png|jpe?g|tiff?|bmp|dpx|exr|psd|tga)$/i.test(extension[1]);
+                    var exists = item.file.exists && extension !== null && !sequence;
+                    if (exists)
+                        sourceFiles_1[id] = item.file;
+                    else
+                        report.push({ scopeId: id, propertyPath: '', status: 'unsupported', code: 'missing-media', message: sequence ? 'Original image-sequence footage requires collection of every source frame. This bridge cannot preserve it by copying only its first image. Retain and explicitly convert the original sequence before transferring.' : 'Relink this source or give it a portable file extension, then export again.' });
+                    result.push({ id: id, name: item.name, path: exists ? 'media/' + id + '.' + extension[1].toLowerCase() : null, byteLength: exists ? item.file.length : null, sha256: null,
+                        width: item.width, height: item.height, pixelAspect: item.pixelAspect, frameRate: item.frameRate, duration: item.duration, hasVideo: item.hasVideo, hasAudio: item.hasAudio, still: ((_b = item.mainSource) === null || _b === void 0 ? void 0 : _b.isStill) === true });
+                }
+                return result;
+            } });
+        exportMotionAeHostProject(host, transferId_1);
+        alert('Exchange written to ' + parent_1.fsName + '/' + transferId_1 + '. Review motionae.json reports. This development bridge is not yet qualified in installed AE.');
+    }
+    catch (error) {
+        alert('Motionscaper transfer did not complete: ' + String(error));
+    }
+}
+
+return { runMotionAeInstalledExport: runMotionAeInstalledExport };
+}());

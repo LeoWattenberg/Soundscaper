@@ -77,7 +77,7 @@ export const EDITOR_ASSISTANCE_MODEL_PREFLIGHT_CHUNK_TEST = new RegExp(
 	`${editorPath}(?:assistance[\\\\/](?:workflow-recipes|workflow-settings-v1)|controller[\\\\/]assistance[\\\\/](?:local-assistance-task-models|internal[\\\\/]guided[\\\\/]local-assistance-guided-(?:model-selection|stage-selection))|ui[\\\\/](?:local-model-manager-(?:bridge|store)|local-model-bytes))\\.ts$`,
 );
 export const EDITOR_COPY_CHUNK_TEST =
-	/(?!.*[\\/]audiocom-copy\.ts$)(?:src[\\/]common[\\/]i18n[\\/](?:(?:catalogs|runtime|canonical-extras(?:-standard-effects)?|(?!(?:freesound-attribution|site|site-sidebar)-copy\.js$)[^\\/]+-copy)\.js|(?:editor-copy-(?:inventory|scope)|[^\\/]+-copy)\.ts)|src[\\/]soundscaper[\\/]framescaper-capture-copy\.js)$/;
+	/(?!.*[\\/]audiocom-copy\.ts$)(?:src[\\/]common[\\/]i18n[\\/](?:(?:catalogs|runtime|canonical-extras(?:-(?:standard-effects|audacity-effects|audacity-presets))?|(?!(?:freesound-attribution|site|site-sidebar)-copy\.js$)[^\\/]+-copy)\.js|(?:editor-copy-(?:inventory|scope)|[^\\/]+-copy)\.ts)|src[\\/]soundscaper[\\/]framescaper-capture-copy\.js)$/;
 
 /** Dependency-free message descriptors shared by project models and controllers. */
 export const EDITOR_PRESENTATION_CHUNK_TEST = /src[\\/]common[\\/]i18n[\\/](?:presentation-(?:message|progress)|translation-scope)\.ts$/;
@@ -192,7 +192,7 @@ export const EDITOR_EFFECT_PARAMETER_SURFACE_CHUNK_TEST = new RegExp(
  * the facade imports this chunk: on the facade-first order the rack renders
  * against an uninitialised module.
  */
-export const EDITOR_EFFECT_DIALOG_SHELL_CHUNK_TEST = /(?:^|[\\/])(?:vendor[\\/]audacity-design-system[\\/]components[\\/]src[\\/](?:EffectsPanel[\\/].*|EffectDialog[\\/]EffectHeader\.tsx|SidePanel[\\/].*)|src[\\/]common[\\/]editor[\\/]ui[\\/]audacity-port-layouts\.ts|src[\\/]common[\\/]editor[\\/]ui[\\/]inspector[\\/](?:(?:AudioEditorEffectsOverlay|AudacityEffectHeader|LazyEffectParameterEditor)\.jsx|(?:MasterGainControl|EffectStackMenu)\.tsx|audacity-realtime-effect-shortcut\.ts))$/;
+export const EDITOR_EFFECT_DIALOG_SHELL_CHUNK_TEST = /(?:^|[\\/])(?:vendor[\\/]audacity-design-system[\\/]components[\\/]src[\\/](?:EffectsPanel[\\/].*|EffectDialog[\\/]EffectHeader\.tsx|SidePanel[\\/].*)|src[\\/]common[\\/]editor[\\/]ui[\\/]audacity-port-layouts\.ts|src[\\/]common[\\/]editor[\\/]ui[\\/]inspector[\\/](?:(?:AudioEditorEffectsOverlay|AudacityEffectHeader|LazyEffectParameterEditor)\.jsx|(?:MasterGainControl|EffectStackMenu|RackEffectDialog)\.tsx|audacity-realtime-effect-shortcut\.ts))$/;
 export const DESIGN_SYSTEM_EDITOR_SHELL_COMPONENT_CHUNK_TEST = /(?:^|[\\/])vendor[\\/]audacity-design-system[\\/]components[\\/]src[\\/](?:AddTrackFlyout|ApplicationHeader|Button|Checkbox|Clip|ClipBody|ClipHeader|CloudProjectIndicator|ContextMenu|ContextMenuItem|DialogHeader|Dropdown|EnvelopeCurve|EnvelopeInteractionLayer|EnvelopeOverlay|EnvelopePoint|Flyout|Footer|GhostButton|Icon|Knob|LabelMarker|LabeledCheckbox|LabeledRadio|MidiClipBody|MixerChannel|MixerEffect|MixerFader|MixerFaderHandle|MixerPanel|NumberStepper|PanKnob|PanelHeader|PlayheadCursor|ProgressBar|Radio|RulerFlyout|SelectionToolbar|Separator|Slider|TextInput|TimeCode|TimelineRuler|TimelineRulerContextMenu|Toast|ToggleButton|ToggleToolButton|ToolButton|Toolbar|Tooltip|Track|TrackControlPanel|TrackMeter|TransportButton|VerticalRuler)[\\/]/;
 // Co-locate the renderer/main video contract and encoder leaf with the deferred
 // adapter. A shared eager codec owner creates an emitted initialization cycle
@@ -324,6 +324,7 @@ export const FRAMESCAPER_PROJECT_FOUNDATION_CHUNK_TEST = new RegExp(
  * an uninitialized command initializer during a cross-product handoff.
  */
 const framescaperProjectCommandModules = Object.freeze([
+	'editor-project-commands',
 	'editor-adjustment-effect-membership',
 	'editor-audio-finishing-reconciliation-finishing',
 	'editor-clip-placement-command',
@@ -382,7 +383,7 @@ export const FRAMESCAPER_SESSION_CLIPBOARD_CHUNK_TEST = /src[\\/]framescaper[\\/
 
 /** Timeline-image feature modules plus the runtime projection chain they extend. */
 export const FRAMESCAPER_TIMELINE_IMAGE_CHUNK_TEST =
-	/src[\\/]framescaper[\\/](?:editor-project-(?:native-media|assistance)-runtime|editor-(?:image-(?:import-coordinator|placement)-timeline-image|project-[^\\/]*timeline-image[^\\/]*|scape-[^\\/]*timeline-image|selected-timeline-image|timeline-image)|video-export-(?:image|strategy-timeline-image)-)/;
+	/src[\\/]framescaper[\\/](?:editor-project-(?:native-media|assistance)-runtime|editor-(?:image-(?:import-coordinator|placement)-timeline-image|project-[^\\/]*timeline-image[^\\/]*|scape-[^\\/]*timeline-image|selected-timeline-image|timeline-image)|video-export-(?:image|strategy-timeline-image)-|(?:selected-finishing-exact-frame-support|visual-finishing-kernel)\.ts$)/;
 
 
 /**
@@ -399,15 +400,16 @@ export const FRAMESCAPER_TIMELINE_IMAGE_CHUNK_TEST =
  * `editor-domain` chunk, and through that chunk's own imports the transfer
  * documents carried 62 modulepreloads totalling 5.29 MiB of editor code onto a
  * page that mounts no editor. Owning the leaf here emits it as its own small
- * chunk that both worlds can import without dragging the other's graph. The
- * archive facade adds only erased type imports and dynamic implementation
+ * chunk that both worlds can import without dragging the other's graph.
+ * Canonical document identity belongs to these shared interchange foundations.
+ * The archive facade adds only erased type imports and dynamic implementation
  * imports, so sharing this owner does not grow the mounted transfer graph.
  */
 export const PROJECT_INTERCHANGE_FOUNDATION_CHUNK_TEST = new RegExp(
-	`(?:${editorPath}(?:project-schema-identity|controller[\\\\/](?:document[\\\\/]deferred-archive-runtime|shared[\\\\/]file-size-warning(?:-confirmation)?))|src[\\\\/]common[\\\\/]cross-product-handoff-intent)\\.ts$`,
+	`(?:${editorPath}(?:project-schema-identity|controller[\\\\/](?:document[\\\\/]deferred-archive-runtime|shared[\\\\/]file-size-warning(?:-confirmation)?))|src[\\\\/]common[\\\\/](?:canonical-json-sha256|cross-product-handoff-intent|project-file-extensions))\\.ts$`,
 );
 
 /** Flat editor modules and `assistance/` domain modules shared by the shell and dialogs. */
 export const EDITOR_DOMAIN_CHUNK_TEST = new RegExp(
-	`${editorPath}(?!${editorOptionalArchiveModule}\\.(?:[cm]?[jt]s)$)(?!${editorOptionalExecutionModule}\\.(?:[cm]?[jt]s)$)(?!${editorOptionalCaptureFlatModule}\\.ts$)(?:[^\\\\/]+|assistance[\\\\/](?:internal[\\\\/]radix-two-fft-v1|[^\\\\/]+)|(?:design-system-adapters|platform)[\\\\/][^\\\\/]+)\\.(?:[cm]?[jt]s)$`,
+	`${editorPath}(?!${editorOptionalArchiveModule}\\.(?:[cm]?[jt]s)$)(?!${editorOptionalExecutionModule}\\.(?:[cm]?[jt]s)$)(?!${editorOptionalCaptureFlatModule}\\.ts$)(?:engine[\\\\/]project-strip-control-index-v21|[^\\\\/]+|assistance[\\\\/](?:internal[\\\\/]radix-two-fft-v1|[^\\\\/]+)|(?:design-system-adapters|platform)[\\\\/][^\\\\/]+)\\.(?:[cm]?[jt]s)$`,
 );

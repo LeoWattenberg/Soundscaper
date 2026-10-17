@@ -211,6 +211,7 @@ export function createSourceRuntimeComposition<RenderEngine extends ClipTimePitc
 		sourceFrequencyWindows,
 		store,
 		resolveProductVideoPreviewMedia: dependencies.resolveProductVideoPreviewMedia,
+		resolveProductVideoSource: dependencies.resolveProductVideoSource,
 		projectDurationFrames: dependencies.projectDurationFrames,
 		url: {
 			createObjectURL: (blob) => globalThis.URL?.createObjectURL?.(blob) || null,
@@ -253,6 +254,14 @@ export function createSourceRuntimeComposition<RenderEngine extends ClipTimePitc
 		clipWaveformPcmWindows: waveformPcmWindows,
 		copy,
 		createStoredChunkProviderCandidate: lifecycleAdapters.createStoredChunkProviderCandidate,
+		resolveProductAudioSource: dependencies.resolveProductAudioSource ? async request => {
+			const token = captureProject(request.project.id);
+			const provider = await dependencies.resolveProductAudioSource!({ ...request, assertCurrent() { request.assertCurrent(); assertProject(token); } });
+			try { assertProject(token); return provider; } catch (error) {
+				try { await provider?.dispose(); } catch (cleanup) { throw new AggregateError([error, cleanup], 'Product audio acquisition and cleanup failed.', { cause: cleanup }); }
+				throw error;
+			}
+		} : undefined,
 		engine,
 		findClip,
 		findSource,

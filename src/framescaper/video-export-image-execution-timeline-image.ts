@@ -22,6 +22,7 @@ import { cloneFramescaperProjectTimelineImage, type FramescaperProjectTimelineIm
 import { gradeEncodedFrame } from './selected-finishing-exact-frame-support.ts';
 import type { FramescaperSelectedExactSupplementalPictureFinishing } from './selected-finishing-exact-frame-execution.ts';
 import type { FramescaperVideoExportSupplementalPictureExecutionFinishing } from './video-export-exact-execution-finishing.ts';
+import type { FramescaperSupplementalPictureExecution } from './selected-finishing-supplemental-picture-execution.ts';
 
 interface ImageContextTimelineImage {
 	readonly clip: FramescaperImageClipV1;
@@ -49,7 +50,11 @@ interface ResolvedImageContextTimelineImage {
 }
 
 /** Resolve authenticated timelineImage frame packs directly into the exact linear compositor. */
-export async function createFramescaperVideoExportImageExecutionTimelineImage(options: Readonly<{
+export async function createFramescaperVideoExportImageExecutionTimelineImage(options: ImageExecutionOptions): Promise<FramescaperVideoExportSupplementalPictureExecutionFinishing | null> {
+	return createFramescaperImagePictureExecutionTimelineImage(options);
+}
+
+type ImageExecutionOptions = Readonly<{
 	readonly profile: unknown;
 	readonly project: FramescaperProjectTimelineImage;
 	readonly foundationPlan: UnifiedExactRenderPlanV13;
@@ -57,7 +62,10 @@ export async function createFramescaperVideoExportImageExecutionTimelineImage(op
 	readonly signal: AbortSignal;
 	readonly assertCurrent: () => void;
 	readonly confirmFileSizeWarning?: FileSizeWarningConfirmation;
-}>): Promise<FramescaperVideoExportSupplementalPictureExecutionFinishing | null> {
+}>;
+
+/** Preview uses the same retained image reader without inventing export frame authority. */
+export async function createFramescaperImagePictureExecutionTimelineImage(options: ImageExecutionOptions): Promise<FramescaperSupplementalPictureExecution | null> {
 	const project = cloneFramescaperProjectTimelineImage(options?.profile, options?.project);
 	assertReady(options);
 	const visible = visibleImageClips(project, activeSupplementalClipIds(options.foundationPlan));
@@ -106,7 +114,7 @@ export async function createFramescaperVideoExportImageExecutionTimelineImage(op
 	let disposed = false;
 	let active = false;
 	return Object.freeze({
-		async resolve(request: Parameters<FramescaperVideoExportSupplementalPictureExecutionFinishing['resolve']>[0]) {
+		async resolve(request: Parameters<FramescaperSupplementalPictureExecution['resolve']>[0]) {
 			if (disposed) throw new Error('The timelineImage image export execution is disposed.');
 			if (active) throw new Error('The timelineImage image export execution cannot overlap frames.');
 			active = true;

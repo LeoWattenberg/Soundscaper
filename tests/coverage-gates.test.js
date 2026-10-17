@@ -205,6 +205,7 @@ function passingSummary() {
 		[file('desktop/main.mjs')]: measured(100, 100),
 		[file('src/framescaper/model.ts')]: measured(100, 100),
 		[file('src/soundscaper/model.ts')]: measured(100, 100),
+		[file('src/motionscaper/model.ts')]: measured(100, 100),
 		[file('src/common/transfer/session.ts')]: measured(100, 100),
 		[file('src/common/site/route.js')]: measured(100, 100),
 		[file('src/common/i18n/runtime.js')]: measured(100, 100),

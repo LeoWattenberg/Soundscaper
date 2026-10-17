@@ -4,6 +4,7 @@ import { isAbsolute, join } from 'node:path';
 
 const PRODUCTS = Object.freeze({
 	soundscaper: Object.freeze({ executable: 'Soundscaper', linuxExecutable: 'soundscaper' }),
+	motionscaper: Object.freeze({ executable: 'Motionscaper', linuxExecutable: 'motionscaper' }),
 	framescaper: Object.freeze({ executable: 'Framescaper', linuxExecutable: 'framescaper' }),
 });
 

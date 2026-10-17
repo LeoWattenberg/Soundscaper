@@ -1,0 +1,177 @@
+{
+	"schemaVersion": 1,
+	"productId": "motionscaper",
+	"helperContractVersion": 1,
+	"carrierVersion": 1,
+	"hostVersion": "0.1.0",
+	"license": "AGPL-3.0-only",
+	"targets": [
+		"linux-x64",
+		"linux-arm64",
+		"mac-arm64",
+		"win-x64",
+		"win-arm64"
+	],
+	"dependencySource": {
+		"path": "native/framescaper-media-host/source-manifest.json",
+		"byteLength": 15964,
+		"sha256": "8010f51cf619da23218d4794591bfa5a29c3effddcda57162da53725fce9ea30"
+	},
+	"sourceFiles": [
+		{
+			"path": "desktop/soundscaper-professional-linux-system-libraries.ts",
+			"byteLength": 2132,
+			"sha256": "5e811b91625608f5a1be3f79acf642d350ae7f3dbe19a9aafbb2be665395bfdc"
+		},
+		{
+			"path": "native/common/sha256.cpp",
+			"byteLength": 4415,
+			"sha256": "da01b38de59b50e5ce351a555a94313c6a9cb5a2803042df1f393e064acbe28d"
+		},
+		{
+			"path": "native/common/sha256.hpp",
+			"byteLength": 572,
+			"sha256": "5b8efdb22d73191be19b845ae06c5ddba090812baa3d89b0f8bccda7e05b9db5"
+		},
+		{
+			"path": "native/framescaper-media-host/src/strict_json.cpp",
+			"byteLength": 10182,
+			"sha256": "976c48177281ac95aaa3ae916e90dd3301e32a676a495201b7fd10edee62e588"
+		},
+		{
+			"path": "native/framescaper-media-host/src/strict_json.hpp",
+			"byteLength": 1244,
+			"sha256": "e9345631a631ce1cb386654bad2d3e59ad4c0c47d5f5cd2613a5efcfb80c939e"
+		},
+		{
+			"path": "native/motionscaper-media-host/CMakeLists.txt",
+			"byteLength": 3165,
+			"sha256": "a9df0e8d234d3408d9607871cd04ca1022e324b1c8c055026557598cff708521"
+		},
+		{
+			"path": "native/motionscaper-media-host/THIRD_PARTY_NOTICES.md",
+			"byteLength": 2004,
+			"sha256": "39bbbb60dfbe6bcac11383bb0b9dac4cf135c00a703fa8d0b7972565349f6797"
+		},
+		{
+			"path": "native/motionscaper-media-host/src/frame_carrier.cpp",
+			"byteLength": 8308,
+			"sha256": "2c771bc1555147cc80ab48327bb1248573710135f1844b413a96f16f74164c93"
+		},
+		{
+			"path": "native/motionscaper-media-host/src/frame_carrier.hpp",
+			"byteLength": 1102,
+			"sha256": "f3ebbc1958d34d963956ba4946039e5b52b33fc7fbeb52abdf2731c1a58080b5"
+		},
+		{
+			"path": "native/motionscaper-media-host/src/media_host.cpp",
+			"byteLength": 4813,
+			"sha256": "b6cbd539138a2ce2913dea6f6c6441added1cfed45bfba9b51ec0bb2454c4705"
+		},
+		{
+			"path": "native/motionscaper-media-host/src/pcm_carrier.cpp",
+			"byteLength": 4596,
+			"sha256": "c76d424597fe2aa20b5dadcce81b9bd1389e6805a42dfc1001d245f4775492ad"
+		},
+		{
+			"path": "native/motionscaper-media-host/src/pcm_carrier.hpp",
+			"byteLength": 724,
+			"sha256": "000a284a133582bc006ff4b27ec609c92143565016dad649ae1b05ebb404bba9"
+		},
+		{
+			"path": "native/motionscaper-media-host/src/prores_encoder.cpp",
+			"byteLength": 9497,
+			"sha256": "d6ac4e19c20308312a2c0feeb031c272f07b9d03c63069e45d3d45c8d1814819"
+		},
+		{
+			"path": "native/motionscaper-media-host/src/prores_encoder.hpp",
+			"byteLength": 372,
+			"sha256": "b7ec6766de9d0a62c2815dcc892524154d359bc1044b6f0913831cbc76f821da"
+		},
+		{
+			"path": "native/motionscaper-media-host/src/windows.manifest",
+			"byteLength": 472,
+			"sha256": "6ba9e2d2796ad00991e8fa867fa08b09404a11a4990ed2960541ea75886112fe"
+		},
+		{
+			"path": "native/motionscaper-media-host/tests/frame_carrier_fixture.cpp",
+			"byteLength": 1455,
+			"sha256": "4bf57af2a03dd9e9508b3d6448aa21d207231f847db72b98ec5cf36c840ff818"
+		},
+		{
+			"path": "native/motionscaper-media-host/tests/frame_fixture.hpp",
+			"byteLength": 1874,
+			"sha256": "d6bf1ee62d84320a50db00b382d2b71674053d94721b9e01ee012ba8dc9efeba"
+		},
+		{
+			"path": "native/motionscaper-media-host/tests/pcm_fixture.hpp",
+			"byteLength": 970,
+			"sha256": "d5c1002cb85dcfa5e06c8802a902186b5637b21a81d5519bdd1b68e12aae7fcd"
+		},
+		{
+			"path": "native/motionscaper-media-host/tests/pcm_roundtrip.cpp",
+			"byteLength": 4028,
+			"sha256": "5b9c415bccc4679cd33765d93e7a2f00936445ebd2919c7bd0bcb46e26fef50c"
+		},
+		{
+			"path": "native/motionscaper-media-host/tests/prores_edges_roundtrip.cpp",
+			"byteLength": 7557,
+			"sha256": "ea7b8c874382595bafded0c208c7f6315fbd7450dfe9074e0e4a7b908086717e"
+		},
+		{
+			"path": "native/motionscaper-media-host/tests/prores_roundtrip.cpp",
+			"byteLength": 7055,
+			"sha256": "925e869213cd0b0a24ee480ab0ae942b229611e3a0b0af43f73f953b8a24bb78"
+		},
+		{
+			"path": "scripts/build-motionscaper-media-host.mjs",
+			"byteLength": 1426,
+			"sha256": "46ec200900f4d779bc76ee44e31ca5f1c5ae7b31d325e5b25433e9f5a1e119bf"
+		},
+		{
+			"path": "scripts/lib/framescaper-media-host-toolchain.mjs",
+			"byteLength": 5467,
+			"sha256": "be417a8ce149457ac08a9aeb828eb337f7ca82481dabeca31fe826492dee4437"
+		},
+		{
+			"path": "scripts/lib/motionscaper-native-build.ts",
+			"byteLength": 10357,
+			"sha256": "8713159a932ac03ca948f7851812ca8dcee21f115fbf97e4f4909cb8e6dfa8b3"
+		},
+		{
+			"path": "scripts/lib/motionscaper-native-source.ts",
+			"byteLength": 4225,
+			"sha256": "533d688ce5713f6ad7494ee7f53024edd19cc3eef778a0d5d47f33b1f14072b0"
+		},
+		{
+			"path": "scripts/lib/soundscaper-native-binary-architecture.mjs",
+			"byteLength": 7230,
+			"sha256": "f5dee977ecfd1938ead5a696697c482f12e54b560a42775ebbdd6c226d519aa0"
+		},
+		{
+			"path": "scripts/lib/soundscaper-professional-native-build-result-contract.mjs",
+			"byteLength": 21986,
+			"sha256": "a62b863e53b00209c5867d99998d8b917aabbecc79b283602411069e22243b39"
+		},
+		{
+			"path": "scripts/lib/soundscaper-professional-native-dependency-inspection.mjs",
+			"byteLength": 11190,
+			"sha256": "0e2ce0fbf733b93e8c3b6fcf590bf4dd3fc7dbaaff66f09508e224c345bdcaf6"
+		},
+		{
+			"path": "scripts/refresh-motionscaper-native-sources.mjs",
+			"byteLength": 499,
+			"sha256": "63e6401e20e07026764c9cb3ee808aee9137b9723289cd80b21248062282d6bd"
+		},
+		{
+			"path": "src/common/editor/motion-native-frame-carrier-v1.ts",
+			"byteLength": 11275,
+			"sha256": "7d1c1473f0d99d25f343c79b79100ded277f2931d823aab62498508ab44d42d3"
+		},
+		{
+			"path": "src/common/editor/motion-native-pcm-carrier-v1.ts",
+			"byteLength": 9882,
+			"sha256": "e42e39df5c95a60b3f29924bcfc41cca731059ac3db76ac5b7c3c768ca5798ee"
+		}
+	]
+}

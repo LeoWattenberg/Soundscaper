@@ -4,6 +4,7 @@ import { handbookPlan } from '../../../scripts/lib/product-web-routing.mjs';
 const PRODUCT_ORIGINS = Object.freeze({
 	soundscaper: 'https://soundscaper.org',
 	framescaper: 'https://framescaper.org',
+	motionscaper: 'https://motionscaper.org',
 });
 
 /**
@@ -32,7 +33,6 @@ const PRODUCT_ORIGINS = Object.freeze({
  * there and re-checked here.
  */
 const CONTENT_MARKER = 'src/content/docs/';
-const FRAMESCAPER_SOURCE_PREFIX = '/framescaper';
 
 function rebaseImage(value, base) {
 	if (typeof value !== 'string' || !value.startsWith('/') || value.startsWith('//')) return value;
@@ -44,10 +44,11 @@ function productPrefix(base, locale) {
 	return route === '/' ? base : `${base}${route.replace(/\/$/u, '')}`;
 }
 
-function framescaperPath(value) {
-	if (value === FRAMESCAPER_SOURCE_PREFIX) return '/';
-	return value.startsWith(`${FRAMESCAPER_SOURCE_PREFIX}/`)
-		? value.slice(FRAMESCAPER_SOURCE_PREFIX.length)
+function productPath(value, product) {
+	const sourcePrefix = `/${product}`;
+	if (value === sourcePrefix) return '/';
+	return value.startsWith(`${sourcePrefix}/`)
+		? value.slice(sourcePrefix.length)
 		: null;
 }
 
@@ -58,16 +59,12 @@ function rebaseLink(value, productId, prefix, base) {
 	}
 	if (!value.startsWith('/') || value.startsWith('//')) return value;
 	if (value === base || value.startsWith(`${base}/`)) return value;
-	const framesPath = framescaperPath(value);
-	if (productId === 'soundscaper') {
-		return framesPath === null
-			? `${prefix}${value}`
-			: `${PRODUCT_ORIGINS.framescaper}${prefix}${framesPath}`;
-	}
 	if (value === '/') return `${prefix}/`;
-	return framesPath === null
-		? `${PRODUCT_ORIGINS.soundscaper}${prefix}${value}`
-		: `${prefix}${framesPath}`;
+	for (const target of ['framescaper', 'motionscaper']) {
+		const path = productPath(value, target);
+		if (path !== null) return `${target === productId ? '' : PRODUCT_ORIGINS[target]}${prefix}${path}`;
+	}
+	return `${productId === 'soundscaper' ? '' : PRODUCT_ORIGINS.soundscaper}${prefix}${value}`;
 }
 
 function rewriteRetiredFramescaperEditorText(node) {

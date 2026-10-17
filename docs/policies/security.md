@@ -741,6 +741,102 @@ The receiver's persistent write is separately registered as
 Reference-scale aggregate memory and elapsed-time evidence, abrupt browser and
 power loss, and cross-tab concurrent reservation remain unqualified.
 
+### Motionscaper composition links in the successor development line
+
+<!-- policy-narrative:isolated-motion-composition-bridge -->
+The Motionscaper composition-link bridge belongs to the explicit Framescaper
+successor development line. Connected editor workflows have focused Chromium and
+packaged Linux x64 evidence; bounded native generated-source delivery has Linux
+software-rendering evidence while remaining platform qualification is
+unfinished. Only the exact Motionscaper /composition-link/send/ path replaces
+Cross-Origin-Opener-Policy with same-origin-allow-popups, and only successor
+Framescaper /composition-link/receive/ replaces it with unsafe-none. The
+isolated editor routes retain same-origin opener policy. Both bridges inherit
+Cross-Origin-Embedder-Policy: credentialless and the existing CSP, referrer and
+nosniff policies, seal microphone, speaker selection, screen capture, camera and
+geolocation permissions, and refuse editor service-worker fallback. A
+nonce-bound same-origin BroadcastChannel relay crosses the isolated editor agent
+cluster; exact configured peer origins, exact bridge window identity and a
+random session bind the cross-origin MessagePort handshake. Closed wire packets
+enforce monotonic request/acknowledgement state, at most 32 MiB of metadata, one
+outstanding asset pull and at most 4 MiB per transferred chunk. Both transport
+and private receiver staging independently verify each declared digest and
+length. The default retained closure budget is 8 GiB with an explicit 64 GiB
+maximum. Atomic receiver publication binds the accepted snapshot, historical
+closure and exact owning project/history to storage digest and session write
+fences. One connected session supports serialized saved updates pinned to one
+project/composition identity, with explicit Disconnect, a 60-second pending
+pairing limit, 30-second active RPC limit and a 120-second peer-presence expiry
+for throttled tabs. The successor owns paired picture/PCM placement, immutable
+accepted revisions, compatible/pending updates, Undo/Resume and reviewed
+width/duration/FPS Conform. Conform Cancel leaves authored intent unchanged;
+Apply rechecks the reviewed digest and publishes one reversible edit. File
+Copy/Replace verifies retained original media, deterministically rebinds local
+identity conflicts, fences owner publication and retains previous archive
+custody. Exact generated picture and PCM adapters use retained revisions after
+offline reopen without fabricated encoded proxies. Actual connected-editor
+Chromium workflows cover saved sender updates, portable File Save/Open, cache
+loss, offline reopen and decoded MP4 pixels matching preview. The packaged Linux
+x64 GTK/X11 workflow exercises actual chooser custody, serialized watch
+generations published after private save, closed-dialog update, corruption
+refusal and Disconnect. Bounded cross-origin Chromium fixtures also retain
+isolation, transfer complete original bytes, receive later revisions in the same
+windows, and cancel stalled transfer on receiver bridge or isolated editor
+closure. These fixtures do not qualify abrupt process or power loss,
+supported-browser popup lifecycle parity, maximum-scale heap/RSS/elapsed time,
+concurrent storage reservation or publisher authenticity. Neither this
+development control nor its receiver storage changes the frozen family-v1
+production admission. An actual packaged Linux x64 successor reopens retained
+links offline and publishes authenticated native ProRes pictures with mixed PCM
+through an actual Save dialog. Subsequent focused Chromium checks qualify
+complete CPU finishing preview for linked scenes when WebGL is unavailable or
+loses its context, GPU restoration, receiver reload and clearing a new document;
+preview converts declared Rec.709 output to sRGB without changing native
+delivery bytes. Actual Chromium additionally disables WebGL2 globally and
+verifies animated timeline-image layers mixed with linked scenes, offline reopen
+and project replacement. Exact NTSC seeks match delivered pixels in both painter
+orders through the authenticated supplemental-picture executor. GPU-only
+inherited Frame adjustment effects refuse visibly when WebGL2 is unavailable.
+These fixtures do not qualify maximum workloads. Candidate and internal Linux
+packages now require the verified-source launch, authored 2.5D and offline
+linked picture/PCM workflows through a separate test-only reference artifact. A
+complete local Linux x64 aggregate produced all four required receipts;
+configured ARM64 execution and other target receipts remain unfinished.
+<!-- /policy-narrative:isolated-motion-composition-bridge -->
+
+### Motionscaper native capabilities in the development line
+
+<!-- policy-narrative:isolated-motion-desktop-capabilities -->
+Motionscaper owns a separate development desktop shell at
+motionscaper-app://bundle with a sandboxed, context-isolated renderer, no Node
+integration, denied new windows, webviews and permissions, and an exact
+own-window/main-frame/document caller fence. Its closed channels are
+motionscaper:v1:environment, motionscaper:v1:project-files,
+motionscaper:v1:project-launch, motionscaper:v1:project-launch:pending,
+motionscaper:v1:delivery, motionscaper:v1:documentation and
+motionscaper:v1:updates:check. Native project paths stay main-private.
+OS-selected .mscape and .scape launch arguments admit at most 16
+pending/open/active selections; the renderer can only take a bounded read
+capability or acknowledge its exact token. The pending notification carries no
+payload and confers no file authority. Cold startup, second-instance arguments
+and macOS open-file notifications use that same queue; reload or renderer loss
+revokes the current read token and reissues the queued selection. Authoring and
+archive reviews defer additional selections, retain the previous document and
+preserve retryable file release/acknowledgement authority. Project file reads
+and private save publication use the existing closed pathless capability
+methods; unknown or future archives remain exact-byte opaque custody without
+binding an editable native destination. Delivery uses the declared native
+carrier/encoder profile and an explicitly chosen destination, with retained
+cleanup authority when cancellation fails. Documentation and manual own-tag
+update checks open only reviewed fixed-origin links; no automatic installer is
+admitted. Focused Chromium and an actual packaged Linux x64 executable qualify
+cold/warm launch, original-file save, collision review, opaque custody and
+reload reissue. Other native targets, installed OS association behavior, abrupt
+process/power loss and signing/update release behavior remain unqualified. This
+development control does not extend the frozen Soundscaper/Framescaper family-v1
+bridge authority.
+<!-- /policy-narrative:isolated-motion-desktop-capabilities -->
+
 ### Desktop download release lookup
 
 The public `/download/desktop/` Pages Function reads the request host to select

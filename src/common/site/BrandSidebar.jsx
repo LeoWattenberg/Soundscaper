@@ -4,7 +4,7 @@ import { localeLanguage } from '../i18n/locale.js';
 import { DEFAULT_LOCALE_TAGS, getLocaleDescriptor, ROUTE_LOCALES } from '../i18n/locales.js';
 import { TRANSLATION_CATALOG_LOCALES } from '../i18n/translations/index.js';
 import { useSiteCopy } from './use-site-copy.js';
-import { otherProductId, productIdentity } from '../product-identities.js';
+import { otherProductIds, productIdentity } from '../product-identities.js';
 import { productHref, productWebOrigin } from '../product-web-links.js';
 import { storeDocumentTheme } from './document-theme.js';
 import { SidebarIcon } from './SidebarIcon.tsx';
@@ -15,12 +15,13 @@ import {
 
 export default function BrandSidebar({ locale, productId = 'soundscaper' }) {
 	const profile = productIdentity(productId);
-	const otherProduct = productIdentity(otherProductId(productId));
+	const otherProducts = otherProductIds(productId).map(productIdentity);
 	const localeDescriptor = getLocaleDescriptor(locale);
 	if (!localeDescriptor) throw new Error(`Unknown editor locale: ${locale}`);
 	const parentSite = localeLanguage(localeDescriptor.locale) === 'de' ? 'https://mindscaper.org/de/' : 'https://mindscaper.org/';
 	const catalog = useSiteCopy(localeDescriptor.locale);
 	const copy = sidebarCopy(catalog);
+	copy.label = copy.label.replace('Soundscaper', profile.name);
 	const [collapsed, setCollapsed] = useState(() => storedCollapsed(productId));
 	const [theme, setTheme] = useState(() => document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light');
 	const [workspace, setWorkspace] = useState({ activeId: profile.defaultWorkspace, workspaces: [] });
@@ -81,9 +82,8 @@ export default function BrandSidebar({ locale, productId = 'soundscaper' }) {
 	};
 	const workspaces = workspace.workspaces.length ? workspace.workspaces : defaultWorkspaces(productId, copy);
 	const productMark = `/logo/${productId}.svg`;
-	const otherProductMark = `/logo/${otherProduct.id}.svg`;
-	const editorLabel = productId === 'framescaper' ? copy.videoEditor : copy.audioEditor;
-	const otherEditorLabel = otherProduct.id === 'framescaper' ? copy.videoEditor : copy.audioEditor;
+	const editorLabels = { soundscaper: copy.audioEditor, framescaper: copy.videoEditor, motionscaper: copy.motionEditor };
+	const editorLabel = editorLabels[productId];
 
 	return (
 		<aside className="website-site-sidebar" data-sidebar data-product={productId} data-locale={localeDescriptor.locale} data-collapsed={String(collapsed)} aria-label={copy.label}>
@@ -99,7 +99,12 @@ export default function BrandSidebar({ locale, productId = 'soundscaper' }) {
 			<div className="website-sidebar-content" data-sidebar-content>
 				<nav className="website-sidebar-nav" aria-label={copy.label}>
 						<a className="website-sidebar-link website-is-active" href={productHref(productId, locale)} aria-current="page"><img src={productMark} alt="" width="24" height="24" />{editorLabel}</a>
-						<a className="website-sidebar-link" href={productHref(otherProduct.id, locale)}><img src={otherProductMark} alt="" width="24" height="24" />{otherEditorLabel}</a>
+						<details>
+							<summary className="website-sidebar-link">{copy.otherEditors}</summary>
+							{otherProducts.map((product) => <a key={product.id} className="website-sidebar-link" href={productHref(product.id, locale)}>
+								<img src={`/logo/${product.id}.svg`} alt="" width="24" height="24" />{editorLabels[product.id]}
+							</a>)}
+						</details>
 						<a className="website-sidebar-link" href={parentSite}><img src="/logo/mindscaper.svg" alt="" width="24" height="24" />{copy.joinUs}</a>
 						<a className="website-sidebar-link" href={`${productWebOrigin(productId)}/download/desktop/`} target="_blank" rel="noreferrer"><SidebarIcon icon="download" />{copy.download}</a>
 						<a className="website-sidebar-link" href={privacyPolicyUrl(productId, locale)} onClick={openPrivacyPolicy}><SidebarIcon icon="document" />{copy.legal}</a>
@@ -141,6 +146,7 @@ function storedCollapsed(productId) {
 }
 
 function defaultWorkspaces(productId, copy) {
+	if (productId === 'motionscaper') return [{ id: 'motion', name: copy.motionEditor }];
 	return productId === 'framescaper'
 		? [{ id: 'video-editor', name: copy.workspaceVideo }]
 		: [
@@ -156,6 +162,8 @@ function sidebarCopy(catalog) {
 		label: catalog.sidebarNavigation,
 		audioEditor: catalog.audioEditorLink,
 		videoEditor: catalog.workspaceVideo,
+		motionEditor: catalog.workspaceMotion,
+		otherEditors: catalog.otherEditors,
 		joinUs: catalog.joinUsLink,
 		download: catalog.downloadLink,
 		legal: catalog.legalLink,

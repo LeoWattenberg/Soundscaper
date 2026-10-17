@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
 import { readFile, readdir, rm, symlink, writeFile } from 'node:fs/promises';
 import { registerHooks } from 'node:module';
 import { join, resolve } from 'node:path';
@@ -395,7 +396,18 @@ test('desktop entry points enforce absence without consuming the browser FFmpeg 
 	// release assembly no longer downloads anything at all.
 	assert.doesNotMatch(releaseAssets, /\bfetch\(/u,
 		'public desktop release assembly makes no network request');
-	assert.match(builderConfig, /beforePack: ['"]\.\/scripts\/desktop-before-pack\.mjs['"]/u);
+	for (const product of [undefined, 'soundscaper', 'framescaper', 'motionscaper']) {
+		const environment = { ...process.env, SCAPE_MAC_SIGNING: 'false', SCAPE_WIN_SIGNING: 'none' };
+		if (product === undefined) delete environment.SCAPE_PRODUCT;
+		else environment.SCAPE_PRODUCT = product;
+		const selected = JSON.parse(execFileSync(process.execPath, [
+			'-e', 'process.stdout.write(JSON.stringify(require("./electron-builder.config.cjs")))',
+		], { cwd: ROOT, env: environment, encoding: 'utf8' }));
+		const prefix = product === 'motionscaper' ? 'motionscaper-desktop' : 'desktop';
+		assert.equal(selected.appId, `org.${product ?? 'soundscaper'}.desktop`);
+		assert.equal(selected.beforePack, `./scripts/${prefix}-before-pack.mjs`);
+		assert.equal(selected.afterPack, `./scripts/${prefix}-after-pack.mjs`);
+	}
 	assert.match(builderConfig, /from: ['"]\.desktop-build\/licenses['"], to: ['"]licenses['"]/u);
 	assert.match(packageMetadata.scripts['audit:ci'], /audit:ffmpeg-runtime/u);
 });

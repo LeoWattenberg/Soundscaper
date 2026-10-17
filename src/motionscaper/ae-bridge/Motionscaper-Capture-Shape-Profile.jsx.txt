@@ -1,0 +1,6 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+/* Development bridge: installed-AE qualification is still required. */
+#target aftereffects
+#include "motion-ae-host-json.jsxinc"
+#include "motion-ae-host-shape-profile.jsxinc"
+MotionAeInstalledShapeProfile.runMotionAeShapeCalibration(true);
