@@ -112,6 +112,9 @@ const AUDIO_EDITOR_LOCAL_DEFAULT_SHORTCUTS_BY_ACTION = Object.freeze({
 export const AUDIO_EDITOR_DEFAULT_SHORTCUTS = Object.freeze({
 	...AUDACITY_SHORTCUT_BINDINGS_BY_ACTION,
 	...AUDIO_EDITOR_LOCAL_DEFAULT_SHORTCUTS_BY_ACTION,
+	// The design system's focused-clip F/T/S handles reserve S for stretch.
+	'split-tool': Object.freeze(['C']),
+	'play-cut-preview': Object.freeze([]),
 });
 
 // `shortcut` metadata is the immutable pre-Audacity-profile default snapshot;

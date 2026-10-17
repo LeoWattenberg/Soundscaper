@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo } from 'react';
 
-import { clipGroups, focusFirst, normalizeClipSemantics } from './timeline-navigation.js';
+import { clipGroups, normalizeClipSemantics } from './timeline-navigation.js';
 import { focusTrackRowNeighbor } from './track-row-neighbor-focus.ts';
 import { createTimelineClipRemovalFocus } from './timeline-clip-removal-focus.ts';
 
@@ -70,14 +70,11 @@ export function createTrackRowFocusRouter({
 }
 
 export function routeTrackRowClipKeyDown(event, {
-	root,
-	isFlatNavigation,
-	tabIndex,
 	onSelectClip,
 	routeClipKey = null,
 	router = null,
 }) {
-	if (!isClipGroup(event.target)) return;
+	if (event.defaultPrevented || !isClipGroup(event.target)) return;
 	if (routeClipKey?.(event, router) === true) return;
 	if (event.key === 'Enter') {
 		event.preventDefault();
@@ -88,24 +85,7 @@ export function routeTrackRowClipKeyDown(event, {
 		});
 		return;
 	}
-	if (
-		event.altKey
-		|| event.ctrlKey
-		|| event.metaKey
-		|| event.shiftKey
-		|| (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight')
-	) return;
-	const clips = clipGroups(root);
-	const currentIndex = clips.indexOf(event.target);
-	if (currentIndex < 0 || clips.length < 2) return;
-	event.preventDefault();
-	event.stopPropagation();
-	const direction = event.key === 'ArrowRight' ? 1 : -1;
-	const next = clips[(currentIndex + direction + clips.length) % clips.length];
-	if (!isFlatNavigation) {
-		for (const clip of clips) clip.tabIndex = clip === next ? tabIndex : -1;
-	}
-	focusFirst(next);
+	// Tab steps between clips; horizontal arrows remain the playhead's keys.
 }
 
 export function useTrackRowFocusNavigation({

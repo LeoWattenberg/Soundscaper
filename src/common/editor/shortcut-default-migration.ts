@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-export const AUDIO_EDITOR_SHORTCUT_DEFAULTS_VERSION = 4;
+export const AUDIO_EDITOR_SHORTCUT_DEFAULTS_VERSION = 5;
 
 // New manifest metadata for these previously unavailable commands is not a
 // former installed default, even in the legacy table derived from the manifest.
@@ -79,6 +79,7 @@ export function migrateAudioEditorShortcutDefaults({
 		// those omissions are user removals. Only these newly available commands
 		// receive defaults, and a customized chord still owns its binding.
 		if (shortcutDefaultsVersion < AUDIO_EDITOR_SHORTCUT_DEFAULTS_VERSION) {
+			if (shortcutDefaultsVersion < 5) migrateClipHandleDefaults(current, normalizedKey, conflictKey);
 			if (shortcutDefaultsVersion < 4) {
 				migrateProjectBoundaryDefaults(current, currentDefaults, normalizedKey);
 			}
@@ -139,6 +140,18 @@ export function migrateAudioEditorShortcutDefaults({
 	}
 
 	return migrated;
+}
+
+/** Upgrade the paired former defaults only when C is free or belongs to default cut preview. */
+function migrateClipHandleDefaults(shortcuts: MutableShortcutMap, normalizedKey: (binding: string) => string,
+	conflictKey: (binding: string) => string): void {
+	if (!equivalentBindings(shortcuts['split-tool'] ?? [], ['S'], normalizedKey)) return;
+	const cutIsDefault = equivalentBindings(shortcuts['play-cut-preview'] ?? [], ['C'], normalizedKey);
+	const occupied = Object.entries(shortcuts).some(([id, bindings]) => id !== 'split-tool'
+		&& !(id === 'play-cut-preview' && cutIsDefault) && bindings.some(binding => conflictKey(binding) === conflictKey('C')));
+	if (occupied) return;
+	defineShortcut(shortcuts, 'split-tool', ['C']);
+	if (cutIsDefault) defineShortcut(shortcuts, 'play-cut-preview', []);
 }
 
 function migrateProjectBoundaryDefaults(

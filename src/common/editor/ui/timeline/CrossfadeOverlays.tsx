@@ -64,6 +64,17 @@ export function CrossfadeOverlays({
 	};
 	return <>
 		{overlays.map((overlay, index) => <div key={overlay.id} style={{ display: 'contents' }}
+			onClick={event => {
+				if (!(event.target as Element).closest('[data-crossfade-handle]') || !(event.ctrlKey || event.metaKey)) return;
+				event.stopPropagation();
+				const out = clipLookup.get(overlay.outgoingClipId), incoming = clipLookup.get(overlay.incomingClipId);
+				const shape = out?.fadeOutShape === 2 && incoming?.fadeInShape === 2 ? 1 : 2;
+				commit(overlay, { outShape: shape, inShape: shape });
+			}}
+			onDoubleClick={event => {
+				if (!(event.target as Element).closest('[data-crossfade-handle]') || event.ctrlKey || event.metaKey) return;
+				event.stopPropagation(); commit(overlay, { outShape: 1, inShape: 1 });
+			}}
 			onContextMenu={event => {
 				const target = (event.target as Element).closest<HTMLElement>('[data-crossfade-handle]');
 				if (!target) return;

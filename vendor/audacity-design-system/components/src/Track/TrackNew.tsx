@@ -1,6 +1,7 @@
 import React from 'react';
 import type { MidiNote } from '@audacity-ui/core';
 import { Clip } from '../Clip/Clip';
+import { isClipCollapsed } from '../utils/clipHandleRows';
 import type { SpectrogramScale } from '../ClipBody/ClipBody';
 import { EnvelopeInteractionLayer } from '../EnvelopeInteractionLayer/EnvelopeInteractionLayer';
 import { generateSpeechWaveform } from '../utils/waveform';
@@ -760,91 +761,6 @@ const TrackNewComponent: React.FC<TrackProps> = ({
               return;
             }
 
-            // Clip-edge editor on the bracket keys. Shift picks the
-            // edge; the specific bracket picks the direction:
-            //   [        → RIGHT edge moves LEFT   (contract)
-            //   ]        → RIGHT edge moves RIGHT  (extend)
-            //   Shift+[  → LEFT edge moves LEFT    (extend)
-            //   Shift+]  → LEFT edge moves RIGHT   (contract)
-            // Sign convention matches onClipTrim: positive delta
-            // shrinks, negative delta grows.
-            //
-            // Match against e.code, e.key, AND e.keyCode so keyboard
-            // layout quirks don't stop the shortcut from firing.
-            const isBracketLeft = e.code === 'BracketLeft'
-              || e.key === '[' || e.key === '{'
-              || (e as any).keyCode === 219; // justified: keyCode deprecated but needed for cross-layout compat — pending components sweep
-            const isBracketRight = e.code === 'BracketRight'
-              || e.key === ']' || e.key === '}'
-              || (e as any).keyCode === 221; // justified: keyCode deprecated but needed for cross-layout compat — pending components sweep
-            if ((isBracketLeft || isBracketRight) && !e.altKey) {
-              e.preventDefault();
-              e.stopPropagation();
-              const editAmount = 0.1;
-              // Shift → LEFT edge, plain → RIGHT edge.
-              const edge: 'left' | 'right' = e.shiftKey ? 'left' : 'right';
-              // On the RIGHT edge: [ contracts (shrink), ] extends.
-              // On the LEFT  edge: [ extends,  ] contracts.
-              const isExtending = edge === 'right' ? isBracketRight : isBracketLeft;
-              const delta = isExtending ? -editAmount : editAmount;
-
-              // Cmd/Ctrl modifier switches trim → stretch. Same edge
-              // and direction convention, so muscle memory carries
-              // between the two operations:
-              //   Cmd+[         → RIGHT edge stretch-in (compress)
-              //   Cmd+]         → RIGHT edge stretch-out
-              //   Cmd+Shift+[   → LEFT  edge stretch-out
-              //   Cmd+Shift+]   → LEFT  edge stretch-in (compress)
-              if (e.metaKey || e.ctrlKey) {
-                onClipStretch?.(clip.id, edge, delta);
-                return;
-              }
-
-              // Boundary check: if the user is trying to EXTEND (not
-              // shrink) and there's no more source audio to reveal
-              // on that side, don't dispatch the trim — fire the
-              // shake animation so the shortcut isn't silent.
-              // Mirrors the "cap the delta to available" logic in
-              // Canvas.onClipTrim: `available` is measured in canvas
-              // seconds, matching how the delta is applied.
-              const BOUNDARY_EPS = 0.0005;
-              const stretch = (clip as any).stretchFactor ?? 1; // justified: stretchFactor not on Clip type — pending components sweep
-              const trimStart = (clip as any).trimStart ?? 0; // justified: trimStart not on Clip type — pending components sweep
-              const fullDuration = (clip as any).fullDuration // justified: fullDuration not on Clip type — pending components sweep
-                ?? (trimStart + clip.duration / stretch);
-              const availableLeft = trimStart * stretch;
-              const availableRight = (fullDuration - trimStart) * stretch - clip.duration;
-              const blocked = isExtending && (
-                (edge === 'left' && availableLeft <= BOUNDARY_EPS)
-                || (edge === 'right' && availableRight <= BOUNDARY_EPS)
-              );
-
-              if (blocked) {
-                // Bump the shake state so React remounts the shake
-                // element (each token change → fresh DOM node → fresh
-                // animation). Clear after the animation completes.
-                setShakeState((prev) => ({
-                  clipId: clip.id,
-                  edge,
-                  token: (prev?.token ?? 0) + 1,
-                }));
-                if (shakeTimeoutRef.current !== null) {
-                  window.clearTimeout(shakeTimeoutRef.current);
-                }
-                shakeTimeoutRef.current = window.setTimeout(() => {
-                  setShakeState(null);
-                  shakeTimeoutRef.current = null;
-                }, 180);
-              }
-
-              // Fire onClipTrim regardless of the blocked-shake state
-              // so Canvas can select the focused clip. Canvas has its
-              // own boundary check and will skip the actual TRIM_CLIP
-              // dispatch when there's nothing to reveal.
-              onClipTrim?.(clip.id, edge, delta);
-              return;
-            }
-
             // Tab / Shift+Tab: track-scoped clip navigation.
             //   Track flow (both directions):
             //     [track header] ↔ clip 1 ↔ clip 2 ↔ … ↔ clip N ↔ [next track header]
@@ -915,7 +831,7 @@ const TrackNewComponent: React.FC<TrackProps> = ({
               e.stopPropagation();
               (e.currentTarget as HTMLElement).removeAttribute('data-focus-mouse');
               const direction = e.key === 'ArrowDown' ? 1 : -1;
-              onTrackNavigateVertical?.(direction, false, false);
+              onClipNavigateVertical?.(clip.id, direction);
               return;
             }
 
@@ -1342,7 +1258,7 @@ const TrackNewComponent: React.FC<TrackProps> = ({
 
         {/* Clip header recess - 20px darkened area at top of track (hidden for label tracks and when track is too small) */}
         {/* Rendered after time selection overlay but before clips so clips render on top */}
-        {!isLabelTrack && !isMidiTrack && height > 44 && (
+        {!isLabelTrack && !isMidiTrack && !isClipCollapsed(height) && (
           <div
             style={{
               position: 'absolute',

@@ -16,3 +16,53 @@
 	height: 100%;
 	overflow: hidden;
 }
+
+/* Upstream 20ce5547: controls follow hover or a held keyboard/pointer gesture. */
+[data-clip-id] .audacity-track-fade-handle,
+[data-clip-id] .audacity-track-fade-shape-handle,
+[data-clip-id] .clip-display__handle {
+	opacity: 0;
+	pointer-events: none;
+	transition: opacity 120ms ease-out;
+}
+[data-clip-id]:hover .audacity-track-fade-handle,
+[data-clip-id]:hover .audacity-track-fade-shape-handle,
+[data-clip-id]:focus-within .audacity-track-fade-handle,
+[data-clip-id]:focus-within .audacity-track-fade-shape-handle,
+[data-clip-id]:hover .clip-display--selected .clip-display__handle,
+[data-clip-id] .clip-display__handle:focus {
+	opacity: 1;
+	pointer-events: auto;
+}
+[data-clip-id] [data-keyboard-handle]:focus {
+	visibility: visible;
+	opacity: 1;
+	pointer-events: auto;
+}
+[data-clip-id] .audio-editor-clip-fade__curve [data-fade-curve],
+[data-clip-id] .audio-editor-clip-fade__curve [data-fade-boundary] {
+	opacity: 0;
+	transition: opacity 120ms ease-out;
+}
+[data-clip-id]:hover .audio-editor-clip-fade__curve [data-fade-curve],
+[data-clip-id]:hover .audio-editor-clip-fade__curve [data-fade-boundary],
+[data-clip-id]:focus-within .audio-editor-clip-fade__curve [data-fade-curve],
+[data-clip-id]:focus-within .audio-editor-clip-fade__curve [data-fade-boundary] {
+	opacity: 1;
+}
+[data-fade-pointer="false"] .audacity-track-fade-handle,
+[data-fade-pointer="false"] .audacity-track-fade-shape-handle {
+	visibility: hidden;
+}
+.audio-editor-fades-dialog__row {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	align-items: center;
+	gap: 8px 16px;
+	margin-bottom: 16px;
+}
+.audio-editor-fades-dialog__row > label:first-child { grid-column: 1 / -1; }
+
+[data-crossfade-handle] { opacity: 0; transition: opacity 120ms ease-out; }
+.audio-editor-track-window:hover [data-crossfade-handle],
+[data-crossfade-handle]:focus { opacity: 1; }

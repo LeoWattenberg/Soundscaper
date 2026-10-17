@@ -128,13 +128,14 @@ test('version one preferences gain C and X while preserving previous explicit re
 	}), { 'play-cut-preview': ['Alt+C'], 'play-stop-select': ['Alt+X'] });
 });
 
-test('preferences saved before the profile gain new audition keys even though the manifest now documents them', () => {
+test('legacy preferences gain audition X while the split tool retains the new C default', () => {
 	const saved = createAudioEditorPreferencesV1();
 	delete saved.shortcuts['play-cut-preview'];
 	delete saved.shortcuts['play-stop-select'];
 	const legacy = { ...saved, shortcutDefaultsVersion: 0 };
 	const loaded = loadAudioEditorPreferencesV1(legacy).preferences;
-	assert.deepEqual(loaded.shortcuts['play-cut-preview'], ['C']);
+	assert.deepEqual(loaded.shortcuts['play-cut-preview'] ?? [], []);
+	assert.deepEqual(loaded.shortcuts['split-tool'], ['C']);
 	assert.deepEqual(loaded.shortcuts['play-stop-select'], ['X']);
 });
 

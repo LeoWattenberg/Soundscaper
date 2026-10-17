@@ -97,12 +97,10 @@
 /* ===========================================================================
    Icon-button handles (selected clips only).
 
-   Layout per side, sitting just outside the clip body and vertically
-   anchored *below the clip header* (which is 20px tall):
-       header (20px)
-       ────────────────────
-       [T]   trim    (top: 24px)
-       [S]   stretch (top: 48px)
+   Two adaptive rows below the 20px header, or from the top of a collapsed
+   clip. Each row takes half the available height, clamped to 22–32px by
+   utils/clipHandleRows.ts. Hit areas straddle the edge: 24px outside and
+   6px inside. Only the icon grows on hover, keeping the hit area steady.
 
    Each button has its own custom cursor PNG (in src/assets/cursors/) so
    hover previews the action. tsup inlines the PNGs as data URLs at build
@@ -110,8 +108,9 @@
    =========================================================================== */
 .clip-display__handle {
   position: absolute;
-  width: 22px;
-  height: 20px;
+  box-sizing: border-box;
+  width: 30px;
+  height: var(--clip-handle-row, 32px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -120,8 +119,10 @@
   border: 0;
   background: transparent;
   z-index: 25;
-  /* Hover/active scale uses transform — transition stays subtle so it
-     reads as a polish detail, not a chunky motion. */
+}
+
+.clip-display__handle .musescore-icon {
+  display: inline-block;
   transition: transform 0.12s ease-out, opacity 0.12s ease-out;
 }
 
@@ -137,16 +138,9 @@
   line-height: 1;
 }
 
-/* Stretch handles — the clock glyph is a circle, so we just put a real
-   black circle behind it via a pseudo-element. The glyph itself is white
-   with no stroke; the disc fills the body of the clock. */
-.clip-display__handle--stretch-left,
-.clip-display__handle--stretch-right {
-  position: absolute; /* re-stated so isolation works */
-}
-
-.clip-display__handle--stretch-left::before,
-.clip-display__handle--stretch-right::before {
+/* The black disc belongs to the clock glyph so both grow together. */
+.clip-display__handle--stretch-left .musescore-icon::before,
+.clip-display__handle--stretch-right .musescore-icon::before {
   content: '';
   position: absolute;
   top: 50%;
@@ -156,7 +150,7 @@
   background: #000;
   border-radius: 50%;
   transform: translate(-50%, -50%);
-  z-index: 0;
+  z-index: -1;
 }
 
 .clip-display__handle--stretch-left .musescore-icon,
@@ -168,49 +162,51 @@
   z-index: 1;
 }
 
-.clip-display__handle:hover {
+.clip-display__handle:hover .musescore-icon,
+.clip-display__handle:focus-visible .musescore-icon {
   transform: scale(1.18);
 }
 
-.clip-display__handle:active {
+.clip-display__handle:active .musescore-icon {
   transform: scale(1.08);
   opacity: 0.85;
 }
 
-/* Vertical positioning — sit below the clip header (HEADER_HEIGHT = 20px)
-   with a comfortable gap between the trim and stretch rows. */
+/* Both rows use the same height and collapse threshold as the clip body. */
 .clip-display__handle--trim-left,
 .clip-display__handle--trim-right {
-  top: 28px;
+  top: var(--clip-handle-top, 20px);
 }
 
 .clip-display__handle--stretch-left,
 .clip-display__handle--stretch-right {
-  top: 60px;
+  top: calc(var(--clip-handle-top, 20px) + var(--clip-handle-row, 32px));
 }
 
-/* Horizontal positioning — hug the clip edge from the outside. */
+/* The inside padding centres the icon in the outer 24px of its box. */
 .clip-display__handle--trim-left,
 .clip-display__handle--stretch-left {
-  left: -26px;
+  left: -24px;
+  padding-right: 6px;
 }
 
 .clip-display__handle--trim-right,
 .clip-display__handle--stretch-right {
-  right: -26px;
+  right: -24px;
+  padding-left: 6px;
 }
 
 /* Per-button custom cursor — the PNG appears while hovering the button.
    `ew-resize` is the fallback if the PNG fails to load. */
 .clip-display__handle--trim-left {
-  cursor: url('../assets/cursors/ClipTrimLeft.png') 8 10, ew-resize;
+  cursor: url('../assets/cursors/ClipTrimLeft.png') 15 16, ew-resize;
 }
 .clip-display__handle--trim-right {
-  cursor: url('../assets/cursors/ClipTrimRight.png') 8 10, ew-resize;
+  cursor: url('../assets/cursors/ClipTrimRight.png') 17 16, ew-resize;
 }
 .clip-display__handle--stretch-left {
-  cursor: url('../assets/cursors/ClipStretchLeft.png') 8 10, ew-resize;
+  cursor: url('../assets/cursors/ClipStretchLeft.png') 15 16, ew-resize;
 }
 .clip-display__handle--stretch-right {
-  cursor: url('../assets/cursors/ClipStretchRight.png') 8 10, ew-resize;
+  cursor: url('../assets/cursors/ClipStretchRight.png') 16 16, ew-resize;
 }

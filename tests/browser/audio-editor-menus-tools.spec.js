@@ -522,7 +522,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		const splitButton = editor.getByRole('button', { name: 'Split tool', exact: true });
 		await editor.locator('.kw-audio-editor__keyboard-help').focus();
 
-		await page.keyboard.press('s');
+		await page.keyboard.press('c');
 		await expect(timeline).toHaveAttribute('data-split-tool', 'true');
 		await expect(splitButton).toHaveAttribute('aria-pressed', 'true');
 		const splitClip = clipByName(editor, toneA.name);
@@ -537,19 +537,19 @@ test.describe('audio editor React/design-system workflows', () => {
 		await clickClipInterior(page, splitClip, 0.35);
 		await expect(editor).toHaveAttribute('data-clip-count', '2');
 
-		await page.keyboard.press('s');
+		await page.keyboard.press('c');
 		await expect(timeline).toHaveAttribute('data-split-tool', 'false');
 		await expect(splitButton).toHaveAttribute('aria-pressed', 'false');
 		await editor.getByRole('button', { name: 'Undo', exact: true }).click();
 		await expect(editor).toHaveAttribute('data-clip-count', '1');
 		await editor.locator('.kw-audio-editor__keyboard-help').focus();
 
-		await page.keyboard.down('s');
+		await page.keyboard.down('c');
 		await expect(timeline).toHaveAttribute('data-split-tool', 'true');
 		await page.waitForTimeout(350);
 		await clickClipInterior(page, clipByName(editor, toneA.name), 0.65);
 		await expect(editor).toHaveAttribute('data-clip-count', '2');
-		await page.keyboard.up('s');
+		await page.keyboard.up('c');
 		await expect(timeline).toHaveAttribute('data-split-tool', 'false');
 		await expect(splitButton).toHaveAttribute('aria-pressed', 'false');
 		expect(errors).toEqual([]);
@@ -598,7 +598,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		const splitRow = preferences.locator('[data-shortcut-action="split-tool"]');
 		const splitShortcut = splitRow.locator('[data-shortcut-binding="0"]');
 		await splitShortcut.focus();
-		await page.keyboard.press('s');
+		await page.keyboard.press('c');
 		await expect(timeline).toHaveAttribute('data-split-tool', 'false');
 		await splitShortcut.fill('K');
 		await splitRow.getByRole('button', { name: 'Assign', exact: true }).click();
@@ -606,8 +606,8 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(preferences).toBeHidden();
 
 		await editor.locator('.kw-audio-editor__keyboard-help').focus();
-		await page.keyboard.press('s');
-		await page.keyboard.press('Shift+s');
+		await page.keyboard.press('c');
+		await page.keyboard.press('Shift+c');
 		await expect(timeline).toHaveAttribute('data-split-tool', 'false');
 		await page.keyboard.press('k');
 		await expect(splitButton).toHaveAttribute('aria-pressed', 'true');

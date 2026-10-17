@@ -1,3 +1,4 @@
+import { routeClipHandleKeyboard } from './clip-handle-keyboard.ts';
 import { secondsDeltaToFrames } from './geometry.ts';
 import { clipHasLoopRepeats, normalizeInactiveClipLoop } from '../../audio-clip-loop.ts';
 import { routeClipFocusTrimKeyboard } from './clip-focus-trim-keyboard-routing.ts';
@@ -27,6 +28,7 @@ export function useAudioTrackRowNavigation({
 	onFocusTrackClip,
 	onFocusTrackRuler,
 	onFocusSelectionToolbar,
+	onEditFades = () => undefined,
 }) {
 	const focusNavigation = useTrackRowFocusNavigation({
 		trackWindowRef,
@@ -46,14 +48,7 @@ export function useAudioTrackRowNavigation({
 		onSelectClip: (clipId, options) => run(() => (
 			controller.actions.timeline.selectClip(clipId, options)
 		)),
-		routeClipKey: (event) => {
-			const fadeHandle = event.target.querySelector('[data-clip-fade-handle]:not(:disabled), [data-clip-fade-shape-handle]:not(:disabled)');
-			if (event.key !== 'Tab' || event.shiftKey || !fadeHandle) return false;
-			event.preventDefault();
-			event.stopPropagation();
-			fadeHandle.focus();
-			return true;
-		},
+
 	});
 	const moveClipBySeconds = (clipId, deltaSeconds) => {
 		if (blocked) return;
@@ -204,6 +199,16 @@ export function useAudioTrackRowNavigation({
 
 	return {
 		...focusNavigation,
+		handleClipKeyDownCapture: (event) => {
+			if (routeClipHandleKeyboard(event, {
+				clips: track.clipIds.map(id => clipLookup.get(id)).filter(Boolean), sampleRate, blocked,
+				selectedIds: project.selection?.clipIds ?? [], playheadFrame: controller.getTelemetrySnapshot?.().positionFrame ?? 0,
+				updateFade: (id, changes) => run(() => controller.actions.clip.update(id, changes)),
+				trim: trimClipBySeconds, stretch: stretchClipBySeconds,
+				seek: frame => run(() => controller.actions.transport.seek(frame)), openFades: onEditFades,
+			})) return;
+			focusNavigation.handleClipKeyDownCapture(event);
+		},
 		moveClipBySeconds,
 		moveClipToTrack,
 		navigateClipVertical,

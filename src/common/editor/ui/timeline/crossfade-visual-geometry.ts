@@ -120,6 +120,22 @@ export function crossfadeShapeDragResult(
 	return crossfadeShapesChanged(input.initialOutShape, input.initialInShape, shapes) ? shapes : null;
 }
 
+/** Upstream's plain gesture bends vertically while holding the intersection time. */
+export function crossfadeDepthShapesAtPointer(input: CrossfadePointerPosition): Readonly<{ outShape: number; inShape: number }> {
+	const position = Math.max(0.02, Math.min(0.98, input.initialPosition));
+	const outBase = Math.cos(position * Math.PI / 2), inBase = Math.sin(position * Math.PI / 2);
+	const minimumGain = Math.max(0.05, outBase ** 6, inBase ** 6);
+	const maximumGain = Math.min(0.95, outBase ** 0.15, inBase ** 0.15);
+	const gain = Math.max(minimumGain, Math.min(maximumGain, input.initialGain - (input.clientY - input.startY) / Math.max(1, input.height)));
+	return { outShape: Math.log(gain) / Math.log(outBase), inShape: Math.log(gain) / Math.log(inBase) };
+}
+
+export function crossfadeDepthDragResult(input: CrossfadeShapeDragPosition): Readonly<{ outShape: number; inShape: number }> | null {
+	if (Math.abs(input.clientY - input.startY) < CROSSFADE_DRAG_THRESHOLD_PIXELS) return null;
+	const shapes = crossfadeDepthShapesAtPointer(input);
+	return crossfadeShapesChanged(input.initialOutShape, input.initialInShape, shapes) ? shapes : null;
+}
+
 /** Move the horizontal slider through the same equal-power exponent solver as pointer edits. */
 export function crossfadeShapesAtKey({
 	key,

@@ -6,8 +6,8 @@ import { TrackFadeHandle } from '@soundscaper/design-system/Track/TrackFadeHandl
 import { TrackFadeShapeHandle } from '@soundscaper/design-system/Track/TrackFadeShapeHandle';
 import { fadeDurationAtKey, fadeField, fadeShapeAtKey, fadeShapeField, placeFadeShapeHandles } from './clip-fade-geometry.ts';
 import type { ClipFadeEdge, FadeClip } from './clip-fade-geometry.ts';
-import { END_FADE_SHAPE_PRESETS, selectedEndFadeShapePreset } from '../../clip-fade-presets.ts';
-import { FadeShapeMenu, isFadeShapeMenuKey, keyboardFadeShapeMenuPosition } from './FadeShapeMenu.tsx';
+import { ClipFadeMenu } from './ClipFadeMenu.tsx';
+import { isFadeShapeMenuKey, keyboardFadeShapeMenuPosition } from './FadeShapeMenu.tsx';
 import type { FadeShapeMenuCopy, FadeShapeMenuPosition } from './FadeShapeMenu.tsx';
 import { createClipFadeGeometryReader } from './clip-overlay-presentation.ts';
 
@@ -40,6 +40,7 @@ interface Props {
 	readonly crossfadedFadeEdges: ReadonlySet<string>;
 	readonly copy: FadeShapeMenuCopy & { readonly fadeIn: string; readonly fadeOut: string; readonly fadeInShape: string; readonly fadeOutShape: string; readonly legacyLinearFadeShape: string };
 	readonly onChange: (id: string, changes: ClipFadeChanges) => void;
+	readonly onEditFades?: (id: string) => void;
 	readonly onTabOut: (id: string) => void;
 }
 
@@ -57,7 +58,7 @@ function moveFadeFocus(target: HTMLElement, current: HTMLElement, backwards: boo
 	else onTabOut(clipId);
 }
 
-export function ClipFadeOverlays({ rootRef, clips, selectedIds, startFrame, endFrame, pixelsPerSecond, sampleRate, blocked, handleTabIndex = -1, showFadeShapeHandles, crossfadedFadeEdges, copy, onChange, onTabOut }: Props) {
+export function ClipFadeOverlays({ rootRef, clips, selectedIds, startFrame, endFrame, pixelsPerSecond, sampleRate, blocked, handleTabIndex = -1, showFadeShapeHandles, crossfadedFadeEdges, copy, onChange, onTabOut, onEditFades = () => undefined }: Props) {
 	const [targets, setTargets] = useState<ReadonlyMap<string, HTMLElement>>(new Map());
 	const [menu, setMenu] = useState<(FadeShapeMenuPosition & { readonly clipId: string; readonly edge: ClipFadeEdge }) | null>(null);
 	const close = useCallback(() => setMenu(null), []);
@@ -77,48 +78,51 @@ export function ClipFadeOverlays({ rootRef, clips, selectedIds, startFrame, endF
 		if (!target) return null;
 		const curves = geometry.curves.filter(curve => !crossfadedFadeEdges.has(`${clip.id}:${curve.edge}`));
 		const hasFade = curves.length > 0;
-		const selected = selectedIds.has(clip.id);
-		if (!hasFade && !selected) return null;
 		const displayWidth = Math.round(geometry.width);
 		const displayX = (x: number): number => x / geometry.width * displayWidth;
 		const inBoundaryX = displayX(geometry.fadeInX ?? 0);
 		const outBoundaryX = displayX(geometry.fadeOutX ?? geometry.width);
-		const shapePositions = selected && showFadeShapeHandles ? placeFadeShapeHandles({
+		const shapePositions = showFadeShapeHandles ? placeFadeShapeHandles({
 			...geometry,
 			curves,
 		}, displayWidth, clip) : [];
-		return createPortal(<div className="audio-editor-clip-fade">
+		return createPortal(<div className="audio-editor-clip-fade" data-fade-pointer={displayWidth >= 64 ? "true" : "false"}>
 			{hasFade && <svg className="audio-editor-clip-fade__curve" viewBox={`0 0 ${geometry.width} 100`}
 				preserveAspectRatio="none" aria-hidden="true">
 				<path data-fade-shading d={curves.map(curve => curve.shadePath).join(' ')}
 					fill="rgba(0, 0, 0, 0.18)" stroke="none" />
-				{selected && curves.map(curve => {
+				{curves.map(curve => {
 					const x = curve.edge === 'in' ? geometry.fadeInX : geometry.fadeOutX;
 					return x === null ? null : <line key={curve.edge} data-fade-boundary={curve.edge}
-						x1={x} x2={x} y1={0} y2={100} stroke="rgba(0, 0, 0, 0.55)"
+						x1={x} x2={x} y1={0} y2={100} stroke="rgba(0, 0, 0, 0.45)"
 						strokeWidth={1} strokeDasharray="4 3" vectorEffect="non-scaling-stroke" />;
 				})}
 				{curves.map(curve => <path key={curve.edge} data-fade-curve={curve.edge}
-					d={curve.path} fill="none" stroke="rgba(0, 0, 0, 0.55)" strokeWidth={1.5}
+					d={curve.path} fill="none" stroke="rgba(0, 0, 0, 0.45)" strokeWidth={1.5}
 					vectorEffect="non-scaling-stroke" />)}
 			</svg>}
-			{selected && (['in', 'out'] as const).map((edge: ClipFadeEdge) => {
+			{(['in', 'out'] as const).map((edge: ClipFadeEdge) => {
 				if (crossfadedFadeEdges.has(`${clip.id}:${edge}`)) return null;
 				const x = edge === 'in' ? geometry.fadeInX : geometry.fadeOutX;
 				if (x === null) return null;
 				const field = fadeField(edge);
 				const value = clip[field] ?? 0;
 				const label = edge === 'in' ? copy.fadeIn : copy.fadeOut;
-				return <TrackFadeHandle key={edge} edge={edge} boundaryX={displayX(x)}
+				return <TrackFadeHandle keyboardReachable key={edge} edge={edge} boundaryX={displayX(x)}
 					oppositeBoundaryX={edge === 'in' ? outBoundaryX : inBoundaryX} clipWidth={displayWidth}
 					role="slider" tabIndex={handleTabIndex}
 					data-clip-fade-handle={edge} aria-label={label}
 					aria-valuemin={0} aria-valuemax={clip.durationFrames / sampleRate} aria-valuenow={value / sampleRate}
 					aria-orientation="horizontal" disabled={blocked}
+					onContextMenu={event => {
+						event.preventDefault(); event.stopPropagation();
+						if (!blocked) setMenu({ target: event.currentTarget, x: event.clientX, y: event.clientY, clipId: clip.id, edge });
+					}}
 					onClick={event => { event.stopPropagation(); }}
-					onDoubleClick={event => { event.stopPropagation(); }}
+					onDoubleClick={event => { event.stopPropagation(); if (!blocked && !event.ctrlKey && !event.metaKey) onChange(clip.id, { [fadeShapeField(edge)]: 2 }); }}
 					onKeyDown={event => {
 						if (event.ctrlKey || event.metaKey || event.altKey) return;
+						if (isFadeShapeMenuKey(event) && !blocked) { event.preventDefault(); event.stopPropagation(); setMenu({ ...keyboardFadeShapeMenuPosition(event.currentTarget), clipId: clip.id, edge }); return; }
 						if (event.key === 'Tab' && handleTabIndex < 0) {
 							event.stopPropagation();
 							event.preventDefault();
@@ -153,8 +157,8 @@ export function ClipFadeOverlays({ rootRef, clips, selectedIds, startFrame, endF
 						event.currentTarget.focus({ preventScroll: true });
 						setMenu({ target: event.currentTarget, x: event.clientX, y: event.clientY, clipId: clip.id, edge: position.edge });
 					}}
-					onClick={event => { event.stopPropagation(); }}
-					onDoubleClick={event => { event.stopPropagation(); }}
+					onClick={event => { event.stopPropagation(); if (!blocked && (event.ctrlKey || event.metaKey)) onChange(clip.id, { [field]: clip[field] === undefined ? 2 : undefined }); }}
+					onDoubleClick={event => { event.stopPropagation(); if (!blocked && !event.ctrlKey && !event.metaKey) onChange(clip.id, { [field]: 2 }); }}
 					onKeyDown={event => {
 						if (event.ctrlKey || event.metaKey || event.altKey) return;
 						if (isFadeShapeMenuKey(event) && !blocked) {
@@ -178,13 +182,9 @@ export function ClipFadeOverlays({ rootRef, clips, selectedIds, startFrame, endF
 			})}
 		</div>, target, clip.id);
 	})}
-		{menu && menuClip && !blocked && showFadeShapeHandles && selectedIds.has(menu.clipId)
-			&& !crossfadedFadeEdges.has(`${menu.clipId}:${menu.edge}`) && <FadeShapeMenu
-				position={menu} presets={END_FADE_SHAPE_PRESETS} copy={copy}
-				selectedId={selectedEndFadeShapePreset(menuClip[fadeShapeField(menu.edge)])}
-				onClose={close} onSelect={preset => {
-					const field = fadeShapeField(menu.edge);
-					if (selectedEndFadeShapePreset(menuClip[field]) !== preset.id) onChange(menu.clipId, { [field]: preset.shape });
-				}} />}
+		{menu && menuClip && !blocked && !crossfadedFadeEdges.has(`${menu.clipId}:${menu.edge}`) && <ClipFadeMenu
+			position={menu} edge={menu.edge} hasFade={(menuClip[fadeField(menu.edge)] ?? 0) > 0}
+			copy={copy as unknown as Readonly<Record<string, string>>} onClose={close}
+			onEdit={() => onEditFades(menu.clipId)} onRemove={() => onChange(menu.clipId, { [fadeField(menu.edge)]: 0 })} />}
 	</>;
 }

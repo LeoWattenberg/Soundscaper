@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { handleClipPointerClick } from './clip-pointer-selection.ts';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { TrackNew } from '@soundscaper/design-system/Track/TrackNew';
 import { CrossfadeOverlays } from './CrossfadeOverlays.tsx';
 import { resolveTrackWaveformOptions } from '../../track-display-mode.ts';
@@ -27,6 +28,7 @@ import { useAudioTrackRowNavigation } from './useAudioTrackRowNavigation.js';
 import { useAudioTrackRowViewModel } from './useAudioTrackRowViewModel.js';
 import { resolveAudioEditorColor, TimeSelectionOverlay } from './TimelineOverlayComponents.jsx';
 import { handleTrackRulerKeyboard } from './track-ruler-keyboard.ts';
+const ClipFadesDialog = lazy(() => import('./ClipFadesDialog.tsx'));
 export function AudioTrackRow({
 	controller,
 	project,
@@ -95,6 +97,17 @@ export function AudioTrackRow({
 	onFocusSelectionToolbar,
 }) {
 	const trackWindowRef = useRef(null);
+	const [fadeDialogId, setFadeDialogId] = useState(null), [fadeDialogPreview, setFadeDialogPreview] = useState(null);
+	const closeFades = useCallback(() => { setFadeDialogId(null); setFadeDialogPreview(null); }, []);
+	const previewFades = useCallback(changes => setFadeDialogPreview({ clipId: fadeDialogId, trackId: track.id, ...changes }), [fadeDialogId, track.id]);
+	const fadeDialogClip = fadeDialogId && trackClips.find(clip => clip.id === fadeDialogId);
+	useEffect(() => {
+		const root = trackWindowRef.current;
+		const open = event => setFadeDialogId(event.target.closest('[data-clip-id]')?.dataset.clipId ?? null);
+		root?.addEventListener('scape-edit-fades', open);
+		return () => root?.removeEventListener('scape-edit-fades', open);
+	}, []);
+	useEffect(() => { if (fadeDialogId && !fadeDialogClip) closeFades(); }, [fadeDialogId, fadeDialogClip, closeFades]);
 	const clipMutationsBlocked = blocked || Boolean(track.locked);
 	const renameBlockedRef = useRef(blocked || track.locked);
 	renameBlockedRef.current = blocked || track.locked;
@@ -140,7 +153,7 @@ export function AudioTrackRow({
 		showRms,
 		spectrogramOptions,
 		recordingPreview,
-		clipDragPreview,
+		clipDragPreview: fadeDialogPreview ?? clipDragPreview,
 		projectBinDragPreview,
 		waveformCache,
 		draggingClipIds,
@@ -206,6 +219,7 @@ export function AudioTrackRow({
 		onFocusTrackClip,
 		onFocusTrackRuler,
 		onFocusSelectionToolbar,
+		onEditFades: setFadeDialogId,
 	});
 	const currentTrackRow = () => {
 		const referencedRow = trackWindowRef.current?.closest('[data-track-row]');
@@ -284,6 +298,7 @@ export function AudioTrackRow({
 				aria-label={track.name}
 				data-selected={selectedTrackId === track.id}
 				style={{ marginLeft: panelWidth, width: timelineWidth + verticalRulerWidth, height: trackHeight }}
+				onClickCapture={(event) => handleClipPointerClick(event, project, controller.actions.timeline, run)}
 				onClick={(event) => {
 					if (event.target.closest('[data-clip-id]')) return;
 					run(() => controller.actions.timeline.selectTrack(track.id));
@@ -330,14 +345,12 @@ export function AudioTrackRow({
 							if (!focusCrossfadeHandle(0)) focusCurrentRuler();
 						}}
 						onClipClick={(clipId, shiftKey, metaKey) => {
-							if (!shiftKey && !metaKey) return;
 							run(() => controller.actions.timeline.selectClip(String(clipId), {
 								additive: Boolean(shiftKey),
 								toggle: Boolean(metaKey),
 							}));
 						}}
 						onClipHeaderClick={(clipId, _clipStartTime, shiftKey, metaKey) => {
-							if (!shiftKey && !metaKey) return;
 							run(() => controller.actions.timeline.selectClip(String(clipId), {
 								additive: Boolean(shiftKey),
 								toggle: Boolean(metaKey),
@@ -396,7 +409,8 @@ export function AudioTrackRow({
 							else focusCurrentRuler();
 						}} />
 					<ClipLoopOverlays rootRef={trackWindowRef} clips={projection.clips} selectedIds={visualSelectedClipIds} startFrame={projection.overscanStartFrame} endFrame={projection.overscanEndFrame} pixelsPerSecond={pixelsPerSecond} sampleRate={sampleRate} blocked={clipMutationsBlocked} copy={copy} onChange={(id, changes) => run(() => controller.actions.clip.update(id, changes))} />
-					<ClipFadeOverlays rootRef={trackWindowRef} clips={projection.clips}
+					{fadeDialogClip && <Suspense fallback={null}><ClipFadesDialog key={fadeDialogId} clip={fadeDialogClip} sampleRate={sampleRate} copy={copy} blocked={clipMutationsBlocked} onPreview={previewFades} onClose={closeFades} onApply={changes => run(() => controller.actions.clip.update(fadeDialogId, changes))} /></Suspense>}
+					<ClipFadeOverlays onEditFades={setFadeDialogId} rootRef={trackWindowRef} clips={projection.clips}
 						showFadeShapeHandles={showFadeShapeHandles}
 						crossfadedFadeEdges={crossfadedFadeEdges}
 						selectedIds={visualSelectedClipIds}

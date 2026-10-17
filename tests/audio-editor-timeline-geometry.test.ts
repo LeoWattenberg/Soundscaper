@@ -22,7 +22,10 @@ import {
 test('clip body geometry follows the design-system truncated-header threshold', () => {
 	assert.deepEqual(audioEditorClipBodyGeometry(40), { top: 0, height: 40 });
 	assert.deepEqual(audioEditorClipBodyGeometry(44), { top: 0, height: 44 });
-	assert.deepEqual(audioEditorClipBodyGeometry(45), { top: 20, height: 25 });
+	assert.deepEqual(audioEditorClipBodyGeometry(45), { top: 0, height: 45 });
+	assert.deepEqual(audioEditorClipBodyGeometry(60), { top: 0, height: 60 });
+	assert.deepEqual(audioEditorClipBodyGeometry(71), { top: 0, height: 71 });
+	assert.deepEqual(audioEditorClipBodyGeometry(72), { top: 20, height: 52 });
 	assert.deepEqual(audioEditorClipBodyGeometry(114), { top: 20, height: 94 });
 });
 

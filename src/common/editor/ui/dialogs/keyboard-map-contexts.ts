@@ -16,7 +16,6 @@ export function keyboardMapContextBindings(copy: Copy, mac: boolean): KeyboardMa
 	for (const context of ['clip', 'edge', 'fade'] as const) {
 		for (const [key, action, atPlayhead] of [['F', copy.focusFades, copy.applyFade], ['T', copy.focusTrim, copy.applyTrim], ['S', copy.focusStretch, copy.applyStretch]]) {
 			add(context, [key], action);
-			if (context !== 'clip') add(context, [key], action, ['Shift']);
 			add(context, [key], atPlayhead, ['Alt']);
 		}
 		add(context, ['F'], copy.fadesDialog, ['Alt', 'Shift']);

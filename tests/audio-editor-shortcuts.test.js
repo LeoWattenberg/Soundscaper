@@ -28,7 +28,7 @@ test('default editor shortcuts use the complete mapped Audacity profile', () => 
 	assert.equal(AUDIO_EDITOR_DEFAULT_SHORTCUTS['action://playback/play'][0], 'P');
 	assert.deepEqual(AUDIO_EDITOR_DEFAULT_SHORTCUTS['action://delete'], ['Del', 'Backspace']);
 	assert.deepEqual(AUDIO_EDITOR_DEFAULT_SHORTCUTS['track-view-toggle-selection'], ['Ctrl+Enter', 'Ctrl+Return', 'Return', 'NUMPAD_ENTER']);
-	assert.deepEqual(AUDIO_EDITOR_DEFAULT_SHORTCUTS['split-tool'], ['S']);
+	assert.deepEqual(AUDIO_EDITOR_DEFAULT_SHORTCUTS['split-tool'], ['C']);
 	assert.deepEqual(AUDIO_EDITOR_DEFAULT_SHORTCUTS.split, ['Ctrl+I']);
 	assert.deepEqual(AUDIO_EDITOR_DEFAULT_SHORTCUTS.fullscreen, ['F11']);
 	assert.equal(AUDACITY_ACTION_MANIFEST.fullscreen.shortcut, 'F11');
@@ -73,7 +73,9 @@ test('every implemented local-origin action ships its documented default shortcu
 			? [...AUDIO_EDITOR_DEFAULT_SHORTCUTS[id]]
 			: null;
 	}
-	assert.deepEqual(installedLocalDefaults, expectedLocalDefaults);
+	// The upstream clip handle keys reserve S; C now selects the split tool.
+	// Cut preview remains available through Play and user-configured shortcuts.
+	assert.deepEqual(installedLocalDefaults, { ...expectedLocalDefaults, 'play-cut-preview': [] });
 });
 
 test('installed shortcut defaults hold exactly the mapped, supplemental and local bindings', () => {
@@ -252,7 +254,7 @@ test('pre-profile preferences receive imported defaults without replacing custom
 	assert.deepEqual(loaded.shortcuts.insert, ['Shift+V']);
 	assert.equal(Object.hasOwn(loaded.shortcuts, 'action://trackedit/paste-insert'), false);
 	assert.deepEqual(loaded.shortcuts.split, ['Ctrl+I']);
-	assert.deepEqual(loaded.shortcuts['split-tool'], ['S']);
+	assert.deepEqual(loaded.shortcuts['split-tool'], ['C']);
 	assert.deepEqual(loaded.shortcuts['action://playback/play'], ['P']);
 	assert.deepEqual(loaded.shortcuts['action://delete'], ['Del']);
 	assert.deepEqual(loaded.shortcuts['custom-delete'], ['Backspace']);

@@ -3,6 +3,7 @@ import './Track.css';
 
 export interface TrackFadeHandleProps extends Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, 'children' | 'type'> {
   edge: 'in' | 'out';
+  keyboardReachable?: boolean;
   /** Fade boundary in pixels from the rendered clip's left edge. */
   boundaryX: number;
   /** Boundary of the other fade, in the same coordinate space. */
@@ -47,6 +48,7 @@ function handleLeft(edge: 'in' | 'out', boundaryX: number, oppositeBoundaryX: nu
 /** The design-system quick-fade grip, with its drag lifecycle owned by the editor. */
 export function TrackFadeHandle({
   edge,
+  keyboardReachable = false,
   boundaryX,
   oppositeBoundaryX,
   clipWidth,
@@ -55,7 +57,7 @@ export function TrackFadeHandle({
   ...buttonProps
 }: TrackFadeHandleProps): React.ReactElement | null {
   // The two grips need room to remain legible and independently grabbable.
-  if (clipWidth < 64) return null;
+  if (clipWidth < 64 && !keyboardReachable) return null;
 
   const left = handleLeft(edge, boundaryX, oppositeBoundaryX, clipWidth);
 

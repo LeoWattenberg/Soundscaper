@@ -8,7 +8,7 @@ import { crossfadeIntersection } from '../src/common/editor/ui/timeline/crossfad
 import { useTimelinePointerFinish } from '../src/common/editor/ui/timeline/useTimelinePointerFinish.js';
 import { installReactTestDom } from './helpers/react-test-dom.ts';
 
-test('crossfade pointer release ignores clicks and tremor but commits a real drag atomically', async () => {
+test('crossfade pointer release ignores clicks, tremor and sideways travel but commits vertical depth atomically', async () => {
 	const initialOutShape = 0.37;
 	const initialInShape = 3.41;
 	const intersection = crossfadeIntersection(initialOutShape, initialInShape);
@@ -40,7 +40,10 @@ test('crossfade pointer release ignores clicks and tremor but commits a real dra
 		assert.equal(fixture.commits.length, 0, 'no meaningful movement creates no undo entry');
 
 		begin();
-		await act(async () => fixture.finishPointerSession({ pointerId: 7, clientX: 102, clientY: 100 }));
+		await act(async () => fixture.finishPointerSession({ pointerId: 7, clientX: 130, clientY: 100 }));
+		assert.equal(fixture.commits.length, 0, 'sideways travel belongs only to Alt roll');
+		begin();
+		await act(async () => fixture.finishPointerSession({ pointerId: 7, clientX: 102, clientY: 110 }));
 		assert.equal(fixture.commits.length, 1);
 		const commit = fixture.commits[0];
 		assert.ok(commit);

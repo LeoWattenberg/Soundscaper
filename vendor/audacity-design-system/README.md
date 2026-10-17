@@ -600,3 +600,21 @@ are the places where the two keyboard models meet, so a future sync should re-ch
     `tests/audio-editor-round7-io-mixer-fader-primary-release.test.tsx` and the
     ordinary Window → Mixer Master Volume, primary release and keyboard
     Undo/Redo workflow that retains the imported recording. Upstream-PR candidate.
+
+77. Selected interaction components and behavior are ported from upstream
+    `20ce5547d592e89dee7630952853c3facd3eb4ed` (2026-10-15): direct value entry
+    for numeric controls and timecodes, the visual keyboard map, clip properties,
+    label geometry and color, adaptive clip handles, clip/fade pointer and
+    keyboard interactions, and the optional play-at-speed control. The overall
+    vendor pin remains unchanged because this is a selective port.
+    Host adapters retain native history, source clocks, linked media, selection,
+    source editing, configured shortcuts, localization, and project persistence.
+    The existing source editor is exposed as Source monitor without property
+    drawers; Clip properties is a separate panel. Keyboard visualization opens
+    from Keyboard shortcuts preferences, and Speed is an opt-in toolbar item
+    sharing the existing Play menu state. Direct entry uses the editor overlay
+    host so menus and dialogs retain focus and stacking. Clip duplication uses
+    native project carriers, including linked video/audio, without replacing the
+    clipboard. New fades use upstream S-curves; existing unshaped fades retain
+    their stored linear interpretation. Maintained helpers and public browser
+    workflows cover these host adaptations.

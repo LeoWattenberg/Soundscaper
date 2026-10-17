@@ -55,23 +55,23 @@ test.describe('Soundscaper clip-selection navigation menus', () => {
 		await expect(editor.locator('[data-spectral-brush]')).toBeVisible();
 		const clip = clipByName(editor, toneA.name);
 		await clip.focus();
-		await page.keyboard.down('s');
+		await page.keyboard.down('c');
 		await expect(editor.locator('[data-spectral-brush]')).toHaveCount(0);
 		await expect(editor.getByRole('button', { name: 'Split tool', exact: true }))
 			.toHaveAttribute('aria-pressed', 'true');
 		await page.waitForTimeout(300);
 		await clickClipInterior(page, clip, 0.5);
 		await expect(editor.locator('[data-clip-id]')).toHaveCount(2);
-		await page.keyboard.up('s');
+		await page.keyboard.up('c');
 		await expect(editor.locator('[data-spectral-brush]')).toBeVisible();
 
 		await editor.locator('[data-clip-id]').first().focus();
-		await page.keyboard.press('s');
+		await page.keyboard.press('c');
 		const splitTool = editor.getByRole('button', { name: 'Split tool', exact: true });
 		await expect(splitTool).toHaveAttribute('aria-pressed', 'true');
 		await expect(editor.locator('[data-spectral-brush]')).toHaveCount(0);
 		await splitTool.focus();
-		await page.keyboard.press('s');
+		await page.keyboard.press('c');
 		await expect(splitTool).toHaveAttribute('aria-pressed', 'false');
 	});
 });

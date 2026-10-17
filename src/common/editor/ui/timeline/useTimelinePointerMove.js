@@ -1,3 +1,5 @@
+import { clipPointerHasMoved, captureClipPointerDrag } from './clip-pointer-selection.ts';
+import { previewClipFadePointer } from './clip-fade-pointer-edit.ts';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useTimelinePointerFrame } from './useTimelinePointerFrame.ts';
 import { clipStretchPointerPreview, loopPointerPreview } from './clip-loop-pointer.ts';
@@ -5,9 +7,9 @@ import { CLIP_CONTENT_OFFSET } from '@soundscaper/design-system/constants';
 
 import { secondsToFrames } from '../../design-system-adapters.js';
 import { createBoundarySnapIndex, resolveBoundarySnap, resolveClipMoveBoundarySnap } from './boundary-snap.ts';
-import { fadeDurationAtPointer, fadeField, fadeShapeAtPointer, fadeShapeField } from './clip-fade-geometry.ts';
+import { fadeField, fadeShapeAtPointer, fadeShapeField } from './clip-fade-geometry.ts';
 import { planCrossfadeRoll } from './crossfade-roll-planner.ts';
-import { crossfadeShapesAtPointer } from './crossfade-visual-geometry.ts';
+import { crossfadeDepthShapesAtPointer } from './crossfade-visual-geometry.ts';
 import { createClipTrimPreview } from './interaction-helpers.js';
 import { compatibleMediaTrack, MINIMUM_TRACK_HEIGHT } from './geometry.ts';
 import { NEW_AUDIO_TRACK_DROP_TARGET } from './constants.ts';
@@ -191,7 +193,7 @@ export function useTimelinePointerMove({
 				});
 				session.preview = plan ? { previews: plan.previews } : null;
 			} else {
-				const shapes = crossfadeShapesAtPointer({
+				const shapes = crossfadeDepthShapesAtPointer({
 					initialPosition: session.initialPosition, initialGain: session.initialGain,
 					startX: session.startX, startY: session.startY,
 					clientX: event.clientX, clientY: event.clientY,
@@ -211,14 +213,9 @@ export function useTimelinePointerMove({
 		}
 		if (session?.kind === 'fade') {
 			if (session.pointerId !== event.pointerId) return;
-			const value = fadeDurationAtPointer(session.edge, session.initial, session.startX, event.clientX,
-				session.pixelsPerSecond, sampleRate, session.original.durationFrames);
-			session.preview = {
-				clipId: session.clipId,
-				trackId: session.trackId,
-				[fadeField(session.edge)]: value,
-				...(session.initial === 0 && value > 0 && session.original[fadeShapeField(session.edge)] === undefined
-					? { [fadeShapeField(session.edge)]: 1 } : {}),
+			const changes = previewClipFadePointer(session, event.clientX, event.shiftKey, project, sampleRate, controller.getTelemetrySnapshot?.().positionFrame ?? 0);
+			session.preview = { clipId: session.clipId, trackId: session.trackId, ...changes,
+				...(session.initial === 0 && changes[fadeField(session.edge)] > 0 && session.original[fadeShapeField(session.edge)] === undefined ? { [fadeShapeField(session.edge)]: 2 } : {}),
 			};
 			if (fadePreviewFrame.current === null) fadePreviewFrame.current = requestAnimationFrame(() => {
 				fadePreviewFrame.current = null;
@@ -323,6 +320,12 @@ export function useTimelinePointerMove({
 			session.points.push({ timelineFrame: point.timelineFrame, value: point.value });
 			event.preventDefault();
 		} else if (session?.kind === 'selection-resize' || session?.kind === 'selection') {
+			if (session.kind === 'selection' && !session.dragStarted) {
+				if (!clipPointerHasMoved(session, event.clientX, event.clientY)) return;
+				session.dragStarted = true;
+				captureClipPointerDrag(session);
+				run(() => controller.actions.timeline.selectClip(null));
+			}
 			const preview = session.kind === 'selection-resize'
 				? previewTimelineSelectionBoundaryEdit({
 					session, project, rawFrame: frameAtClientX(event.clientX, session.lane),
@@ -334,6 +337,13 @@ export function useTimelinePointerMove({
 			setBoundarySnapGuideFrames(preview.guideFrames);
 			setSelectionPreview(preview.selection);
 		} else if (session?.kind === 'move') {
+			if (!session.slipSlideMode && !session.dragStarted) {
+				if (!clipPointerHasMoved(session, event.clientX, event.clientY)) return;
+				session.dragStarted = true;
+				captureClipPointerDrag(session);
+				run(() => controller.actions.timeline.selectClip(null));
+				setDraggingClipIds(new Set(session.clipIds));
+			}
 			if (session.slipSlideMode) {
 				const currentPointerSample = frameAtClientX(event.clientX, session.lane);
 				const preview = resolveTimelineSlipSlidePointerPreview({

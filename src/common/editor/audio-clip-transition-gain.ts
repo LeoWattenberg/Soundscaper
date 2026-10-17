@@ -20,16 +20,16 @@ interface AuthoredFadeFields {
 	readonly fadeOutShape?: number;
 }
 
-/** Only a newly added fade gets the equal-power default; old unshaped fades stay linear. */
+/** Only a newly added fade gets the S-curve default; old unshaped fades stay linear. */
 export function shapesForNewClipFades(
 	before: AuthoredFadeFields,
 	changes: AuthoredFadeFields,
-): Readonly<{ fadeInShape?: 1; fadeOutShape?: 1 }> {
+): Readonly<{ fadeInShape?: 2; fadeOutShape?: 2 }> {
 	return {
 		...((before.fadeInFrames ?? 0) === 0 && (changes.fadeInFrames ?? 0) > 0
-			&& before.fadeInShape === undefined && changes.fadeInShape === undefined ? { fadeInShape: 1 as const } : {}),
+			&& before.fadeInShape === undefined && changes.fadeInShape === undefined ? { fadeInShape: 2 as const } : {}),
 		...((before.fadeOutFrames ?? 0) === 0 && (changes.fadeOutFrames ?? 0) > 0
-			&& before.fadeOutShape === undefined && changes.fadeOutShape === undefined ? { fadeOutShape: 1 as const } : {}),
+			&& before.fadeOutShape === undefined && changes.fadeOutShape === undefined ? { fadeOutShape: 2 as const } : {}),
 	};
 }
 

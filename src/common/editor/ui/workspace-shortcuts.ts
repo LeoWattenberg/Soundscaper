@@ -1,3 +1,4 @@
+import { clipInteractionOwnsKey } from './timeline/clip-handle-keyboard.ts';
 import {
 	audacityActionDefinition,
 	evaluateAudacityActionEnablement,
@@ -78,7 +79,7 @@ export function handleWorkspaceKeyboard(
 	run: ShortcutRun,
 	registry: ShortcutRegistry = {},
 ): void {
-	if (event.defaultPrevented) return;
+	if (event.defaultPrevented || clipInteractionOwnsKey(event)) return;
 	if (event.isComposing || event.nativeEvent?.isComposing
 		|| event.keyCode === 229 || event.nativeEvent?.keyCode === 229) return;
 	if (isWorkspaceModalShortcutTarget(event.target)) return;

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { CLIP_HEADER_HEIGHT, clipHandleRows } from '../utils/clipHandleRows';
 import type { MidiNote } from '@audacity-ui/core';
 import type { ClipColor } from '../types/clip';
 import { ClipHeader } from '../ClipHeader/ClipHeader';
@@ -29,9 +30,6 @@ const StretchIcon = () => (
 const EMPTY_NUMBER_ARRAY: number[] = [];
 
 export type ClipState = 'default' | 'headerHover';
-
-const MIN_CLIP_HEIGHT = 44; // Minimum height before header is hidden
-const HEADER_HEIGHT = 20;
 
 export interface ClipProps {
   /** Clip color from the 9-color palette */
@@ -156,7 +154,7 @@ export interface ClipProps {
  * This component displays a simplified clip with header and body areas,
  * using the Audacity 9-color clip palette. Composed of ClipHeader and ClipBody.
  *
- * When height ≤ 44px, enters "truncated" mode where header is hidden until hover.
+ * Below 72px, the header hides until hover and handles divide the clip height.
  */
 const ClipComponent: React.FC<ClipProps> = ({
   color = 'blue',
@@ -232,7 +230,8 @@ const ClipComponent: React.FC<ClipProps> = ({
     return () => cancelAnimationFrame(rafId);
   }, [shakeEdge, shakeToken]);
 
-  const isTruncated = height <= MIN_CLIP_HEIGHT;
+  const handleRows = clipHandleRows(height);
+  const isTruncated = handleRows.collapsed;
   const showHeader = !isTruncated || isHovering;
 
   const className = [
@@ -247,7 +246,7 @@ const ClipComponent: React.FC<ClipProps> = ({
 
   // In truncated mode, body always takes full height
   // Header overlays on top when visible
-  const bodyHeight = isTruncated ? height : height - HEADER_HEIGHT;
+  const bodyHeight = isTruncated ? height : height - CLIP_HEADER_HEIGHT;
 
   // Trim handle width
   const TRIM_HANDLE_WIDTH = 6;
@@ -313,11 +312,7 @@ const ClipComponent: React.FC<ClipProps> = ({
     };
   }, [trimEdge]);
 
-  // Visible handles (rendered when `selected`). Mouse-down on a handle starts
-  // a drag — the same pattern as the invisible edge trim above. Stretch is
-  // wired symmetrically; if `onStretchEdge` is absent the handles still
-  // render but produce no edit, so the layout can be reviewed visually
-  // before the audio side is hooked up.
+  // Pointer and keyboard handle lifecycles stay under the host's authority.
   const handleVisibleTrimMouseDown = (edge: 'left' | 'right') => (e: React.MouseEvent) => {
     if (!onTrimEdge) return;
     e.stopPropagation();
@@ -327,10 +322,6 @@ const ClipComponent: React.FC<ClipProps> = ({
     e.stopPropagation();
     setStretchEdge(edge);
   };
-
-  // Clip handles are mouse-only affordances; their trim/stretch
-  // actions are reachable via dedicated keyboard shortcuts, so we
-  // don't add a separate keyboard path through the buttons themselves.
 
   // Same rationale as onTrimEdgeRef above — onStretchEdge is inline
   // per render, so stash it in a ref to keep this effect from
@@ -360,7 +351,11 @@ const ClipComponent: React.FC<ClipProps> = ({
     <div
       ref={outerRef}
       className={className}
-      style={{ width: `${width}px`, height: `${height}px`, position: 'relative' }}
+      style={{
+        width: `${width}px`, height: `${height}px`, position: 'relative',
+        '--clip-handle-top': `${handleRows.trimTop}px`,
+        '--clip-handle-row': `${handleRows.rowHeight}px`,
+      } as React.CSSProperties}
       data-color={color}
       data-state={state}
       data-selected={selected}
@@ -481,7 +476,7 @@ const ClipComponent: React.FC<ClipProps> = ({
           Trim buttons render only when onTrimEdge is wired (matches the
           original contract); stretch buttons always render but no-op if
           onStretchEdge is absent. */}
-      {selected && (
+      {(onTrimEdge || onStretchEdge || selected) && (
         <>
           {/* Mouse-only handles. tabIndex={-1} keeps them out of the
               main tab order; the equivalent actions are reachable via

@@ -104,7 +104,7 @@ test('nullish fade shapes stay absent through factory normalization and trimming
 	assert.doesNotThrow(() => serializeScapeProjectDocument(trimmed));
 });
 
-test('editing a legacy fade keeps it linear, while creating a new fade records shape one', () => {
+test('editing a legacy fade keeps it linear, while creating a new fade records the S-curve default', () => {
 	const project = createCurrentAudioEditorProject({
 		id: 'fade-shape-legacy', now: '2026-09-24T00:00:00.000Z',
 		sources: [createAudioSource({ id: 'source', storageKey: 'source',
@@ -117,10 +117,10 @@ test('editing a legacy fade keeps it linear, while creating a new fade records s
 	const changed = applyEditorCommand(edited, { type: 'clip/update', clipId: 'clip', changes: { fadeInFrames: 60 } });
 	assert.equal(Object.hasOwn(changed.clips[0]!, 'fadeInShape'), false);
 	const fresh = applyEditorCommand(changed, { type: 'clip/update', clipId: 'clip', changes: { fadeOutFrames: 50 } });
-	assert.equal(fresh.clips[0]?.fadeOutShape, 1);
+	assert.equal(fresh.clips[0]?.fadeOutShape, 2);
 	const restored = parseScapeProjectDocument(serializeScapeProjectDocument(fresh)) as typeof fresh;
 	assert.equal(Object.hasOwn(restored.clips[0]!, 'fadeInShape'), false);
-	assert.equal(restored.clips[0]?.fadeOutShape, 1);
+	assert.equal(restored.clips[0]?.fadeOutShape, 2);
 });
 
 test('rendered replacement clears baked fade shapes along with fade durations', () => {
