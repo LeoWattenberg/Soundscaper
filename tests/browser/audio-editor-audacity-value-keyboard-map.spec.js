@@ -46,7 +46,7 @@ test('timecode direct entry accepts units, cancels invalid drafts and is availab
 	await input.press('Escape');
 	await expect(timecode.locator('.timecode__display')).toContainText('00.50s');
 	await timecode.getByRole('button', { name: 'Playhead: Format', exact: true }).click();
-	await page.getByRole('menuitem', { name: 'Enter value…', exact: true }).click();
+	await page.getByRole('menuitem', { name: 'Enter value', exact: true }).click();
 	await expect(input).toBeFocused();
 	await input.press('Escape');
 });

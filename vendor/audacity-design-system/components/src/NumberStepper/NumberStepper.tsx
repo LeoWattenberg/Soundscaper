@@ -20,6 +20,8 @@ export interface NumberStepperProps {
    * Placeholder text
    */
   placeholder?: string;
+  /** Accessible name for the input, independent of its arrow buttons. */
+  ariaLabel?: string;
   /**
    * Whether the input is disabled
    */
@@ -69,6 +71,7 @@ export const NumberStepper = React.forwardRef<HTMLInputElement, NumberStepperPro
   value,
   defaultValue = '',
   placeholder,
+  ariaLabel,
   disabled = false,
   onChange,
   tabIndex,
@@ -169,6 +172,7 @@ export const NumberStepper = React.forwardRef<HTMLInputElement, NumberStepperPro
         type="text"
         value={currentValue}
         placeholder={placeholder}
+        aria-label={ariaLabel}
         disabled={disabled}
         onChange={handleChange}
         onFocus={handleInputFocus}

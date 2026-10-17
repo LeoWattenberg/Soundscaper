@@ -130,7 +130,6 @@ export function Dialog({
   const [dialogPosition, setDialogPosition] = useState({ x: 0, y: 0 });
   const [isResizing, setIsResizing] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
-  const [currentWidth, setCurrentWidth] = useState(0);
   const resizeStateRef = useRef<{
     startX: number;
     startY: number;
@@ -209,24 +208,6 @@ export function Dialog({
       });
     }
   }, [isOpen, width, isMaximized]);
-
-  // Track current dialog width
-  useEffect(() => {
-    if (!dialogRef.current) return;
-
-    const updateWidth = () => {
-      if (dialogRef.current) {
-        setCurrentWidth(Math.round(dialogRef.current.getBoundingClientRect().width));
-      }
-    };
-
-    updateWidth();
-
-    const resizeObserver = new ResizeObserver(updateWidth);
-    resizeObserver.observe(dialogRef.current);
-
-    return () => resizeObserver.disconnect();
-  }, [isOpen]);
 
   // Handle resize mouse down
   const handleResizeMouseDown = (e: React.MouseEvent, edge: string) => {
@@ -380,7 +361,7 @@ export function Dialog({
         style={dialogStyle}
         role="dialog"
         aria-modal="true"
-        aria-labelledby="dialog-title"
+        aria-label={title}
       >
         {/* Resize handles */}
         {!isMaximized && (
@@ -398,7 +379,7 @@ export function Dialog({
 
         {/* Header */}
         <DialogHeader
-          title={`${title} (${currentWidth}px)`}
+          title={title}
           logo={logo}
           onClose={onClose}
           maximizable={maximizable}
