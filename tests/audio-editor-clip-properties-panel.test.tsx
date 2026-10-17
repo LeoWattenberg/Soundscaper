@@ -110,6 +110,28 @@ test('native time display replaces the glyph fields and commits an exact project
 	} finally { await f.cleanup(); }
 });
 
+test('native time fields roll back refused moves and trims while reporting each failure once', async () => {
+	for (const mode of ['sync', 'async'] as const) {
+		const f = await fixture();
+		try {
+			await f.render(['one']);
+			await f.settingsItem(ENGLISH_COPY.clipTimecodeFields);
+			f.rejectNativeEdits(mode);
+			for (const [field, draft, original] of [['start', 12345, '0'], ['length', 12000, '24000']] as const) {
+				const input = f.input(field);
+				await act(async () => reactProps(input).onChange({ currentTarget: { valueAsNumber: draft } }));
+				const wrapper = f.dom.one(`[data-clip-properties-field="${field}"]`).querySelector('.audio-editor-timecode-input');
+				assert.ok(wrapper);
+				await act(async () => reactProps(wrapper).onBlur({ currentTarget: wrapper, relatedTarget: null }));
+				assert.equal(input.value, original, `${mode} ${field}: a refused draft must show the unchanged native value`);
+				assert.equal(f.failures.splice(0).length, 1, `${mode} ${field}: report one error through the workspace runner`);
+				assert.equal(f.dom.find('[role="alert"]'), null);
+			}
+			assert.deepEqual(f.trims, []);
+		} finally { await f.cleanup(); }
+	}
+});
+
 test('merged clip properties edit all selected clips in one native batch without changing selection', async () => {
 	const f = await fixture();
 	try {
@@ -208,11 +230,21 @@ async function fixture() {
 	const trims: { id: string; changes: Readonly<Record<string, number>> }[] = [];
 	const opened: string[] = [], failures: unknown[] = [];
 	let reject = false;
+	let nativeRejection: 'sync' | 'async' | null = null;
+	const rejectNative = () => {
+		const failure = new Error('Native edit refused');
+		if (nativeRejection === 'sync') throw failure;
+		return Promise.reject(failure);
+	};
 	const controller = { get project() { return current; }, actions: {
 		preferences: { setPanelVisibility: (id: string) => { opened.push(id); } },
-		clipSourcePreview: { focus: (id: string) => { opened.push(id); }, trim: (id: string, changes: Readonly<Record<string, number>>) => { trims.push({ id, changes }); } },
+		clipSourcePreview: { focus: (id: string) => { opened.push(id); }, trim: (id: string, changes: Readonly<Record<string, number>>) => {
+			if (nativeRejection) return rejectNative();
+			trims.push({ id, changes });
+		} },
 		edit: { commit: (command: unknown) => { commits.push(command); } },
 		clip: { update: (id: string, changes: unknown) => { if (reject) throw new Error('Cannot update clip'); updates.push({ id, changes }); },
+			move: () => nativeRejection ? rejectNative() : undefined,
 			normalizePeak: (id: string) => { operations.push({ action: 'normalizePeak', id }); },
 			setTimePitch: (id: string, changes: unknown) => { timePitch.push({ ids: [id], changes }); },
 			setTimePitchMany: (ids: readonly string[], changes: unknown) => { timePitch.push({ ids, changes }); } },
@@ -224,9 +256,14 @@ async function fixture() {
 		await act(async () => reactProps(input(name)).onChange({ target: { value } }));
 	};
 	const run = (operation: () => unknown) => {
-		try { void Promise.resolve(operation()).catch(cause => { failures.push(cause); }); } catch (cause) { failures.push(cause); }
+		try {
+			const value = operation();
+			void Promise.resolve(value).catch(cause => { failures.push(cause); });
+			return value;
+		} catch (cause) { failures.push(cause); return undefined; }
 	};
 	return { dom, input, updates, commits, timePitch, type, opened, failures, operations, trims, rejectUpdates: () => { reject = true; }, project: () => current,
+		rejectNativeEdits: (mode: 'sync' | 'async') => { nativeRejection = mode; },
 		settingsItem: async (label: string) => {
 			const trigger = dom.one('[data-clip-audio-settings]');
 			await act(async () => reactProps(trigger).onClick({ currentTarget: trigger }));

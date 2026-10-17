@@ -87,7 +87,8 @@ export default function ClipPropertiesPanel({ controller, snapshot, copy, focusR
 		&& !('project' in editor && editor.project?.id !== project?.id);
 	const run = (operation: () => unknown) => {
 		if (blocked || !ownsTarget()) return;
-		return runCommand(() => Promise.resolve(operation()).catch(cause => { if (ownsTarget()) throw cause; }));
+		return runCommand(() => Promise.resolve().then(() => ownsTarget() ? operation() : false)
+			.catch(cause => { if (ownsTarget()) throw cause; }));
 	};
 	const update = (changes: (clip: PropertyClip) => Readonly<Record<string, unknown>>) => run(() => {
 		if (presentation.clips.length === 1) return editor.actions.clip.update(presentation.clips[0]!.id, changes(presentation.clips[0]!));
