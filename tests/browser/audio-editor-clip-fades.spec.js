@@ -200,6 +200,7 @@ test.describe('non-destructive clip fade handles', () => {
 			await expect(shape).toHaveAttribute('aria-valuetext', 'Linear');
 			await editor.getByRole('button', { name: 'Undo', exact: true }).click();
 			await expect(shape).not.toHaveAttribute('aria-valuetext');
+			await owner.hover();
 			await shape.click({ modifiers: ['Control'] });
 			await expect(shape).toHaveAttribute('aria-valuetext', 'Linear');
 			await shape.click({ modifiers: ['Control'] });
@@ -211,6 +212,7 @@ test.describe('non-destructive clip fade handles', () => {
 			await expect(shape).toHaveAttribute('aria-valuenow', '2');
 			await editor.getByRole('button', { name: 'Undo', exact: true }).click();
 			await expect(shape).toHaveAttribute('aria-valuenow', custom);
+			await owner.hover();
 			await fade.dblclick();
 			await expect(shape).toHaveAttribute('aria-valuenow', '2');
 			await editor.getByRole('button', { name: 'Undo', exact: true }).click();
