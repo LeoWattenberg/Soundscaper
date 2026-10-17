@@ -87,7 +87,7 @@ function changesForClip(clip: ClipFadeTarget, edit: SelectedClipFadeEdit, sample
 	else for (const edge of ['in', 'out'] as const) {
 		const field = fadeField(edge);
 		const frames = edit.changes[field];
-		if (frames !== undefined) lengths = { ...lengths, ...clipFadeLengthChange({ ...clip, ...lengths }, edge, frames, sampleRate) };
+		if (frames !== undefined) lengths = { ...lengths, ...clipFadeLengthChange({ ...clip, ...lengths }, edge, frames) };
 	}
 	const changes: SelectedClipFadeChanges = { ...lengths, ...shapesForNewClipFades(clip, lengths) };
 	if (edit.kind !== 'properties') return changes;

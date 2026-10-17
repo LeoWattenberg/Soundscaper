@@ -27,6 +27,14 @@ test('fade dragging snaps to the playhead and Shift inverts time-grid snapping',
 	assert.equal(clipFadePointerEdit({ ...request, playheadFrame: 500_000, gridEnabled: true, shiftKey: true }).fadeInFrames, 47_000);
 });
 
+test('grid snapping and Shift take priority over nearby fade magnets', () => {
+	const request = { clip, edge: 'in' as const, rawDurationFrames: 47_000, sampleRate: 48_000, pixelsPerSecond: 100,
+		playheadFrame: 96_000, gridEnabled: true, gridFrame: 90_000, shiftKey: false, boundaryFrames: [95_500] };
+	assert.equal(clipFadePointerEdit(request).fadeInFrames, 42_000, 'the enabled grid owns the boundary');
+	assert.equal(clipFadePointerEdit({ ...request, shiftKey: true }).fadeInFrames, 47_000, 'Shift disables the grid and magnets');
+	assert.equal(clipFadePointerEdit({ ...request, gridEnabled: false, shiftKey: true }).fadeInFrames, 42_000, 'Shift enables the grid without magnets');
+});
+
 test('fade boundaries snap across tracks but never to edges outside the current clip', () => {
 	const change = clipFadePointerEdit({ clip, edge: 'out', rawDurationFrames: 23_100, sampleRate: 48_000, pixelsPerSecond: 100,
 		playheadFrame: 0, gridEnabled: false, gridFrame: 0, shiftKey: false, boundaryFrames: [120_000, 500_000] });

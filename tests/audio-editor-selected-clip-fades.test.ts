@@ -63,6 +63,17 @@ test('dialog patches preserve unspecified fields and apply both lengths without 
 	assert.equal(clipFadeEditsCommand([]), null);
 });
 
+test('numeric fade properties retain authored sub-20ms fades on every target', () => {
+	const initial = project();
+	const command = planSelectedClipFadeCommand({ ...request, clips: initial.clips,
+		edit: { kind: 'properties', changes: { fadeInFrames: 48 } } });
+	assert.ok(command);
+	const history = executeSoundscaperProjectCommand(createSoundscaperProjectHistory(initial), command);
+	assert.deepEqual(history.present.clips.map(clip => clip.fadeInFrames), [48, 48]);
+	assert.deepEqual(history.present.clips.map(clip => clip.fadeOutFrames), [48_000, 12_000]);
+	assert.equal(history.undoStack.length, 1);
+});
+
 test('native batch commits the selected fade once and Undo restores every track', () => {
 	const initial = project();
 	const command = planSelectedClipFadeCommand({ clips: initial.clips, editedClipId: 'long', selectedIds,
