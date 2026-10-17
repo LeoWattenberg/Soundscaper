@@ -49,7 +49,7 @@ test('selected point and range labels copy their text, colors and spacing; Cut i
 	await pastedPoint.locator('[data-label-banner]').click();
 	await pastedRegion.locator('[data-label-banner]').click({ modifiers: ['Shift'] });
 	await expect(row.locator('[data-selected-label="true"]')).toHaveCount(2);
-	await chooseCommandAction(page, editor, 'Edit', 'Cut');
+	await chooseNestedCommandAction(page, editor, 'Edit', ['Cut', 'Cut']);
 	await expect(labels).toHaveCount(2);
 	await chooseCommandAction(page, editor, 'Edit', 'Undo');
 	await expect(labels).toHaveCount(4);
