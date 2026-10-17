@@ -4,6 +4,7 @@ import { createLocalizedError } from '../../../i18n/presentation-message.ts'; im
 
 import type { AudioEditorCommand } from '../../commands/protocol.ts';
 import type { ProjectFlushOptions } from './project-save-service.ts';
+import { selectedLabelsForProject, type SelectedLabelState } from '../../label-clipboard-selection.ts';
 import {
 	assertEditorCommandCapabilities,
 	type EditorCommandCapabilities,
@@ -38,7 +39,7 @@ export interface MutationHistory<Project extends MutationProject> {
 export interface ProjectMutationState<
 	Project extends MutationProject,
 	History extends MutationHistory<Project>,
-> {
+> extends SelectedLabelState {
 	readOnly: boolean;
 	projectActivationPending: boolean;
 	takeCycleRecovery?: unknown;
@@ -295,6 +296,7 @@ export function createProjectMutationService<
 		dependencies.state.history = nextHistory;
 		dependencies.setProject(nextHistory.present);
 		dependencies.synchronizeAnnotationFocus();
+		if (dependencies.state.selectedLabels?.length) dependencies.state.selectedLabels = [];
 		dependencies.publisher.publishProjectState();
 		return nextHistory.present;
 	}
@@ -314,6 +316,9 @@ export function createProjectMutationService<
 			dependencies.retention.retainLiveClipIds();
 		}
 		const project = requireProject();
+		if (dependencies.state.selectedLabels?.length) {
+			dependencies.state.selectedLabels = selectedLabelsForProject(project, dependencies.state);
+		}
 		if (dependencies.reconcileRecordingRouting(project.tracks)) {
 			void dependencies.persistRecordingRouting().catch(() => undefined);
 		}

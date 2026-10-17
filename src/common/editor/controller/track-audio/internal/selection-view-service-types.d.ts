@@ -3,6 +3,7 @@
 import type { AudioEditorCommand, CommandObject } from '../../../commands/protocol.ts';
 import type { RenderedAudio } from '../../../rendered-audio-channels.ts';
 import type { SelectionRange } from '../../../selection-range.ts';
+import type { SelectedLabelState } from '../../../label-clipboard-selection.ts';
 import type {
 	ClipSelectionNavigationClip,
 	ClipSelectionNavigationProject,
@@ -36,7 +37,7 @@ export interface SelectionViewProject extends ClipSelectionNavigationProject {
 	readonly snap?: CommandObject;
 }
 
-export interface SelectionViewState extends ClipSelectionNavigationState {
+export interface SelectionViewState extends ClipSelectionNavigationState, SelectedLabelState {
 	readonly recordingStarting?: boolean;
 	readonly timedRecordingPreparing?: boolean;
 	readonly timedRecording?: unknown;

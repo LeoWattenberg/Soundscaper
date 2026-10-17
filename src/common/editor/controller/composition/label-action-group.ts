@@ -35,8 +35,10 @@ export function createEditorLabelActionGroup(dependencies: EditorLabelActionGrou
 		dependencies.getLabelService,
 		['importLabelFile', 'importCueFile', 'exportLabels'],
 	);
+	const { select } = deferControllerMethods(dependencies.getLabelService, ['select']);
 	const actions = Object.freeze({
 		add: addLabel,
+		select,
 		update: (trackId: string | null, labelId: string, changes: Readonly<Record<string, unknown>>) => (
 			dependencies.commit({ type: 'label/update', trackId, labelId, changes })
 		),

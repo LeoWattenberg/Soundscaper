@@ -394,9 +394,10 @@ function conformLabels(draft: DataRecord, persistedBase: DataRecord, tempoMap: H
 		if (track.type !== 'label') continue;
 		for (const label of recordArray(track.labels, 'track.labels')) {
 			if (label.anchor !== 'musical') continue;
+			const base = baseLabels.get(String(label.id));
+			if (!base && label.startFrame === undefined && label.endFrame === undefined) continue;
 			const start = nonNegativeSafeInteger(label.startFrame, 'label.startFrame');
 			const end = nonNegativeSafeInteger(label.endFrame, 'label.endFrame');
-			const base = baseLabels.get(String(label.id));
 			const baseStart = base?.anchor === 'musical'
 				? beatToSampleFrame(base.startBeat as { num: number; den: number }, persistedTempoMap, sampleRate)
 				: null;

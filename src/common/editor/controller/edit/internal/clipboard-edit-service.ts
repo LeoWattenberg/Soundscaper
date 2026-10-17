@@ -184,7 +184,8 @@ export function createClipboardEditService(
 	function prepareClipboardPublication(descriptor: AudioEditorClipboard, captureSources: boolean): () => AudioEditorClipboard {
 		dependencies.lifetime.assertActive();
 		const project = dependencies.getProject();
-		const carrier: ControllerEditSessionClipboardCarrier = dependencies.createEditSessionClipboard?.(
+		const carrier: ControllerEditSessionClipboardCarrier = descriptor.schemaVersion === 7
+			? Object.freeze({ descriptor, originProjectId: project.id, sources: [] }) : dependencies.createEditSessionClipboard?.(
 			project,
 			descriptor,
 		) ?? Object.freeze({ descriptor });

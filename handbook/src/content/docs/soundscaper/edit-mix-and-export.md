@@ -121,6 +121,13 @@ regions together; select a label and drag its ear to adjust that label alone.
 Use the track menu's **Track color** to change the label palette, or right-click
 a label and choose **Label text size** for a size from 9 to 48 points.
 
+Click a label banner to select it, or **Shift-click** to select several labels.
+**Edit → Copy** and **Cut** operate on those labels before audio selections.
+**Paste** places the earliest copied label at the playhead on the focused label
+track, or the first label track, keeping their relative spacing and colors.
+Each Cut or Paste is one Undo step. While renaming a label, the same shortcuts
+copy, cut, and paste text.
+
 ### Edit clips in a spreadsheet {#clip-spreadsheet}
 
 Choose **View → Panels → Clip spreadsheet** to see all clips in the project.

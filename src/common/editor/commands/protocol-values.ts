@@ -129,12 +129,13 @@ export type AudioEditorClipboardAnnotation =
 	}>;
 
 export interface AudioEditorClipboard {
-	readonly schemaVersion: 1 | 2 | 3 | 4 | 5 | 6;
+	readonly schemaVersion: 1 | 2 | 3 | 4 | 5 | 6 | 7;
 	readonly sampleRate: number;
 	readonly durationFrames: number;
 	readonly tracks: readonly AudioEditorClipboardTrack[];
 	readonly annotations?: readonly AudioEditorClipboardAnnotation[];
 	readonly takeGroups?: readonly CommandObject[];
+	readonly labels?: readonly import('./label-clipboard-codec.ts').AudioEditorClipboardLabel[];
 }
 
 export interface CommandRangePayload {

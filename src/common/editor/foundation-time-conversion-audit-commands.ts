@@ -13,6 +13,12 @@ import type { FoundationTimeConversionSite } from './foundation-time-conversion-
  */
 export const FOUNDATION_TIME_CONVERSION_COMMAND_SITES: readonly FoundationTimeConversionSite[] = deepFreezeAuditSites([
 	{
+		id: 'selected-label-clipboard-placement',
+		file: 'src/common/editor/controller/edit/internal/selected-label-clipboard.ts',
+		behavior: 'Label-only paste independently scales resolved offsets to nearest destination samples, then recovers exact destination beat coordinates for musical labels while retaining their anchor kind.',
+		conversions: [{ helper: 'scaleSampleFrame', policies: ['point'] }, { helper: 'sampleFrameToBeat', policies: ['exact'] }],
+	},
+	{
 		id: 'shared-source-effect-musical-warp-duration',
 		file: 'src/common/editor/commands/source-process-audio-runtime.ts',
 		behavior: 'Length-changing source effects resolve musical warp points to nearest project samples before scaling elapsed time and recovering their beat coordinates through the current tempo map.',

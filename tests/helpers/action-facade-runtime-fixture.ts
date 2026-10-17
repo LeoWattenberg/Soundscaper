@@ -34,7 +34,7 @@ export function createActionFacadeRuntime(capability = true): EditorActionRuntim
 	});
 	const labels = createEditorLabelActionGroup({
 		getTrack: () => ({ addLabel: () => null }),
-		getLabelService: () => ({
+		getLabelService: () => ({ select: () => [],
 			importLabelFile: async () => null,
 			importCueFile: async () => null,
 			exportLabels: async () => ({

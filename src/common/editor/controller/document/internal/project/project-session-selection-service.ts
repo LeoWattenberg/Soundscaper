@@ -1,8 +1,9 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { isActiveAudioEditorProjectSchema } from '../../../../project-schema-version.ts';
+import type { SelectedLabelState } from '../../../../label-clipboard-selection.ts';
 
-export interface ProjectSessionSelectionState {
+export interface ProjectSessionSelectionState extends SelectedLabelState {
 	selectedTrackId: string | null;
 	selectedClipId: string | null;
 	selectedAnnotationId: string | null;
@@ -63,6 +64,7 @@ export function createProjectSessionSelectionService<
 		project: Project,
 		metadata: Readonly<ProjectSessionSelectionMetadata> = {},
 	): void {
+		if (dependencies.state.selectedLabels?.length) dependencies.state.selectedLabels = [];
 		dependencies.state.selectedTrackId = metadata.selectedTrackId === null ? null
 			: dependencies.findTrack(project, metadata.selectedTrackId)?.id
 				?? project.tracks.find((track) => track.type !== 'label')?.id

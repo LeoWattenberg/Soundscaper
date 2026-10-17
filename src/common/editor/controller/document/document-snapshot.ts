@@ -19,6 +19,7 @@ import type { FramescaperWebVcrUiSnapshot } from '../capture/framescaper-web-vcr
 import { inheritTrackFolderMediaStateProjectionV12 } from '../../track-folder-media-runtime.ts';
 import { rememberDeliveryReportOrigin } from '../../delivery-report-origin.ts';
 import { hasLockedClipboardPasteTarget } from '../../clipboard-paste-targets.ts';
+import { isRecord, labelClipboardTarget, selectedLabelsForProject, type SelectedLabelState } from '../../label-clipboard-selection.ts';
 
 const VIDEO_PREVIEW_PROJECTS = new WeakMap<object, object>();
 const PUBLISHED_PROJECTS = new WeakMap<object, object>();
@@ -97,7 +98,7 @@ interface CurrentTabMetadata {
 	readonly trackChannelHeightRatios?: unknown;
 }
 
-export interface EditorDocumentSnapshotState {
+export interface EditorDocumentSnapshotState extends Readonly<SelectedLabelState> {
 	readonly phase: string;
 	readonly projects: readonly SnapshotProjectSummary[];
 	readonly recentProjectIds: readonly string[];
@@ -262,6 +263,7 @@ export function createEditorDocumentSnapshot<Project extends SnapshotProject>(
 		selectedTrackId: state.selectedTrackId,
 		selectedClipId: state.selectedClipId,
 		selectedAnnotationId: state.selectedAnnotationId,
+		selectedLabels: Object.freeze(selectedLabelsForProject(currentProject, state).map(ref => Object.freeze({ ...ref }))),
 		timelineAnnotations: createDocumentTimelineAnnotationSnapshot(currentProject),
 		masteringSequences: createDocumentMasteringSequenceSnapshot(currentProject),
 		trackFolders: createDocumentTrackFolderSnapshot(currentProject),
@@ -339,7 +341,9 @@ export function createEditorDocumentSnapshot<Project extends SnapshotProject>(
 			canUndo: Boolean(history && runtime.canUndo(history)),
 			canRedo: Boolean(history && runtime.canRedo(history)),
 			hasClipboard: Boolean(state.clipboard),
-			pasteTargetLocked: hasLockedClipboardPasteTarget(currentProject, state.clipboard, state.selectedTrackId),
+			pasteTargetLocked: isRecord(state.clipboard) && state.clipboard.schemaVersion === 7
+				? labelClipboardTarget(currentProject, state.selectedTrackId)?.locked === true
+				: hasLockedClipboardPasteTarget(currentProject, state.clipboard, state.selectedTrackId),
 			undoEntries: Object.freeze((history?.undoStack || []).slice(-20).reverse()
 				.map(runtime.historyEntrySummary)),
 			redoEntries: Object.freeze((history?.redoStack || []).slice(-20).reverse()

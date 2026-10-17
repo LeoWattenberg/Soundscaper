@@ -68,6 +68,8 @@ export function createEditorControllerState<Preferences, RecordingRouting, Effec
 		selectedTrackId: null,
 		selectedClipId: null,
 		selectedAnnotationId: null,
+		selectedLabels: [],
+		selectedLabelsProjectId: null,
 		clipboard: null,
 		pixelsPerSecond: defaultPixelsPerSecond,
 		allowBelowProjectFitZoom: false,

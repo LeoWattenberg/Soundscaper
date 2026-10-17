@@ -99,6 +99,7 @@ export function createEditorEditService(runtime: EditServiceRuntime): HandleEdit
 		try {
 			if (action === 'undo') return travel(undoEditorCommand);
 			if (action === 'redo') return travel(redoEditorCommand);
+			if (runtime.handleSelectedLabelClipboard?.(action)) return;
 			const audioTrackIds = getProject().tracks.filter((track: RuntimeValue) => Array.isArray(track.clipIds)).map((track: RuntimeValue) => track.id);
 			const selectedTrack = findTrack(getProject(), state.selectedTrackId);
 			const selectedProjectTrackIds = [...new Set(

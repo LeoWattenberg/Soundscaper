@@ -17,6 +17,7 @@ import {
 } from './take-comp-clipboard.ts';
 import { cloneVideoClipComposition } from '../video-clip-composition.ts';
 import { normalizeVideoKeyframeCurves } from '../video-keyframe-curves.ts';
+import { AUDIO_EDITOR_LABEL_CLIPBOARD_SCHEMA_VERSION, normalizeLabelClipboardDescriptor } from './label-clipboard-codec.ts';
 import type {
 	AudioEditorClipboard,
 	AudioEditorClipboardAnnotation,
@@ -78,6 +79,7 @@ export function normalizeAudioEditorClipboardDescriptor(descriptor: unknown): Au
 	if (!isRecord(descriptor)) throw new TypeError('An audio editor clipboard descriptor is required.');
 	let candidate = descriptor;
 	const schemaValue = ownDataValue(candidate, 'schemaVersion', 'clipboard');
+	if (schemaValue === AUDIO_EDITOR_LABEL_CLIPBOARD_SCHEMA_VERSION) return normalizeLabelClipboardDescriptor(candidate);
 	if (schemaValue !== 1 && schemaValue !== 2 && schemaValue !== 3 && schemaValue !== 4 && schemaValue !== 5
 		&& schemaValue !== AUDIO_EDITOR_COMMAND_CLIPBOARD_SCHEMA_VERSION) {
 		throw new RangeError(`Unsupported clipboard schema version: ${String(schemaValue)}.`);

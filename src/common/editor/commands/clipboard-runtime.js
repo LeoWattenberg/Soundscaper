@@ -219,6 +219,7 @@ export function createClipboardDescriptor(project, options = {}) {
 /** @returns {Extract<import('./protocol.ts').AudioEditorCommand, { readonly type: 'clipboard/paste' }>} */
 export function preparePasteCommand(clipboard, options = {}, idFactory = createStableId) {
 	const normalizedClipboard = normalizeAudioEditorClipboardDescriptor(clipboard);
+	if (normalizedClipboard.schemaVersion === 7) throw new TypeError('A label clipboard requires native label paste preparation.');
 	const mode = options.mode || 'reject';
 	if (!['reject', 'overlap', 'insert-track', 'insert-all'].includes(mode)) throw new RangeError(`Unsupported paste mode: ${mode}.`);
 	const clipIds = {};
@@ -264,6 +265,7 @@ export function prepareCut(project, options = {}, idFactory = createStableId) {
 
 export function pasteClipboard(project, command) {
 	const clipboard = normalizeAudioEditorClipboardDescriptor(command.clipboard);
+	if (clipboard.schemaVersion === 7) throw new TypeError('A label clipboard requires native label paste preparation.');
 	const atFrame = assertFrame(command.atFrame, 'paste.atFrame');
 	const scale = project.sampleRate / clipboard.sampleRate;
 	if (!Number.isFinite(scale) || scale <= 0) throw new RangeError('The clipboard sample rate is invalid.');

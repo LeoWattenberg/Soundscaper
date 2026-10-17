@@ -533,7 +533,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		sourceBuffers, sourcePeaks, sourceChunkFrames: SOURCE_CHUNK_FRAMES, taskProgress, saveLabelFile: options.saveLabelFile, fileService, derivedSources: tracks.derivedAudio.derivedSources, updatePreferences: bindings.updatePreferences, confirmMonoConversion: options.confirmMonoConversion || (({ title, body }) => ({ accepted: typeof globalThis.confirm === 'function' ? globalThis.confirm(`${title}\n\n${body}`) : false, dontShowAgain: false })),
 		effectTargets: (...args) => effects.selection.audacityEffectTargets(...args),
 		persistEffectResults: (results, type, scope) => effects.result.persistAudacityEffectResults(results, type, scope),
-		getProject: () => documentState.project, getCommandProject, editingBlocked, commit: bindings.commit, setStatus: bindings.setStatus, publishDocumentSnapshot, handleError: bindings.handleError, preflightStorage: bindings.preflightStorage,
+		getProject: () => documentState.project, getCommandProject, editingBlocked, updateSelection: bindings.updateSelection, commit: bindings.commit, setStatus: bindings.setStatus, publishDocumentSnapshot, handleError: bindings.handleError, preflightStorage: bindings.preflightStorage,
 		normalizeTimelineFrame, snapTimelineFrame: bindings.selection.snapFrame, activeSelection, cacheSourceBuffer: bindings.cacheSourceBuffer, projectChanged: bindings.projectChanged, garbageCollectSources: bindings.garbageCollectSources, compactLiveSourceState: bindings.compactLiveSourceState,
 	});
 	const imports = createImportComposition({

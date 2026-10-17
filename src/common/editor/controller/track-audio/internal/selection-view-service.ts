@@ -61,6 +61,7 @@ export function createSelectionViewService<
 	}
 
 	function selectTrack(trackId: string | null) {
+		if (state.selectedLabels?.length) state.selectedLabels = [];
 		const project = getProject();
 		if (trackId != null && (!project || !findTrack(project, trackId))) {
 			throw createLocalizedError(Error, copy, 'audioTrackNotFound');
@@ -79,6 +80,7 @@ export function createSelectionViewService<
 	}
 
 	function selectClip(clipId: string | null, options: SelectionViewClipOptions = {}) {
+		if (state.selectedLabels?.length) state.selectedLabels = [];
 		const project = getProject();
 		if (clipId == null) {
 			state.selectedClipId = null;

@@ -13,3 +13,7 @@ test('the shared desktop project inventory is sorted, unique and fully staged', 
 		assert.equal(DESKTOP_EXPECTED_RUNTIME_FILES.includes(member), true, member);
 	}
 });
+
+test('the native label clipboard descriptor is admitted to the desktop project runtime', () => {
+	assert.ok(DESKTOP_PROJECT_RUNTIME_FILES.includes('src/common/editor/commands/label-clipboard-codec.js'));
+});
