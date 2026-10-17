@@ -2,7 +2,7 @@
 
 import { createWavFixture, expect, test } from './audio-editor-test-fixtures.js';
 import { bootEditor, chooseNestedCommandAction, closeClipProperties,
-	commitInput, disableNativeSavePicker, importFiles, openClipProperties } from './audio-editor-test-helpers.js';
+	commitInput, disableNativeSavePicker, importFiles, openSourceMonitor } from './audio-editor-test-helpers.js';
 import { exportSamples } from './helpers/round2-audio-export.js';
 
 function rms(samples) {
@@ -18,7 +18,7 @@ test('a native-rate Multiband compressor honors a valid crossover close to Nyqui
 		frequency: 3_800, duration: 1, channelCount: 1, channelAmplitudes: [.4] });
 	await importFiles(editor, [recording]);
 	const openEffect = async () => {
-		const properties = await openClipProperties(page, editor, editor.locator('[data-clip-id]').first());
+		const properties = await openSourceMonitor(page, editor, editor.locator('[data-clip-id]').first());
 		const waveform = properties.getByRole('region', { name: 'Source waveform', exact: true });
 		await waveform.focus();
 		await waveform.press('Control+a');

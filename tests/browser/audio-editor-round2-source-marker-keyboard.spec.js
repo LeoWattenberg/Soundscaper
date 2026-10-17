@@ -1,12 +1,12 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { expect, test, toneA } from './audio-editor-test-fixtures.js';
-import { bootEditor, clipByName, importFiles, openClipProperties } from './audio-editor-test-helpers.js';
+import { bootEditor, clipByName, importFiles, openSourceMonitor } from './audio-editor-test-helpers.js';
 
 test('deleting a source stretch marker keeps keyboard playback on the source waveform', async ({ page }) => {
 	const editor = await bootEditor(page, '/embed/en/');
 	await importFiles(editor, [toneA]);
-	const panel = await openClipProperties(page, editor, clipByName(editor, toneA.name));
+	const panel = await openSourceMonitor(page, editor, clipByName(editor, toneA.name));
 	const waveform = panel.getByRole('region', { name: 'Source waveform', exact: true });
 	const bounds = await waveform.boundingBox();
 	expect(bounds).not.toBeNull();

@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { expect, test, monoTone } from './audio-editor-test-fixtures.js';
-import { bootEditor, chooseCommandAction, clipByName, importFiles, openClipProperties } from './audio-editor-test-helpers.js';
+import { bootEditor, chooseCommandAction, clipByName, importFiles, openSourceMonitor } from './audio-editor-test-helpers.js';
 
 test('Nyquist source labels keep the sound position within a repeated clip', async ({ page }) => {
 	const editor = await bootEditor(page, '/embed/en/');
@@ -10,7 +10,7 @@ test('Nyquist source labels keep the sound position within a repeated clip', asy
 	await clip.locator('.clip-header').click();
 	await clip.getByRole('slider', { name: 'Looped clip length', exact: true }).press('ArrowRight');
 	await expect(clip).toHaveAccessibleName(/1\.6 seconds long$/u);
-	const properties = await openClipProperties(page, editor, clip);
+	const properties = await openSourceMonitor(page, editor, clip);
 	const waveform = properties.getByRole('region', { name: 'Source waveform', exact: true });
 	await waveform.focus();
 	await waveform.press('Control+a');

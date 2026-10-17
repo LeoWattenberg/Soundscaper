@@ -2,7 +2,7 @@
 
 import { createWavFixture, expect, test } from './audio-editor-test-fixtures.js';
 import { addRackEffect, bootEditor, chooseCommandAction, chooseNestedCommandAction, closeClipProperties,
-	closeDialog, disableNativeSavePicker, importFiles, openClipProperties, openEffectsForTrack } from './audio-editor-test-helpers.js';
+	closeDialog, disableNativeSavePicker, importFiles, openSourceMonitor, openEffectsForTrack } from './audio-editor-test-helpers.js';
 import { exportSamples } from './helpers/round2-audio-export.js';
 
 test('a native 24 kHz noise profile requires fresh capture before enabling a 48 kHz rack', async ({ page }) => {
@@ -11,7 +11,7 @@ test('a native 24 kHz noise profile requires fresh capture before enabling a 48 
 	await importFiles(editor, [createWavFixture({ name: 'native-noise-24000.wav', sampleRate: 24_000,
 		frequency: 750, duration: 0.8, channelCount: 1 })]);
 	await chooseCommandAction(page, editor, 'Select', 'Select all');
-	const properties = await openClipProperties(page, editor, editor.locator('[data-clip-id]').first());
+	const properties = await openSourceMonitor(page, editor, editor.locator('[data-clip-id]').first());
 	const source = properties.getByRole('region', { name: 'Source waveform', exact: true });
 	await source.focus();
 	await source.press('Control+a');

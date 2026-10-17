@@ -2,7 +2,7 @@
 
 import { createWavFixture, expect, test } from './audio-editor-test-fixtures.js';
 import { bootEditor, chooseDropdown, chooseNestedCommandAction, clipByName,
-	closeClipProperties, disableNativeSavePicker, importFiles, openClipProperties } from './audio-editor-test-helpers.js';
+	closeClipProperties, disableNativeSavePicker, importFiles, openClipProperties, openSourceMonitor } from './audio-editor-test-helpers.js';
 import { exportSamples } from './helpers/round2-audio-export.js';
 
 test('Auto Duck in a clip source uses its control track at the clip timeline placement', async ({ page }) => {
@@ -26,7 +26,7 @@ test('Auto Duck in a clip source uses its control track at the clip timeline pla
 	const voice = clipByName(editor, 'voice.wav');
 	await voice.locator('xpath=ancestor::div[@data-track-row]').getByRole('button', { name: 'Mute', exact: true }).click();
 	const music = clipByName(editor, 'music.wav');
-	const properties = await openClipProperties(page, editor, music);
+	const properties = await openSourceMonitor(page, editor, music);
 	const waveform = properties.getByRole('region', { name: 'Source waveform', exact: true });
 	await waveform.focus();
 	await waveform.press('Control+a');

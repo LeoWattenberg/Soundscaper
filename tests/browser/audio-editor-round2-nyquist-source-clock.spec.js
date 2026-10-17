@@ -1,14 +1,14 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { createWavFixture, expect, test } from './audio-editor-test-fixtures.js';
-import { bootEditor, chooseCommandAction, clipByName, importFiles, openClipProperties } from './audio-editor-test-helpers.js';
+import { bootEditor, chooseCommandAction, clipByName, importFiles, openSourceMonitor } from './audio-editor-test-helpers.js';
 
 test('Nyquist source selection properties use the source sample clock', async ({ page }) => {
 	const editor = await bootEditor(page, '/embed/en/');
 	const recording = createWavFixture({ name: 'nyquist-native.wav', frequency: 1000,
 		duration: 0.8, channelCount: 1, sampleRate: 44_100 });
 	await importFiles(editor, [recording]);
-	const panel = await openClipProperties(page, editor, clipByName(editor, recording.name));
+	const panel = await openSourceMonitor(page, editor, clipByName(editor, recording.name));
 	const waveform = panel.getByRole('region', { name: 'Source waveform', exact: true });
 	await waveform.focus();
 	await waveform.press('Control+a');

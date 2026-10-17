@@ -2,7 +2,7 @@
 
 import { createWavFixture, expect, test } from './audio-editor-test-fixtures.js';
 import { bootEditor, chooseNestedCommandAction, clipByName, closeClipProperties,
-	commitInput, disableNativeSavePicker, importFiles, openClipProperties } from './audio-editor-test-helpers.js';
+	commitInput, disableNativeSavePicker, importFiles, openSourceMonitor } from './audio-editor-test-helpers.js';
 import { exportSamples } from './helpers/round2-audio-export.js';
 
 test('Bitcrusher starts each sample hold at the authored ten-frame reduction boundary', async ({ page }) => {
@@ -11,7 +11,7 @@ test('Bitcrusher starts each sample hold at the authored ten-frame reduction bou
 	const recording = createWavFixture({ name: 'ten-frame-hold.wav', frequency: 1_200,
 		duration: 1, sampleRate: 48_000, channelCount: 1, channelAmplitudes: [.4] });
 	await importFiles(editor, [recording]);
-	const properties = await openClipProperties(page, editor, clipByName(editor, recording.name));
+	const properties = await openSourceMonitor(page, editor, clipByName(editor, recording.name));
 	const waveform = properties.getByRole('region', { name: 'Source waveform', exact: true });
 	await waveform.focus();
 	await waveform.press('Control+a');

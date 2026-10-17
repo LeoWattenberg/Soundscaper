@@ -2,7 +2,7 @@
 
 import { createWavFixture, expect, test } from './audio-editor-test-fixtures.js';
 import { bootEditor, chooseDropdown, chooseNestedCommandAction, clipByName, closeClipProperties,
-	commitInput, disableNativeSavePicker, importFiles, openClipProperties, openExportDialog,
+	commitInput, disableNativeSavePicker, importFiles, openSourceMonitor, openExportDialog,
 	readDownloadBytes } from './audio-editor-test-helpers.js';
 import { inspectWavBlobPcm, streamWavBlobPcm } from '../../src/common/editor/wav-import.js';
 
@@ -46,7 +46,7 @@ test('Source Reverb closes the same front stereo pair in a normal quad recording
 	}));
 	await rows[1].getByRole('button', { name: 'Mute', exact: true }).click();
 	for (const [index, row] of rows.entries()) {
-		const properties = await openClipProperties(page, editor, row.locator('[data-clip-id]').first());
+		const properties = await openSourceMonitor(page, editor, row.locator('[data-clip-id]').first());
 		const waveform = properties.getByRole('region', { name: 'Source waveform', exact: true });
 		await waveform.focus();
 		await waveform.press('Control+a');

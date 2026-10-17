@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { createWavFixture, expect, test } from './audio-editor-test-fixtures.js';
-import { bootEditor, clipByName, closeClipProperties, disableNativeSavePicker, importFiles, openClipProperties } from './audio-editor-test-helpers.js';
+import { bootEditor, clipByName, closeClipProperties, disableNativeSavePicker, importFiles, openSourceMonitor } from './audio-editor-test-helpers.js';
 import { exportSamples } from './helpers/round2-audio-export.js';
 
 function frequency(samples) {
@@ -22,7 +22,7 @@ test('trimming the source of a loop retains its audible playback rate', async ({
 	await clip.getByRole('slider', { name: 'Looped clip length', exact: true }).press('ArrowRight');
 	const before = frequency(await exportSamples(page, editor));
 	expect(Math.abs(before - 1000)).toBeLessThan(0.1);
-	const panel = await openClipProperties(page, editor, clip);
+	const panel = await openSourceMonitor(page, editor, clip);
 	await panel.getByRole('button', { name: 'Trim source start', exact: true }).press('Shift+ArrowRight');
 	await closeClipProperties(panel);
 	const after = frequency(await exportSamples(page, editor));

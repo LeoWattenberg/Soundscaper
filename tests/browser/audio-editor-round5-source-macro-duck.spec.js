@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { createWavFixture, expect, test } from './audio-editor-test-fixtures.js';
-import { bootEditor, chooseCommandAction, chooseNestedCommandAction, clipByName, closeClipProperties, disableNativeSavePicker, importFiles, openClipProperties } from './audio-editor-test-helpers.js';
+import { bootEditor, chooseCommandAction, chooseNestedCommandAction, clipByName, closeClipProperties, disableNativeSavePicker, importFiles, openSourceMonitor } from './audio-editor-test-helpers.js';
 import { exportSamples } from './helpers/round2-audio-export.js';
 
 for (const sourceMode of [true, false]) test(`an Auto Duck macro retains its voice control in the ${sourceMode ? 'source editor' : 'timeline'}`, async ({ page }) => {
@@ -18,7 +18,7 @@ for (const sourceMode of [true, false]) test(`an Auto Duck macro retains its voi
 	const voice = clipByName(editor, 'voice.wav');
 	await voice.locator('xpath=ancestor::div[@data-track-row]').getByRole('button', { name: 'Mute', exact: true }).click();
 	const music = clipByName(editor, 'music.wav');
-	const properties = sourceMode ? await openClipProperties(page, editor, music) : null;
+	const properties = sourceMode ? await openSourceMonitor(page, editor, music) : null;
 	if (properties) {
 		const waveform = properties.getByRole('region', { name: 'Source waveform', exact: true });
 		await waveform.focus();

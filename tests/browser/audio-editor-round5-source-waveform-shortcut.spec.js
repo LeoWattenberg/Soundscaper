@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { createWavFixture, expect, test, toneA } from './audio-editor-test-fixtures.js';
-import { bootEditor, chooseCommandAction, clipByName, importFiles, openClipProperties } from './audio-editor-test-helpers.js';
+import { bootEditor, chooseCommandAction, clipByName, importFiles, openSourceMonitor } from './audio-editor-test-helpers.js';
 
 test('modified Source waveform Space runs the configured command without starting audition', async ({ page }) => {
 	const editor = await bootEditor(page, '/embed/en/');
@@ -17,7 +17,7 @@ test('modified Source waveform Space runs the configured command without startin
 	await preferences.getByRole('button', { name: 'Close', exact: true }).last().click();
 	const clip = clipByName(editor, toneA.name);
 	const original = await clip.getAttribute('aria-label');
-	const properties = await openClipProperties(page, editor, clip);
+	const properties = await openSourceMonitor(page, editor, clip);
 	const waveform = properties.getByRole('region', { name: 'Source waveform', exact: true });
 	await waveform.focus();
 	await waveform.press('Control+Alt+Space');
@@ -30,7 +30,7 @@ test('Source waveform leaves Shift Space to the timeline play-from-cursor comman
 	const editor = await bootEditor(page, '/embed/en/');
 	const recording = createWavFixture({ name: 'shift-space.wav', frequency: 440, duration: 5, channelCount: 1 });
 	await importFiles(editor, [recording]);
-	const properties = await openClipProperties(page, editor, clipByName(editor, recording.name));
+	const properties = await openSourceMonitor(page, editor, clipByName(editor, recording.name));
 	const waveform = properties.getByRole('region', { name: 'Source waveform', exact: true });
 	await waveform.focus();
 	await waveform.press('Shift+Space');

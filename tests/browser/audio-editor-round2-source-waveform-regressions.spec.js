@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { createWavFixture, expect, test } from './audio-editor-test-fixtures.js';
-import { bootEditor, clipByName, closeClipProperties, importFiles, openClipProperties } from './audio-editor-test-helpers.js';
+import { bootEditor, clipByName, closeClipProperties, importFiles, openSourceMonitor } from './audio-editor-test-helpers.js';
 
 async function paintedSamples(canvas) {
 	return canvas.evaluate(element => {
@@ -24,14 +24,14 @@ test('unused source waveform stays at native speed when the active clip is loope
 	recording.buffer.fill(0, 44, 44 + 2400 * 2);
 	await importFiles(editor, [recording]);
 	const clip = clipByName(editor, recording.name);
-	let panel = await openClipProperties(page, editor, clip);
+	let panel = await openSourceMonitor(page, editor, clip);
 	await panel.getByRole('button', { name: 'Trim source start', exact: true }).press('Shift+ArrowRight');
 	const unused = () => panel.locator('[data-source-active="false"] canvas');
 	await expect(unused()).toHaveCount(1);
 	await expect.poll(() => paintedSamples(unused())).toBeGreaterThan(25);
 	await closeClipProperties(panel);
 	await clip.getByRole('slider', { name: 'Looped clip length', exact: true }).press('ArrowRight');
-	panel = await openClipProperties(page, editor, clip);
+	panel = await openSourceMonitor(page, editor, clip);
 	await expect(unused()).toHaveCount(1);
 	await expect.poll(() => paintedSamples(unused())).toBeGreaterThan(25);
 });

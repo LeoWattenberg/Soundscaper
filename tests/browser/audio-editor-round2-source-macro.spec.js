@@ -2,7 +2,7 @@
 
 import { createWavFixture, expect, test } from './audio-editor-test-fixtures.js';
 import { bootEditor, chooseCommandAction, chooseNestedCommandAction, clipByName,
-	disableNativeSavePicker, importFiles, openClipProperties, closeClipProperties } from './audio-editor-test-helpers.js';
+	disableNativeSavePicker, importFiles, openSourceMonitor, closeClipProperties } from './audio-editor-test-helpers.js';
 import { exportSamples } from './helpers/round2-audio-export.js';
 
 test('a macro Invert operates on the same source-editor selection as the effect menu', async ({ page }) => {
@@ -13,7 +13,7 @@ test('a macro Invert operates on the same source-editor selection as the effect 
 		duration: 0.8, channelCount: 1, sampleRate: 44_100 });
 	await importFiles(editor, [recording]);
 	const clip = clipByName(editor, recording.name);
-	const panel = await openClipProperties(page, editor, clip);
+	const panel = await openSourceMonitor(page, editor, clip);
 	const waveform = panel.getByRole('region', { name: 'Source waveform', exact: true });
 	const box = await waveform.boundingBox();
 	if (!box) throw new Error('Missing source waveform bounds');

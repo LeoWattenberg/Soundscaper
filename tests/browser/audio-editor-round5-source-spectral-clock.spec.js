@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { createWavFixture, expect, test } from './audio-editor-test-fixtures.js';
-import { bootEditor, chooseNestedCommandAction, clipByName, closeClipProperties, disableNativeSavePicker, importFiles, openClipProperties } from './audio-editor-test-helpers.js';
+import { bootEditor, chooseNestedCommandAction, clipByName, closeClipProperties, disableNativeSavePicker, importFiles, openSourceMonitor } from './audio-editor-test-helpers.js';
 import { exportSamples } from './helpers/round2-audio-export.js';
 
 test('spectral deletion processes a source selection in its native frequency clock', async ({ page }) => {
@@ -14,7 +14,7 @@ test('spectral deletion processes a source selection in its native frequency clo
 	const clip = clipByName(editor, file.name);
 	await clip.locator('.clip-header').click();
 	await editor.getByRole('button', { name: 'Spectrogram', exact: true }).click();
-	const properties = await openClipProperties(page, editor, clip);
+	const properties = await openSourceMonitor(page, editor, clip);
 	const waveform = properties.getByRole('region', { name: 'Source waveform', exact: true });
 	await waveform.focus();
 	await waveform.press('Control+a');

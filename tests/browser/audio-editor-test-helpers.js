@@ -204,17 +204,7 @@ export async function clickClipInterior(page, clip, position = 0.5) {
 	);
 }
 
-export async function openClipProperties(page, editor, clip) {
-	if (clip) {
-		await clip.focus();
-		await clip.press('Enter');
-	}
-	await chooseNestedCommandAction(page, editor, 'Edit', ['Audio clips', 'Clip properties']);
-	const panel = editor.locator('[data-workspace-panel="clip-properties"]');
-	await expect(panel).toBeVisible();
-	await expect(panel.locator('[data-clip-properties-panel]')).toBeVisible();
-	return panel;
-}
+export { openClipProperties, openSourceMonitor } from './audio-editor-inspector-test-helpers.js';
 
 export async function openEffectsForTrack(editor, trackIndex) {
 	if (await editor.locator('[data-workspace-panel="project-bin"]').isVisible()) {
@@ -277,7 +267,7 @@ export async function openExportDialog(page, editor, { label = 'Export audio', .
 }
 
 export async function closeClipProperties(panel) {
-	await closeWorkspacePanel(panel.page().locator('[data-audio-editor]'), 'clip-properties');
+	await closeWorkspacePanel(panel.page().locator('[data-audio-editor]'), await panel.getAttribute('data-workspace-panel') || 'clip-properties');
 }
 
 export async function closeDialog(dialog) {

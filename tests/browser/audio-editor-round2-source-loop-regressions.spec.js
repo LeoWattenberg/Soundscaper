@@ -2,7 +2,7 @@
 
 import { createWavFixture, expect, test } from './audio-editor-test-fixtures.js';
 import { bootEditor, chooseNestedCommandAction, clipByName, disableNativeSavePicker,
-	importFiles, openClipProperties, closeClipProperties } from './audio-editor-test-helpers.js';
+	importFiles, openSourceMonitor, closeClipProperties } from './audio-editor-test-helpers.js';
 import { exportSamples } from './helpers/round2-audio-export.js';
 
 test('source editor effects target the selected phase of a repeated clip', async ({ page }) => {
@@ -15,7 +15,7 @@ test('source editor effects target the selected phase of a repeated clip', async
 	await clip.locator('.clip-header').click();
 	await clip.getByRole('slider', { name: 'Looped clip length', exact: true }).press('ArrowRight');
 	const original = await exportSamples(page, editor);
-	const panel = await openClipProperties(page, editor, clip);
+	const panel = await openSourceMonitor(page, editor, clip);
 	const waveform = panel.getByRole('region', { name: 'Source waveform', exact: true });
 	await expect(waveform.locator('canvas').first()).toBeVisible();
 	const box = await waveform.boundingBox();

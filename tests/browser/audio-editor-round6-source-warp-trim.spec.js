@@ -2,7 +2,7 @@
 
 import { createWavFixture, expect, test } from './audio-editor-test-fixtures.js';
 import { bootEditor, chooseNestedCommandAction, clipByName, closeClipProperties,
-	disableNativeSavePicker, importFiles, openClipProperties } from './audio-editor-test-helpers.js';
+	disableNativeSavePicker, importFiles, openSourceMonitor } from './audio-editor-test-helpers.js';
 import { exportSamples } from './helpers/round2-audio-export.js';
 
 for (const warped of [false, true]) test(`Source trim retains the ${warped ? 'authored nonlinear' : 'ordinary'} recording timing`, async ({ page }) => {
@@ -25,7 +25,7 @@ for (const warped of [false, true]) test(`Source trim retains the ${warped ? 'au
 		await warp.getByRole('button', { name: 'Close', exact: true }).click();
 	}
 	const before = await exportSamples(page, editor);
-	const properties = await openClipProperties(page, editor, clip);
+	const properties = await openSourceMonitor(page, editor, clip);
 	await properties.getByRole('button', { name: 'Trim source end', exact: true }).press('Shift+ArrowLeft');
 	await closeClipProperties(properties);
 	const expectedFrames = warped ? 38_400 : 43_200;

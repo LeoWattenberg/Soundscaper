@@ -2,7 +2,7 @@
 
 import { createWavFixture, expect, test } from './audio-editor-test-fixtures.js';
 import { bootEditor, chooseCommandAction, chooseNestedCommandAction, closeClipProperties,
-	commitInput, disableNativeSavePicker, importFiles, openClipProperties } from './audio-editor-test-helpers.js';
+	commitInput, disableNativeSavePicker, importFiles, openSourceMonitor } from './audio-editor-test-helpers.js';
 import { exportSamples } from './helpers/round2-audio-export.js';
 
 function rms(samples) {
@@ -18,7 +18,7 @@ for (const sampleRate of [48_000, 8_000]) {
 		await importFiles(editor, [createWavFixture({ name: `neutral-${sampleRate}.wav`, sampleRate,
 			frequency: 3_800, duration: 1, channelCount: 1, channelAmplitudes: [.4] })]);
 		const before = await exportSamples(page, editor);
-		const properties = await openClipProperties(page, editor, editor.locator('[data-clip-id]').first());
+		const properties = await openSourceMonitor(page, editor, editor.locator('[data-clip-id]').first());
 		const waveform = properties.getByRole('region', { name: 'Source waveform', exact: true });
 		await waveform.focus();
 		await waveform.press('Control+a');

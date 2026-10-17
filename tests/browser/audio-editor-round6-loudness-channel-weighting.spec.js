@@ -2,7 +2,7 @@
 
 import { createWavFixture, expect, test } from './audio-editor-test-fixtures.js';
 import { bootEditor, chooseNestedCommandAction, clipByName, closeClipProperties,
-	disableNativeSavePicker, importFiles, openClipProperties } from './audio-editor-test-helpers.js';
+	disableNativeSavePicker, importFiles, openSourceMonitor } from './audio-editor-test-helpers.js';
 import { exportSamples } from './helpers/round2-audio-export.js';
 
 function recording(lfe) {
@@ -36,7 +36,7 @@ test('Source Loudness Normalization gives the same audible programme gain with o
 	await tracks[1].getByRole('button', { name: 'Mute', exact: true }).click();
 	const outputs = [];
 	for (const [index, track] of tracks.entries()) {
-		const properties = await openClipProperties(page, editor, track.locator('[data-clip-id]').first());
+		const properties = await openSourceMonitor(page, editor, track.locator('[data-clip-id]').first());
 		const waveform = properties.getByRole('region', { name: 'Source waveform', exact: true });
 		await waveform.focus();
 		await waveform.press('Control+a');

@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { expect, test, toneA, toneB } from './audio-editor-test-fixtures.js';
-import { bootEditor, chooseCommandAction, clipByName, importFiles, openClipProperties } from './audio-editor-test-helpers.js';
+import { bootEditor, chooseCommandAction, clipByName, importFiles, openSourceMonitor } from './audio-editor-test-helpers.js';
 
 test('configured navigation commands remain available from selected-clip inspector tabs', async ({ page }) => {
 	const editor = await bootEditor(page, '/embed/en/');
@@ -17,7 +17,7 @@ test('configured navigation commands remain available from selected-clip inspect
 	await importFiles(editor, [toneA, toneB]);
 	await clipByName(editor, toneA.name).locator('.clip-header').click();
 	await clipByName(editor, toneB.name).locator('.clip-header').click({ modifiers: ['Shift'] });
-	const panel = await openClipProperties(page, editor);
+	const panel = await openSourceMonitor(page, editor);
 	const tabs = panel.locator('[data-clip-properties-tab]');
 	await expect(tabs).toHaveCount(2);
 	await tabs.first().focus();

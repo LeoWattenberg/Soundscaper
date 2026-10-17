@@ -1,12 +1,12 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { expect, test, longTone } from './audio-editor-test-fixtures.js';
-import { bootEditor, clipByName, importFiles, openClipProperties } from './audio-editor-test-helpers.js';
+import { bootEditor, clipByName, importFiles, openSourceMonitor } from './audio-editor-test-helpers.js';
 
 test('Source waveform selection ends on primary release while middle remains held', async ({ page }) => {
 	const editor = await bootEditor(page, '/embed/en/');
 	await importFiles(editor, [longTone]);
-	const panel = await openClipProperties(page, editor, clipByName(editor, longTone.name));
+	const panel = await openSourceMonitor(page, editor, clipByName(editor, longTone.name));
 	const waveform = panel.getByRole('region', { name: 'Source waveform', exact: true });
 	const bounds = await waveform.boundingBox();
 	expect(bounds).not.toBeNull();

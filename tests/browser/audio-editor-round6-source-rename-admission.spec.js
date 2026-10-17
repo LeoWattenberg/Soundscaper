@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { expect, test, toneA } from './audio-editor-test-fixtures.js';
-import { bootEditor, chooseCommandAction, clipByName, closeClipProperties, importFiles, openClipProperties } from './audio-editor-test-helpers.js';
+import { bootEditor, chooseCommandAction, clipByName, closeClipProperties, importFiles, openSourceMonitor } from './audio-editor-test-helpers.js';
 import { chooseTrackMenuAction } from './helpers/track-menu.js';
 
 test('the existing Source header follows the Clip properties mutation admission', async ({ page }) => {
@@ -9,7 +9,7 @@ test('the existing Source header follows the Clip properties mutation admission'
 	await importFiles(editor, [toneA]);
 	const clip = clipByName(editor, toneA.name);
 	const track = clip.locator('xpath=ancestor::div[@data-track-row]');
-	const panel = await openClipProperties(page, editor, clip);
+	const panel = await openSourceMonitor(page, editor, clip);
 	const sourceHeader = panel.locator('.audio-editor-source-clip .clip-header');
 	await sourceHeader.locator('.clip-header__name').dblclick();
 	const input = sourceHeader.getByRole('textbox', { name: 'Clip name', exact: true });

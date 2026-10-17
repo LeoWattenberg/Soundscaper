@@ -2,7 +2,7 @@
 
 import { expect, test } from './audio-editor-test-fixtures.js';
 import { bootEditor, chooseNestedCommandAction, clipByName, closeClipProperties,
-	disableNativeSavePicker, importFiles, openClipProperties } from './audio-editor-test-helpers.js';
+	disableNativeSavePicker, importFiles, openSourceMonitor } from './audio-editor-test-helpers.js';
 import { exportSamples } from './helpers/round2-audio-export.js';
 import { encodeWav } from '../../src/common/editor/wav.js';
 import { createEbuR128Meter } from '../../src/common/editor/ebu-r128.js';
@@ -16,7 +16,7 @@ test('Loudness Normalization includes the first full block of an 11025 Hz source
 	const recording = { name: 'phrase-and-pause.wav', mimeType: 'audio/wav',
 		buffer: Buffer.from(encodeWav([samples], { sampleRate, float: true })) };
 	await importFiles(editor, [recording]);
-	const properties = await openClipProperties(page, editor, clipByName(editor, recording.name));
+	const properties = await openSourceMonitor(page, editor, clipByName(editor, recording.name));
 	const waveform = properties.getByRole('region', { name: 'Source waveform', exact: true });
 	await waveform.focus();
 	await waveform.press('Control+a');

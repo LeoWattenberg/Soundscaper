@@ -3,7 +3,7 @@
 import { expect, test, longTone } from './audio-editor-test-fixtures.js';
 import {
 	bootEditor, clipByName, clipField, collectClientErrors, commitInput,
-	importFiles, openClipProperties, registerAudioEditorHooks, waitForEditor,
+	importFiles, openClipProperties, openSourceMonitor, registerAudioEditorHooks, waitForEditor,
 } from './audio-editor-test-helpers.js';
 
 test.describe('clip properties pitch and normalization', () => {
@@ -44,9 +44,10 @@ test.describe('clip properties pitch and normalization', () => {
 		await expect(clipField(panel, 'pitchCents')).toHaveValue('100.000');
 		await commitInput(clipField(panel, 'pitchCents'), '-50');
 		await expect(clipField(panel, 'speedRatio')).toHaveValue('0.5');
-		await panel.getByRole('button', { name: 'Play', exact: true }).click();
-		await expect(panel.getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
-		await panel.getByRole('button', { name: 'Stop', exact: true }).click();
+		const source = await openSourceMonitor(page, editor);
+		await source.getByRole('button', { name: 'Play', exact: true }).click();
+		await expect(source.getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
+		await source.getByRole('button', { name: 'Stop', exact: true }).click();
 		await linked.click();
 		await panel.getByRole('button', { name: 'Semitones (half-steps)', exact: true }).click();
 		await expect(clipField(panel, 'pitchCents')).toHaveValue('3.00');

@@ -2,7 +2,7 @@
 
 import { createWavFixture, expect, test } from './audio-editor-test-fixtures.js';
 import { bootEditor, chooseCommandAction, chooseNestedCommandAction, clipByName, commitInput, disableNativeSavePicker,
-	importFiles, openClipProperties, closeClipProperties } from './audio-editor-test-helpers.js';
+	importFiles, openSourceMonitor, closeClipProperties } from './audio-editor-test-helpers.js';
 import { exportSamples } from './helpers/round2-audio-export.js';
 
 function frequency(samples, start, end) {
@@ -26,7 +26,7 @@ test('a Source tempo change retains the pitch and repetitions of a looped record
 	const original = await exportSamples(page, editor);
 	expect(original.length).toBe(76_800);
 	expect(frequency(original, 4800, 14_400)).toBeGreaterThan(740);
-	const properties = await openClipProperties(page, editor, clip);
+	const properties = await openSourceMonitor(page, editor, clip);
 	const source = properties.getByRole('region', { name: 'Source waveform', exact: true });
 	await source.focus();
 	await source.press('Control+a');

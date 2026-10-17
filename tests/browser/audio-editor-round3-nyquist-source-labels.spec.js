@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { expect, test, toneA } from './audio-editor-test-fixtures.js';
-import { bootEditor, chooseCommandAction, clipByName, importFiles, openClipProperties } from './audio-editor-test-helpers.js';
+import { bootEditor, chooseCommandAction, clipByName, importFiles, openClipProperties, openSourceMonitor } from './audio-editor-test-helpers.js';
 
 test('Nyquist labels from a source selection retain its clip placement', async ({ page }) => {
 	const editor = await bootEditor(page, '/embed/en/');
@@ -13,7 +13,8 @@ test('Nyquist labels from a source selection retain its clip placement', async (
 	await page.keyboard.type('000001000');
 	await page.keyboard.press('Enter');
 	await expect(start.locator('.timecode__display')).toHaveText('00h00m01.000s');
-	const waveform = panel.getByRole('region', { name: 'Source waveform', exact: true });
+	const sourceMonitor = await openSourceMonitor(page, editor);
+	const waveform = sourceMonitor.getByRole('region', { name: 'Source waveform', exact: true });
 	await waveform.focus();
 	await waveform.press('Control+a');
 	await expect(waveform.locator('.audio-editor-source-selection')).toBeVisible();

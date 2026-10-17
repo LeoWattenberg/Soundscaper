@@ -2,7 +2,7 @@
 
 import { expect, test, toneA } from './audio-editor-test-fixtures.js';
 import { bootEditor, chooseCommandAction, clipByName, closeClipProperties,
-	importFiles, openClipProperties } from './audio-editor-test-helpers.js';
+	importFiles, openClipProperties, openSourceMonitor } from './audio-editor-test-helpers.js';
 import { chooseTrackMenuAction } from './helpers/track-menu.js';
 
 test('Clip properties retains live track lock and unlock admission', async ({ page }) => {
@@ -22,7 +22,8 @@ test('Clip properties retains live track lock and unlock admission', async ({ pa
 	await chooseTrackMenuAction(page, editor, track, 'Lock track');
 	await expect(name).toBeDisabled();
 	await expect(panel.locator('[data-clip-field="inverted"]').getByRole('checkbox')).toHaveAttribute('aria-disabled', 'true');
-	await expect(panel.locator('.audio-editor-source-ruler__transport').getByRole('button', { name: 'Play', exact: true })).toBeEnabled();
+	const source = await openSourceMonitor(page, editor);
+	await expect(source.locator('.audio-editor-source-ruler__transport').getByRole('button', { name: 'Play', exact: true })).toBeEnabled();
 	await chooseTrackMenuAction(page, editor, track, 'Unlock track');
 	await expect(name).toBeEnabled();
 	await name.fill('Restored programme');

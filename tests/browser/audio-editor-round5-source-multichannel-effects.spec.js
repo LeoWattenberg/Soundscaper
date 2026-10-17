@@ -2,7 +2,7 @@
 
 import { createWavFixture, expect, test } from './audio-editor-test-fixtures.js';
 import { bootEditor, chooseCommandAction, chooseNestedCommandAction, closeClipProperties,
-	disableNativeSavePicker, importFiles, openClipProperties } from './audio-editor-test-helpers.js';
+	disableNativeSavePicker, importFiles, openSourceMonitor } from './audio-editor-test-helpers.js';
 import { exportSamples } from './helpers/round2-audio-export.js';
 
 function expectSameAudio(actual, original, polarity = 1) {
@@ -21,7 +21,7 @@ for (const channelCount of [2, 6]) {
 		await importFiles(editor, [recording]);
 		const before = await exportSamples(page, editor);
 		expect(before.some(value => Math.abs(value) > 0.1)).toBe(true);
-		const properties = await openClipProperties(page, editor, editor.locator('[data-clip-id]').first());
+		const properties = await openSourceMonitor(page, editor, editor.locator('[data-clip-id]').first());
 		const waveform = properties.getByRole('region', { name: 'Source waveform', exact: true });
 		await waveform.focus();
 		await waveform.press('Control+a');
@@ -45,7 +45,7 @@ test('Source spectral editing processes an ordinary six-channel recording', asyn
 	const clip = editor.locator('[data-clip-id]').first();
 	await clip.locator('.clip-header').click();
 	await editor.getByRole('button', { name: 'Spectrogram', exact: true }).click();
-	const properties = await openClipProperties(page, editor, clip);
+	const properties = await openSourceMonitor(page, editor, clip);
 	const waveform = properties.getByRole('region', { name: 'Source waveform', exact: true });
 	await waveform.focus();
 	await waveform.press('Control+a');

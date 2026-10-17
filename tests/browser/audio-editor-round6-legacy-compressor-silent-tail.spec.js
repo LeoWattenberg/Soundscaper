@@ -2,7 +2,7 @@
 
 import { expect, test } from './audio-editor-test-fixtures.js';
 import { bootEditor, chooseDropdown, chooseNestedCommandAction, closeClipProperties, disableNativeSavePicker,
-	importFiles, openClipProperties, openExportDialog, readDownloadBytes } from './audio-editor-test-helpers.js';
+	importFiles, openSourceMonitor, openExportDialog, readDownloadBytes } from './audio-editor-test-helpers.js';
 import { inspectWavBlobPcm, streamWavBlobPcm } from '../../src/common/editor/wav-import.js';
 
 // An ordinary IEEE float WAV containing a one-second tone and a digital pause.
@@ -26,7 +26,7 @@ test('Source Legacy Compressor accepts a normal float recording followed by digi
 	await disableNativeSavePicker(page);
 	const editor = await bootEditor(page, '/embed/en/');
 	await importFiles(editor, [{ name: 'ordinary-tone-and-pause.wav', mimeType: 'audio/wav', buffer }]);
-	const properties = await openClipProperties(page, editor);
+	const properties = await openSourceMonitor(page, editor);
 	const waveform = properties.getByRole('region', { name: 'Source waveform', exact: true });
 	await waveform.focus();
 	await waveform.press('Control+a');

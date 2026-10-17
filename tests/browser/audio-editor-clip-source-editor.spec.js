@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import { expect, test, longTone } from './audio-editor-test-fixtures.js';
-import { bootEditor, clipByName, clipField, collectClientErrors, importFiles, openClipProperties, registerAudioEditorHooks, chooseNestedCommandAction, chooseCommandAction, projectTimelineSourceNames } from './audio-editor-test-helpers.js';
+import { bootEditor, clipByName, collectClientErrors, importFiles, openSourceMonitor, registerAudioEditorHooks, chooseNestedCommandAction, chooseCommandAction, projectTimelineSourceNames } from './audio-editor-test-helpers.js';
 
 test.describe('clip source editor', () => {
 	registerAudioEditorHooks();
@@ -12,18 +12,16 @@ test.describe('clip source editor', () => {
 		await importFiles(editor, [longTone]);
 		const clip = clipByName(editor, longTone.name);
 		const before = await clip.boundingBox();
-		const panel = await openClipProperties(page, editor, clip);
+		const panel = await openSourceMonitor(page, editor, clip);
 		await expect(panel.locator('details[open]')).toHaveCount(0);
 		const waveform = panel.getByRole('region', { name: 'Source waveform', exact: true });
 		await expect(waveform).toBeVisible();
 		const frames = await waveform.getAttribute('data-source-frame-count');
-		const initialSourceIn = await clipField(panel, 'sourceInFrame').inputValue();
+		const initialSourceIn = await panel.locator('.audio-editor-source-clip').getAttribute('style');
 		await expect(waveform.locator('canvas').first()).toHaveAttribute('width', /[1-9]\d*/u);
 		await panel.getByRole('button', { name: 'Trim source start', exact: true }).press('Shift+ArrowRight');
 		await expect(waveform).toHaveAttribute('data-source-frame-count', frames);
-		await panel.getByText('Media settings', { exact: true }).click();
-		await expect(clipField(panel, 'sourceInFrame')).not.toHaveValue(initialSourceIn);
-		await panel.getByText('Media settings', { exact: true }).click();
+		await expect(panel.locator('.audio-editor-source-clip')).not.toHaveAttribute('style', initialSourceIn);
 		expect((await clip.boundingBox()).x).toBeCloseTo(before.x, 0);
 		const bounds = await waveform.boundingBox();
 		await waveform.click({ position: { x: bounds.width * 0.4, y: 80 }, modifiers: ['Control'] });
@@ -56,7 +54,7 @@ test.describe('clip source editor', () => {
 		const editor = await bootEditor(page, '/embed/en/');
 		await importFiles(editor, [longTone]);
 		const clip = clipByName(editor, longTone.name);
-		const panel = await openClipProperties(page, editor, clip);
+		const panel = await openSourceMonitor(page, editor, clip);
 		const waveform = panel.getByRole('region', { name: 'Source waveform', exact: true });
 		const fadeIn = waveform.getByRole('slider', { name: 'Fade in', exact: true });
 		const fadeOut = waveform.getByRole('slider', { name: 'Fade out', exact: true });
@@ -69,7 +67,6 @@ test.describe('clip source editor', () => {
 		expect(await endTrim.evaluate(element => getComputedStyle(element).cursor)).toContain('ClipTrimRight');
 		await fadeIn.press('Shift+ArrowRight');
 		const initial = await fadeIn.getAttribute('aria-valuenow');
-		const numeric = await clipField(panel, 'fadeInFrame').inputValue();
 		const placement = await clip.getAttribute('aria-label');
 		const canvas = waveform.locator('[data-source-active="true"] canvas').first();
 		const image = () => canvas.evaluate(element => element.toDataURL());
@@ -89,7 +86,7 @@ test.describe('clip source editor', () => {
 		await expect(curve).toHaveAttribute('d', curveBefore);
 		await expect.poll(image).toBe(before);
 		await page.mouse.up();
-		await expect(clipField(panel, 'fadeInFrame')).toHaveValue(numeric);
+		await expect(fadeIn).toHaveAttribute('aria-valuenow', initial);
 		await expect(clip).toHaveAttribute('aria-label', placement);
 		expect(errors).toEqual([]);
 	});
@@ -98,7 +95,7 @@ test.describe('clip source editor', () => {
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');
 		await importFiles(editor, [longTone]);
-		const panel = await openClipProperties(page, editor, clipByName(editor, longTone.name));
+		const panel = await openSourceMonitor(page, editor, clipByName(editor, longTone.name));
 		const waveform = panel.getByRole('region', { name: 'Source waveform', exact: true });
 		await panel.getByRole('button', { name: 'Trim source start', exact: true }).press('Shift+ArrowRight');
 		await panel.getByRole('button', { name: 'Trim source end', exact: true }).press('Shift+ArrowLeft');
@@ -148,7 +145,7 @@ test.describe('clip source editor', () => {
 		await original.focus(); await original.press('Enter');
 		await chooseCommandAction(page, editor, 'Edit', 'Duplicate');
 		await expect(clipByName(editor, longTone.name)).toHaveCount(2);
-		const panel = await openClipProperties(page, editor, clipByName(editor, longTone.name).last());
+		const panel = await openSourceMonitor(page, editor, clipByName(editor, longTone.name).last());
 		const waveform = panel.getByRole('region', { name: 'Source waveform', exact: true });
 		const bounds = await waveform.boundingBox();
 		await page.mouse.move(bounds.x + bounds.width * 0.25, bounds.y + 80);
@@ -168,7 +165,7 @@ test.describe('clip source editor', () => {
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');
 		await importFiles(editor, [longTone]);
-		const panel = await openClipProperties(page, editor, clipByName(editor, longTone.name));
+		const panel = await openSourceMonitor(page, editor, clipByName(editor, longTone.name));
 		const vertical = panel.getByRole('region', { name: 'Source vertical ruler', exact: true });
 		await vertical.click({ button: 'right' });
 		await page.getByRole('menuitem', { name: 'Spectrogram', exact: true }).click();

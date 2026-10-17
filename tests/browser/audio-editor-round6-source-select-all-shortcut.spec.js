@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { expect, monoTone, test } from './audio-editor-test-fixtures.js';
-import { bootEditor, chooseCommandAction, clipByName, importFiles, openClipProperties } from './audio-editor-test-helpers.js';
+import { bootEditor, chooseCommandAction, clipByName, importFiles, openSourceMonitor } from './audio-editor-test-helpers.js';
 
 test('the source Select all handler releases a configured Ctrl+Alt+A command', async ({ page }) => {
 	const editor = await bootEditor(page, '/embed/en/');
@@ -16,7 +16,7 @@ test('the source Select all handler releases a configured Ctrl+Alt+A command', a
 	await expect(command.getByRole('button', { name: 'Assign', exact: true })).toBeDisabled();
 	await preferences.getByRole('button', { name: 'Close', exact: true }).last().click();
 	const clip = clipByName(editor, monoTone.name);
-	const properties = await openClipProperties(page, editor, clip);
+	const properties = await openSourceMonitor(page, editor, clip);
 	const ruler = properties.getByRole('region', { name: 'Source waveform', exact: true });
 	await ruler.focus();
 	await page.keyboard.press('Control+a');
