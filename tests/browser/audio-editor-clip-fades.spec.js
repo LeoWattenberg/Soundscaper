@@ -97,7 +97,7 @@ test.describe('non-destructive clip fade handles', () => {
 			await clip.click({ position: { x: 30, y: 50 } });
 			await expect(clip.locator('[data-clip-fade-handle]')).toHaveCount(2);
 			await expect(fadeIn).toHaveCSS('opacity', '1');
-			await chooseCommandAction(page, editor, 'Select', 'Select none');
+			await expect(clip.locator('.clip-display')).toHaveAttribute('data-selected', 'false');
 			await editor.getByRole('menuitem', { name: 'File', exact: true }).focus();
 			await page.mouse.move(0, 0);
 			await expect(fadeIn).toHaveCSS('opacity', '0');

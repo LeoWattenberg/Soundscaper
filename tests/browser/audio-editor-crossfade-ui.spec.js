@@ -128,7 +128,7 @@ test.describe('design-system audio crossfade visuals', () => {
 		await expect(region.locator('[data-fade-curve="in"]')).toBeVisible();
 		const handle = track.getByRole('slider', { name: /^Automatic crossfade between .+ and .+$/u });
 		await expect(handle).toBeVisible();
-		await expect(handle).toHaveAttribute('aria-valuenow', '0.5');
+		await expect.poll(async () => Number(await handle.getAttribute('aria-valuenow'))).toBeCloseTo(0.5, 6);
 		const gains = await curveMidpointGains(region);
 		expect(gains).toHaveLength(2);
 		for (const gain of gains) expect(gain).toBeCloseTo(Math.SQRT1_2, 2);
@@ -151,7 +151,7 @@ test.describe('design-system audio crossfade visuals', () => {
 		await page.mouse.move(handleBounds.x + handleBounds.width / 2 + 20, handleBounds.y + handleBounds.height / 2 + 20, { steps: 5 });
 		await page.mouse.up();
 		await expect.poll(async () => Number(await handle.getAttribute('data-crossfade-gain'))).toBeLessThan(Math.SQRT1_2);
-		await expect(handle).toHaveAttribute('aria-valuenow', '0.5');
+		await expect.poll(async () => Number(await handle.getAttribute('aria-valuenow'))).toBeCloseTo(0.5, 6);
 		const changedGain = await handle.getAttribute('data-crossfade-gain');
 		expect((await outgoing.boundingBox()).x).toBeCloseTo(outBounds.x, 1);
 		expect((await outgoing.boundingBox()).width).toBeCloseTo(outBounds.width, 1);
@@ -234,7 +234,7 @@ test.describe('design-system audio crossfade visuals', () => {
 		expect(inAfter.x + inAfter.width).toBeCloseTo(inBefore.x + inBefore.width, 1);
 		expect(overlapAfter.x - overlapBefore.x).toBeCloseTo(delta, 1);
 		expect(overlapAfter.width).toBeCloseTo(overlapBefore.width, 1);
-		await expect(handle).toHaveAttribute('aria-valuenow', '0.5');
+		await expect.poll(async () => Number(await handle.getAttribute('aria-valuenow'))).toBeCloseTo(0.5, 6);
 		await editor.getByRole('button', { name: 'Undo', exact: true }).click();
 		expect((await incoming.boundingBox()).x).toBeCloseTo(inBefore.x, 1);
 		expect((await outgoing.boundingBox()).width).toBeCloseTo(outBefore.width, 1);
