@@ -26,6 +26,8 @@ for (const interrupted of [false, true]) test(`a video opacity fade completes it
 	const completed = await value();
 	await chooseCommandAction(page, editor, 'Edit', 'Undo');
 	await expect(fade).toHaveAttribute('aria-valuenow', '0');
+	await expect(fade).toHaveCSS('pointer-events', 'auto');
+	await expect(fade).toHaveCSS('opacity', '1');
 	const releases = [];
 	page.on('console', message => {
 		if (message.text().startsWith('video-opacity-touch-release')) releases.push(message.text());

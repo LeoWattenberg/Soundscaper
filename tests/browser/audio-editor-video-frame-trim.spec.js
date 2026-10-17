@@ -75,6 +75,8 @@ test.describe('Framescaper frame-canonical edge trim integration', () => {
 
 		const beforePointerBox = await videoClip.boundingBox();
 		const rightHandle = videoClip.locator('.clip-display__handle--trim-right');
+		await expect(rightHandle).toHaveCSS('pointer-events', 'auto');
+		await expect(rightHandle).toHaveCSS('opacity', '1');
 		const handleBox = await rightHandle.boundingBox();
 		expect(beforePointerBox).not.toBeNull();
 		expect(handleBox).not.toBeNull();

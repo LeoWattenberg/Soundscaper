@@ -60,6 +60,8 @@ test.describe('clip looping', () => {
 		await selectClip(clip);
 		const loop = clip.getByRole('slider', { name: 'Looped clip length', exact: true });
 		await expect(loop).toBeVisible();
+		await expect(loop).toHaveCSS('opacity', '1');
+		await expect(loop).toHaveCSS('pointer-events', 'auto');
 		await expect(loop).toContainText('\uEF1F');
 		const clock = await clip.getByRole('button', { name: 'Stretch right edge', exact: true }).boundingBox();
 		expect((await loop.boundingBox()).y).toBeGreaterThan(clock.y + clock.height);
@@ -131,6 +133,7 @@ test.describe('clip looping', () => {
 		const initialX = (await clip.boundingBox()).x;
 		await drag(page, clip.locator('.clip-header'), width);
 		await expect.poll(async () => (await clip.boundingBox()).x).toBeGreaterThan(initialX + width / 2);
+		await selectClip(clip);
 		await drag(page, loop, width * 3 + 1);
 		await expect(loop).toHaveAttribute('aria-valuenow', String(initial * 4));
 		await expect(clip.locator('[data-loop-boundary-frame]')).toHaveCount(3);

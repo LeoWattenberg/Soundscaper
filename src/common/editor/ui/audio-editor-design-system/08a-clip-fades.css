@@ -17,10 +17,11 @@
 	overflow: hidden;
 }
 
-/* Upstream 20ce5547: controls follow hover or a held keyboard/pointer gesture. */
-[data-clip-id] .audacity-track-fade-handle,
+/* Upstream 20ce5547 audio controls follow hover or a held gesture.
+   Existing video, image and loop grips remain available whenever selected. */
+[data-clip-id] .audacity-track-fade-handle:where(:not([data-video-clip-fade-handle])),
 [data-clip-id] .audacity-track-fade-shape-handle,
-[data-clip-id] .clip-display__handle {
+[data-clip-id]:where(:not(.audio-editor-video-clip)) .clip-display__handle:where(:not(.clip-display__handle--loop-right)) {
 	opacity: 0;
 	pointer-events: none;
 	transition: opacity 120ms ease-out;
