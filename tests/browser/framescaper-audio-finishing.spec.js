@@ -37,7 +37,8 @@ test.describe('Framescaper v1 audio finishing', () => {
 		const projectId = await editor.getAttribute('data-project-id');
 		expect(projectId).toBeTruthy();
 		const track = editor.locator('[data-track-row]:not([data-video-track]):not([data-label-track])').last();
-		await track.locator('[data-track-header]').click();
+		await track.locator('.track-control-panel__track-name-text').click();
+		await expect(track.locator('[data-track-header]')).toHaveAttribute('data-selected', 'true');
 		const trackId = await track.getAttribute('data-track-id');
 		expect(trackId).toBeTruthy();
 
@@ -135,7 +136,8 @@ test.describe('Framescaper v1 audio finishing', () => {
 		const projectId = await editor.getAttribute('data-project-id');
 		expect(projectId).toBeTruthy();
 		let track = editor.locator('[data-track-row]:not([data-video-track]):not([data-label-track])').last();
-		await track.locator('[data-track-header]').click();
+		await track.locator('.track-control-panel__track-name-text').click();
+		await expect(track.locator('[data-track-header]')).toHaveAttribute('data-selected', 'true');
 		const trackId = await track.getAttribute('data-track-id');
 		expect(trackId).toBeTruthy();
 

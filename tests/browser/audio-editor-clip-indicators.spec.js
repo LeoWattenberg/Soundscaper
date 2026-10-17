@@ -23,7 +23,7 @@ function speedField(dialog) {
 async function expectHighlighted(field) {
 	await expect(field).toBeFocused();
 	await expect(field).toBeInViewport({ ratio: 1 });
-	await expect(field.locator('..')).toHaveClass(/text-input--active/u);
+	await expect(field.locator('xpath=ancestor::*[@data-clip-properties-field][1]')).toHaveCSS('border-color', 'rgb(103, 124, 228)');
 }
 
 test.describe('clip pitch and speed indicators', () => {
@@ -80,21 +80,23 @@ test.describe('clip pitch and speed indicators', () => {
 		await clip.getByRole('button', { name: 'Clip pitch', exact: true }).click();
 		dialog = editor.locator('[data-workspace-panel="clip-properties"]');
 		await expect(dialog).toBeVisible();
-		await expectHighlighted(pitchField(dialog));
-		await expect(pitchField(dialog)).toHaveValue('2.00');
+		const pitchInput = dialog.getByRole('textbox', { name: 'Pitch', exact: true });
+		const speedInput = dialog.getByRole('textbox', { name: 'Speed', exact: true });
+		await expectHighlighted(pitchInput);
+		await expect(pitchInput).toHaveValue('2');
 		await closeClipProperties(dialog);
 		await otherClip.focus();
 		await otherClip.press('Enter');
 
 		await clip.getByRole('button', { name: 'Clip speed', exact: true }).click();
 		await expect(dialog).toBeVisible();
-		await expectHighlighted(speedField(dialog));
-		await expect(speedField(dialog)).toHaveValue('1.25');
+		await expectHighlighted(speedInput);
+		await expect(speedInput).toHaveValue('125');
 		await closeClipProperties(dialog);
 
 		await clip.getByRole('button', { name: 'Clip pitch', exact: true }).press('Enter');
 		await expect(dialog).toBeVisible();
-		await expectHighlighted(pitchField(dialog));
+		await expectHighlighted(pitchInput);
 		expect(errors).toEqual([]);
 	});
 

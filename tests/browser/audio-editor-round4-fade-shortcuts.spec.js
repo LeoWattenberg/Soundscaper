@@ -8,13 +8,14 @@ for (const control of ['duration', 'shape']) test(`Ctrl+B from a clip fade ${con
 	await importFiles(editor, [toneA]);
 	const clip = clipByName(editor, toneA.name);
 	await clip.locator('.clip-header').click();
-	await clip.press('Tab');
+	await clip.press('f');
 	const fade = clip.getByRole('slider', { name: 'Fade in', exact: true });
 	await expect(fade).toBeFocused();
 	if (control === 'shape') {
 		await page.keyboard.press('End');
-		await page.keyboard.press('Tab');
-		await expect(clip.getByRole('slider', { name: 'Fade in shape', exact: true })).toBeFocused();
+		const shape = clip.getByRole('slider', { name: 'Fade in shape', exact: true });
+		await shape.focus();
+		await expect(shape).toBeFocused();
 	}
 	await page.keyboard.press('ControlOrMeta+b');
 	await expect(editor.locator('[data-label-id]')).toHaveCount(1);

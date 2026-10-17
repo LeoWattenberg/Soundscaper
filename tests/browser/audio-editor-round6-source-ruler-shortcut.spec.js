@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { expect, monoTone, test } from './audio-editor-test-fixtures.js';
-import { bootEditor, chooseCommandAction, clipByName, importFiles, openClipProperties } from './audio-editor-test-helpers.js';
+import { bootEditor, chooseCommandAction, clipByName, importFiles, openSourceMonitor } from './audio-editor-test-helpers.js';
 
 test('the source vertical ruler releases a configured modified context-menu chord', async ({ page }) => {
 	const editor = await bootEditor(page, '/embed/en/');
@@ -16,8 +16,8 @@ test('the source vertical ruler releases a configured modified context-menu chor
 	await expect(command.getByRole('button', { name: 'Assign', exact: true })).toBeDisabled();
 	await preferences.getByRole('button', { name: 'Close', exact: true }).last().click();
 	const clip = clipByName(editor, monoTone.name);
-	const properties = await openClipProperties(page, editor, clip);
-	const ruler = properties.getByRole('region', { name: 'Source vertical ruler', exact: true });
+	const source = await openSourceMonitor(page, editor, clip);
+	const ruler = source.getByRole('region', { name: 'Source vertical ruler', exact: true });
 	await ruler.focus();
 	await page.keyboard.press('Shift+F10');
 	await expect(page.getByRole('menuitem', { name: 'Waveform', exact: true })).toBeVisible();

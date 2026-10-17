@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { expect, test, toneA } from './audio-editor-test-fixtures.js';
-import { bootEditor, chooseCommandAction, clipByName, importFiles, openClipProperties } from './audio-editor-test-helpers.js';
+import { bootEditor, chooseCommandAction, clipByName, importFiles, openSourceMonitor } from './audio-editor-test-helpers.js';
 
 test('modified source-ruler arrows preserve the audition position and run the configured command', async ({ page }) => {
 	const editor = await bootEditor(page, '/embed/en/');
@@ -17,8 +17,8 @@ test('modified source-ruler arrows preserve the audition position and run the co
 	await preferences.getByRole('button', { name: 'Close', exact: true }).last().click();
 	const clip = clipByName(editor, toneA.name);
 	const original = await clip.getAttribute('aria-label');
-	const properties = await openClipProperties(page, editor, clip);
-	const ruler = properties.getByRole('slider', { name: 'Source timeline', exact: true });
+	const source = await openSourceMonitor(page, editor, clip);
+	const ruler = source.getByRole('slider', { name: 'Source timeline', exact: true });
 	const position = await ruler.getAttribute('aria-valuenow');
 	await ruler.focus();
 	await ruler.press('Control+Alt+ArrowRight');

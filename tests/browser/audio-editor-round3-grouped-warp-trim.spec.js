@@ -24,7 +24,7 @@ test('a grouped keyboard trim resolves an editable boundary on every participati
 	const clip = clipByName(editor, plain.name);
 	await clip.focus();
 	await expect(clip).toBeFocused();
-	await clip.press('[');
+	await clip.getByRole('button', { name: 'Trim right edge', exact: true }).press('ArrowLeft');
 	await expect(editor.locator('[data-editor-toast="workspace-error"]')).toBeHidden();
 	const properties = await openClipProperties(page, editor, clip);
 	await properties.getByText('Media settings', { exact: true }).click();

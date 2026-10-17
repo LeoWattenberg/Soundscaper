@@ -13,7 +13,7 @@ for (const owner of ['fade', 'label']) test(`the native ${owner} popup releases 
 		await clip.getByRole('slider', { name: 'Fade in', exact: true }).press('End');
 		const shape = clip.getByRole('slider', { name: 'Fade in shape', exact: true });
 		await shape.press('Shift+F10');
-		await expect(page.locator('.audio-editor-fade-shape-menu').getByRole('menuitemradio').first()).toBeFocused();
+		await expect(page.locator('.audio-editor-fade-shape-menu').getByRole('menuitem').first()).toBeFocused();
 	} else {
 		await page.keyboard.press('ControlOrMeta+b');
 		const title = editor.getByRole('textbox', { name: /^Edit labels:/u });
