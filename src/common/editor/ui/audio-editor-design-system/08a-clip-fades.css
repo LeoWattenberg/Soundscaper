@@ -50,8 +50,8 @@
 [data-clip-id]:focus-within .audio-editor-clip-fade__curve [data-fade-boundary] {
 	opacity: 1;
 }
-[data-fade-pointer="false"] .audacity-track-fade-handle,
-[data-fade-pointer="false"] .audacity-track-fade-shape-handle {
+[data-fade-pointer="false"] .audacity-track-fade-handle:not([data-keyboard-handle]),
+[data-fade-pointer="false"] .audacity-track-fade-shape-handle:not([data-keyboard-handle]) {
 	visibility: hidden;
 }
 .audio-editor-fades-dialog__row {
