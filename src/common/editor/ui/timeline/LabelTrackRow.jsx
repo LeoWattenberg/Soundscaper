@@ -45,14 +45,19 @@ export function LabelTrackRow({
 	const [selectedLabelId, setSelectedLabelId] = useState(null);
 	const [editingLabelId, setEditingLabelId] = useState(null);
 	const [neighborPreview, setNeighborPreview] = useState(null);
-	const fontSizePt = controller.getSnapshot().preferences?.appearance?.labelTextSizePt ?? 9;
+	const snapshot = controller.getSnapshot();
+	const nativeSelectedLabels = snapshot.selectedLabels;
+	const selectedLabelIds = useMemo(() => new Set(Array.isArray(nativeSelectedLabels)
+		? nativeSelectedLabels.filter(ref => ref.trackId === track.id).map(ref => ref.labelId)
+		: selectedLabelId ? [selectedLabelId] : []), [nativeSelectedLabels, selectedLabelId, track.id]);
+	const fontSizePt = snapshot.preferences?.appearance?.labelTextSizePt ?? 9;
 	const metrics = useMemo(() => getLabelMetrics(fontSizePt), [fontSizePt]);
 	const labelIndex = useMemo(() => track.labels.length > 128 ? createLabelViewportIndex(track.labels) : null, [track.labels]);
 	const visibleLabels = useMemo(() => labelIndex && viewportDurationFrames > 0
 		? labelIndex.query(Math.max(0, renderViewportStartFrame - viewportDurationFrames),
 			Math.min(Number.MAX_SAFE_INTEGER, renderViewportStartFrame + viewportDurationFrames * 2),
-			Math.ceil((metrics.maxPointWidth + metrics.earWidth + metrics.pointFlagGap) / pixelsPerSecond * sampleRate), [selectedLabelId, editingLabelId])
-		: track.labels, [editingLabelId, labelIndex, metrics, pixelsPerSecond, renderViewportStartFrame, sampleRate, selectedLabelId, track.labels, viewportDurationFrames]);
+			Math.ceil((metrics.maxPointWidth + metrics.earWidth + metrics.pointFlagGap) / pixelsPerSecond * sampleRate), [...selectedLabelIds, editingLabelId])
+		: track.labels, [editingLabelId, labelIndex, metrics, pixelsPerSecond, renderViewportStartFrame, sampleRate, selectedLabelIds, track.labels, viewportDurationFrames]);
 	const labelLayout = useMemo(() => layoutTimelineLabels(visibleLabels, pixelsPerSecond, sampleRate, metrics),
 		[visibleLabels, pixelsPerSecond, sampleRate, metrics]);
 	const addLabel = (event = null) => {
@@ -67,6 +72,7 @@ export function LabelTrackRow({
 		if (labelId) {
 			setSelectedLabelId(labelId);
 			setEditingLabelId(labelId);
+			if (controller.actions.labels?.select) run(() => controller.actions.labels.select(track.id, labelId));
 		}
 	};
 	return (
@@ -131,6 +137,7 @@ export function LabelTrackRow({
 				onClick={(event) => {
 					if (!event.target.closest('[data-label-id]')) {
 						setSelectedLabelId(null);
+						if (controller.actions.labels?.select) run(() => controller.actions.labels.select(track.id, null));
 						run(() => controller.actions.timeline.selectTrack(track.id));
 					}
 				}}
@@ -150,7 +157,7 @@ export function LabelTrackRow({
 						label={label}
 						left={labelLaneContentX(label.startFrame, pixelsPerSecond, sampleRate)}
 						layout={labelLayout.get(label.id)} metrics={metrics} trackColor={track.color}
-						leftNeighborSelected={labelLayout.get(label.id)?.leftNeighbor?.id === selectedLabelId}
+						leftNeighborSelected={selectedLabelIds.has(labelLayout.get(label.id)?.leftNeighbor?.id)}
 						getSnapTargets={() => visibleLabels.filter(candidate => candidate.id !== label.id).flatMap(candidate => [candidate.startFrame, candidate.endFrame])}
 						externalPreview={neighborPreview?.id === label.id ? neighborPreview : null}
 						onNeighborPreview={setNeighborPreview} fontSizePt={fontSizePt}
@@ -159,7 +166,7 @@ export function LabelTrackRow({
 						sampleRate={sampleRate}
 						renderOriginX={renderOriginX}
 						laneRef={laneRef}
-						selected={selectedLabelId === label.id}
+						selected={selectedLabelIds.has(label.id)}
 						editing={editingLabelId === label.id}
 						blocked={labelBlocked}
 						audioBlocked={blocked}
@@ -294,10 +301,13 @@ export function AudacityLabelMarker({
 		return () => document.removeEventListener('mousemove', move);
 	}, [blocked, controller, dragCancellation.cancelledRef, label, laneRef, layout, onNeighborPreview,
 		pixelsPerSecond, renderOriginX, sampleRate, snapTargets, trackId]);
-	const select = () => {
+	const select = (event = /** @type {Pick<MouseEvent, 'shiftKey'> | null} */ (null)) => {
 		onSelect();
-		run(() => controller.actions.timeline.selectTrack(trackId));
-		run(() => controller.actions.timeline.setExactSelection(label.startFrame, label.endFrame));
+		if (controller.actions.labels?.select) run(() => controller.actions.labels.select(trackId, label.id, { additive: Boolean(event?.shiftKey) }));
+		else {
+			run(() => controller.actions.timeline.selectTrack(trackId));
+			run(() => controller.actions.timeline.setExactSelection(label.startFrame, label.endFrame));
+		}
 	};
 	return (
 		<div
@@ -315,7 +325,7 @@ export function AudacityLabelMarker({
 			tabIndex={0}
 			aria-label={`${copy.editLabels}: ${label.title || copy.newLabel}`}
 			onFocus={(event) => {
-				if (event.target === event.currentTarget) select();
+				if (event.target === event.currentTarget && !selected) select();
 			}}
 			onDoubleClick={(event) => {
 				event.stopPropagation();
@@ -325,7 +335,7 @@ export function AudacityLabelMarker({
 				if (event.target.closest('input, textarea, [contenteditable="true"]')) return;
 				event.preventDefault();
 				event.stopPropagation();
-				select();
+				if (!selected) select();
 				setContextMenu({ x: event.clientX, y: event.clientY, target: event.currentTarget });
 			}}
 			onKeyDown={(event) => {
@@ -338,7 +348,7 @@ export function AudacityLabelMarker({
 					event.preventDefault();
 					event.stopPropagation();
 					const rect = event.currentTarget.getBoundingClientRect();
-					select();
+					if (!selected) select();
 					setContextMenu({ x: rect.left, y: rect.top + 18, target: event.currentTarget });
 				} else if ((event.key === 'Delete' || event.key === 'Backspace') && !editing && !blocked) {
 					event.preventDefault();
