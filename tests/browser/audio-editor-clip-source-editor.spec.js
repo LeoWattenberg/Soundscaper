@@ -91,6 +91,45 @@ test.describe('clip source editor', () => {
 		expect(errors).toEqual([]);
 	});
 
+	test('source fades share boundary keyboard controls and their menu previews, cancels and applies one edit', async ({ page }) => {
+		const editor = await bootEditor(page, '/embed/en/');
+		await importFiles(editor, [longTone]);
+		const clip = clipByName(editor, longTone.name);
+		const panel = await openSourceMonitor(page, editor, clip);
+		const waveform = panel.getByRole('region', { name: 'Source waveform', exact: true });
+		const fadeIn = waveform.getByRole('slider', { name: 'Fade in', exact: true });
+		const fadeOut = waveform.getByRole('slider', { name: 'Fade out', exact: true });
+		await fadeIn.press('ArrowRight');
+		await expect(fadeIn).toHaveAttribute('aria-valuenow', '0.102');
+		await fadeOut.press('ArrowRight');
+		await expect(fadeOut).toHaveAttribute('aria-valuenow', '0');
+		await fadeOut.press('ArrowLeft');
+		await expect(fadeOut).toHaveAttribute('aria-valuenow', '0.1');
+		const open = async () => {
+			await fadeIn.focus();
+			await fadeIn.press('Shift+F10');
+			await page.getByRole('menuitem', { name: 'Edit fade-in', exact: true }).click();
+			return page.getByRole('dialog', { name: 'Fades', exact: true });
+		};
+		const canvas = waveform.locator('[data-source-active="true"] canvas').first();
+		const image = () => canvas.evaluate(element => element.toDataURL());
+		const originalImage = await image();
+		let dialog = await open();
+		await dialog.getByRole('textbox', { name: 'Fade-in length', exact: true }).fill('0.3');
+		await expect(fadeIn).toHaveAttribute('aria-valuenow', '0.3');
+		await expect.poll(image).not.toBe(originalImage);
+		await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
+		await expect(fadeIn).toHaveAttribute('aria-valuenow', '0.102');
+		await expect.poll(image).toBe(originalImage);
+		dialog = await open();
+		await dialog.getByRole('textbox', { name: 'Fade-in length', exact: true }).fill('0.4');
+		await dialog.getByRole('button', { name: 'Apply', exact: true }).click();
+		await expect(fadeIn).toHaveAttribute('aria-valuenow', '0.4');
+		await chooseCommandAction(page, editor, 'Edit', 'Undo');
+		await expect(fadeIn).toHaveAttribute('aria-valuenow', '0.102');
+		await expect(fadeOut).toHaveAttribute('aria-valuenow', '0.1');
+	});
+
 	test('keeps painted waveform samples while zooming and panning across unused source media', async ({ page }) => {
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');

@@ -1,15 +1,16 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import { useCallback, useLayoutEffect, useMemo, useState } from 'react';
-import type { RefObject } from 'react';
+import type { KeyboardEvent, RefObject } from 'react';
 import { createPortal } from 'react-dom';
 import { TrackFadeHandle } from '@soundscaper/design-system/Track/TrackFadeHandle';
 import { TrackFadeShapeHandle } from '@soundscaper/design-system/Track/TrackFadeShapeHandle';
-import { fadeDurationAtKey, fadeField, fadeShapeAtKey, fadeShapeField, placeFadeShapeHandles } from './clip-fade-geometry.ts';
+import { fadeField, fadeShapeAtKey, fadeShapeField, placeFadeShapeHandles } from './clip-fade-geometry.ts';
 import type { ClipFadeEdge, FadeClip } from './clip-fade-geometry.ts';
 import { ClipFadeMenu } from './ClipFadeMenu.tsx';
 import { isFadeShapeMenuKey, keyboardFadeShapeMenuPosition } from './FadeShapeMenu.tsx';
 import type { FadeShapeMenuCopy, FadeShapeMenuPosition } from './FadeShapeMenu.tsx';
 import { createClipFadeGeometryReader } from './clip-overlay-presentation.ts';
+import { routeClipHandleKeyboard } from './clip-handle-keyboard.ts';
 
 export type ClipFadeChanges = Readonly<{
 	readonly fadeInFrames?: number;
@@ -44,25 +45,21 @@ interface Props {
 	readonly onTabOut: (id: string) => void;
 }
 
-function moveFadeFocus(target: HTMLElement, current: HTMLElement, backwards: boolean, clipId: string, onTabOut: (id: string) => void): void {
-	const controls = [
-		target.querySelector<HTMLButtonElement>('[data-clip-fade-handle="in"]'),
-		target.querySelector<HTMLButtonElement>('[data-clip-fade-shape-handle="in"]'),
-		target.querySelector<HTMLButtonElement>('[data-clip-fade-handle="out"]'),
-		target.querySelector<HTMLButtonElement>('[data-clip-fade-shape-handle="out"]'),
-	].filter((control): control is HTMLButtonElement => control !== null && !control.disabled);
-	const index = controls.indexOf(current as HTMLButtonElement);
-	const next = controls[index + (backwards ? -1 : 1)];
-	if (next) next.focus();
-	else if (backwards) target.focus();
-	else onTabOut(clipId);
-}
 
 export function ClipFadeOverlays({ rootRef, clips, selectedIds, startFrame, endFrame, pixelsPerSecond, sampleRate, blocked, handleTabIndex = -1, showFadeShapeHandles, crossfadedFadeEdges, copy, onChange, onTabOut, onEditFades = () => undefined }: Props) {
 	const [targets, setTargets] = useState<ReadonlyMap<string, HTMLElement>>(new Map());
 	const [menu, setMenu] = useState<(FadeShapeMenuPosition & { readonly clipId: string; readonly edge: ClipFadeEdge }) | null>(null);
 	const close = useCallback(() => setMenu(null), []);
 	const menuClip = menu && clips.find(clip => clip.id === menu.clipId);
+	const handleKeyboard = (event: KeyboardEvent<HTMLButtonElement>) => {
+		const handled = routeClipHandleKeyboard(event, {
+			clips, sampleRate, blocked, selectedIds: [...selectedIds], playheadFrame: 0, updateFade: onChange,
+			trim() {}, stretch() {}, seek() {}, openFades: onEditFades,
+		});
+		const id = event.currentTarget.closest<HTMLElement>('[data-clip-id]')?.dataset.clipId;
+		if (handled && event.key === 'Tab' && id) onTabOut(id);
+		return handled;
+	};
 	const readGeometries = useMemo(createClipFadeGeometryReader, []);
 	const geometries = useMemo(() => readGeometries(clips, selectedIds, startFrame, endFrame, pixelsPerSecond, sampleRate),
 		[readGeometries, clips, selectedIds, startFrame, endFrame, pixelsPerSecond, sampleRate]);
@@ -123,13 +120,8 @@ export function ClipFadeOverlays({ rootRef, clips, selectedIds, startFrame, endF
 					onKeyDown={event => {
 						if (event.ctrlKey || event.metaKey || event.altKey) return;
 						if (isFadeShapeMenuKey(event) && !blocked) { event.preventDefault(); event.stopPropagation(); setMenu({ ...keyboardFadeShapeMenuPosition(event.currentTarget), clipId: clip.id, edge }); return; }
-						if (event.key === 'Tab' && handleTabIndex < 0) {
-							event.stopPropagation();
-							event.preventDefault();
-							moveFadeFocus(target, event.currentTarget, event.shiftKey, clip.id, onTabOut);
-							return;
-						}
-						const next = fadeDurationAtKey(event.key, event.shiftKey, value, sampleRate, clip.durationFrames);
+						if (handleKeyboard(event) || blocked) return;
+						const next = event.key === 'Home' ? 0 : event.key === 'End' ? clip.durationFrames : null;
 						if (next === null) return;
 						event.stopPropagation();
 						event.preventDefault();
@@ -167,13 +159,8 @@ export function ClipFadeOverlays({ rootRef, clips, selectedIds, startFrame, endF
 							setMenu({ ...keyboardFadeShapeMenuPosition(event.currentTarget), clipId: clip.id, edge: position.edge });
 							return;
 						}
-						if (event.key === 'Tab' && handleTabIndex < 0) {
-							event.stopPropagation();
-							event.preventDefault();
-							moveFadeFocus(target, event.currentTarget, event.shiftKey, clip.id, onTabOut);
-							return;
-						}
-						const next = fadeShapeAtKey(event.key, event.shiftKey, value);
+						if (handleKeyboard(event) || blocked) return;
+						const next = event.key === 'Home' || event.key === 'End' ? fadeShapeAtKey(event.key, event.shiftKey, value) : null;
 						if (next === null) return;
 						event.stopPropagation();
 						event.preventDefault();

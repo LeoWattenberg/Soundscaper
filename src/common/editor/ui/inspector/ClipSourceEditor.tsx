@@ -11,6 +11,7 @@ import { useNonPassiveWheel } from '../useNonPassiveWheel.js';
 import { feedbackFailure, usePresentationFeedback } from '../presentation-feedback.ts';
 import ClipSourceWaveforms from './ClipSourceWaveforms.tsx';
 import ClipSourceFades from './ClipSourceFades.tsx';
+import type { ClipFadeChanges } from '../timeline/ClipFadeOverlays.tsx';
 import { fadeDurationAtPointer, fadeShapeAtPointer, fadeField, fadeShapeField } from '../timeline/clip-fade-geometry.ts';
 import { clipSourceStretchFeedback, formatSourceStretchSpeed } from './clip-source-stretch-feedback.ts';
 import ClipSourceRuler, { INITIAL_SOURCE_RULER_OPTIONS } from './ClipSourceRuler.tsx';
@@ -55,7 +56,7 @@ export default function ClipSourceEditor({ controller, project, clipId, copy, bl
 	const [error, setError] = usePresentationFeedback(copy);
 	const [menu, setMenu] = useState<{ kind: 'view' | 'wave'; x: number; y: number; frame: number } | null>(null);
 	const [dragFrame, setDragFrame] = useState<number | null>(null);
-	const [fadePreview, setFadePreview] = useState<Readonly<Record<string, number>> | null>(null);
+	const [fadePreview, setFadePreview] = useState<ClipFadeChanges | null>(null);
 	const [focusedMarker, setFocusedMarker] = useState<number | null>(null);
 	const gesture = useRef<Gesture | null>(null);
 	const selectedRef = useRef(selection);
@@ -139,6 +140,7 @@ export default function ClipSourceEditor({ controller, project, clipId, copy, bl
 		setView({ startFrame: next, endFrame: next + span });
 	}, [transport, ruler.scroll, ruler.pinned, view, startFrame, endFrame, range.totalFrames]);
 	useNonPassiveWheel(waveRef, (event: WheelEvent) => {
+		if (event.target instanceof Element && event.target.closest('[role="dialog"]')) return;
 		event.preventDefault(); event.stopPropagation();
 		const span = endFrame - startFrame;
 		const nextSpan = event.ctrlKey || event.metaKey ? Math.max(64, Math.min(range.totalFrames, span * (event.deltaY > 0 ? 1.25 : 0.8))) : span;
@@ -261,7 +263,7 @@ export default function ClipSourceEditor({ controller, project, clipId, copy, bl
 
 				</div>
 				<ClipSourceFades rootRef={waveRef} clip={fadeClip} startFrame={startFrame} endFrame={endFrame} width={width} sampleRate={project.sampleRate}
-					blocked={blocked} copy={copy} onChange={(id, changes) => run(() => controller.actions.clip.update(id, changes))} />
+					blocked={blocked} copy={copy} onPreview={setFadePreview} onChange={(id, changes) => run(() => controller.actions.clip.update(id, changes))} />
 				{selection && <div className="audio-editor-source-selection" style={{ left: pixel(selection.startFrame), width: pixel(selection.endFrame) - pixel(selection.startFrame) }} />}
 				{markers.map((marker, index) => <button key={`${marker.source.num}/${marker.source.den}`} type="button" className="audio-editor-source-stretch-marker"
 					aria-label={`${copy.clipSourceStretchMarker} ${index + 1}`} title={`${copy.samplePosition} ${marker.source.num / marker.source.den}; ${markerDescription(index + 1)}`} aria-description={markerDescription(index + 1)} disabled={blocked}
