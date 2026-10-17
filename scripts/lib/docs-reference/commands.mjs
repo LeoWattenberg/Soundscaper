@@ -11,6 +11,7 @@ export function renderCommandReference({
 	source,
 	isProductCommandDisabled,
 	applicationMenuEntries = [],
+	defaultShortcuts = {},
 }) {
 	assertProducts(products);
 	if (!manifest || typeof manifest !== 'object') throw new TypeError('The action manifest is required.');
@@ -33,7 +34,9 @@ export function renderCommandReference({
 		commands.push({
 			id: definition.id,
 			label: definition.label,
-			shortcut: definition.shortcut || '—',
+			shortcut: Object.hasOwn(defaultShortcuts, definition.id)
+				? defaultShortcuts[definition.id].join('; ') || '—'
+				: definition.shortcut || '—',
 			locations: Array.isArray(definition.locations) ? definition.locations.join('; ') : '—',
 			products: productNames(availableProducts),
 			origin: definition.origin === 'upstream' ? 'Audacity' : 'Soundscaper local',
@@ -50,7 +53,7 @@ export function renderCommandReference({
 			? ['', 'Local application-menu entries come from the reviewed menu reference registry.']
 			: []),
 		'',
-		`Product availability follows each product profile’s command filters${hasApplicationMenuEntries ? ' and each local menu entry’s declared product list' : ''}. “—” means that no default shortcut is assigned; it does not mean the command is unavailable.`,
+		`Product availability follows each product profile’s command filters${hasApplicationMenuEntries ? ' and each local menu entry’s declared product list' : ''}. Default shortcuts follow the installed editor bindings where available. “—” means that no default shortcut is assigned; it does not mean the command is unavailable.`,
 		'',
 		table(
 			['Command', 'Command ID', 'Default shortcut', 'Menu location', 'Products', 'Origin'],

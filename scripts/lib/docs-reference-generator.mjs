@@ -78,6 +78,7 @@ const RUNTIME_MODULES = Object.freeze({
 	nyquistReplacements: 'src/common/editor/first-party-effects/standard/nyquist-replacements.ts',
 	panels: 'src/common/editor/ui/workspace/workspace-panel-model.ts',
 	products: 'src/common/products.js',
+	preferences: 'src/common/editor/preferences.js',
 	projectFiles: 'src/common/project-file-extensions.ts',
 	scapeFormat: 'src/common/editor/scape-project-format.ts',
 	staffPad: 'src/common/editor/audacity-effects/contracts.js',
@@ -203,6 +204,7 @@ export function renderReferenceDocuments(sources) {
 			source: actions.AUDACITY_ACTION_SOURCE,
 			isProductCommandDisabled: actions.isAudacityShortcutCommandDisabled,
 			applicationMenuEntries: sources.applicationMenuReference?.APPLICATION_MENU_REFERENCE_ENTRIES ?? [],
+			defaultShortcuts: sources.preferences?.AUDIO_EDITOR_DEFAULT_SHORTCUTS ?? {},
 		})],
 		['formats.md', renderFormatReference({
 			products: productProfiles,

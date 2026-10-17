@@ -124,6 +124,42 @@ test('command reference merges reviewed local application-menu entries with mani
 	assert.match(rendered, /Local application-menu entries come from the reviewed menu reference registry/u);
 });
 
+test('command reference prefers installed defaults including explicitly unbound actions over pinned metadata', () => {
+	const manifest = Object.freeze({
+		'split-tool': Object.freeze({
+			id: 'split-tool', label: 'Split tool', status: 'implemented', shortcut: 'S', origin: 'upstream',
+		}),
+		'play-cut-preview': Object.freeze({
+			id: 'play-cut-preview', label: 'Cut preview', status: 'implemented', shortcut: 'C', origin: 'upstream',
+		}),
+		play: Object.freeze({
+			id: 'play', label: 'Play', status: 'implemented', shortcut: 'Space', origin: 'upstream',
+		}),
+		fallback: Object.freeze({
+			id: 'fallback', label: 'Fallback', status: 'implemented', shortcut: 'Ctrl+G', origin: 'upstream',
+		}),
+	});
+	const rendered = renderCommandReference({
+		manifest,
+		implementedStatus: 'implemented',
+		products,
+		source: { version: '4.0.0', commit: '0123456789abcdef', url: 'https://example.test/source' },
+		isProductCommandDisabled: () => false,
+		defaultShortcuts: Object.freeze({
+			'split-tool': Object.freeze(['C']),
+			'play-cut-preview': Object.freeze([]),
+			play: Object.freeze(['Space', 'Ctrl+Space']),
+		}),
+	});
+
+	assert.match(rendered, /Split tool \| `split-tool` \| C \|/u);
+	assert.match(rendered, /Cut preview \| `play-cut-preview` \| — \|/u);
+	assert.match(rendered, /Play \| `play` \| Space; Ctrl\+Space \|/u);
+	assert.match(rendered, /Fallback \| `fallback` \| Ctrl\+G \|/u);
+	assert.equal(manifest['split-tool'].shortcut, 'S', 'pinned Audacity metadata remains unchanged');
+	assert.equal(manifest['play-cut-preview'].shortcut, 'C');
+});
+
 test('command reference rejects malformed or conflicting local application-menu entries', () => {
 	const input = {
 		manifest: Object.freeze({
