@@ -19,7 +19,7 @@ test('source fade portals remain attached after panning away and back to the act
 	const clip = { id: 'clip', timelineStartFrame: 1_000, durationFrames: 1_000, fadeInFrames: 100 };
 	function Subject({ startFrame, endFrame }: { readonly startFrame: number; readonly endFrame: number }) {
 		const rootRef = useRef<HTMLDivElement>(null);
-		return <div ref={rootRef}><ClipSourceFades rootRef={rootRef} clip={clip} startFrame={startFrame} endFrame={endFrame}
+		return <div ref={rootRef} data-source-wave-test tabIndex={0}><ClipSourceFades rootRef={rootRef} clip={clip} startFrame={startFrame} endFrame={endFrame}
 			width={1_000} sampleRate={48_000} blocked={false} copy={ENGLISH_COPY} onChange={(_id, value) => { changes.push(value); }} /></div>;
 	}
 	try {
@@ -29,6 +29,9 @@ test('source fade portals remain attached after panning away and back to the act
 		await act(async () => reactProps(incoming).onKeyDown({ target: incoming, currentTarget: incoming, key: 'ArrowRight',
 			shiftKey: false, altKey: false, metaKey: false, ctrlKey: false, preventDefault() {}, stopPropagation() {} }));
 		assert.deepEqual(changes, [{ fadeInFrames: 1_000 }], 'source fades use the same 0.1-second boundary step as timeline fades');
+		await act(async () => reactProps(incoming).onKeyDown({ target: incoming, currentTarget: incoming, key: 'Tab',
+			shiftKey: false, altKey: false, metaKey: false, ctrlKey: false, preventDefault() {}, stopPropagation() {} }));
+		assert.equal(dom.container.ownerDocument.activeElement, dom.one('[data-source-wave-test]'), 'source Tab remains within its waveform owner');
 		assert.equal(dom.one('[data-fade-boundary="in"]').getAttribute('x1'), '100');
 		assert.equal(dom.one('[data-fade-boundary="in"]').getAttribute('x2'), '100');
 		assert.ok(dom.find('[data-fade-shading]'));

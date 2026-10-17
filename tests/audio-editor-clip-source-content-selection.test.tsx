@@ -19,6 +19,18 @@ test('shared source fade handles appear on the first mount before any clip edit'
 	} finally { await f.cleanup(); }
 });
 
+test('source fade clicks retain handle capture and release without publishing an empty edit', async () => {
+	const f = await fixture();
+	try {
+		await f.fadePointer('onPointerDown');
+		assert.deepEqual(f.fadeCaptures, [1]);
+		assert.deepEqual(f.waveCaptures, [], 'capture stays on the native click target');
+		await f.fadePointer('onPointerUp');
+		assert.deepEqual(f.fadeReleases, [1]);
+		assert.deepEqual(f.clipUpdates, [], 'a click without a fade drag has no native history edit');
+	} finally { await f.cleanup(); }
+});
+
 for (const cancel of ['Escape', 'pointercancel'] as const) {
 	test(`${cancel} restores the previous source highlight and effect target`, async () => {
 		const f = await fixture();
@@ -108,8 +120,11 @@ async function fixture() {
 	let effectSelection: (SourceSelection & { readonly clipId: string }) | null = null;
 	const noop = () => undefined;
 	const markerMoves: unknown[][] = [];
+	const clipUpdates: unknown[] = [];
+	const fadeCaptures: number[] = [], fadeReleases: number[] = [], waveCaptures: number[] = [];
+	const ownedFadePointers = new Set<number>();
 	const controller: ClipSourceController = { getClipVisualData: () => null, actions: {
-		clip: { update: noop }, audioWarp: { addSourceMarker: noop, moveSourceMarker: (...args: unknown[]) => { markerMoves.push(args); }, deleteSourceMarker: noop }, timeline: {},
+		clip: { update: (_id, changes) => { clipUpdates.push(changes); } }, audioWarp: { addSourceMarker: noop, moveSourceMarker: (...args: unknown[]) => { markerMoves.push(args); }, deleteSourceMarker: noop }, timeline: {},
 		effects: { setSourceSelection: value => { effectSelection = value; } },
 		clipSourcePreview: { ...preview, trim: noop },
 	} };
@@ -122,10 +137,20 @@ async function fixture() {
 	await render();
 	const wave = dom.one('.audio-editor-source-wave-area');
 	Object.defineProperty(wave, 'getBoundingClientRect', { value: () => ({ left: 0, width: 1_000 }) });
-	Object.defineProperty(wave, 'setPointerCapture', { value: noop });
+	Object.defineProperty(wave, 'setPointerCapture', { value: (id: number) => { waveCaptures.push(id); } });
+	const fade = dom.one('[data-clip-fade-handle="in"]');
+	Object.defineProperties(fade, {
+		setPointerCapture: { value: (id: number) => { fadeCaptures.push(id); ownedFadePointers.add(id); } },
+		hasPointerCapture: { value: (id: number) => ownedFadePointers.has(id) },
+		releasePointerCapture: { value: (id: number) => { fadeReleases.push(id); ownedFadePointers.delete(id); } },
+	});
 	const event = { button: 0, pointerId: 1, preventDefault: noop, stopPropagation: noop };
 	return {
-		render, preview, markerMoves, effectSelection: () => effectSelection,
+		render, preview, markerMoves, clipUpdates, fadeCaptures, fadeReleases, waveCaptures,
+		fadePointer: async (phase: 'onPointerDown' | 'onPointerUp') => {
+			await act(async () => reactProps(wave)[phase]({ ...event, target: fade, clientX: 100, clientY: 60 }));
+		},
+		effectSelection: () => effectSelection,
 		pressMarker: async (index: number, key: string) => {
 			const marker = dom.container.querySelectorAll('.audio-editor-source-stretch-marker')[index]!;
 			await act(async () => { reactProps(marker).onKeyDown({ ...event, key }); });

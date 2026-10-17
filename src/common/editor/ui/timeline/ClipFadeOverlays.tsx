@@ -52,11 +52,15 @@ export function ClipFadeOverlays({ rootRef, clips, selectedIds, startFrame, endF
 	const close = useCallback(() => setMenu(null), []);
 	const menuClip = menu && clips.find(clip => clip.id === menu.clipId);
 	const handleKeyboard = (event: KeyboardEvent<HTMLButtonElement>) => {
+		const id = event.currentTarget.closest<HTMLElement>('[data-clip-id]')?.dataset.clipId;
+		// Source monitor's handles belong to its waveform, outside timeline navigation.
+		if (event.key === 'Tab' && handleTabIndex === 0 && id) {
+			event.preventDefault(); event.stopPropagation(); onTabOut(id); return true;
+		}
 		const handled = routeClipHandleKeyboard(event, {
 			clips, sampleRate, blocked, selectedIds: [...selectedIds], playheadFrame: 0, updateFade: onChange,
 			trim() {}, stretch() {}, seek() {}, openFades: onEditFades,
 		});
-		const id = event.currentTarget.closest<HTMLElement>('[data-clip-id]')?.dataset.clipId;
 		if (handled && event.key === 'Tab' && id) onTabOut(id);
 		return handled;
 	};

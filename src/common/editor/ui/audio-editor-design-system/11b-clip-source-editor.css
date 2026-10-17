@@ -36,6 +36,13 @@
 .audio-editor-source-trim--end, .audio-editor-source-wave-area[data-source-gesture="end"] { cursor: url('../../../../../vendor/audacity-design-system/components/src/assets/cursors/ClipTrimRight.png') 8 10, ew-resize; }
 .audio-editor-source-fade-target { position: absolute; inset-block: 0; pointer-events: none; z-index: 5; }
 .audio-editor-source-fade-target .audio-editor-clip-fade { top: 24px; bottom: 0; }
+.audio-editor-source-wave-area:is(:hover, :focus-within) :is(.audacity-track-fade-handle, .audacity-track-fade-shape-handle) {
+	opacity: 1;
+	pointer-events: auto;
+}
+.audio-editor-source-wave-area:is(:hover, :focus-within) .audio-editor-clip-fade__curve :is([data-fade-curve], [data-fade-boundary]) {
+	opacity: 1;
+}
 .audio-editor-source-selection { position: absolute; inset-block: 24px 0; background: color-mix(in srgb, var(--accent, #89b5ff) 22%, transparent); pointer-events: none; }
 .audio-editor-source-stretch-marker { position: absolute; top: 38px; bottom: 0; width: 9px; transform: translateX(-50%); border: 0; background: linear-gradient(90deg, transparent 3px, #eeb85c 3px, #eeb85c 5px, transparent 5px); cursor: ew-resize; z-index: 3; }
 .audio-editor-source-stretch-marker::before { content: ''; position: absolute; top: 0; left: 0; border-inline: 4px solid transparent; border-top: 8px solid #eeb85c; }

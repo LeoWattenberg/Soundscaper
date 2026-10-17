@@ -32,7 +32,7 @@ interface Props {
 const amplitudeRulers = renderAmplitudeRulers as (channels: number, height: number, width: number, mode: string, format: string, zoom: number, ratio: number) => ReactNode;
 
 type Gesture = { readonly kind: 'selection' | 'start' | 'end' | 'fade-in' | 'fade-out' | 'shape-in' | 'shape-out' | 'marker'; readonly startFrame: number; readonly pointIndex?: number;
-	readonly startX: number; readonly startY: number; readonly pointerId: number; readonly initialSelection: SourceSelection | null; readonly initialValue?: number; readonly gainHeight?: number; readonly baseGain?: number; readonly startGain?: number };
+	readonly captureTarget?: HTMLElement; readonly startX: number; readonly startY: number; readonly pointerId: number; readonly initialSelection: SourceSelection | null; readonly initialValue?: number; readonly gainHeight?: number; readonly baseGain?: number; readonly startGain?: number };
 
 export default function ClipSourceEditor({ controller, project, clipId, copy, blocked, previewBlocked = blocked }: Props) {
 	const mutationBlockedRef = useRef(blocked);
@@ -59,6 +59,9 @@ export default function ClipSourceEditor({ controller, project, clipId, copy, bl
 	const [fadePreview, setFadePreview] = useState<ClipFadeChanges | null>(null);
 	const [focusedMarker, setFocusedMarker] = useState<number | null>(null);
 	const gesture = useRef<Gesture | null>(null);
+	useEffect(() => () => {
+		const current = gesture.current; gesture.current = null; releaseSourceFadeCapture(current);
+	}, []);
 	const selectedRef = useRef(selection);
 	selectedRef.current = selection;
 	const width = Math.max(1, size.width - 96);
@@ -161,13 +164,13 @@ export default function ClipSourceEditor({ controller, project, clipId, copy, bl
 			return;
 		}
 		const edge = kind.endsWith('-in') ? 'in' : 'out';
-		gesture.current = { kind, startFrame: frame, pointIndex, startX: event.clientX, startY: event.clientY, pointerId: event.pointerId, initialSelection: selectedRef.current,
+		gesture.current = { kind, startFrame: frame, pointIndex, ...(handle ? { captureTarget: handle } : {}), startX: event.clientX, startY: event.clientY, pointerId: event.pointerId, initialSelection: selectedRef.current,
 			initialValue: kind.startsWith('shape-') ? clip[fadeShapeField(edge)] ?? 2 : clip[fadeField(edge)] ?? 0,
 			gainHeight: handle?.closest('.audio-editor-clip-fade')?.getBoundingClientRect().height,
 			baseGain: handle?.dataset.fadeShapeBaseGain ? Number(handle.dataset.fadeShapeBaseGain) : undefined,
 			startGain: handle?.dataset.fadeShapeStartGain ? Number(handle.dataset.fadeShapeStartGain) : undefined };
 		setDragFrame(frame);
-		waveRef.current?.setPointerCapture(event.pointerId);
+		(handle ?? waveRef.current)?.setPointerCapture?.(event.pointerId);
 		if (kind === 'selection') setSelection({ startFrame: frame, endFrame: frame });
 	};
 	const fadeChanges = (current: Gesture, event: PointerEvent<HTMLElement>) => {
@@ -192,6 +195,7 @@ export default function ClipSourceEditor({ controller, project, clipId, copy, bl
 	const finish = (event: PointerEvent<HTMLDivElement>) => {
 		const current = gesture.current; if (!current || current.pointerId !== event.pointerId) return;
 		gesture.current = null; setDragFrame(null); setFadePreview(null);
+		releaseSourceFadeCapture(current);
 		const frame = frameAt(event.clientX);
 		if (current.kind === 'selection') {
 			run(() => { applySelection(frame === current.startFrame ? null : { startFrame: Math.min(current.startFrame, frame), endFrame: Math.max(current.startFrame, frame) }); preview.seek(frame); });
@@ -199,15 +203,19 @@ export default function ClipSourceEditor({ controller, project, clipId, copy, bl
 			run(() => preview.trim(clipId, clipSourceTrim(clip, source, project.sampleRate, current.kind as 'start' | 'end', clip.reversed ? clip.sourceStartFrame + (frame - range.startFrame) / clip.durationFrames * clip.sourceDurationFrames : sourceAt(frame), project)));
 		} else if (current.kind === 'marker') {
 			moveMarker(current.pointIndex!, frame);
-		} else {
-			run(() => controller.actions.clip.update(clipId, fadeChanges(current, event)));
+		} else if (current.kind.startsWith('shape-') ? event.clientY !== current.startY : event.clientX !== current.startX) {
+			const changes: ClipFadeChanges = fadeChanges(current, event);
+			if (Object.entries(changes).some(([field, value]) => value !== clip[field as keyof typeof changes])) {
+				run(() => controller.actions.clip.update(clipId, changes));
+			}
 		}
 	};
 	const cancelGesture = () => {
 		const current = gesture.current;
 		if (current?.kind === 'selection') setSelection(current.initialSelection);
 		gesture.current = null; setDragFrame(null); setFadePreview(null);
-		if (current && waveRef.current?.hasPointerCapture?.(current.pointerId)) waveRef.current.releasePointerCapture(current.pointerId);
+		const captureTarget = current?.captureTarget ?? waveRef.current;
+		if (current && captureTarget?.hasPointerCapture?.(current.pointerId)) captureTarget.releasePointerCapture(current.pointerId);
 	};
 	const previewClip = useMemo(() => fadePreview ? { ...clip, ...fadePreview } : clip, [clip, fadePreview]);
 	const fadeClip = useMemo(() => ({ ...previewClip, timelineStartFrame: range.startFrame }), [previewClip, range.startFrame]);
@@ -297,4 +305,9 @@ export default function ClipSourceEditor({ controller, project, clipId, copy, bl
 		</ContextMenu>
 		{error && <p role="alert" className="audio-editor-field-error">{error}</p>}
 	</div>;
+}
+
+function releaseSourceFadeCapture(gesture: Gesture | null): void {
+	const target = gesture?.captureTarget;
+	if (gesture && target?.hasPointerCapture?.(gesture.pointerId)) target.releasePointerCapture(gesture.pointerId);
 }

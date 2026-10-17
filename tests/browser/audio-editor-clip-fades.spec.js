@@ -1,6 +1,6 @@
 import { capturePassingScreenshot } from './helpers/passing-screenshots.js';
 import { expect, test, toneA, toneB, monoTone } from './audio-editor-test-fixtures.js';
-import { bootEditor, chooseCommandAction, clipByName, closeClipProperties, collectClientErrors, commitInput, importFiles, openClipProperties, registerAudioEditorHooks, setDocumentTheme, waitForEditor } from './audio-editor-test-helpers.js';
+import { bootEditor, chooseCommandAction, clipByName, closeClipProperties, collectClientErrors, commitInput, importFiles, openClipProperties, openSourceMonitor, registerAudioEditorHooks, setDocumentTheme, waitForEditor } from './audio-editor-test-helpers.js';
 import { chooseTrackMenuAction } from './helpers/track-menu.js';
 
 async function selectClip(clip) {
@@ -183,6 +183,41 @@ test.describe('non-destructive clip fade handles', () => {
 			expect(bounds.y + bounds.height).toBeLessThan(curveBounds.y + curveBounds.height / 2);
 		}
 	});
+
+	for (const surface of ['timeline', 'source']) {
+		test(`${surface} fade clicks toggle linear shape and double-clicks reset without consuming the drag gesture`, async ({ page }) => {
+			const errors = collectClientErrors(page);
+			const editor = await bootEditor(page, '/embed/en/');
+			await importFiles(editor, [toneA]);
+			const clip = clipByName(editor, toneA.name);
+			await selectClip(clip);
+			const owner = surface === 'source' ? (await openSourceMonitor(page, editor, clip)).getByRole('region', { name: 'Source waveform', exact: true }) : clip;
+			const fade = owner.getByRole('slider', { name: 'Fade in', exact: true });
+			await fade.press('Home');
+			for (let step = 0; step < 4; step++) await fade.press('ArrowRight');
+			const shape = owner.getByRole('slider', { name: 'Fade in shape', exact: true });
+			await shape.click({ modifiers: ['Control'] });
+			await expect(shape).toHaveAttribute('aria-valuetext', 'Linear');
+			await editor.getByRole('button', { name: 'Undo', exact: true }).click();
+			await expect(shape).not.toHaveAttribute('aria-valuetext');
+			await shape.click({ modifiers: ['Control'] });
+			await expect(shape).toHaveAttribute('aria-valuetext', 'Linear');
+			await shape.click({ modifiers: ['Control'] });
+			await expect(shape).not.toHaveAttribute('aria-valuetext');
+			await shape.press('ArrowDown');
+			const custom = await shape.getAttribute('aria-valuenow');
+			expect(Number(custom)).toBeGreaterThan(2);
+			await shape.dblclick();
+			await expect(shape).toHaveAttribute('aria-valuenow', '2');
+			await editor.getByRole('button', { name: 'Undo', exact: true }).click();
+			await expect(shape).toHaveAttribute('aria-valuenow', custom);
+			await fade.dblclick();
+			await expect(shape).toHaveAttribute('aria-valuenow', '2');
+			await editor.getByRole('button', { name: 'Undo', exact: true }).click();
+			await expect(shape).toHaveAttribute('aria-valuenow', custom);
+			expect(errors).toEqual([]);
+		});
+	}
 
 	test('keeps the fade path continuous in Multi-view', async ({ page }) => {
 		const editor = await bootEditor(page, '/embed/en/');
