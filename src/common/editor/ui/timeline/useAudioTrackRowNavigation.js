@@ -157,7 +157,7 @@ export function useAudioTrackRowNavigation({
 			}));
 			return;
 		}
-		const durationFrames = Math.max(1, clip.durationFrames + deltaFrames);
+		const durationFrames = Math.max(1, clip.durationFrames - deltaFrames);
 		if (durationFrames === clip.durationFrames) return;
 		run(() => controller.actions.clip.stretch(clip.id, { durationFrames }));
 	};
@@ -197,6 +197,22 @@ export function useAudioTrackRowNavigation({
 		)),
 		commitLegacy: () => stretchClipBySecondsLegacy(clipId, edge, deltaSeconds),
 	});
+	const editClipEdgeToFrame = (clipId, edge, requestedBoundarySample, stretch) => {
+		if (blocked) return;
+		const clip = clipLookup.get(String(clipId)) || clipLookup.get(clipId);
+		if (!clip || !Number.isSafeInteger(requestedBoundarySample) || requestedBoundarySample < 0) return;
+		const boundary = clip.timelineStartFrame + (edge === 'right' ? clip.durationFrames : 0);
+		if (boundary === requestedBoundarySample) return;
+		if (canonicalVideoTrim === true && clip.kind === 'audio'
+			&& typeof clip.avLinkId === 'string' && clip.avLinkId.length > 0) {
+			const request = { activeClipId: clip.id, edge, requestedBoundarySample };
+			run(() => stretch ? controller.actions.video.trim.rateStretch.commit(request)
+				: controller.actions.video.trim.commit(request));
+			return;
+		}
+		const deltaSeconds = (edge === 'left' ? requestedBoundarySample - boundary : boundary - requestedBoundarySample) / sampleRate;
+		(stretch ? stretchClipBySecondsLegacy : trimClipBySecondsLegacy)(clipId, edge, deltaSeconds);
+	};
 
 	return {
 		...focusNavigation,
@@ -209,6 +225,8 @@ export function useAudioTrackRowNavigation({
 					if (command) controller.actions.edit.commit(command);
 				}),
 				trim: trimClipBySeconds, stretch: stretchClipBySeconds,
+				trimToFrame: (id, edge, frame) => editClipEdgeToFrame(id, edge, frame, false),
+				stretchToFrame: (id, edge, frame) => editClipEdgeToFrame(id, edge, frame, true),
 				seek: frame => run(() => controller.actions.transport.seek(frame)), openFades: onEditFades,
 			})) return;
 			focusNavigation.handleClipKeyDownCapture(event);

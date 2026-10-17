@@ -59,7 +59,7 @@ export function ClipFadeOverlays({ rootRef, clips, selectedIds, startFrame, endF
 		}
 		const handled = routeClipHandleKeyboard(event, {
 			clips, sampleRate, blocked, selectedIds: [...selectedIds], playheadFrame: 0, updateFade: onChange,
-			trim() {}, stretch() {}, seek() {}, openFades: onEditFades,
+			trim() {}, stretch() {}, trimToFrame() {}, stretchToFrame() {}, seek() {}, openFades: onEditFades,
 		});
 		if (handled && event.key === 'Tab' && id) onTabOut(id);
 		return handled;

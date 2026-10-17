@@ -22,6 +22,8 @@ async function mounted(check: (dom: ReturnType<typeof installReactTestDom>, port
 		updateFade: (id, changes) => calls.push({ id, changes }),
 		trim: (id, edge, seconds) => calls.push({ id, edge, seconds, kind: 'trim' }),
 		stretch: (id, edge, seconds) => calls.push({ id, edge, seconds, kind: 'stretch' }),
+		trimToFrame: (id, edge, frame) => calls.push({ id, edge, frame, kind: 'trim' }),
+		stretchToFrame: (id, edge, frame) => calls.push({ id, edge, frame, kind: 'stretch' }),
 		seek: frame => calls.push({ seek: frame }), openFades: id => calls.push({ dialog: id }),
 	};
 	try {
@@ -75,7 +77,7 @@ test('cursor edits target the clip under the cursor and direct clip shortcuts se
 	await mounted((dom, ports, calls) => {
 		const target = dom.one('[data-clip-id]') as unknown as EventTarget;
 		routeClipHandleKeyboard(key(target, 't', { altKey: true }), { ...ports, playheadFrame: 108_000 });
-		assert.deepEqual(calls.pop(), { id: 'two', edge: 'left', seconds: 0.25, kind: 'trim' });
+		assert.deepEqual(calls.pop(), { id: 'two', edge: 'left', frame: 108_000, kind: 'trim' });
 		routeClipHandleKeyboard(key(target, 'f', { altKey: true, shiftKey: true }), ports);
 		assert.deepEqual(calls.pop(), { dialog: 'one' });
 		routeClipHandleKeyboard(key(target, ']', { ctrlKey: true }), ports);

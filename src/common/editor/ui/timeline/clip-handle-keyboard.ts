@@ -31,6 +31,8 @@ interface Ports {
 	updateFade(id: string, changes: Readonly<{ fadeInFrames?: number; fadeOutFrames?: number; fadeInShape?: number; fadeOutShape?: number }>, editedEdge?: ClipFadeEdge): void;
 	trim(id: string, edge: Edge, seconds: number): void;
 	stretch(id: string, edge: Edge, seconds: number): void;
+	trimToFrame(id: string, edge: Edge, frame: number): void;
+	stretchToFrame(id: string, edge: Edge, frame: number): void;
 	seek(frame: number): void;
 	openFades(id: string): void;
 }
@@ -136,7 +138,7 @@ export function routeClipHandleKeyboard(event: KeyEvent, ports: Ports): boolean 
 		const seconds = (edge === 'left' ? ports.playheadFrame - clip.timelineStartFrame
 			: clip.timelineStartFrame + clip.durationFrames - ports.playheadFrame) / ports.sampleRate;
 		if (key === 'f') ports.updateFade(clip.id, clipFadeLengthChange(clip, edge === 'left' ? 'in' : 'out', seconds * ports.sampleRate, ports.sampleRate), edge === 'left' ? 'in' : 'out');
-		else (key === 's' ? ports.stretch : ports.trim)(clip.id, edge, seconds);
+		else (key === 's' ? ports.stretchToFrame : ports.trimToFrame)(clip.id, edge, ports.playheadFrame);
 		return stop();
 	}
 	if (event.altKey) return false;

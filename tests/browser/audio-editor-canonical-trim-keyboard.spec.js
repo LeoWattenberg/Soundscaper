@@ -5,7 +5,7 @@ import { createDeterministicAvFixture } from './fixtures/deterministic-av-media.
 import { FRAMESCAPER_DATABASE_NAME, SOUNDSCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
 import { evaluateWithTransientBrowserRetry } from './helpers/transient-evaluation-retry.js';
 import { localeCopy } from './helpers/locale-copy.js';
-import { setFramescaperNtscSequenceRate } from './helpers/framescaper-standard-timecode.js';
+import { seekFramescaperTimecode, setFramescaperNtscSequenceRate } from './helpers/framescaper-standard-timecode.js';
 
 // The workflow reads a Framescaper timeline and, for the legacy fallback, a
 // Soundscaper project it imports at /de/ — each from its own product database.
@@ -13,6 +13,45 @@ const DATABASE_NAME = FRAMESCAPER_DATABASE_NAME;
 const WEBKIT_AV_IMPORT_DEFERRED = 'Playwright WebKit rejects the IndexedDB Blob write that persists an imported A/V source.';
 
 test.describe('Framescaper canonical clip-focus trim keyboard routing', () => {
+	test('Alt trim and stretch move linked edges to the absolute playhead and preserve undo', async ({ page }, testInfo) => {
+		test.skip(testInfo.project.name === 'webkit', WEBKIT_AV_IMPORT_DEFERRED);
+		test.setTimeout(180_000);
+		await page.setViewportSize({ width: 1_440, height: 1_100 });
+		const editor = await bootEditor(page, '/framescaper/de/');
+		await setFramescaperNtscSequenceRate(page, editor);
+		await importAvFixture(editor, 'absolute-keyboard.webm');
+		const projectId = await editor.getAttribute('data-project-id');
+		await expect.poll(() => persistedTimeline(page, projectId), { timeout: 30_000 }).not.toBeNull();
+		const baseline = await persistedTimeline(page, projectId);
+		expect(baseline.video.sequenceFrameCount).toBeGreaterThan(8);
+		const group = editor.locator(`[data-clip-id="${baseline.audio.id}"][role="group"]`);
+		for (const shortcut of ['Alt+t', 'Alt+s', 'Alt+[', 'Alt+]']) {
+			const left = shortcut === 'Alt+[';
+			const target = left ? baseline.video.sequenceStartFrame + 4
+				: baseline.video.sequenceStartFrame + baseline.video.sequenceFrameCount - 4;
+			await seekFramescaperTimecode(page, editor, sequenceTimecode(target, baseline.sequence.rate));
+			await focusLinkedAudio(group);
+			await group.press(shortcut);
+			await expect.poll(async () => {
+				const timing = await persistedTimeline(page, projectId);
+				return left ? timing.video.sequenceStartFrame : timing.video.sequenceStartFrame + timing.video.sequenceFrameCount;
+			}).toBe(target);
+			const after = await persistedTimeline(page, projectId);
+			assertLinkedEndpoints(after);
+			if (shortcut === 'Alt+s') {
+				expect(after.audio.sourceStartFrame).toBe(baseline.audio.sourceStartFrame);
+				expect(after.audio.sourceDurationFrames).toBe(baseline.audio.sourceDurationFrames);
+			}
+			await clickHistory(editor, localeCopy('de').undo);
+			await expect.poll(() => persistedTimeline(page, projectId)).toEqual(baseline);
+		}
+		await seekFramescaperTimecode(page, editor, sequenceTimecode(baseline.video.sequenceStartFrame, baseline.sequence.rate));
+		await focusLinkedAudio(group);
+		for (const shortcut of ['Alt+t', 'Alt+s', 'Alt+[']) await group.press(shortcut);
+		await expect.poll(() => persistedTimeline(page, projectId)).toEqual(baseline);
+		await expect(editor.locator('[data-status]')).not.toHaveAttribute('data-state', 'error');
+	});
+
 	test('uses local TrackNew chords for one-frame linked A/V trims and fixed-seconds legacy audio', async ({ page }, testInfo) => {
 		test.skip(testInfo.project.name === 'webkit', WEBKIT_AV_IMPORT_DEFERRED);
 		test.setTimeout(240_000);

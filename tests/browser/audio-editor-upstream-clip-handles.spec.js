@@ -1,7 +1,33 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { expect, test, toneA } from './audio-editor-test-fixtures.js';
-import { bootEditor, clipByName, importFiles } from './audio-editor-test-helpers.js';
+import { bootEditor, chooseCommandAction, clipByName, importFiles } from './audio-editor-test-helpers.js';
+
+test('right stretch arrows follow their direction and Alt+S reaches the playhead', async ({ page }) => {
+	const editor = await bootEditor(page, '/embed/en/');
+	await importFiles(editor, [toneA]);
+	const clip = clipByName(editor, toneA.name);
+	const fadeOut = clip.getByRole('slider', { name: 'Fade out', exact: true });
+	await expect(fadeOut).toHaveAttribute('aria-valuemax', '0.8');
+	await clip.focus();
+	await clip.press('Control+]');
+	await clip.press('s');
+	const stretch = clip.getByRole('button', { name: 'Stretch right edge', exact: true });
+	await expect(stretch).toBeFocused();
+	await stretch.press('ArrowRight');
+	await expect(fadeOut).toHaveAttribute('aria-valuemax', '0.9');
+	await stretch.press('ArrowLeft');
+	await expect(fadeOut).toHaveAttribute('aria-valuemax', '0.8');
+	const playhead = editor.getByRole('slider', { name: 'Playhead', exact: true });
+	await playhead.press('Shift+ArrowLeft');
+	await playhead.press('Shift+ArrowLeft');
+	await expect(playhead).toHaveAttribute('aria-valuenow', '28800');
+	await clip.focus();
+	await clip.press('Alt+s');
+	await expect(fadeOut).toHaveAttribute('aria-valuemax', '0.6');
+	await chooseCommandAction(page, editor, 'Edit', 'Undo');
+	await expect(fadeOut).toHaveAttribute('aria-valuemax', '0.8');
+});
 
 for (const height of [54, 60]) test(`trim and stretch handles remain reachable inside a ${height}px collapsed clip`, async ({ page }) => {
 	const editor = await bootEditor(page, '/embed/en/');
