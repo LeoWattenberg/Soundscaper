@@ -5,6 +5,7 @@ import test from 'node:test';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import ClipPropertiesPanel from '../src/common/editor/ui/inspector/ClipPropertiesPanel.tsx';
+import ClipSourceMonitorPanel from '../src/common/editor/ui/inspector/ClipSourceMonitorPanel.tsx';
 import { createAudioClip, createAudioSource, createAudioTrack } from '../src/common/editor/project-media-factory.ts';
 import { createSoundscaperProject } from '../src/soundscaper/editor-project.ts';
 import { ENGLISH_COPY } from '../src/common/i18n/catalogs.js';
@@ -24,12 +25,14 @@ test('clip properties projects persisted beat extents for the source overlay and
 			} };
 			const markup = renderToStaticMarkup(<ClipPropertiesPanel controller={controller} copy={ENGLISH_COPY}
 				snapshot={{ project, selectedClipId: 'clip', capabilities: { audioEffects: false } }} />);
-			const overlay = markup.match(/class="audio-editor-source-clip"[^>]+/u)?.[0] ?? '';
+			const sourceMarkup = renderToStaticMarkup(<ClipSourceMonitorPanel controller={controller} copy={ENGLISH_COPY}
+				snapshot={{ project, selectedClipId: 'clip', capabilities: { audioEffects: false } }} />);
+			const overlay = sourceMarkup.match(/class="audio-editor-source-clip"[^>]+/u)?.[0] ?? '';
 			assert.ok(Math.abs(Number(overlay.match(/left:([^p]+)px/u)?.[1]) - left) < 0.001, overlay);
 			assert.ok(Math.abs(Number(overlay.match(/width:([^p]+)px/u)?.[1]) - width) < 0.001, overlay);
-			for (const [field, value] of [['startFrame', start], ['durationFrame', duration]] as const) {
-				const content = markup.split(`data-clip-field="${field}"`)[1]?.split('</label>')[0] ?? '';
-				assert.ok(content.includes(`value="${value}"`), `${field} should display its resolved samples`);
+			for (const [field, value] of [['start', start], ['length', duration]] as const) {
+				const content = markup.split(`data-clip-properties-field="${field}"`)[1]?.split('clip-properties__sr')[0] ?? '';
+				assert.ok(content.includes(`value="${value / project.sampleRate}"`), `${field} should display its resolved seconds`);
 			}
 			assert.equal(Object.hasOwn(project.clips[0]!, 'timelineStartFrame'), false, 'projection never mutates persisted beats');
 			assert.equal(Object.hasOwn(project.clips[0]!, 'durationFrames'), false);

@@ -36,7 +36,7 @@ for (const panel of [false, true]) test(`the ${panel ? 'live panel' : 'propertie
 	};
 	try {
 		await render();
-		const name = () => dom.one('[data-clip-field="name"]').querySelector('input');
+		const name = () => dom.one(panel ? '[data-clip-properties-field="name"]' : '[data-clip-field="name"]').querySelector('input');
 		assert.equal(name()?.getAttribute('disabled'), null);
 		project = applySoundscaperProjectCommand(project, { type: 'track/update', trackId: 'track', changes: { locked: true } });
 		assert.throws(() => applySoundscaperProjectCommand(project, {
@@ -44,14 +44,17 @@ for (const panel of [false, true]) test(`the ${panel ? 'live panel' : 'propertie
 		}), (error: unknown) => error instanceof RangeError && /locked/u.test(error.message));
 		await render();
 		assert.equal(project.tracks[0]?.locked, true);
-		assert.equal(dom.one('[data-clip-fields]').getAttribute('aria-disabled'), 'true');
+		if (!panel) assert.equal(dom.one('[data-clip-fields]').getAttribute('aria-disabled'), 'true');
 		assert.notEqual(name()?.getAttribute('disabled'), null);
-		assert.equal(dom.one('[data-clip-field="inverted"]').querySelector('[role="checkbox"]')?.getAttribute('aria-disabled'), 'true');
-		assert.notEqual(dom.one('[data-clip-action="normalize-peak"]').querySelector('button')?.getAttribute('disabled'), null);
+		if (panel) assert.notEqual(dom.one('[data-clip-properties-field="reverse"]').getAttribute('disabled'), null);
+		else {
+			assert.equal(dom.one('[data-clip-field="inverted"]').querySelector('[role="checkbox"]')?.getAttribute('aria-disabled'), 'true');
+			assert.notEqual(dom.one('[data-clip-action="normalize-peak"]').querySelector('button')?.getAttribute('disabled'), null);
+		}
 		project = applySoundscaperProjectCommand(project, { type: 'track/update', trackId: 'track', changes: { locked: false } });
 		await render();
 		assert.equal(name()?.getAttribute('disabled'), null);
-		assert.notEqual(dom.one('[data-clip-field="inverted"]').querySelector('[role="checkbox"]')?.getAttribute('aria-disabled'), 'true');
+		if (!panel) assert.notEqual(dom.one('[data-clip-field="inverted"]').querySelector('[role="checkbox"]')?.getAttribute('aria-disabled'), 'true');
 		assert.equal(project.clips[0]?.title, 'Recording');
 	} finally {
 		await act(async () => root.unmount());

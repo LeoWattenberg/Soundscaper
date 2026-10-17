@@ -1,0 +1,392 @@
+/* ClipPropertiesPanel — the dockable "Clip properties" panel, in the
+   manner of Figma's properties panel (2026-10-06): a 40px header naming
+   the subject (the tab names the panel) on the dock background, then groups of ROWS of two bordered fields, each a
+   glyph beside its value — no label column. The fades' glyphs are live
+   curve thumbnails; their shape picker is a row of small curve glyphs. */
+
+.clip-properties {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  background: var(--dock-bg, #f8f8f9);
+  font-family: 'Inter', sans-serif;
+  color: var(--text-primary, #14151a);
+}
+
+.clip-properties__header {
+  height: 40px;
+  padding: 8px 10px;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.clip-properties__subtitle {
+  font-size: 12px;
+  line-height: 16px;
+  opacity: 0.6;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.clip-properties__empty {
+  margin: 0;
+  padding: 16px 12px;
+  font-size: 12px;
+  line-height: 16px;
+  opacity: 0.7;
+}
+
+/* The body sits on the panel's PRIMARY surface — the dock's own
+   background (theme background.surface.default), not an inset well
+   ("bg of panel should be primary", 2026-10-06); the fields are the
+   white boxes on it */
+.clip-properties__body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0 10px 12px;
+  background: var(--dock-bg, #f8f8f9);
+}
+
+/* Three columns in the bottom drawer (data-layout="columns"): wide and
+   short, so the groups sit side by side — Clip over Speed, then
+   Position, then Fades. In a side dock (`stack`) the groups follow
+   each other. */
+.clip-properties[data-layout="columns"] .clip-properties__body {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-rows: auto auto;
+  column-gap: 24px;
+  align-content: start;
+  padding: 0 16px 12px;
+}
+
+.clip-properties[data-layout="columns"] .clip-properties__group[data-group="clip"] { grid-column: 1; grid-row: 1; }
+.clip-properties[data-layout="columns"] .clip-properties__group[data-group="speed"] { grid-column: 1; grid-row: 2; }
+.clip-properties[data-layout="columns"] .clip-properties__group[data-group="position"] { grid-column: 2; grid-row: 1 / span 2; }
+.clip-properties[data-layout="columns"] .clip-properties__group[data-group="fades"] { grid-column: 3; grid-row: 1; }
+.clip-properties[data-layout="columns"] .clip-properties__group[data-group="export"] { grid-column: 3; grid-row: 2; }
+
+.clip-properties__section {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 12px 0 6px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 16px;
+  opacity: 0.7;
+}
+
+/* The section's right-hand action (Figma's "+" slot): a small text
+   button — Reset on Pitch & speed — dimmed when there is nothing to do */
+.clip-properties__section-action {
+  padding: 0 4px;
+  margin: -2px -4px -2px 0;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  font: inherit;
+  font-weight: 500;
+  line-height: 20px;
+  color: var(--accent, #4a5fd6);
+  cursor: pointer;
+}
+
+.clip-properties__section-action:hover:not(:disabled) {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.clip-properties__section-action:disabled {
+  color: inherit;
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* The Export block's button: wide, under the format and rate */
+.clip-properties__export {
+  display: flex;
+}
+
+.clip-properties__export .clip-properties__export-button {
+  flex: 1;
+  justify-content: center;
+}
+
+/* A row: two fields, equal; a lone wide field spans both */
+.clip-properties__row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+/* Three to a row, always (Start | Length | End — "can't they be on
+   the same row?", 2026-10-06): the glyph cell and the stepper's inset
+   give up a little so the digits keep their room in a side dock */
+.clip-properties__row--three {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.clip-properties__row--three .clip-properties__glyph-cell {
+  flex-basis: 20px;
+}
+.clip-properties__row--three .number-stepper__input {
+  padding-left: 0;
+}
+.clip-properties__row--three .clip-properties__value {
+  font-variant-numeric: tabular-nums;
+}
+
+/* The clip strip: the source as a lane, the clip as a block in it, its
+   fades as wedges, its edges as handles — Figma's padding box, for a
+   clip. Lengths along the lane are the source's. */
+.clip-properties__strip {
+  position: relative;
+  box-sizing: border-box;
+  height: 44px;
+  padding: 10px 8px;
+  margin-bottom: 6px;
+  border: 1px solid var(--field-border, #d0d2d6);
+  border-radius: 4px;
+  background: var(--stage-raised, #fff);
+}
+
+.clip-properties__strip-lane {
+  position: relative;
+  height: 100%;
+  border-radius: 2px;
+  background: repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.07) 0 2px, transparent 2px 5px);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.06);
+}
+
+.clip-properties__strip-clip {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  min-width: 4px;
+  border-radius: 2px;
+  overflow: hidden;
+  background: var(--clip-strip-fill, #8a93a8);
+}
+.clip-properties__strip-clip[data-swatch="track"] { --clip-strip-fill: #8a93a8; }
+.clip-properties__strip-clip[data-swatch="cyan"] { --clip-strip-fill: var(--clip-cyan-header, #67d5e6); }
+.clip-properties__strip-clip[data-swatch="blue"] { --clip-strip-fill: var(--clip-blue-header, #6aa6f5); }
+.clip-properties__strip-clip[data-swatch="violet"] { --clip-strip-fill: var(--clip-violet-header, #a48ff0); }
+.clip-properties__strip-clip[data-swatch="magenta"] { --clip-strip-fill: var(--clip-magenta-header, #e685c8); }
+.clip-properties__strip-clip[data-swatch="red"] { --clip-strip-fill: var(--clip-red-header, #ef7a7a); }
+.clip-properties__strip-clip[data-swatch="orange"] { --clip-strip-fill: var(--clip-orange-header, #f2a05a); }
+.clip-properties__strip-clip[data-swatch="yellow"] { --clip-strip-fill: var(--clip-yellow-header, #e9cf4e); }
+.clip-properties__strip-clip[data-swatch="green"] { --clip-strip-fill: var(--clip-green-header, #7dd38a); }
+.clip-properties__strip-clip[data-swatch="teal"] { --clip-strip-fill: var(--clip-teal-header, #5fcdb8); }
+
+/* A fade: the dimmed area above its line, as on the canvas */
+.clip-properties__strip-fade {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.55);
+  pointer-events: none;
+}
+.clip-properties__strip-fade--in { left: 0; clip-path: polygon(0 0, 100% 0, 0 100%); }
+.clip-properties__strip-fade--out { right: 0; clip-path: polygon(0 0, 100% 0, 100% 100%); }
+
+/* The edges: a grab bar each, the whole height, with the trim cursor */
+.clip-properties__strip-handle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 8px;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  background: rgba(0, 0, 0, 0.35);
+  cursor: ew-resize;
+  touch-action: none;
+}
+.clip-properties__strip-handle--start { left: 0; border-radius: 2px 0 0 2px; }
+.clip-properties__strip-handle--end { right: 0; border-radius: 0 2px 2px 0; }
+.clip-properties__strip-handle:hover:not(:disabled),
+.clip-properties__strip-handle:focus-visible { background: rgba(0, 0, 0, 0.6); outline: none; }
+.clip-properties__strip-handle:disabled { cursor: default; opacity: 0.4; }
+
+.clip-properties__field--wide {
+  grid-column: 1 / -1;
+}
+
+/* The field: one bordered box, the glyph in a fixed cell on the left,
+   the control filling the rest. The stepper and the text input drop
+   their own border inside it so the box is the only one drawn. */
+.clip-properties__field {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  height: 28px;
+  box-sizing: border-box;
+  border: 1px solid var(--field-border, #d0d2d6);
+  border-radius: 4px;
+  background: var(--stage-raised, #fff);
+  color: var(--text-primary, #14151a);
+}
+
+.clip-properties__field:hover,
+.clip-properties__field:focus-within {
+  border-color: var(--field-border-focus, #677ce4);
+}
+
+.clip-properties__field--read {
+  background: transparent;
+  border-color: transparent;
+}
+
+.clip-properties__field--read:hover {
+  border-color: transparent;
+}
+
+.clip-properties__glyph-cell {
+  flex: 0 0 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  opacity: 0.55;
+}
+
+.clip-properties__field:focus-within .clip-properties__glyph-cell {
+  opacity: 0.85;
+}
+
+.clip-properties__glyph {
+  display: block;
+}
+
+.clip-properties__field .number-stepper {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  height: 26px;
+}
+
+.clip-properties__field .number-stepper__input {
+  padding-left: 0;
+}
+
+.clip-properties__field .clip-properties__input,
+.clip-properties__field .dropdown {
+  flex: 1;
+  min-width: 0;
+}
+
+.clip-properties__field--text .clip-properties__input {
+  padding-left: 8px;
+}
+
+.clip-properties__field .clip-properties__input,
+.clip-properties__field .clip-properties__input input {
+  border: none;
+  background: transparent;
+  box-shadow: none;
+  height: 26px;
+}
+
+.clip-properties__field--select .dropdown > * {
+  border: none;
+  background: transparent;
+}
+
+.clip-properties__value {
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+  line-height: 16px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Screen readers get the field's name; sighted users the glyph + tooltip */
+.clip-properties__sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* A MIXED field (several selected clips disagree): blank, "Mixed" as
+   its placeholder, and no arrows — there is no one value to step from;
+   a typed value applies to every selected clip. */
+.clip-properties__field[data-mixed] .number-stepper__arrows {
+  display: none;
+}
+
+/* The colour swatch: the clip palette's header tones (ClipHeader.css) */
+.clip-properties__swatch {
+  display: block;
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  box-sizing: border-box;
+  border: 1px solid rgba(0, 0, 0, 0.18);
+  background: var(--clip-swatch, transparent);
+}
+.clip-properties__swatch[data-swatch="track"] { background: repeating-linear-gradient(135deg, #c8cacf 0 2px, transparent 2px 4px); }
+.clip-properties__swatch[data-swatch="mixed"] { background: conic-gradient(#ef4444, #f59e0b, #22c55e, #3b82f6, #a855f7, #ef4444); }
+.clip-properties__swatch[data-swatch="cyan"] { background: var(--clip-cyan-header, #67d5e6); }
+.clip-properties__swatch[data-swatch="blue"] { background: var(--clip-blue-header, #6aa6f5); }
+.clip-properties__swatch[data-swatch="violet"] { background: var(--clip-violet-header, #a48ff0); }
+.clip-properties__swatch[data-swatch="magenta"] { background: var(--clip-magenta-header, #e685c8); }
+.clip-properties__swatch[data-swatch="red"] { background: var(--clip-red-header, #ef7a7a); }
+.clip-properties__swatch[data-swatch="orange"] { background: var(--clip-orange-header, #f2a05a); }
+.clip-properties__swatch[data-swatch="yellow"] { background: var(--clip-yellow-header, #e9cf4e); }
+.clip-properties__swatch[data-swatch="green"] { background: var(--clip-green-header, #7dd38a); }
+.clip-properties__swatch[data-swatch="teal"] { background: var(--clip-teal-header, #5fcdb8); }
+
+/* The Reverse switch: a field that is a button, its track and knob on
+   the right; checked slides the knob over in the accent */
+.clip-properties__field--toggle {
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  padding: 0 8px 0 0;
+}
+.clip-properties__field--toggle:disabled { cursor: default; opacity: 0.5; }
+.clip-properties__switch {
+  position: relative;
+  flex: 0 0 26px;
+  height: 14px;
+  border-radius: 7px;
+  background: rgba(0, 0, 0, 0.18);
+  transition: background 0.12s ease-out;
+}
+.clip-properties__switch::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 10px;
+  height: 10px;
+  border-radius: 5px;
+  background: var(--stage-raised, #fff);
+  transition: transform 0.12s ease-out;
+}
+.clip-properties__field--toggle[aria-checked="true"] .clip-properties__switch { background: var(--accent, #4a5fd6); }
+.clip-properties__field--toggle[aria-checked="true"] .clip-properties__switch::after { transform: translateX(12px); }
+.clip-properties__field--toggle[aria-checked="mixed"] .clip-properties__switch::after { transform: translateX(6px); opacity: 0.7; }
+@media (prefers-reduced-motion: reduce) {
+  .clip-properties__switch, .clip-properties__switch::after { transition: none; }
+}
+
+/* The shape picker's glyph is the fade thumbnail, a touch wider */
+.clip-properties__field--shape .clip-properties__glyph-cell {
+  flex-basis: 30px;
+}

@@ -17,6 +17,7 @@ import { lazyEditorModule } from '../../../offline/lazy-module.tsx';
 import { readProjectRecordingNotes } from '../../recording-notes.ts';
 
 const RealtimeAnalysisPanel = lazyEditorModule(() => import('../inspector/RealtimeAnalysisPanel.jsx'));
+const AudioSourceMonitorPanel = lazyEditorModule(() => import('../inspector/ClipSourceMonitorPanel.tsx'));
 const RecordingNotesPanel = lazyEditorModule(() => import('./RecordingNotesPanel.tsx'));
 
 // The docked effects rack claims keyboard focus when it opens. Moving the
@@ -178,6 +179,11 @@ export default function WorkspacePanelContent({
 		return <VideoPreviewPanel controller={controller} snapshot={snapshot} copy={copy} run={run} />;
 	}
 	if (panelId === 'source-monitor') {
+		const selectedAudioClip = project?.clips.find(clip => clip.id === snapshot.selectedClipId && clip.kind === 'audio');
+		if (selectedAudioClip || productId === 'soundscaper') {
+			return <React.Suspense fallback={<LazyInspectorFallback copy={copy} />}><AudioSourceMonitorPanel
+				controller={controller} snapshot={snapshot} runtimeProject={runtimeProject} copy={copy} panelActive={panelActive} /></React.Suspense>;
+		}
 		return (
 			<SourceMonitorPanel
 				controller={controller}

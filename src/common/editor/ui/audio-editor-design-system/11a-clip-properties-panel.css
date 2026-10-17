@@ -267,3 +267,45 @@
 	}
 
 }
+
+.audio-editor-source-monitor-panel [data-clip-properties-active-clip] {
+	flex-direction: column;
+}
+
+.kw-audio-editor__workspace-panel-content[data-workspace-tab-panel='source-monitor']:not([hidden]) {
+	display: flex;
+}
+
+.audio-editor-upstream-clip-properties {
+	--dock-bg: var(--panel);
+	--text-primary: var(--text);
+	--text-secondary: var(--muted);
+	--border-color: var(--line);
+	min-width: 0;
+	min-height: 0;
+	flex: 1;
+	overflow: auto;
+}
+
+.audio-editor-upstream-clip-properties > fieldset {
+	min-width: 0;
+	margin: 0;
+	padding: 0;
+	border: 0;
+}
+
+.audio-editor-upstream-clip-properties__additional {
+	margin: 8px 10px;
+}
+
+.audio-editor-upstream-clip-properties__additional > summary {
+	cursor: pointer;
+	font-size: 12px;
+}
+
+[data-panel-dock='bottom'] .audio-editor-upstream-clip-properties .clip-properties__body {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(180px, 1fr));
+	gap: 16px;
+	align-content: start;
+}
