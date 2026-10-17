@@ -56,7 +56,9 @@ test('slider direct value and reset menus each create one complete value gesture
 			onGestureEnd={value => gestures.push(`end:${value}`)} />));
 		const slider = dom.one('.slider');
 		await act(async () => reactProps(slider).onContextMenu({ currentTarget: slider, clientX: 3, clientY: 4, preventDefault() {}, stopPropagation() {} }));
-		const menu = dom.one('[role="menu"]');
+		const menu = dom.container.ownerDocument.body.querySelector('[role="menu"]');
+		assert.ok(menu, 'the numeric menu is portaled into its document');
+		assert.equal(slider.contains(menu), false, 'the menu escapes slider stacking and clipping');
 		assert.equal(menu.querySelectorAll('[role="menuitem"]').length, 2);
 		await act(async () => reactProps(menu.querySelectorAll('[role="menuitem"]')[1]).onClick({ stopPropagation() {} }));
 		assert.deepEqual(gestures, ['start:80', 'value:75', 'end:75']);
