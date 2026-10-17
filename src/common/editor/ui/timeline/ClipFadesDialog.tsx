@@ -55,7 +55,7 @@ export default function ClipFadesDialog({ clip, sampleRate, copy, blocked, onPre
 							const seconds = Number(text.replace(/\s*s\s*$/iu, '').replace(',', '.'));
 							if (Number.isFinite(seconds)) {
 								const length = clipFadeLengthChange(value, edge, Math.round(seconds * sampleRate));
-								setChanges(previous => ({ ...previous, ...shapesForNewClipFades(clip, length), ...length }));
+								setChanges(previous => ({ ...shapesForNewClipFades(clip, length), ...previous, ...length }));
 							}
 						}} /><span aria-hidden="true">{` ${labels.secondsUnit}`}</span>
 				</label>

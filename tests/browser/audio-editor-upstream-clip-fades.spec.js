@@ -78,4 +78,38 @@ test.describe('upstream clip handle interaction', () => {
 		await fade.getByRole('menuitem', { name: 'Edit fade-in', exact: true }).click();
 		await expect(page.getByRole('dialog', { name: 'Fades', exact: true })).toBeVisible();
 	});
+
+	for (const shape of ['exponential', 'linear']) test(`Fades keeps the ${shape} shape when a new fade length changes`, async ({ page }) => {
+		const editor = await bootEditor(page, '/embed/en/');
+		await chooseCommandAction(page, editor, 'Edit', 'Preferences');
+		const preferences = page.getByRole('dialog', { name: 'Editor preferences', exact: true });
+		await preferences.getByRole('tab', { name: /Editing$/u }).click();
+		await preferences.getByRole('checkbox', { name: 'Apply 2 ms fades to new clips' }).uncheck();
+		await preferences.getByRole('button', { name: 'Close', exact: true }).last().click();
+		await importFiles(editor, [toneA]);
+		const clip = clipByName(editor, toneA.name);
+		await clip.focus();
+		await clip.press('f');
+		const fadeIn = clip.getByRole('slider', { name: 'Fade in', exact: true });
+		await expect(fadeIn).toHaveAttribute('aria-valuenow', '0');
+		const open = async () => {
+			await fadeIn.focus();
+			await fadeIn.press('Shift+F10');
+			await page.getByRole('menuitem', { name: 'Edit fade-in', exact: true }).click();
+			return page.getByRole('dialog', { name: 'Fades', exact: true });
+		};
+		let dialog = await open();
+		const length = dialog.getByRole('textbox', { name: 'Fade-in length', exact: true });
+		await length.fill('0.2');
+		await dialog.getByRole('combobox', { name: 'Fade-in shape', exact: true }).selectOption(shape);
+		await length.fill('0.3');
+		await expect(dialog.getByRole('combobox', { name: 'Fade-in shape', exact: true })).toHaveValue(shape);
+		await dialog.getByRole('button', { name: 'Apply', exact: true }).click();
+		await expect(fadeIn).toHaveAttribute('aria-valuenow', '0.3');
+		dialog = await open();
+		await expect(dialog.getByRole('combobox', { name: 'Fade-in shape', exact: true })).toHaveValue(shape);
+		await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
+		await chooseCommandAction(page, editor, 'Edit', 'Undo');
+		await expect(fadeIn).toHaveAttribute('aria-valuenow', '0');
+	});
 });

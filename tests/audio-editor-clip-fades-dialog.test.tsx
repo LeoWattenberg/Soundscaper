@@ -152,3 +152,17 @@ test('edited Fades Apply publishes once and retains footer event isolation', asy
 		assert.equal(rowEvents(), 0);
 	});
 });
+
+for (const preset of [{ id: 'exponential', shape: 3 }, { id: 'linear', shape: undefined }]) {
+	test(`editing a new fade length preserves its selected ${preset.id} shape`, async () => {
+		await withDialog(clip, async ({ dom, dispatch, applied, previews }) => {
+			await act(async () => { reactProps(dom.one('.number-stepper__input')).onChange({ target: { value: '0.300' } }); });
+			await act(async () => { reactProps(dom.one('select')).onChange({ currentTarget: { value: preset.id } }); });
+			assert.equal(previews.at(-1)?.fadeInShape, preset.shape);
+			await act(async () => { reactProps(dom.one('.number-stepper__input')).onChange({ target: { value: '0.500' } }); });
+			assert.deepEqual(previews.at(-1), { fadeInShape: preset.shape, fadeInFrames: 24_000 });
+			await dispatch(footerButton(dom, 'Apply'), 'click');
+			assert.deepEqual(applied, [{ fadeInShape: preset.shape, fadeInFrames: 24_000 }]);
+		});
+	});
+}
