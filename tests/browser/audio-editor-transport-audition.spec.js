@@ -119,6 +119,7 @@ test.describe('transport audition shortcuts', () => {
 		await expect(menuItem(menu, 'Play/Stop and set cursor').locator('.context-menu-item-shortcut')).toHaveText('X');
 		await expect(menuItem(menu, 'Pause').locator('.context-menu-item-shortcut')).toHaveText('P');
 		await menuItem(menu, 'Cut preview').click();
+		await expect(playOptions(editor)).toBeFocused();
 		await expect(editor.locator('[data-transport="play"]').getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
 		await expect.poll(() => frame(playhead)).toBeLessThan(selectionStart);
 		await page.keyboard.press('p');

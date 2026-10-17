@@ -80,11 +80,11 @@ export default function AudioEditorSplitButton({
 	const closeFlyout = useCallback(() => {
 		const trigger = arrowRef.current;
 		const popup = splitRef.current?.querySelector('.kw-audio-editor__split-button-flyout');
-		if (flyout?.autoFocus && trigger?.isConnected && popup?.contains(trigger.ownerDocument.activeElement)) {
+		if (trigger?.isConnected && popup?.contains(trigger.ownerDocument.activeElement)) {
 			trigger.focus();
 		}
 		setFlyout(null);
-	}, [flyout]);
+	}, []);
 	const openFlyout = useCallback((event: MouseEvent<HTMLButtonElement>) => {
 		if (consumeTriggerDismissal()) return;
 		if (flyout) {

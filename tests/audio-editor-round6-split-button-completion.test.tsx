@@ -8,7 +8,7 @@ import AudioEditorSplitButton from '../src/common/editor/ui/AudioEditorSplitButt
 import { installReactTestDom, reactProps } from './helpers/react-test-dom.ts';
 
 for (const keyboard of [true, false]) for (const actionFocus of [false, true]) {
-	test(`split-button action returns its keyboard owner before completion: ${keyboard}, action focus ${actionFocus}`, async context => {
+	test(`split-button action returns popup focus before completion: ${keyboard}, action focus ${actionFocus}`, async context => {
 		context.mock.timers.enable({ apis: ['setTimeout'] });
 		const dom = installReactTestDom();
 		const actGlobal = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean };
@@ -36,10 +36,10 @@ for (const keyboard of [true, false]) for (const actionFocus of [false, true]) {
 			option.focus();
 			await act(async () => { reactProps(option).onClick(); });
 			assert.equal(option.isConnected, false, 'the action closes its popup');
-			assert.equal(focusedAtAction, keyboard ? trigger : option,
-				'keyboard focus reaches its surviving trigger before the action can claim focus');
+			assert.equal(focusedAtAction, trigger,
+				'popup focus reaches its surviving trigger before the action can claim focus');
 			if (actionFocus) assert.equal(dom.container.ownerDocument.activeElement, dom.one('[data-next-action]'));
-			else if (keyboard) assert.equal(dom.container.ownerDocument.activeElement, trigger);
+			else assert.equal(dom.container.ownerDocument.activeElement, trigger);
 		} finally {
 			await act(async () => { root.unmount(); });
 			actGlobal.IS_REACT_ACT_ENVIRONMENT = previousAct;
