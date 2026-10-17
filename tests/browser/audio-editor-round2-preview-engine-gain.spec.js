@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { createWavFixture, expect, test } from './audio-editor-test-fixtures.js';
-import { bootEditor, clipByName, importFiles, openClipProperties } from './audio-editor-test-helpers.js';
+import { bootEditor, clipByName, importFiles, openSourceMonitor } from './audio-editor-test-helpers.js';
 import { observeListeningGains } from './helpers/round2-listening-gain-observer.js';
 
 for (const preview of ['source', 'bin']) test(`${preview} preview inherits the listening volume`, async ({ page }) => {
@@ -16,7 +16,7 @@ for (const preview of ['source', 'bin']) test(`${preview} preview inherits the l
 	const clip = clipByName(editor, recording.name);
 	let playing;
 	if (preview === 'source') {
-		const panel = await openClipProperties(page, editor, clip);
+		const panel = await openSourceMonitor(page, editor, clip);
 		await panel.getByRole('button', { name: 'Play', exact: true }).click();
 		playing = panel.getByRole('button', { name: 'Pause', exact: true });
 	} else {

@@ -14,7 +14,8 @@ test('Reset pitch and speed clears the independent pitch while linkage is enable
 	await clipField(properties, 'pitchCents').press('Tab');
 	const linked = properties.getByRole('checkbox', { name: 'Link pitch and tempo', exact: true });
 	await linked.check();
-	await properties.getByRole('button', { name: 'Reset', exact: true }).click();
+	await properties.locator('[data-clip-properties-drawer="pitch"]')
+		.getByRole('button', { name: 'Reset', exact: true }).click();
 	await linked.uncheck();
 	await expect(clipField(properties, 'pitchCents')).toHaveValue('0.00');
 });

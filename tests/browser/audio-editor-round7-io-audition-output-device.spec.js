@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { createWavFixture, expect, test } from './audio-editor-test-fixtures.js';
-import { bootEditor, clipByName, importFiles, openClipProperties } from './audio-editor-test-helpers.js';
+import { bootEditor, clipByName, importFiles, openSourceMonitor } from './audio-editor-test-helpers.js';
 
 test.skip(({ browserName }) => browserName !== 'chromium', 'Chromium provides the native speaker-device fixture.');
 test.use({ launchOptions: { args: ['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream'] } });
@@ -55,7 +55,7 @@ for (const preview of ['bin', 'source']) for (const selectedOutput of [false, tr
 		let play, pause;
 		const before = await page.evaluate(() => globalThis.__round7AuditionOutputs.length);
 		if (preview === 'source') {
-			const panel = await openClipProperties(page, editor, clip);
+			const panel = await openSourceMonitor(page, editor, clip);
 			play = panel.getByRole('button', { name: 'Play', exact: true });
 			await play.click();
 			pause = panel.getByRole('button', { name: 'Pause', exact: true });

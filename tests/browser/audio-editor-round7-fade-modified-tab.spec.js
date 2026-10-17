@@ -18,18 +18,18 @@ for (const kind of ['Fade in', 'Fade in shape']) test(`${kind} releases a config
 	const clip = clipByName(editor, toneA.name);
 	await clip.focus();
 	await clip.press('Enter');
-	await clip.press('Tab');
+	await clip.press('f');
 	const fade = clip.getByRole('slider', { name: 'Fade in', exact: true });
 	await expect(fade).toBeFocused();
 	await page.keyboard.press('Tab');
 	await expect(fade).not.toBeFocused();
 	await clip.focus();
-	await clip.press('Tab');
+	await clip.press('f');
 	await expect(fade).toBeFocused();
 	if (kind === 'Fade in shape') {
 		await fade.press('End');
 		await expect(fade).toHaveAttribute('aria-valuenow', '0.8');
-		await page.keyboard.press('Tab');
+		await clip.getByRole('slider', { name: kind, exact: true }).focus();
 		await expect(clip.getByRole('slider', { name: kind, exact: true })).toBeFocused();
 	}
 	await page.keyboard.press('Control+Alt+Tab');

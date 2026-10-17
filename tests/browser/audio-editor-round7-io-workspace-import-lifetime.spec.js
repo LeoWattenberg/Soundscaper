@@ -34,7 +34,7 @@ for (const destination of ['timeline', 'project-bin']) for (const changed of [fa
 		}
 		reading.resolve();
 		await expect.poll(() => native.releases.length).toBe(1);
-		const placed = destination === 'timeline' ? editor.locator('[data-clip-id]') : editor.locator('[data-project-bin-item]');
+		const placed = destination === 'timeline' ? editor.locator('[data-track-row] [data-clip-id]') : editor.locator('[data-project-bin-item]');
 		if (!changed) await expect(placed).toHaveCount(1);
 		// A completed positive import fences the observer beyond the pending
 		// handoff, rather than accepting an initially empty replacement draft.

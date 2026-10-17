@@ -94,7 +94,7 @@ test.describe('transport audition shortcuts', () => {
 		});
 	}
 
-	test('C previews and P resumes a gap without an edit, and X stops at the audible position', async ({ page }) => {
+	test('Cut preview and P resume a gap without an edit, and X stops at the audible position', async ({ page }) => {
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');
 		await importFiles(editor, [longTone]);

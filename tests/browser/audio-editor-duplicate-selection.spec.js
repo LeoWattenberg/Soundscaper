@@ -30,6 +30,7 @@ test.describe('Duplicate selection', () => {
 		const copiedTrack = copied.locator('xpath=ancestor::*[@data-track-row][1]');
 		expect(await copiedTrack.getAttribute('data-track-id')).not.toBe(sourceId);
 		const copiedProperties = await openClipProperties(page, editor, copied);
+		await copiedProperties.getByText('Media settings', { exact: true }).click();
 		await expect(clipField(copiedProperties, 'startFrame')).toHaveValue('12345');
 		await closeClipProperties(copiedProperties);
 		await editor.getByRole('button', { name: 'Undo', exact: true }).click();

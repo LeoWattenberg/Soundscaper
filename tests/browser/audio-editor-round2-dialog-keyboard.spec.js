@@ -27,9 +27,8 @@ test('F2 in the docked Markers list focuses the annotation name for renaming', a
 test('Enter commits an inspector name and Escape discards a later rename draft', async ({ page }) => {
 	const editor = await bootEditor(page, '/embed/en/');
 	await importFiles(editor, [toneA]);
-	const properties = await openClipProperties(page, editor, clipByName(editor, toneA.name));
-	await properties.getByText('Media settings', { exact: true }).click();
-	const name = properties.getByRole('textbox', { name: 'Clip name', exact: true });
+	const properties = await openClipProperties(page, editor, clipByName(editor, toneA.name), { additional: false });
+	const name = properties.locator('[data-clip-properties-field="name"]').getByRole('textbox', { name: 'Clip name', exact: true });
 	await name.fill('Opening tone');
 	await name.press('Enter');
 	await expect(clipByName(editor, 'Opening tone')).toBeVisible();

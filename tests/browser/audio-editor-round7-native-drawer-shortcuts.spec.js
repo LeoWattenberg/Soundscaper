@@ -18,7 +18,7 @@ test('native Clip properties drawers retain keyboard activation and selected aud
 	await expect(drawer).toHaveAttribute('open', '');
 	await expect(clip.locator('.clip-display')).toHaveAttribute('data-selected', 'true');
 	// Native Shift+Tab reaches the actual summary from its first editable child.
-	await panel.getByRole('textbox', { name: 'Clip name', exact: true }).focus();
+	await drawer.getByRole('textbox', { name: 'Clip name', exact: true }).focus();
 	await page.keyboard.press('Shift+Tab');
 	await expect(summary).toBeFocused();
 	await page.keyboard.press('Enter');

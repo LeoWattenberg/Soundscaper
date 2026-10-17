@@ -385,6 +385,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		const labelRow = labelsPanel.locator('[data-labels-panel-list] [data-label-id]');
 		await expect(labelRow).toHaveCount(1);
 		const labelTrackId = await labelRow.getAttribute('data-track-id');
+		const labelId = await labelRow.getAttribute('data-label-id');
 		expect(labelTrackId).toBeTruthy();
 		await expect(editor.locator(`[data-label-track][data-track-id="${labelTrackId}"]`)).toHaveCount(1);
 		await commitInput(labelRow.getByRole('textbox', { name: /^Label title:/ }), 'Verse');
@@ -395,7 +396,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(rangeInputs.nth(1)).toHaveValue('0.500');
 		await closeWorkspacePanel(editor, 'labels');
 		await expect(labelsPanel).toHaveCount(0);
-		const timelineLabel = editor.locator('[data-label-track] [data-label-id]', { hasText: 'Verse' });
+		const timelineLabel = editor.locator(`[data-label-track] [data-label-id="${labelId}"]`);
 		await expect(timelineLabel).toBeVisible();
 		const widthBeforeResize = await timelineLabel.evaluate((element) => element.getBoundingClientRect().width);
 		const rightEar = timelineLabel.locator('.label-marker__right-ear');

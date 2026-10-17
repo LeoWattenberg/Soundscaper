@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { createWavFixture, expect, test } from './audio-editor-test-fixtures.js';
-import { bootEditor, clipByName, importFiles, openClipProperties } from './audio-editor-test-helpers.js';
+import { bootEditor, clipByName, importFiles, openSourceMonitor } from './audio-editor-test-helpers.js';
 
 test('source musical ruler keeps authored tempo-change labels readable', async ({ page }) => {
 	const editor = await bootEditor(page, '/en/');
@@ -9,7 +9,7 @@ test('source musical ruler keeps authored tempo-change labels readable', async (
 	await page.locator('[data-sidebar] [data-workspace-select]').selectOption('music');
 	const recording = createWavFixture({ name: 'source tempo recording.wav', duration: 120, channelCount: 1 });
 	await importFiles(editor, [recording]);
-	const panel = await openClipProperties(page, editor, clipByName(editor, recording.name));
+	const panel = await openSourceMonitor(page, editor, clipByName(editor, recording.name));
 	const ruler = panel.getByRole('slider', { name: 'Source timeline', exact: true });
 	await ruler.press('Shift+F10');
 	await page.getByRole('menuitem', { name: 'Beats & measures', exact: true }).click();
