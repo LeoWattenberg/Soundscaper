@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { expect, test } from './audio-editor-test-fixtures.js';
-import { bootEditor, chooseNestedCommandAction, openClipProperties } from './audio-editor-test-helpers.js';
+import { showClipTimingFields, bootEditor, chooseNestedCommandAction, openClipProperties } from './audio-editor-test-helpers.js';
 
 test('Rhythm Track retains all sixteen bars at thirty beats per minute', async ({ page }) => {
 	test.setTimeout(90_000);
@@ -14,7 +14,7 @@ test('Rhythm Track retains all sixteen bars at thirty beats per minute', async (
 	const clip = editor.locator('[data-clip-id]').first();
 	await expect(clip).toBeVisible();
 	const properties = await openClipProperties(page, editor, clip);
-	await properties.getByText('Media settings', { exact: true }).click();
+	await showClipTimingFields(properties);
 	await expect(properties.locator('[data-clip-field="durationFrame"] .timecode__display'))
 		.toHaveText('00h02m08.000s');
 });

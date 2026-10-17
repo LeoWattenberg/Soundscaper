@@ -13,6 +13,7 @@ import {
 	openClipProperties,
 	openEffectsForTrack,
 } from '../audio-editor-test-helpers.js';
+import { expectClipMediaSettingChecked, openClipMediaSettings, setClipGain } from '../audio-editor-clip-settings-test-helpers.js';
 import { SOUNDSCAPER_DATABASE_NAME } from './editor-databases.js';
 import { chooseTrackMenuAction } from './track-menu.js';
 
@@ -94,20 +95,23 @@ export async function editClipProperties(page, editor, clip, edits) {
 	const dialog = await openClipProperties(page, editor, clip);
 	for (const [field, value] of Object.entries(edits)) {
 		if (value === undefined) continue;
-		const drawer = ['pitchCents', 'speedRatio', 'stretchToTempo'].includes(field)
-			? 'pitch' : field === 'gain' ? 'normalize' : ['fadeInFrame', 'fadeOutFrame'].includes(field) ? 'fading' : 'media';
-		const section = dialog.locator(`[data-clip-properties-drawer="${drawer}"]`);
-		if (await section.getAttribute('open') === null) await section.locator('summary').click();
 		if (field === 'stretchToTempo') {
-			const toggle = dialog.locator('[data-clip-field="stretchToTempo"]').getByRole('checkbox');
-			if (await toggle.isChecked() !== Boolean(value)) await toggle.click();
-			await expect(toggle).toHaveAttribute('aria-checked', String(Boolean(value)));
+			const menu = await openClipMediaSettings(dialog);
+			const toggle = menu.getByRole('menuitemcheckbox', { name: 'Stretch with project tempo changes', exact: true });
+			if ((await toggle.getAttribute('aria-checked')) !== String(Boolean(value))) await toggle.click();
+			else await menu.press('Escape');
+			await expectClipMediaSettingChecked(dialog, 'Stretch with project tempo changes', Boolean(value));
+			continue;
+		}
+		if (field === 'gain') {
+			await setClipGain(dialog, value);
 			continue;
 		}
 		const input = clipField(dialog, field);
-		await commitInput(input, String(value));
+		const displayValue = field === 'speedRatio' ? Number(value) * 100 : value;
+		await commitInput(input, String(displayValue));
 		if (Number.isFinite(Number(value))) {
-			await expect.poll(async () => Number(await input.inputValue())).toBeCloseTo(Number(value), 6);
+			await expect.poll(async () => Number(await input.inputValue())).toBeCloseTo(Number(displayValue), 6);
 		} else {
 			await expect(input).toHaveValue(String(value));
 		}

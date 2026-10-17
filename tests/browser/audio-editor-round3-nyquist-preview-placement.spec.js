@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { expect, test, toneA, toneB } from './audio-editor-test-fixtures.js';
-import { bootEditor, chooseCommandAction, clipByName, closeClipProperties, importFiles,
+import { showClipTimingFields, bootEditor, chooseCommandAction, clipByName, closeClipProperties, importFiles,
 	openClipProperties } from './audio-editor-test-helpers.js';
 
 test('Nyquist preview preserves the relative placement of two header-selected clips', async ({ page }) => {
@@ -18,7 +18,7 @@ test('Nyquist preview preserves the relative placement of two header-selected cl
 	const first = clipByName(editor, toneA.name);
 	const second = clipByName(editor, toneB.name);
 	const properties = await openClipProperties(page, editor, second);
-	await properties.getByText('Media settings', { exact: true }).click();
+	await showClipTimingFields(properties);
 	const start = properties.locator('[data-clip-field="startFrame"]');
 	await start.locator('.timecode-digit').first().click();
 	await page.keyboard.type('000000400');

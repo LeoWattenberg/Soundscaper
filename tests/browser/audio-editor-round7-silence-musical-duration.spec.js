@@ -2,7 +2,7 @@
 
 import { Buffer } from 'node:buffer';
 import { createWavFixture, expect, test } from './audio-editor-test-fixtures.js';
-import { bootEditor, chooseCommandAction, chooseDropdown, chooseNestedCommandAction,
+import { showClipTimingFields, bootEditor, chooseCommandAction, chooseDropdown, chooseNestedCommandAction,
 	clipByName, closeClipProperties, collectClientErrors, disableNativeSavePicker,
 	importFiles, openClipProperties, openExportDialog, readDownloadBytes } from './audio-editor-test-helpers.js';
 
@@ -26,7 +26,7 @@ test('Truncate Silence measures its musical threshold from the selected recordin
 	await second.getByRole('button', { name: 'Save', exact: true }).click();
 	await page.keyboard.press('Escape');
 	const properties = await openClipProperties(page, editor, clipByName(editor, recording.name));
-	await properties.locator('summary').filter({ hasText: 'Media settings' }).click({ position: { x: 16, y: 4 } });
+	await showClipTimingFields(properties);
 	const start = properties.locator('[data-clip-field="startFrame"]');
 	await start.locator('.timecode-digit').first().click();
 	await page.keyboard.type('000004000'); await page.keyboard.press('Enter');

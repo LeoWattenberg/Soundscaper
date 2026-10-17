@@ -1,9 +1,10 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { createWavFixture, expect, test } from './audio-editor-test-fixtures.js';
-import { bootEditor, chooseNestedCommandAction, clipByName, closeClipProperties, disableNativeSavePicker,
+import { showClipTimingFields, bootEditor, chooseNestedCommandAction, clipByName, closeClipProperties, disableNativeSavePicker,
 	importFiles, openClipProperties } from './audio-editor-test-helpers.js';
 import { exportSamples } from './helpers/round2-audio-export.js';
+import { chooseClipMediaSetting } from './audio-editor-clip-settings-test-helpers.js';
 
 test('drawing an inverted clip places the audible sample at the visible pencil height', async ({ page }) => {
 	await disableNativeSavePicker(page);
@@ -25,8 +26,8 @@ test('drawing an inverted clip places the audible sample at the visible pencil h
 	await editor.getByRole('button', { name: 'Undo', exact: true }).click();
 	await openClipProperties(page, editor);
 	const panel = editor.locator('[data-workspace-panel="clip-properties"]');
-	await panel.getByText('Media settings', { exact: true }).click();
-	await panel.locator('[data-clip-field="inverted"]').getByRole('checkbox').click();
+	await showClipTimingFields(panel);
+	await chooseClipMediaSetting(panel, 'Invert');
 	await closeClipProperties(panel);
 	const inverted = await draw();
 	expect(normal[32]).toBeGreaterThan(0.1);

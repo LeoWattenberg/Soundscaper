@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { createWavFixture, expect, test } from './audio-editor-test-fixtures.js';
-import { bootEditor, chooseNestedCommandAction, clipByName, importFiles, openClipProperties } from './audio-editor-test-helpers.js';
+import { showClipTimingFields, bootEditor, chooseNestedCommandAction, clipByName, importFiles, openClipProperties } from './audio-editor-test-helpers.js';
 
 test('Split clips at silences removes the pause at its authored warped timeline position', async ({ page }) => {
 	const editor = await bootEditor(page, '/embed/en/');
@@ -22,7 +22,7 @@ test('Split clips at silences removes the pause at its authored warped timeline 
 	await chooseNestedCommandAction(page, editor, 'Edit', ['Audio clips', 'Split clips at silences']);
 	await expect(editor).toHaveAttribute('data-clip-count', '2');
 	const properties = await openClipProperties(page, editor, clipByName(editor, recording.name).first());
-	await properties.getByText('Media settings', { exact: true }).click();
+	await showClipTimingFields(properties);
 	const duration = properties.locator('[data-clip-field="durationFrame"]');
 	await duration.locator('.timecode__format-button').click();
 	await page.getByRole('menuitem', { name: 'samples', exact: true }).click();

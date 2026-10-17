@@ -2,7 +2,7 @@
 
 import { Buffer } from 'node:buffer';
 import { createWavFixture, expect, test } from './audio-editor-test-fixtures.js';
-import { bootEditor, chooseCommandAction, chooseDropdown, clipByName, closeClipProperties,
+import { showClipTimingFields, bootEditor, chooseCommandAction, chooseDropdown, clipByName, closeClipProperties,
 	collectClientErrors, disableNativeSavePicker, importFiles, openClipProperties, openExportDialog,
 	readDownloadBytes } from './audio-editor-test-helpers.js';
 
@@ -26,7 +26,7 @@ test('Clip properties one-bar duration follows tempo at the placed recording', a
 	await page.keyboard.press('Escape');
 	const clip = clipByName(editor, recording.name);
 	let properties = await openClipProperties(page, editor, clip);
-	await properties.locator('summary').filter({ hasText: 'Media settings' }).click({ position: { x: 16, y: 4 } });
+	await showClipTimingFields(properties);
 	const start = properties.locator('[data-clip-field="startFrame"]');
 	await enter(start, '000004000');
 	await expect(start.locator('.timecode__display')).toHaveText('00h00m04.000s');
@@ -40,7 +40,7 @@ test('Clip properties one-bar duration follows tempo at the placed recording', a
 	expect(healthy.frames).toBe(336000); expect(healthy.peak).toBeGreaterThan(.2);
 	await chooseCommandAction(page, editor, 'Edit', 'Undo');
 	properties = await openClipProperties(page, editor, clip);
-	await properties.locator('summary').filter({ hasText: 'Media settings' }).click({ position: { x: 16, y: 4 } });
+	await showClipTimingFields(properties);
 	duration = properties.locator('[data-clip-field="durationFrame"]');
 	await expect(duration.locator('.timecode__display')).toHaveText('00h00m05.000s');
 	await duration.getByRole('button', { name: 'Duration: format', exact: true }).click();

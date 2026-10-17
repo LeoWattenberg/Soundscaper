@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { createWavFixture, expect, test } from './audio-editor-test-fixtures.js';
-import { bootEditor, chooseDropdown, chooseNestedCommandAction, clipByName,
+import { showClipTimingFields, bootEditor, chooseDropdown, chooseNestedCommandAction, clipByName,
 	closeClipProperties, disableNativeSavePicker, importFiles, openClipProperties, openSourceMonitor } from './audio-editor-test-helpers.js';
 import { exportSamples } from './helpers/round2-audio-export.js';
 
@@ -15,7 +15,7 @@ test('Auto Duck in a clip source uses its control track at the clip timeline pla
 	await importFiles(editor, files);
 	for (const recording of files) {
 		const properties = await openClipProperties(page, editor, clipByName(editor, recording.name));
-		await properties.getByText('Media settings', { exact: true }).click();
+		await showClipTimingFields(properties);
 		const start = properties.getByRole('group', { name: 'Start', exact: true });
 		await start.locator('.timecode-digit').first().click();
 		await page.keyboard.type('000001000');

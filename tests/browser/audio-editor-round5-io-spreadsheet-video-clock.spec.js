@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { expect, test } from './audio-editor-test-fixtures.js';
-import { bootEditor, chooseNestedCommandAction, closeWorkspacePanel, importFiles, openClipProperties } from './audio-editor-test-helpers.js';
+import { showClipTimingFields, bootEditor, chooseNestedCommandAction, closeWorkspacePanel, importFiles, openClipProperties } from './audio-editor-test-helpers.js';
 import { videoTimingProbeMedia } from './fixtures/video-timing-probe-media.js';
 
 test('the spreadsheet source offset follows the actual trimmed video frame time', async ({ page }) => {
@@ -13,7 +13,7 @@ test('the spreadsheet source offset follows the actual trimmed video frame time'
 	const clip = editor.getByRole('group', { name: /^Video clip:/u }).first();
 	await clip.press('Enter');
 	const properties = await openClipProperties(page, editor, clip);
-	await properties.locator('summary').filter({ hasText: 'Media settings' }).click();
+	await showClipTimingFields(properties);
 	const duration = properties.getByRole('group', { name: 'Duration', exact: true });
 	await duration.locator('.timecode-digit').nth(6).click();
 	await page.keyboard.type('300');

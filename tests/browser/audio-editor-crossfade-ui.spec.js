@@ -3,6 +3,7 @@ import {
 	bootEditor, clipByName, closeClipProperties, collectClientErrors, commitInput,
 	importFiles, openClipProperties, registerAudioEditorHooks, waitForEditor,
 } from './audio-editor-test-helpers.js';
+import { chooseClipMediaSetting } from './audio-editor-clip-settings-test-helpers.js';
 
 async function overlapStereoClips(page) {
 	const editor = await bootEditor(page, '/embed/en/');
@@ -39,8 +40,11 @@ async function curveMidpointGains(region) {
 async function expectCrossfadeShapes(page, editor, outgoing, incoming, value) {
 	for (const [clip, field] of [[outgoing, 'fadeOutShape'], [incoming, 'fadeInShape']]) {
 		const properties = await openClipProperties(page, editor, clip);
-		await properties.getByText('Fading', { exact: true }).click();
-		await expect(properties.locator(`[data-clip-field="${field}"]`).getByRole('slider')).toHaveValue(value);
+		const label = field === 'fadeInShape' ? 'Fade in shape' : 'Fade out shape';
+		await chooseClipMediaSetting(properties, label);
+		const shape = page.getByRole('dialog', { name: label, exact: true });
+		await expect(shape.getByRole('textbox', { name: label, exact: true })).toHaveValue(value);
+		await shape.getByRole('button', { name: 'Cancel', exact: true }).click();
 		await closeClipProperties(properties);
 	}
 }

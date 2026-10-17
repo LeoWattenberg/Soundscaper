@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { expect, test } from './audio-editor-test-fixtures.js';
-import { bootEditor, chooseNestedCommandAction, closeWorkspacePanel, importFiles, openClipProperties } from './audio-editor-test-helpers.js';
+import { showClipTimingFields, bootEditor, chooseNestedCommandAction, closeWorkspacePanel, importFiles, openClipProperties } from './audio-editor-test-helpers.js';
 import { videoTimingProbeMedia } from './fixtures/video-timing-probe-media.js';
 import { seekFramescaperTimecode } from './helpers/framescaper-standard-timecode.js';
 
@@ -13,7 +13,7 @@ test('video Properties shows source in on the native source clock after a normal
 	await seekFramescaperTimecode(page, editor, '00:00:00:12');
 	await chooseNestedCommandAction(page, editor, 'Edit', ['Audio clips', 'Trim left edge to playhead']);
 	const properties = await openClipProperties(page, editor, clip);
-	await properties.locator('summary').filter({ hasText: 'Media settings' }).click();
+	await showClipTimingFields(properties);
 	const sourceIn = properties.getByRole('group', { name: 'Source in', exact: true });
 	await expect.poll(async () => (await sourceIn.locator('.timecode-digit').allTextContents()).slice(-3).join('')).toBe('400');
 	await sourceIn.locator('.timecode-digit').nth(6).click();
@@ -21,6 +21,6 @@ test('video Properties shows source in on the native source clock after a normal
 	await page.keyboard.press('Enter');
 	await closeWorkspacePanel(editor, 'clip-properties');
 	await openClipProperties(page, editor, clip);
-	await properties.locator('summary').filter({ hasText: 'Media settings' }).click();
+	await showClipTimingFields(properties);
 	await expect.poll(async () => (await sourceIn.locator('.timecode-digit').allTextContents()).slice(-3).join('')).toBe('240');
 });

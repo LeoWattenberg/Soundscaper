@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { createWavFixture, expect, test } from './audio-editor-test-fixtures.js';
-import { bootEditor, chooseCommandAction, closeClipProperties,
+import { showClipTimingFields, bootEditor, chooseCommandAction, closeClipProperties,
 	importFiles, openClipProperties } from './audio-editor-test-helpers.js';
 
 test('Nyquist refuses an overlong selection without silently shortening the recording', async ({ page }) => {
@@ -19,7 +19,7 @@ test('Nyquist refuses an overlong selection without silently shortening the reco
 	await expect(dialog.getByRole('button', { name: 'Run', exact: true })).toBeEnabled({ timeout: 60_000 });
 	await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
 	const properties = await openClipProperties(page, editor, editor.locator('[data-clip-id]').first());
-	await properties.getByText('Media settings', { exact: true }).click();
+	await showClipTimingFields(properties);
 	await expect(properties.locator('[data-clip-field="durationFrame"] .timecode__display')).toHaveText('00h05m01.000s');
 	await closeClipProperties(properties);
 });

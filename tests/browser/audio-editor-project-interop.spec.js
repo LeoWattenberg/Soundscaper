@@ -8,7 +8,7 @@ import {
 	toneA,
 	toneB,
 } from './audio-editor-test-fixtures.js';
-import {
+import { showClipTimingFields,
 	bootEditor,
 	chooseCommandAction,
 	chooseFileAction,
@@ -88,9 +88,9 @@ test.describe('audio editor React/design-system workflows', () => {
 		const firstClip = clipByName(editor, toneA.name);
 		await firstClip.click({ position: { x: 24, y: 10 } });
 		const clipDialog = await openClipProperties(page, editor, firstClip);
-		await expect(clipDialog.locator('[data-clip-fields]')).toHaveAttribute('aria-disabled', 'false');
+		await expect(clipDialog.getByRole('textbox', { name: 'Clip name', exact: true })).toBeEnabled();
 		await expect(clipField(clipDialog, 'durationFrame')).toHaveValue('38400');
-		await clipDialog.getByText('Media settings', { exact: true }).click();
+		await showClipTimingFields(clipDialog);
 		await commitInput(clipField(clipDialog, 'startFrame'), '120');
 		await expect(clipField(clipDialog, 'startFrame')).toHaveValue('120');
 		await closeClipProperties(clipDialog);

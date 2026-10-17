@@ -1,5 +1,5 @@
 import { expect, test, toneA } from './audio-editor-test-fixtures.js';
-import {
+import { showClipTimingFields,
 	bootEditor, chooseCommandAction, clipByName, clipField, closeClipProperties,
 	collectClientErrors, importFiles, openClipProperties, registerAudioEditorHooks,
 } from './audio-editor-test-helpers.js';
@@ -13,7 +13,7 @@ test.describe('Duplicate selection', () => {
 		await importFiles(editor, [toneA]);
 		const original = clipByName(editor, toneA.name);
 		const properties = await openClipProperties(page, editor, original);
-		await properties.getByText('Media settings', { exact: true }).click();
+		await showClipTimingFields(properties);
 		await clipField(properties, 'startFrame').fill('12345');
 		await clipField(properties, 'startFrame').press('Tab');
 		await closeClipProperties(properties);
@@ -30,7 +30,7 @@ test.describe('Duplicate selection', () => {
 		const copiedTrack = copied.locator('xpath=ancestor::*[@data-track-row][1]');
 		expect(await copiedTrack.getAttribute('data-track-id')).not.toBe(sourceId);
 		const copiedProperties = await openClipProperties(page, editor, copied);
-		await copiedProperties.getByText('Media settings', { exact: true }).click();
+		await showClipTimingFields(copiedProperties);
 		await expect(clipField(copiedProperties, 'startFrame')).toHaveValue('12345');
 		await closeClipProperties(copiedProperties);
 		await editor.getByRole('button', { name: 'Undo', exact: true }).click();

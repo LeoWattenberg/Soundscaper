@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { createWavFixture, expect, test } from './audio-editor-test-fixtures.js';
-import { bootEditor, chooseNestedCommandAction, clipByName, clipField, closeClipProperties,
+import { showClipTimingFields, bootEditor, chooseNestedCommandAction, clipByName, clipField, closeClipProperties,
 	disableNativeSavePicker, importFiles, openClipProperties } from './audio-editor-test-helpers.js';
 import { exportSamples } from './helpers/round2-audio-export.js';
 
@@ -25,7 +25,7 @@ test('shortening a warped recording in Properties retains the audible prefix and
 	const before = await exportSamples(page, editor);
 	expect(rms(before, .2, .24)).toBeLessThan(.001);
 	const properties = await openClipProperties(page, editor, clip);
-	await properties.getByText('Media settings', { exact: true }).click();
+	await showClipTimingFields(properties);
 	await clipField(properties, 'durationFrame').fill('24000');
 	await clipField(properties, 'durationFrame').press('Tab');
 	await closeClipProperties(properties);

@@ -154,7 +154,8 @@ export function trackNameText(editor) {
 export { clipByName, clipNameAccessiblePattern } from './audio-editor-clip-locators.js';
 
 export function clipField(editor, name) {
-	return editor.locator(`[data-clip-field="${name}"] input`);
+	const upstream = { pitchCents: 'pitch', speedRatio: 'speed', name: 'name' }[name];
+	return editor.locator(`[data-clip-field="${name}"] input${upstream ? `, [data-clip-properties-field="${upstream}"] input` : ''}`).first();
 }
 
 export async function commitInput(input, value) {
@@ -204,7 +205,7 @@ export async function clickClipInterior(page, clip, position = 0.5) {
 	);
 }
 
-export { openClipProperties, openSourceMonitor } from './audio-editor-inspector-test-helpers.js';
+export { openClipProperties, openSourceMonitor, showClipTimingFields } from './audio-editor-inspector-test-helpers.js';
 
 export async function openEffectsForTrack(editor, trackIndex) {
 	if (await editor.locator('[data-workspace-panel="project-bin"]').isVisible()) {

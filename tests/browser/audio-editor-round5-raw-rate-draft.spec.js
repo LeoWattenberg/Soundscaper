@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { expect, test, toneA } from './audio-editor-test-fixtures.js';
-import { bootEditor, chooseCommandAction, openClipProperties } from './audio-editor-test-helpers.js';
+import { showClipTimingFields, bootEditor, chooseCommandAction, openClipProperties } from './audio-editor-test-helpers.js';
 
 test('raw PCM sample rate preserves a complete native scientific entry', async ({ page }) => {
 	const editor = await bootEditor(page, '/embed/en/');
@@ -21,7 +21,7 @@ test('raw PCM sample rate preserves a complete native scientific entry', async (
 	await expect(page.getByRole('alert').filter({ hasText: 'The action failed' })).toHaveCount(0);
 	const clip = editor.getByRole('group', { name: /ordinary-short-tone.wav clip/u });
 	const properties = await openClipProperties(page, editor, clip);
-	await properties.locator('summary').filter({ hasText: 'Media settings' }).click();
+	await showClipTimingFields(properties);
 	const duration = properties.getByRole('group', { name: 'Duration', exact: true }).locator('.timecode-digit');
 	await expect.poll(async () => (await duration.allTextContents()).join('')).toBe('000000002');
 });

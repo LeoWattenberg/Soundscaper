@@ -2,7 +2,7 @@
 
 import { expect, test } from './audio-editor-test-fixtures.js';
 import { createPngFixture } from '../helpers/png-fixture.mjs';
-import { bootEditor, chooseCommandAction, chooseNestedCommandAction, closeWorkspacePanel, openClipProperties } from './audio-editor-test-helpers.js';
+import { showClipTimingFields, bootEditor, chooseCommandAction, chooseNestedCommandAction, closeWorkspacePanel, openClipProperties } from './audio-editor-test-helpers.js';
 
 for (const kind of ['title', 'image']) test(`sequence rate preserves an ordinary ${kind}'s wall-clock duration`, async ({ page }) => {
 	// Four inspections and Undo/Redo include live preview work under CI coverage.
@@ -30,7 +30,7 @@ for (const kind of ['title', 'image']) test(`sequence rate preserves an ordinary
 	await expect(clip).toBeVisible();
 	const readDuration = async () => {
 		const properties = await openClipProperties(page, editor, clip);
-		await properties.locator('summary').filter({ hasText: 'Media settings' }).click();
+		await showClipTimingFields(properties);
 		const digits = await properties.getByRole('group', { name: 'Duration', exact: true }).locator('.timecode-digit').allTextContents();
 		await closeWorkspacePanel(editor, 'clip-properties');
 		return digits.join('');

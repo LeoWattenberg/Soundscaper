@@ -1,19 +1,20 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { expect, test, monoTone } from './audio-editor-test-fixtures.js';
-import {
+import { showClipTimingFields,
 	bootEditor, chooseCommandAction, chooseNestedCommandAction, clipByName,
 	closeClipProperties, disableNativeSavePicker, downloadBytes, importFiles, openClipProperties,
 } from './audio-editor-test-helpers.js';
 import { readDawprojectArchive } from '../../src/common/editor/dawproject-archive.ts';
+import { chooseClipMediaSetting } from './audio-editor-clip-settings-test-helpers.js';
 
 test('DAWproject reports the authored polarity inversion it cannot retain', async ({ page }) => {
 	await disableNativeSavePicker(page);
 	const editor = await bootEditor(page, '/embed/en/');
 	await importFiles(editor, [monoTone]);
 	const properties = await openClipProperties(page, editor, clipByName(editor, monoTone.name));
-	await properties.getByText('Media settings', { exact: true }).click();
-	await properties.getByRole('checkbox', { name: 'Invert', exact: true }).check();
+	await showClipTimingFields(properties);
+	await chooseClipMediaSetting(properties, 'Invert');
 	await closeClipProperties(properties);
 	const downloading = page.waitForEvent('download');
 	await chooseNestedCommandAction(page, editor, 'File', ['Export other', 'Export DAWproject']);

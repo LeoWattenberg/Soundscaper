@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { createWavFixture, expect, test } from './audio-editor-test-fixtures.js';
-import { bootEditor, chooseCommandAction, chooseDropdown, chooseNestedCommandAction,
+import { showClipTimingFields, bootEditor, chooseCommandAction, chooseDropdown, chooseNestedCommandAction,
 	clipByName, closeClipProperties, collectClientErrors, disableNativeSavePicker,
 	importFiles, openClipProperties, openExportDialog, readDownloadBytes } from './audio-editor-test-helpers.js';
 
@@ -29,7 +29,7 @@ test('one-bar warp quantization follows the tempo at the placed drum recording',
 	await page.keyboard.press('Escape');
 	const clip = clipByName(editor, recording.name);
 	const properties = await openClipProperties(page, editor, clip);
-	await properties.locator('summary').filter({ hasText: 'Media settings' }).click({ position: { x: 16, y: 4 } });
+	await showClipTimingFields(properties);
 	const start = properties.locator('[data-clip-field="startFrame"]');
 	await start.locator('.timecode-digit').first().click();
 	await page.keyboard.type('000004000'); await page.keyboard.press('Enter');

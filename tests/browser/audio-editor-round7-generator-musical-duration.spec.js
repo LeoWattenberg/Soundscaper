@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { createWavFixture, expect, test } from './audio-editor-test-fixtures.js';
-import { bootEditor, chooseCommandAction, closeWorkspacePanel, collectClientErrors,
+import { showClipTimingFields, bootEditor, chooseCommandAction, closeWorkspacePanel, collectClientErrors,
 	importFiles, openClipProperties } from './audio-editor-test-helpers.js';
 
 test('one generated bar follows the tempo at its ordinary insertion playhead', async ({ page }) => {
@@ -35,7 +35,7 @@ test('one generated bar follows the tempo at its ordinary insertion playhead', a
 		await tone.getByRole('button', { name: 'Generate', exact: true }).click();
 		await expect(tone).toBeHidden();
 		const properties = await openClipProperties(page, editor);
-		await properties.locator('summary').filter({ hasText: 'Media settings' }).click({ position: { x: 16, y: 4 } });
+		await showClipTimingFields(properties);
 		return properties;
 	};
 	let properties = await generateBar();

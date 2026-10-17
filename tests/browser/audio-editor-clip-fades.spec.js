@@ -2,6 +2,7 @@ import { capturePassingScreenshot } from './helpers/passing-screenshots.js';
 import { expect, test, toneA, toneB, monoTone } from './audio-editor-test-fixtures.js';
 import { bootEditor, chooseCommandAction, clipByName, closeClipProperties, collectClientErrors, commitInput, importFiles, openClipProperties, openSourceMonitor, registerAudioEditorHooks, setDocumentTheme, waitForEditor } from './audio-editor-test-helpers.js';
 import { chooseTrackMenuAction } from './helpers/track-menu.js';
+import { chooseClipMediaSetting } from './audio-editor-clip-settings-test-helpers.js';
 
 async function selectClip(clip) {
 	await clip.focus();
@@ -310,27 +311,24 @@ test.describe('non-destructive clip fade handles', () => {
 		await expect(shape).toHaveAttribute('aria-valuenow', '6');
 	});
 
-	test('Clip properties edits both fade shapes with sliders', async ({ page }) => {
+	test('Clip properties edits both custom fade coefficients through its settings menu', async ({ page }) => {
 		const editor = await bootEditor(page, '/embed/en/');
 		await importFiles(editor, [toneA]);
 		const clip = clipByName(editor, toneA.name);
 		await selectClip(clip);
 		await clip.getByRole('slider', { name: 'Fade in', exact: true }).press('0');
 		await clip.getByRole('slider', { name: 'Fade out', exact: true }).press('0');
-		const dialog = await openClipProperties(page, editor, clip);
+		const dialog = await openClipProperties(page, editor, clip, { additional: false });
 		await commitInput(dialog.getByRole('textbox', { name: 'Fade in', exact: true }), '0.4');
 		await commitInput(dialog.getByRole('textbox', { name: 'Fade out', exact: true }), '0.4');
-		await dialog.getByText('Fading', { exact: true }).click();
-		const incoming = dialog.locator('[data-clip-field="fadeInShape"]').getByRole('slider');
-		const outgoing = dialog.locator('[data-clip-field="fadeOutShape"]').getByRole('slider');
-		await expect(incoming).toHaveValue('2');
-		await expect(outgoing).toHaveValue('2');
-		await incoming.focus();
-		await incoming.press('End');
-		await expect(incoming).toHaveValue('6');
-		await outgoing.focus();
-		await outgoing.press('Home');
-		await expect(outgoing).toHaveValue('0.15');
+		for (const [label, value] of [['Fade in shape', '6'], ['Fade out shape', '0.15']]) {
+			await chooseClipMediaSetting(dialog, label);
+			const shape = page.getByRole('dialog', { name: label, exact: true });
+			const input = shape.getByRole('textbox', { name: label, exact: true });
+			await expect(input).toHaveValue('2');
+			await input.fill(value);
+			await shape.getByRole('button', { name: 'Apply', exact: true }).click();
+		}
 		await closeClipProperties(dialog);
 		await expect(clip.getByRole('slider', { name: 'Fade in shape', exact: true })).toHaveAttribute('aria-valuenow', '6');
 		await expect(clip.getByRole('slider', { name: 'Fade out shape', exact: true })).toHaveAttribute('aria-valuenow', '0.15');

@@ -12,7 +12,7 @@ import { expect } from '@playwright/test';
 
 import { createAup3Fixture } from '../../aup3-fixture.js';
 import { SCAPE_MIME_TYPE } from '../../../src/common/editor/scape-project-format.ts';
-import {
+import { showClipTimingFields,
 	addRackEffect,
 	chooseExportProjectFileAction,
 	chooseFileAction,
@@ -97,7 +97,7 @@ export async function runOpenProjectFile(page, state) {
 
 export async function runResample(page, state, entry, clip) {
 	const properties = await openClipProperties(page, state.editor, clip);
-	await properties.getByText('Media settings', { exact: true }).click();
+	await showClipTimingFields(properties);
 	await properties.getByRole('button', { name: 'Resample', exact: true }).click();
 	const dialog = page.locator('[data-clip-resample-dialog]');
 	await expect(dialog).toBeVisible();

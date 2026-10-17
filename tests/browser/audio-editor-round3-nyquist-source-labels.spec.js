@@ -1,13 +1,13 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { expect, test, toneA } from './audio-editor-test-fixtures.js';
-import { bootEditor, chooseCommandAction, clipByName, importFiles, openClipProperties, openSourceMonitor } from './audio-editor-test-helpers.js';
+import { showClipTimingFields, bootEditor, chooseCommandAction, clipByName, importFiles, openClipProperties, openSourceMonitor } from './audio-editor-test-helpers.js';
 
 test('Nyquist labels from a source selection retain its clip placement', async ({ page }) => {
 	const editor = await bootEditor(page, '/embed/en/');
 	await importFiles(editor, [toneA]);
 	const panel = await openClipProperties(page, editor, clipByName(editor, toneA.name));
-	await panel.getByText('Media settings', { exact: true }).click();
+	await showClipTimingFields(panel);
 	const start = panel.locator('[data-clip-field="startFrame"]');
 	await start.locator('.timecode-digit').first().click();
 	await page.keyboard.type('000001000');

@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { expect, test, monoTone } from './audio-editor-test-fixtures.js';
-import { bootEditor, chooseCommandAction, chooseNestedCommandAction, clipByName, closeClipProperties,
+import { showClipTimingFields, bootEditor, chooseCommandAction, chooseNestedCommandAction, clipByName, closeClipProperties,
 	disableNativeSavePicker, importFiles, openClipProperties, openSourceMonitor } from './audio-editor-test-helpers.js';
 import { exportSamples } from './helpers/round2-audio-export.js';
 
@@ -9,7 +9,7 @@ async function selectMovedSource(page) {
 	const editor = await bootEditor(page, '/embed/en/');
 	await importFiles(editor, [monoTone]);
 	const properties = await openClipProperties(page, editor, clipByName(editor, monoTone.name));
-	await properties.getByText('Media settings', { exact: true }).click();
+	await showClipTimingFields(properties);
 	const start = properties.locator('[data-clip-field="startFrame"]');
 	await start.locator('.timecode-digit').first().click();
 	await page.keyboard.type('000005000');

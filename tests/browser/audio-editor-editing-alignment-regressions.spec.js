@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { expect, test, monoTone } from './audio-editor-test-fixtures.js';
-import { bootEditor, clipByName, importFiles, openClipProperties, clipField,
+import { showClipTimingFields, bootEditor, clipByName, importFiles, openClipProperties, clipField,
 	closeClipProperties, chooseNestedCommandAction } from './audio-editor-test-helpers.js';
 
 test('track alignment reads the end of selected clips as the selection end', async ({ page }) => {
@@ -9,7 +9,7 @@ test('track alignment reads the end of selected clips as the selection end', asy
 	await importFiles(editor, [monoTone]);
 	const clip = clipByName(editor, monoTone.name);
 	const properties = await openClipProperties(page, editor, clip);
-	await properties.getByText('Media settings', { exact: true }).click();
+	await showClipTimingFields(properties);
 	await clipField(properties, 'startFrame').fill('48000');
 	await clipField(properties, 'startFrame').press('Tab');
 	await closeClipProperties(properties);

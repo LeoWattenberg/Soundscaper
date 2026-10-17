@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { expect, longTone, test, toneA } from './audio-editor-test-fixtures.js';
-import {
+import { showClipTimingFields,
 	bootEditor,
 	chooseCommandAction,
 	chooseNestedCommandAction,
@@ -202,7 +202,7 @@ async function applyEditorialRevision(page, editor, row, clips, action, projectI
 		case 'reverse-invert': {
 			const clipId = await clips.last().getAttribute('data-clip-id');
 			const dialog = await openClipProperties(page, editor, clips.last());
-			await dialog.getByText('Media settings', { exact: true }).click();
+			await showClipTimingFields(dialog);
 			await dialog.getByRole('checkbox', { name: 'Reverse', exact: true }).click();
 			await dialog.getByRole('checkbox', { name: 'Invert', exact: true }).click();
 			await closeClipProperties(dialog);
@@ -243,7 +243,7 @@ async function assertRestoredRevision(page, editor, row, action, evidence) {
 		const dialog = await openClipProperties(
 			page, editor, editor.locator(`[data-clip-id="${evidence.clipId}"]`),
 		);
-		await dialog.getByText('Media settings', { exact: true }).click();
+		await showClipTimingFields(dialog);
 		await expect(dialog.getByRole('checkbox', { name: 'Reverse', exact: true })).toBeChecked();
 		await expect(dialog.getByRole('checkbox', { name: 'Invert', exact: true })).toBeChecked();
 		await closeClipProperties(dialog);

@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { expect, test, toneA, createWavFixture } from './audio-editor-test-fixtures.js';
-import { bootEditor, clipByName, clipField, closeClipProperties, openClipProperties } from './audio-editor-test-helpers.js';
+import { showClipTimingFields, bootEditor, clipByName, clipField, closeClipProperties, openClipProperties } from './audio-editor-test-helpers.js';
 
 test('shorter bin replacement contracts coincident tails once', async ({ page }) => {
 	const editor = await bootEditor(page, '/embed/en/');
@@ -15,7 +15,7 @@ test('shorter bin replacement contracts coincident tails once', async ({ page })
 	const laterClip = clipByName(editor, toneA.name).nth(2);
 	const laterId = await laterClip.getAttribute('data-clip-id');
 	const before = await openClipProperties(page, editor, laterClip);
-	await before.getByText('Media settings', { exact: true }).click();
+	await showClipTimingFields(before);
 	await clipField(before, 'startFrame').fill('60000');
 	await clipField(before, 'startFrame').press('Tab');
 	await closeClipProperties(before);
@@ -28,7 +28,7 @@ test('shorter bin replacement contracts coincident tails once', async ({ page })
 	await choice.getByRole('button', { name: 'Contract gaps', exact: true }).click();
 	await expect(choice).toBeHidden();
 	const later = await openClipProperties(page, editor, editor.locator(`[data-clip-id="${laterId}"][role="group"]`));
-	await later.getByText('Media settings', { exact: true }).click();
+	await showClipTimingFields(later);
 	await expect(clipField(later, 'startFrame')).toHaveValue('40800');
 	await expect(clipField(later, 'durationFrame')).toHaveValue('19200');
 	await closeClipProperties(later);

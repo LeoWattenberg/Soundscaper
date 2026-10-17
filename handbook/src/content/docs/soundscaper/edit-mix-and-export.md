@@ -90,18 +90,20 @@ or hold a modifier key, then click a key to see its commands.
 ### Edit a clip’s source {#clip-source-properties}
 
 Choose **Window → Source monitor** to open the source waveform editor for the
-selected audio clip. The full recording appears behind the clip. Drag the
+selected audio clip. It opens at the bottom by default. The full recording appears behind the clip. Drag the
 clip's edges to change its source in and duration while keeping its start on
 the project timeline. With several clips selected, use the Source monitor's
 tabs to choose the source you want to edit.
 
 Choose **Edit → Audio clips → Clip properties**, or **Window → Clip properties**,
-for the clip's numeric settings: track, timeline position, duration, source
+for the clip's numeric settings in a panel beside the meters: track, timeline position, duration, source
 trims, pitch, speed, reverse, and fades. Selecting several clips exposes their
 shared properties; changing a shared value applies it to the selection. Pitch
 uses semitones and speed uses percent, with `100%` playing at the original
-speed. **Additional properties** retains the other clip settings, including
-linked pitch and tempo controls.
+speed. Click **Clip in its source** to open that clip in the Source monitor.
+The **Media settings** menu retains the other audio operations and linked
+pitch and tempo controls. Choose **Timecode fields** there to display the same
+timing fields with sample, clock, or musical formats.
 
 In the Source monitor, **Ctrl+click** the waveform to add a stretch marker
 tied to that source sample. Dragging it changes the timing on either side; the overlay shows both playback

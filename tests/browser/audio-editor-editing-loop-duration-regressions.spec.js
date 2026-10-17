@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { expect, test, monoTone } from './audio-editor-test-fixtures.js';
-import { bootEditor, clipByName, importFiles, openClipProperties, clipField, chooseCommandAction,
+import { showClipTimingFields, bootEditor, clipByName, importFiles, openClipProperties, clipField, chooseCommandAction,
 	chooseNestedCommandAction, clickClipInterior } from './audio-editor-test-helpers.js';
 
 test('the duration field changes a looped clip total length without stretching its period', async ({ page }) => {
@@ -11,7 +11,7 @@ test('the duration field changes a looped clip total length without stretching i
 	await clip.locator('.clip-header').click();
 	await clip.getByRole('slider', { name: 'Looped clip length', exact: true }).press('ArrowRight');
 	const properties = await openClipProperties(page, editor, clip);
-	await properties.getByText('Media settings', { exact: true }).click();
+	await showClipTimingFields(properties);
 	await clipField(properties, 'durationFrame').fill('57600');
 	await clipField(properties, 'durationFrame').press('Tab');
 	await expect(clip).toHaveAccessibleName(/1\.2 seconds long$/u);

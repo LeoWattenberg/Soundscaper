@@ -1,6 +1,6 @@
 import { expect } from '@playwright/test';
 import { longTone, test } from './audio-editor-test-fixtures.js';
-import { clipByName, getMenuItem, importFiles, openClipProperties, waitForEditor } from './audio-editor-test-helpers.js';
+import { showClipTimingFields, clipByName, getMenuItem, importFiles, openClipProperties, waitForEditor } from './audio-editor-test-helpers.js';
 import { closeWorkspacePanel } from './helpers/workspace-panel-chrome.js';
 import { darkTheme } from '../../vendor/audacity-design-system/tokens/src/themes/dark.v2.ts';
 import { lightTheme } from '../../vendor/audacity-design-system/tokens/src/themes/light.v2.ts';
@@ -85,7 +85,7 @@ test.describe('shared audio editor dialog behavior', () => {
 			.locator('.timecode__format-button')).toBeVisible();
 
 		const dialog = await openClipProperties(page, editor);
-		await dialog.getByText('Media settings', { exact: true }).click();
+		await showClipTimingFields(dialog);
 		const duration = dialog.locator('[data-clip-field="durationFrame"]');
 		await expect(duration.locator('.timecode-unit[data-unit="hours"]')).toHaveText('h');
 		await expect(duration.locator('.timecode-unit[data-unit="hours"]')).toHaveCSS('text-transform', 'none');

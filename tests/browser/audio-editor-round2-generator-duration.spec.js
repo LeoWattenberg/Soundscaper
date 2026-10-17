@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { expect, test } from './audio-editor-test-fixtures.js';
-import { bootEditor, chooseCommandAction, openClipProperties } from './audio-editor-test-helpers.js';
+import { showClipTimingFields, bootEditor, chooseCommandAction, openClipProperties } from './audio-editor-test-helpers.js';
 
 test('DTMF delivers the exact total duration entered in its dialog', async ({ page }) => {
 	const editor = await bootEditor(page, '/embed/en/');
@@ -16,6 +16,6 @@ test('DTMF delivers the exact total duration entered in its dialog', async ({ pa
 	await generator.getByRole('button', { name: 'Generate', exact: true }).click();
 	await expect(generator).toBeHidden();
 	const properties = await openClipProperties(page, editor);
-	await properties.getByText('Media settings', { exact: true }).click();
+	await showClipTimingFields(properties);
 	await expect(properties.locator('[data-clip-field="durationFrame"] [data-timecode-direct-entry]')).toHaveValue('48000');
 });

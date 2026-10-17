@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { expect, test } from './audio-editor-test-fixtures.js';
-import { bootEditor, chooseCommandAction, clipByName, closeClipProperties, importFiles, openClipProperties } from './audio-editor-test-helpers.js';
+import { showClipTimingFields, bootEditor, chooseCommandAction, clipByName, closeClipProperties, importFiles, openClipProperties } from './audio-editor-test-helpers.js';
 import { encodeWav } from '../../src/common/editor/wav.js';
 
 test('a reversed bin template shows its audible phrase after its leading pause', async ({ page }) => {
@@ -11,7 +11,7 @@ test('a reversed bin template shows its audible phrase after its leading pause',
 	await importFiles(editor, [{ name: 'phrase-then-pause.wav', mimeType: 'audio/wav', buffer: Buffer.from(encodeWav([samples], { sampleRate: 48_000, float: true })) }]);
 	const clip = clipByName(editor, 'phrase-then-pause.wav');
 	const properties = await openClipProperties(page, editor, clip);
-	await properties.getByText('Media settings', { exact: true }).click();
+	await showClipTimingFields(properties);
 	await properties.getByRole('checkbox', { name: 'Reverse', exact: true }).check();
 	await closeClipProperties(properties);
 	await chooseCommandAction(page, editor, 'Window', 'Project bin');

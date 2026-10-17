@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { expect, test, monoTone } from './audio-editor-test-fixtures.js';
-import { bootEditor, chooseCommandAction, chooseNestedCommandAction, clipByName, clipField, closeClipProperties,
+import { showClipTimingFields, bootEditor, chooseCommandAction, chooseNestedCommandAction, clipByName, clipField, closeClipProperties,
 	importFiles, openClipProperties } from './audio-editor-test-helpers.js';
 import { chooseTrackMenuAction } from './helpers/track-menu.js';
 
@@ -9,7 +9,7 @@ test('Plot spectrum includes audio after a silent lead-in in the selected range'
 	const editor = await bootEditor(page, '/embed/en/');
 	await importFiles(editor, [monoTone]);
 	const properties = await openClipProperties(page, editor, clipByName(editor, monoTone.name));
-	await properties.getByText('Media settings', { exact: true }).click();
+	await showClipTimingFields(properties);
 	await clipField(properties, 'startFrame').fill('24000');
 	await clipField(properties, 'startFrame').press('Tab');
 	await closeClipProperties(properties);

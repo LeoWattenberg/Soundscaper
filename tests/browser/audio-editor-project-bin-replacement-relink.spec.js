@@ -4,7 +4,7 @@ import { installDesktopSpeedWarmupManifest } from './helpers/desktop-speed-warmu
 import { Buffer } from 'node:buffer';
 
 import { expect, test, toneA, toneB, createWavFixture } from './audio-editor-test-fixtures.js';
-import {
+import { showClipTimingFields,
 	bootEditor,
 	clipByName,
 	clipField,
@@ -228,7 +228,7 @@ async function setupShortReplacement(page) {
 		instances.nth(1).getAttribute('data-clip-id'),
 	]);
 	const later = await openClipProperties(page, editor, instances.nth(1));
-	await later.getByText('Media settings', { exact: true }).click();
+	await showClipTimingFields(later);
 	await clipField(later, 'startFrame').fill(String(laterStartFrame));
 	await clipField(later, 'startFrame').press('Tab');
 	await closeClipProperties(later);

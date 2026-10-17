@@ -6,7 +6,7 @@ import {
 	toneA,
 	toneB,
 } from './audio-editor-test-fixtures.js';
-import {
+import { showClipTimingFields,
 	assertNoSeriousAxeViolations,
 	bootEditor,
 	chooseCommandAction,
@@ -251,7 +251,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		const editor = await bootEditor(page, '/embed/en/');
 		await importFiles(editor, [toneA, toneB]);
 		const clipDialog = await openClipProperties(page, editor, clipByName(editor, toneB.name));
-		await clipDialog.getByText('Media settings', { exact: true }).click();
+		await showClipTimingFields(clipDialog);
 		await commitInput(clipField(clipDialog, 'startFrame'), '4800000');
 		await closeClipProperties(clipDialog);
 

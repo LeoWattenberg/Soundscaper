@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { expect, test, toneA, longTone } from './audio-editor-test-fixtures.js';
-import { bootEditor, clipByName, importFiles, chooseNestedCommandAction,
+import { showClipTimingFields, bootEditor, clipByName, importFiles, chooseNestedCommandAction,
 	openClipProperties, clipField, closeClipProperties } from './audio-editor-test-helpers.js';
 
 test('Cursor to track end selects from the end when the cursor is beyond the selected track', async ({ page }) => {
@@ -13,7 +13,7 @@ test('Cursor to track end selects from the end when the cursor is beyond the sel
 	const playhead = editor.getByRole('slider', { name: 'Playhead', exact: true });
 	const cursor = await playhead.getAttribute('aria-valuenow');
 	const properties = await openClipProperties(page, editor, clip);
-	await properties.getByText('Media settings', { exact: true }).click();
+	await showClipTimingFields(properties);
 	const start = Number(await clipField(properties, 'startFrame').inputValue());
 	const duration = Number(await clipField(properties, 'durationFrame').inputValue());
 	await closeClipProperties(properties);

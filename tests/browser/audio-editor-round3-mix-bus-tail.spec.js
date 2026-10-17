@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { expect, test, monoTone } from './audio-editor-test-fixtures.js';
-import { addRackEffect, bootEditor, chooseCommandAction, chooseNestedCommandAction, clipByName,
+import { showClipTimingFields, addRackEffect, bootEditor, chooseCommandAction, chooseNestedCommandAction, clipByName,
 	closeEffectsPanel, commitInput, disableNativeSavePicker, importFiles, openClipProperties } from './audio-editor-test-helpers.js';
 import { exportSamples } from './helpers/round2-audio-export.js';
 
@@ -41,7 +41,7 @@ test('Mix and Render retains the complete tail through two serial group effects'
 	await dialog.getByRole('button', { name: 'Mix & Render', exact: true }).click();
 	await expect(dialog).toBeHidden({ timeout: 30_000 });
 	const properties = await openClipProperties(page, editor, editor.locator('[data-clip-id]').first());
-	await properties.getByText('Media settings', { exact: true }).click();
+	await showClipTimingFields(properties);
 	await expect(properties.locator('[data-clip-field="durationFrame"] .timecode__display')).toHaveText('00h00m01.800s');
 	const samples = await exportSamples(page, editor);
 	expect(samples.length).toBe(86_400);

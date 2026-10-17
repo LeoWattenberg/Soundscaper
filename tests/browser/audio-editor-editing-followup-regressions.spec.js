@@ -1,23 +1,23 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { expect, test, monoTone, createWavFixture } from './audio-editor-test-fixtures.js';
-import { bootEditor, clipByName, importFiles, openClipProperties, clipField, closeClipProperties,
+import { showClipTimingFields, bootEditor, clipByName, importFiles, openClipProperties, clipField, closeClipProperties,
 	chooseCommandAction, chooseNestedCommandAction, clickClipInterior, openExportDialog,
 	chooseDropdown, downloadBytes, disableNativeSavePicker, showToolbarButton } from './audio-editor-test-helpers.js';
+import { chooseClipMediaSetting, expectClipMediaSettingChecked } from './audio-editor-clip-settings-test-helpers.js';
 
 test('Reset pitch and speed clears the independent pitch while linkage is enabled', async ({ page }) => {
 	const editor = await bootEditor(page, '/embed/en/');
 	await importFiles(editor, [monoTone]);
 	const properties = await openClipProperties(page, editor, clipByName(editor, monoTone.name));
-	await properties.getByText('Pitch and tempo', { exact: true }).click();
 	await clipField(properties, 'pitchCents').fill('6');
 	await clipField(properties, 'pitchCents').press('Tab');
-	const linked = properties.getByRole('checkbox', { name: 'Link pitch and tempo', exact: true });
-	await linked.check();
-	await properties.locator('[data-clip-properties-drawer="pitch"]')
-		.getByRole('button', { name: 'Reset', exact: true }).click();
-	await linked.uncheck();
-	await expect(clipField(properties, 'pitchCents')).toHaveValue('0.00');
+	await chooseClipMediaSetting(properties, 'Link pitch and tempo');
+	await expectClipMediaSettingChecked(properties, 'Link pitch and tempo', true);
+	await properties.getByRole('button', { name: 'Reset pitch and speed', exact: true }).click();
+	await chooseClipMediaSetting(properties, 'Link pitch and tempo');
+	await expectClipMediaSettingChecked(properties, 'Link pitch and tempo', false);
+	await expect(clipField(properties, 'pitchCents')).toHaveValue('0');
 });
 
 test('clip properties apply the exact entered start frame when Snap is enabled', async ({ page }) => {
@@ -26,7 +26,7 @@ test('clip properties apply the exact entered start frame when Snap is enabled',
 	await showToolbarButton(page, editor, 'Snap');
 	await editor.getByRole('checkbox', { name: 'Snap', exact: true }).check();
 	const properties = await openClipProperties(page, editor, clipByName(editor, monoTone.name));
-	await properties.getByText('Media settings', { exact: true }).click();
+	await showClipTimingFields(properties);
 	await clipField(properties, 'startFrame').fill('19200');
 	await clipField(properties, 'startFrame').press('Tab');
 	await expect(clipField(properties, 'startFrame')).toHaveValue('19200');
@@ -54,7 +54,7 @@ test('paste into an existing clip retains repeated pauses from copied looped aud
 	await chooseNestedCommandAction(page, editor, 'Edit', ['Paste', 'Paste']);
 	await expect(target).toHaveAccessibleName(/2\.4 seconds long$/u, { timeout: 20_000 });
 	const properties = await openClipProperties(page, editor, target);
-	await properties.getByText('Media settings', { exact: true }).click();
+	await showClipTimingFields(properties);
 	await expect(clipField(properties, 'durationFrame')).toHaveValue('115200');
 	await closeClipProperties(properties);
 	await repeated.locator('xpath=ancestor::div[@data-track-row][1]').getByRole('button', { name: 'Mute', exact: true }).click();

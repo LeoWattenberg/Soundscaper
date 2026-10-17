@@ -8,7 +8,7 @@ import {
 	test,
 	toneA,
 } from './audio-editor-test-fixtures.js';
-import {
+import { showClipTimingFields,
 	bootEditor,
 	clipByName,
 	clipField,
@@ -131,7 +131,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		await headerInput.press('Enter');
 		await expect(clip).toContainText('F2 rename');
 		const dialog = await openClipProperties(page, editor, clip);
-		await dialog.getByText('Media settings', { exact: true }).click();
+		await showClipTimingFields(dialog);
 		const nameField = clipField(dialog, 'name');
 		await expect(nameField).toHaveValue('F2 rename');
 		await nameField.fill('Properties rename');

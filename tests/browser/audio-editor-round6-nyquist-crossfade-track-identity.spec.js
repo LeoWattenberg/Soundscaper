@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { createWavFixture, expect, test } from './audio-editor-test-fixtures.js';
-import { bootEditor, chooseCommandAction, chooseNestedCommandAction, clickClipInterior,
+import { showClipTimingFields, bootEditor, chooseCommandAction, chooseNestedCommandAction, clickClipInterior,
 	clipByName, closeClipProperties, disableNativeSavePicker, importFiles, openClipProperties } from './audio-editor-test-helpers.js';
 import { exportSamples } from './helpers/round2-audio-export.js';
 
@@ -20,7 +20,7 @@ test('Nyquist Crossfade Tracks keeps one fade direction across split clips on on
 	const first = clipByName(editor, recordings[0].name);
 	await expect(first).toHaveCount(2);
 	const properties = await openClipProperties(page, editor, clipByName(editor, recordings[1].name));
-	await properties.getByText('Media settings', { exact: true }).click();
+	await showClipTimingFields(properties);
 	const start = properties.locator('[data-clip-field="startFrame"]');
 	await start.locator('.timecode-digit').first().click();
 	await page.keyboard.type('000001200');
