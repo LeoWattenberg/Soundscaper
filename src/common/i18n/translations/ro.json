@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "ro",
 	"provenance": {
-		"machine": {"model":"gpt-6","modelDigest":"sha256:231bb2731663ac92ccbadb3b81c00d145148740c34cabdd2b57b9210382ce3ee","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"gpt-6","modelDigest":"sha256:3cf84c7b8245856246b931fd55356687f9b91889a075953c1ad445703f4de185","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"de2e43dc13474ba712ade5ea8e47550eba0e8bfb","runId":35327911264,"artifactId":10539339149,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/35327911264","archiveName":"Audacity_locale_262610911.zip","archiveSha256":"13b1ff11c39a677c711a1d29738a394aaca7a200533927aab3f45bbd76c1ff8e","archiveByteLength":15413913,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/de2e43dc13474ba712ade5ea8e47550eba0e8bfb/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -554,6 +554,7 @@
 		"clipStyle": ["machine","Clip style","Stil clip"],
 		"clipStyleClassic": ["machine","Classic","Clasic"],
 		"clipStyleColorful": ["machine","Colorful","Colorat"],
+		"clipTimecodeFields": ["machine","Timecode fields","Câmpuri de cod temporal"],
 		"clipTrimEnd": ["machine","Trim end","Tăiere la sfârșit"],
 		"clipTrimStart": ["machine","Trim start","Tăiere la început"],
 		"clipping": ["audacity","Clipping","Clipping"],

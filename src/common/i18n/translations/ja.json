@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "ja",
 	"provenance": {
-		"machine": {"model":"gpt-6","modelDigest":"sha256:545e4000df8aea161918cd90e2eb13165411759e3e8eb6b3dfde8ec63abfd133","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"gpt-6","modelDigest":"sha256:da87cfe696d545b5a1595e0e0c7826e662a2ba5e8f6fdf64aed8918cba01314f","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"de2e43dc13474ba712ade5ea8e47550eba0e8bfb","runId":35327911264,"artifactId":10539339149,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/35327911264","archiveName":"Audacity_locale_262610911.zip","archiveSha256":"13b1ff11c39a677c711a1d29738a394aaca7a200533927aab3f45bbd76c1ff8e","archiveByteLength":15413913,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/de2e43dc13474ba712ade5ea8e47550eba0e8bfb/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -554,6 +554,7 @@
 		"clipStyle": ["machine","Clip style","クリップスタイル"],
 		"clipStyleClassic": ["machine","Classic","クラシック"],
 		"clipStyleColorful": ["machine","Colorful","カラフル"],
+		"clipTimecodeFields": ["machine","Timecode fields","タイムコード欄"],
 		"clipTrimEnd": ["machine","Trim end","末尾のトリミング"],
 		"clipTrimStart": ["machine","Trim start","先頭のトリミング"],
 		"clipping": ["audacity","Clipping","クリッピング"],
