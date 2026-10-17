@@ -14,6 +14,7 @@ for (const capturedSelection of [false, true]) {
 		const fixture = await mountMovePreview({ capturedSelection });
 		try {
 			await fixture.move(150, NEW_AUDIO_TRACK_DROP_TARGET);
+			assert.deepEqual(fixture.clearedClipSelections(), [null], 'a drag drops picks without losing its captured participants');
 			assert.deepEqual(fixture.preview(), {
 				clipId: 'lower',
 				trackId: `${NEW_AUDIO_TRACK_DROP_TARGET}-4`,
@@ -72,6 +73,21 @@ test('drag participants and source tracks reuse the shared project index instead
 	}
 });
 
+
+test('a header drag preserves picks below three pixels and clears them once on the first movement', async () => {
+	const fixture = await mountMovePreview();
+	try {
+		await fixture.move(102, 'track-b');
+		assert.equal(fixture.preview(), null);
+		assert.deepEqual(fixture.clearedClipSelections(), []);
+		await fixture.move(103, 'track-b');
+		assert.ok(fixture.preview());
+		assert.deepEqual(fixture.clearedClipSelections(), [null]);
+		await fixture.move(120, 'track-b');
+		assert.deepEqual(fixture.clearedClipSelections(), [null]);
+	} finally { await fixture.cleanup(); }
+});
+
 interface ClipPreview {
 	readonly clipId: string;
 	readonly trackId: string;
@@ -107,6 +123,7 @@ async function mountMovePreview({ capturedSelection = false, linkedAv = false, r
 	let onPointerMove: ((event: ReturnType<typeof pointerEvent>) => void) | null = null;
 	let requestedTrackId = NEW_AUDIO_TRACK_DROP_TARGET;
 	const noOp = () => undefined;
+	const clearedClipSelections: (string | null)[] = [];
 	const session = {
 		kind: 'move', clipId: 'lower', trackId: 'track-b', startX: 100,
 		clipIds: ['lower', 'upper'], preview: null as MovePreview | null,
@@ -126,8 +143,8 @@ async function mountMovePreview({ capturedSelection = false, linkedAv = false, r
 			id: 'upper', kind: linkedAv ? 'video' : 'audio', timelineStartFrame: 100, durationFrames: 100,
 			groupId: capturedSelection || linkedAv ? null : 'group', avLinkId: linkedAv ? 'link' : null,
 		}],
-		// Ctrl pointer-down can remove the grabbed clip from selection after the
-		// drag has captured its participants. Preview must still move both clips.
+		// A drag drops the current clip selection after capturing its participants;
+		// preview must continue to move the complete captured set.
 		selection: { startFrame: 0, endFrame: 0, clipIds: capturedSelection ? ['upper'] : ['lower'] },
 	};
 	const projectIndex = createTimelineProjectIndex(project);
@@ -141,7 +158,10 @@ async function mountMovePreview({ capturedSelection = false, linkedAv = false, r
 		const [preview, setClipDragPreview] = useState<MovePreview | null>(null);
 		currentPreview = preview;
 		onPointerMove = useTimelinePointerMove({
-			controller: { actions: {} }, snapshot: { capabilities: {} }, splitToolActive: false,
+			controller: { actions: { timeline: { selectClip: (id: string | null) => {
+				clearedClipSelections.push(id);
+				if (id === null) project.selection = { ...project.selection, clipIds: [] };
+			} } } }, snapshot: { capabilities: {} }, splitToolActive: false,
 			state: {
 				pointerSession: { current: session }, touchPointers: { current: new Map() },
 				pinchSession: { current: null }, pendingPinchAnchorRef: { current: null }, scrollRef: { current: null },
@@ -160,6 +180,7 @@ async function mountMovePreview({ capturedSelection = false, linkedAv = false, r
 	await act(async () => root.render(<Harness />));
 	return {
 		preview: () => currentPreview,
+		clearedClipSelections: () => clearedClipSelections,
 		async move(clientX: number, trackId: string) {
 			requestedTrackId = trackId;
 			await act(async () => {
