@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { chooseClipMediaSetting, expectClipSampleRate } from './audio-editor-clip-settings-test-helpers.js';
 import { expect, test } from './audio-editor-test-fixtures.js';
 import { bootEditor, closeClipProperties, chooseCommandAction, chooseNestedCommandAction,
 	importFiles, openClipProperties } from './audio-editor-test-helpers.js';
@@ -13,22 +14,22 @@ test('resampling camera audio preserves its linked video and Undo restores the o
 	const audio = editor.getByRole('group', { name: /^camera Audio clip,/u });
 	await audio.locator('.clip-header').click();
 	const properties = await openClipProperties(page, editor, audio);
-	await properties.getByText('Media settings', { exact: true }).click();
-	await properties.getByRole('button', { name: 'Resample', exact: true }).click();
+
+	await chooseClipMediaSetting(properties, 'Resample');
 	const resample = page.locator('[data-clip-resample-dialog]');
 	await resample.getByRole('textbox').fill('24000');
 	await resample.getByRole('button', { name: 'Resample', exact: true }).click();
 	await expect(resample).toBeHidden();
-	await expect(properties.locator('[data-clip-source-fact="sampleRate"] .audio-editor-field__value')).toHaveText('24000');
+	await expectClipSampleRate(properties, 24000);
 	await closeClipProperties(properties);
 	await expect(editor).toHaveAttribute('data-clip-count', '2');
 	await expect(editor.locator('[data-clip-kind="video"]')).toHaveCount(1);
 	const changed = await openClipProperties(page, editor, audio);
-	await changed.getByText('Media settings', { exact: true }).click();
-	await expect(changed.locator('[data-clip-source-fact="sampleRate"] .audio-editor-field__value')).toHaveText('24000');
+
+	await expectClipSampleRate(changed, 24000);
 	await closeClipProperties(changed);
 	await chooseCommandAction(page, editor, 'Edit', 'Undo');
 	const restored = await openClipProperties(page, editor, audio);
-	await restored.getByText('Media settings', { exact: true }).click();
-	await expect(restored.locator('[data-clip-source-fact="sampleRate"] .audio-editor-field__value')).toHaveText('48000');
+
+	await expectClipSampleRate(restored, 48000);
 });

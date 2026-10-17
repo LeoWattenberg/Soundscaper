@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { chooseClipMediaSetting, expectClipSampleRate } from './audio-editor-clip-settings-test-helpers.js';
 import { createAup3Fixture, expect, test, monoTone, toneA } from './audio-editor-test-fixtures.js';
 import { bootEditor, clipByName, closeClipProperties, chooseCommandAction, chooseFileAction, chooseNestedCommandAction,
 	importFiles, openClipProperties } from './audio-editor-test-helpers.js';
@@ -16,12 +17,12 @@ test('resampling a clip scales its authored warp source positions', async ({ pag
 	await expect(warp.getByRole('table', { name: 'Warp map points', exact: true }).getByRole('row')).toHaveCount(3);
 	await page.keyboard.press('Escape');
 	const properties = await openClipProperties(page, editor, clip);
-	await properties.getByText('Media settings', { exact: true }).click();
-	await properties.getByRole('button', { name: 'Resample', exact: true }).click();
+
+	await chooseClipMediaSetting(properties, 'Resample');
 	const resample = page.locator('[data-clip-resample-dialog]');
 	await resample.getByRole('textbox').fill('24000');
 	await resample.getByRole('button', { name: 'Resample', exact: true }).click();
-	await expect(properties.locator('[data-clip-source-fact="sampleRate"] .audio-editor-field__value')).toHaveText('24000');
+	await expectClipSampleRate(properties, 24000);
 	await closeClipProperties(properties);
 	await chooseNestedCommandAction(page, editor, 'Effect', ['Pitch and tempo', 'Audio warp and transients']);
 	warp = page.getByRole('dialog', { name: 'Audio warp and transients', exact: true });

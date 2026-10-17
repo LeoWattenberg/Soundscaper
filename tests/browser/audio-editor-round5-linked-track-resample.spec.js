@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { expectClipSampleRate } from './audio-editor-clip-settings-test-helpers.js';
 import { expect, test } from './audio-editor-test-fixtures.js';
 import { bootEditor, chooseCommandAction, chooseNestedCommandAction, closeClipProperties,
 	importFiles, openClipProperties,
@@ -21,13 +22,13 @@ test('resampling a camera audio track preserves its picture, link and one Undo',
 	await expect(editor).toHaveAttribute('data-clip-count', '2');
 	await expect(editor.locator('[data-clip-kind="video"]')).toHaveCount(1);
 	const properties = await openClipProperties(page, editor, audio);
-	await properties.getByText('Media settings', { exact: true }).click();
-	await expect(properties.locator('[data-clip-source-fact="sampleRate"] .audio-editor-field__value')).toHaveText('24000');
+
+	await expectClipSampleRate(properties, 24000);
 	await closeClipProperties(properties);
 	await chooseCommandAction(page, editor, 'Edit', 'Undo');
 	const restored = await openClipProperties(page, editor, audio);
-	await restored.getByText('Media settings', { exact: true }).click();
-	await expect(restored.locator('[data-clip-source-fact="sampleRate"] .audio-editor-field__value')).toHaveText('48000');
+
+	await expectClipSampleRate(restored, 48000);
 	await closeClipProperties(restored);
 	await chooseCommandAction(page, editor, 'Edit', 'Redo');
 	await expect(editor).toHaveAttribute('data-clip-count', '2');

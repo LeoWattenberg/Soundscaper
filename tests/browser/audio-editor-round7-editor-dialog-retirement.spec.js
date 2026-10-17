@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { expectClipSampleRate } from './audio-editor-clip-settings-test-helpers.js';
 import { createWavFixture, expect, test } from './audio-editor-test-fixtures.js';
 import { bootEditor, chooseCommandAction, closeClipProperties, collectClientErrors,
 	importFiles, openClipProperties } from './audio-editor-test-helpers.js';
@@ -49,8 +50,7 @@ test('a retired track resample cannot dismiss a newer factory confirmation', asy
 
 	async function expectRate(rate) {
 		const properties = await openClipProperties(page, editor, clip);
-		await properties.getByText('Media settings', { exact: true }).click();
-		await expect(properties.locator('[data-clip-source-fact="sampleRate"] .audio-editor-field__value')).toHaveText(String(rate));
+		await expectClipSampleRate(properties, rate);
 		await closeClipProperties(properties);
 	}
 });

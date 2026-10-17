@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { chooseClipMediaSetting, expectClipSampleRate, readClipSampleRate } from './audio-editor-clip-settings-test-helpers.js';
 import { readFile } from 'node:fs/promises';
 import { expect } from '@playwright/test';
 import { createWavFixture, test } from './audio-editor-test-fixtures.js';
@@ -104,15 +105,13 @@ test.describe('Soundscaper exact timing and freeze workflows', () => {
 		const history = await openHistoryPanel(page, editor);
 		const historyBeforeResample = await history.locator('[data-history-list] > li').count();
 		// Resampling to the source's current rate commits nothing. Read the rate
-		// from the expanded drawer and only claim an entry when the rate changes.
+		// from Media settings and only claim an entry when the rate changes.
 		const properties = await openClipProperties(page, editor, clipByName(editor, freezeImpulse.name));
-		await properties.getByText('Media settings', { exact: true }).click();
-		const sourceRate = Number(await properties
-			.locator('[data-clip-source-fact="sampleRate"] .audio-editor-field__value').innerText());
+		const sourceRate = await readClipSampleRate(properties);
 		expect(Number.isFinite(sourceRate)).toBe(true);
 		expect(sourceRate).toBeGreaterThan(0);
 		if (sourceRate !== FREEZE_SAMPLE_RATE) {
-			await properties.getByRole('button', { name: 'Resample', exact: true }).click();
+			await chooseClipMediaSetting(properties, 'Resample');
 			const resampleDialog = page.locator('[data-clip-resample-dialog]');
 			await expect(resampleDialog).toBeVisible();
 			await commitInput(
@@ -121,8 +120,7 @@ test.describe('Soundscaper exact timing and freeze workflows', () => {
 			);
 			await resampleDialog.getByRole('button', { name: 'Resample', exact: true }).click();
 			await expect(resampleDialog).toBeHidden();
-			await expect(properties.locator('[data-clip-source-fact="sampleRate"] .audio-editor-field__value'))
-				.toHaveText(String(FREEZE_SAMPLE_RATE));
+			await expectClipSampleRate(properties, FREEZE_SAMPLE_RATE);
 		}
 		await closeClipProperties(properties);
 		// Clip properties replaces History in their shared tab group. Closing it
