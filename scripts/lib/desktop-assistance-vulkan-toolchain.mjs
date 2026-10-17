@@ -1,13 +1,11 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { execFile } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { link, lstat, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { isAbsolute, join, resolve } from 'node:path';
-import { promisify } from 'node:util';
 import { extract, list } from 'tar';
+import { runDesktopAssistanceBuildCommand } from './desktop-assistance-build-process.mjs';
 
-const runFile = promisify(execFile);
 const PINS = JSON.parse(await readFile(new URL('../../config/desktop-assistance-vulkan-sources.json', import.meta.url), 'utf8'));
 const TARGETS = ['linux-x64', 'linux-arm64', 'win-x64', 'win-arm64'];
 const LICENSE_PATHS = {
@@ -255,9 +253,8 @@ async function regularFile(path) {
 }
 
 async function command(executable, args, cwd, env) {
-	try { return await runFile(executable, args, { cwd, env, windowsHide: true,
-		maxBuffer: 16 * 1024 * 1024, timeout: 25 * 60_000 }); }
-	catch (error) { throw new Error(`Vulkan toolchain build failed: ${executable} ${args.join(' ')}\n${error.stderr ?? ''}\n${error.stdout ?? ''}`, { cause: error }); }
+	return runDesktopAssistanceBuildCommand(executable, args, { cwd, env, label: 'Vulkan toolchain',
+		maxBuffer: 16 * 1024 * 1024, timeout: args[0] === '--build' ? undefined : 25 * 60_000 });
 }
 
 function hash(bytes) { return createHash('sha256').update(bytes).digest('hex'); }

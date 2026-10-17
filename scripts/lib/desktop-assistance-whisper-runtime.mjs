@@ -1,15 +1,13 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { execFile } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { chmod, copyFile, lstat, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
+import { chmod, copyFile, lstat, mkdir, mkdtemp, readFile, readdir, writeFile } from 'node:fs/promises';
 import { dirname, isAbsolute, join, resolve } from 'node:path';
-import { promisify } from 'node:util';
 import { extract, list } from 'tar';
+import { runDesktopAssistanceBuildCommand, withDesktopAssistanceBuildWork } from './desktop-assistance-build-process.mjs';
 import { desktopWhisperCppNotices } from './desktop-assistance-whisper-notices.mjs';
 import { buildDesktopVulkanCompanion } from './desktop-assistance-vulkan-companion.mjs';
 
-const runFile = promisify(execFile);
 export const WHISPER_RUNTIME_VERSION = 'v1.9.3';
 export const WHISPER_RUNTIME_BUILD_TARGETS = Object.freeze(['mac-arm64', 'linux-x64', 'linux-arm64', 'win-x64', 'win-arm64']);
 const VERSION = WHISPER_RUNTIME_VERSION;
@@ -72,7 +70,7 @@ export async function stageDesktopWhisperCppRuntime({
 	await mkdir(cache, { recursive: true });
 	const archiveBytes = await authenticatedArchive(cache);
 	const work = await createWhisperBuildWorkDirectory({ cacheRoot: cache, targetId, platform });
-	try {
+	return withDesktopAssistanceBuildWork(work, async () => {
 		const archive = join(work, 'source.tar.gz');
 		await writeFile(archive, archiveBytes, { flag: 'wx', mode: 0o400 });
 		await extractSource(archive, work);
@@ -157,9 +155,7 @@ export async function stageDesktopWhisperCppRuntime({
 			summary: { familyId: 'whisper-cpp', targetId, runtimeVersion: VERSION, provenance, buildCompiler,
 				files, installedBytes: files.reduce((total, file) => total + file.byteLength, 0) },
 		};
-	} finally {
-		await rm(work, { recursive: true, force: true });
-	}
+	});
 }
 
 /** Reopening CON or /dev/stdout bypasses or fails on the worker's stdout pipe. */
@@ -258,9 +254,7 @@ async function compilerIdentity(build) {
 }
 
 async function command(executable, args, cwd, env) {
-	try { return await runFile(executable, args, { cwd, env, windowsHide: true,
-		maxBuffer: 8 * 1024 * 1024, timeout: 15 * 60_000 }); }
-	catch (error) { throw new Error(`Whisper build failed: ${executable} ${args.join(' ')}\n${error.stderr ?? ''}\n${error.stdout ?? ''}`, { cause: error }); }
+	return runDesktopAssistanceBuildCommand(executable, args, { cwd, env, label: 'Whisper' });
 }
 
 function hash(bytes) { return createHash('sha256').update(bytes).digest('hex'); }
