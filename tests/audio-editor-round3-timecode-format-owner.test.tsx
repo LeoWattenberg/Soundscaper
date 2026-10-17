@@ -68,7 +68,7 @@ for (const scenario of ['format', 'search', 'delegated-format'] as const) test(s
 		});
 		assert.deepEqual(values, [], 'format navigation cannot change the preceding digit');
 		if (scenario === 'format') assert.equal(dom.find('[data-state="active"]'), null);
-		const first = dom.container.querySelectorAll('[role="menuitem"]')[0];
+		const first = dom.container.querySelectorAll('[role="menuitem"]').find(item => item.textContent === 'dd:hh:mm:ss');
 		assert.ok(first);
 		await act(async () => { reactProps(first).onClick({}); });
 		assert.deepEqual(formats, ['dd:hh:mm:ss']);

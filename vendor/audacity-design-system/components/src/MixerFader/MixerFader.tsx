@@ -2,6 +2,8 @@ import React, { useRef, useCallback, useState } from 'react';
 import { useTheme } from '../ThemeProvider';
 import { MixerFaderHandle } from '../MixerFaderHandle';
 import './MixerFader.css';
+import { ManualValueDialog } from '../ManualValueDialog/ManualValueDialog';
+import { useValueContextMenu } from '../hooks/useValueContextMenu';
 
 export interface MixerFaderProps {
   /**
@@ -218,14 +220,30 @@ export const MixerFader: React.FC<MixerFaderProps> = ({
     gestureCancelRef.current?.();
   }, []);
 
+  const [manualOpen, setManualOpen] = useState(false);
+  const applyManual = (next: number) => {
+    if (disabled) return;
+    handlePointerCancel();
+    onGestureStart?.(clampedValue);
+    setValue(next);
+    onGestureEnd?.(next);
+    onChangeEnd?.(next);
+  };
+  const valueMenu = useValueContextMenu({
+    disabled, onEnterValue: () => setManualOpen(true),
+    onReset: () => applyManual(Math.max(min, Math.min(max, defaultValue))), resetLabel: `${defaultValue} dB`,
+  });
+
   const style = {
     '--fader-track-bg': theme.background.control.fader.track,
   } as React.CSSProperties;
 
   return (
+    <>
     <div
       className={`mixer-fader ${disabled ? 'mixer-fader--disabled' : ''} ${className}`}
       style={style}
+      onContextMenu={valueMenu.onContextMenu}
       role="slider"
       aria-label={ariaLabel}
       aria-valuemin={min}
@@ -262,6 +280,10 @@ export const MixerFader: React.FC<MixerFaderProps> = ({
         />
       </div>
     </div>
+    {valueMenu.menu}
+    <ManualValueDialog isOpen={manualOpen} title={ariaLabel} value={clampedValue} unit="dB" min={min} max={max}
+      onApply={applyManual} onClose={() => setManualOpen(false)} />
+    </>
   );
 };
 

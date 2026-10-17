@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { TimeCode, type TimeCodeFormat } from '@soundscaper/design-system/TimeCode';
 
+import { resolveEditorCopyScope } from '../../../i18n/editor-copy-scope.ts';
+import { KEYBOARD_MAP_COPY_BY_LOCALE } from '../../../i18n/editor-keyboard-map-copy.ts';
 import { framesToSeconds, secondsToFrames } from '../../design-system-adapters.js';
 import { resolveSequenceTimingView, type SequenceTimingProject } from '../../sequence-timing-model.ts';
 import { useAudioEditorTelemetrySelector } from '../DesignSystemRuntime.jsx';
@@ -62,6 +64,7 @@ export default function TelemetryTimeCode({
 		data-compact={isCompact ? 'true' : undefined} data-negative={negative ? 'true' : undefined}>
 		{negative && <span className="kw-audio-editor__timecode-sign">−</span>}
 		<TimeCodeFormatControl label={`${copy.playhead}: ${copy.format}`} format={format} frameRate={frameRate}
+			enterValueLabel={resolveEditorCopyScope('keyboardMap', KEYBOARD_MAP_COPY_BY_LOCALE.en, copy).enterValue}
 			onFormatChange={(nextFormat) => { setLocalFormat(nextFormat); onFormatChange?.(nextFormat); }}
 			dockingLabel={onRedock ? copy.timecodeRedock : copy.timecodeUndock}
 			onDockingChange={onRedock ?? onUndock}

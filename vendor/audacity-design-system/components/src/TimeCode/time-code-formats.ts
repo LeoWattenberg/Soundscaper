@@ -3,6 +3,7 @@ export type TimeCodeFormat =
 	| 'hh:mm:ss'
 	| 'hh:mm:ss+hundredths'
 	| 'hh:mm:ss+milliseconds'
+	| 'mm:ss+milliseconds'
 	| 'hh:mm:ss+samples'
 	| 'hh:mm:ss+frames'
 	| 'samples'
@@ -32,6 +33,7 @@ const TIME_FORMAT_OPTIONS: readonly TimeCodeFormatOption[] = Object.freeze([
 	{ format: 'hh:mm:ss', label: 'hh:mm:ss' },
 	{ format: 'hh:mm:ss+hundredths', label: 'hh:mm:ss + hundredths' },
 	{ format: 'hh:mm:ss+milliseconds', label: 'hh:mm:ss + milliseconds' },
+	{ format: 'mm:ss+milliseconds', label: 'mm:ss + milliseconds' },
 	{ format: 'hh:mm:ss+samples', label: 'hh:mm:ss + samples' },
 	{ format: 'hh:mm:ss+frames', group: 'Video frames', label: 'hh:mm:ss + frames (24fps)' },
 	{ format: 'samples', label: 'samples' },

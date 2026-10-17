@@ -2,6 +2,8 @@ import React from 'react';
 import { useTheme } from '../ThemeProvider';
 import { retainNativeRangeTouchOwner } from './native-range-touch-owner';
 import './Slider.css';
+import { ManualValueDialog } from '../ManualValueDialog/ManualValueDialog';
+import { useValueContextMenu } from '../hooks/useValueContextMenu';
 
 export interface SliderProps {
   /**
@@ -61,6 +63,18 @@ export const Slider: React.FC<SliderProps> = ({
   tabIndex,
 }) => {
   const { theme } = useTheme();
+  const [manualOpen, setManualOpen] = React.useState(false);
+  const applyManual = (next: number) => {
+    if (disabled || !onChange) return;
+    onGestureStart?.(value);
+    onChange(next);
+    onGestureEnd?.(next);
+  };
+  const valueMenu = useValueContextMenu({
+    onEnterValue: () => setManualOpen(true), disabled: disabled || !onChange,
+    onReset: defaultValue === undefined ? undefined : () => applyManual(Math.max(min, Math.min(max, defaultValue))),
+    resetLabel: String(defaultValue),
+  });
   const gestureActiveRef = React.useRef(false);
   const pointerIdRef = React.useRef<number | null>(null);
   const inputRef = React.useRef<HTMLInputElement>(null);
@@ -81,7 +95,7 @@ export const Slider: React.FC<SliderProps> = ({
   const handleSize = 16;
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newValue = parseInt(e.target.value, 10);
+    const newValue = parseFloat(e.target.value);
     const standalone = !gestureActiveRef.current;
     if (standalone) {
       gestureActiveRef.current = true;
@@ -130,10 +144,11 @@ export const Slider: React.FC<SliderProps> = ({
   } as React.CSSProperties;
 
   return (
-    <div className={`slider ${disabled ? 'slider--disabled' : ''} ${className}`} style={style}>
+    <div className={`slider ${disabled ? 'slider--disabled' : ''} ${className}`} style={style} onContextMenu={valueMenu.onContextMenu}>
       <input
         ref={inputRef}
         type="range"
+        step="any"
         min={min}
         max={max}
         value={clampedValue}
@@ -198,6 +213,9 @@ export const Slider: React.FC<SliderProps> = ({
           left: `calc(${percentage}% - ${(percentage / 100) * handleSize}px)`
         }}
       />
+      {valueMenu.menu}
+      <ManualValueDialog isOpen={manualOpen} title={ariaLabel} value={value} min={min} max={max}
+        onApply={applyManual} onClose={() => setManualOpen(false)} />
     </div>
   );
 };

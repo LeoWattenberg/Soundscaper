@@ -6,10 +6,12 @@ import { ContextMenu } from '@soundscaper/design-system/ContextMenu';
 import { ContextMenuItem } from '@soundscaper/design-system/ContextMenuItem';
 import { Icon } from '@soundscaper/design-system/Icon';
 import { timeCodeFormatOptionsForDomain, type TimeCodeFormat } from '@soundscaper/design-system/TimeCode';
+import { KEYBOARD_MAP_COPY_BY_LOCALE } from '../../../i18n/editor-keyboard-map-copy.ts';
 import { useMenuTriggerDismissal } from '../use-menu-trigger-dismissal.ts';
 
 interface TimeCodeFormatControlProps {
 	readonly label: string;
+	readonly enterValueLabel?: string;
 	readonly format: TimeCodeFormat;
 	readonly frameRate: number;
 	readonly onFormatChange: (format: TimeCodeFormat) => void;
@@ -20,7 +22,7 @@ interface TimeCodeFormatControlProps {
 
 /** Extend the timer's existing menu at the application boundary. */
 export default function TimeCodeFormatControl({
-	label, format, frameRate, onFormatChange, dockingLabel, onDockingChange, children,
+	label, enterValueLabel = KEYBOARD_MAP_COPY_BY_LOCALE.en.enterValue, format, frameRate, onFormatChange, dockingLabel, onDockingChange, children,
 }: TimeCodeFormatControlProps) {
 	const buttonRef = useRef<HTMLButtonElement>(null);
 	const containerRef = useRef<HTMLSpanElement>(null);
@@ -66,6 +68,7 @@ export default function TimeCodeFormatControl({
 			isOpen onClose={close} x={menu.x} y={menu.y} autoFocus={menu.keyboard}
 			className="kw-audio-editor__timecode-format-menu"
 		>
+			<ContextMenuItem label={enterValueLabel} onClick={() => { close(); timeCodeHost?.dispatchEvent(new Event('timecode-enter-value')); }} />
 			{options.filter((option) => !option.group).map(menuItem)}
 			{(['Video frames', 'CD frames'] as const).map((group) => <ContextMenuItem
 				key={group} label={group} hasSubmenu

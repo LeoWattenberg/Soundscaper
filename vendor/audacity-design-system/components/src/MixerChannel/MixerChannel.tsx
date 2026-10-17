@@ -2,7 +2,7 @@ import React from 'react';
 import { useTheme } from '../ThemeProvider';
 import { MixerFader } from '../MixerFader';
 import { MixerEffect } from '../MixerEffect';
-import { Knob } from '../Knob';
+import { PanKnob } from '../PanKnob';
 import './MixerChannel.css';
 
 export type MixerChannelVariant = 'mono' | 'stereo';
@@ -216,13 +216,10 @@ export const MixerChannel: React.FC<MixerChannelProps> = ({
 
         {/* Pan control */}
         <div className="mixer-channel__pan-row">
-          <Knob
+          <PanKnob
             value={pan}
             disabled={panDisabled}
             defaultValue={0}
-            min={-100}
-            max={100}
-            mode="bipolar"
             label="Pan"
             onChange={onPanChange}
             onGestureStart={onPanGestureStart}

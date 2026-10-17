@@ -11,6 +11,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useTheme } from '../ThemeProvider';
 import { TimeCodeUnit } from '../TimeCode/TimeCodeUnit';
 import './BpmStepper.css';
+import { useValueContextMenu } from '../hooks/useValueContextMenu';
 
 export interface BpmStepperProps {
   value: number;
@@ -80,6 +81,8 @@ export function BpmStepper({
     setEditing(true);
   };
 
+  const valueMenu = useValueContextMenu({ onEnterValue: beginEdit, disabled });
+
   useEffect(() => {
     if (editing) {
       // Defer to next paint so the input is mounted before we focus it.
@@ -140,7 +143,9 @@ export function BpmStepper({
       aria-disabled={disabled || undefined}
       tabIndex={disabled ? -1 : tabIndex}
       onKeyDown={handleKeyDown}
+      onContextMenu={valueMenu.onContextMenu}
     >
+      {valueMenu.menu}
       <div className="bpm-stepper__display">
         {editing ? (
           <input
