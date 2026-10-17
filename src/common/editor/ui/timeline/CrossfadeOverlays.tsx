@@ -63,7 +63,7 @@ export function CrossfadeOverlays({
 		}));
 	};
 	return <>
-		{overlays.map((overlay, index) => <div key={overlay.id} style={{ display: 'contents' }}
+		{overlays.map((overlay, index) => <div key={`${overlay.outgoingClipId}:${overlay.incomingClipId}`} style={{ display: 'contents' }}
 			onClick={event => {
 				if (!(event.target as Element).closest('[data-crossfade-handle]') || !(event.ctrlKey || event.metaKey)) return;
 				event.stopPropagation();
