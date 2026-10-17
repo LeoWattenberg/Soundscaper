@@ -48,47 +48,77 @@ the clicked position, then drag to refine it.
 
 Adjusting selection boundaries leaves the playhead where it is, including
 during playback. The playhead's own arrow controls keep their usual behavior.
+Double-click a time display to type a complete value, or use its menu's
+**Enter value** command. Tempo, volume, pan, and playback speed also offer
+**Enter value** from their context menus.
 
 ### Adjust clip fades {#clip-fades}
 
-Select an audio clip to reveal small triangular handles along the top of its
-waveform, directly below the clip header.
+Hover over or select an audio clip to reveal its fade handles along the top
+of the waveform, directly below the clip header.
 Drag the left triangle inward for a fade-in, or the right triangle inward for
 a fade-out. The waveform changes as you drag, and the area above the fade
 curve becomes darker. The triangles follow the fade boundaries; dragging one
 back to its corner removes that fade. Only the clip you drag is changed, even
 when several clips are selected.
 
-The handles disappear when you deselect the clip, but the faded waveform and
-shading remain. These fades preserve the original audio and stay adjustable
-after saving and reopening the project. Release to commit a fade, or press
+The handles disappear when the clip is neither hovered nor selected, but the
+faded waveform and shading remain. These fades preserve the original audio
+and stay adjustable after saving and reopening the project. Release to commit a fade, or press
 **Escape** while dragging to cancel. **Undo** reverses one complete drag.
 Playback and export use the committed fade settings.
 
-With a selected clip focused, press **Tab** to reach its fade handles. Arrow
-keys adjust the duration by 10 milliseconds, or 100 milliseconds with
-**Shift**. **Home** removes the fade; **End** extends it across the clip.
-For numeric entry, choose **Edit → Audio clips → Clip properties** and
-use **Fading**.
+With an audio clip focused, press **F** to reach the fade handle nearest the
+playhead, press **F** again for the other edge, and once more to return to the
+clip. **T** cycles the trim handles and **S** cycles the stretch handles in the
+same way. **Left** and **Right** move a focused handle by 0.1 seconds, or
+1 second with **Shift**. **Escape** returns focus to the clip.
+
+With a fade handle focused, **Delete** or **Backspace** removes that fade.
+**Up** and **Down** adjust its curve. Keys **1–5** choose Linear, Logarithmic,
+Exponential, S-curve, and Constant power; **0** restores the S-curve.
+Right-click a fade handle and choose **Edit fade in** or **Edit fade out** to
+open **Fades**, where you can enter durations and choose shapes. **Apply**
+commits the changes together; **Cancel** discards the preview. **Alt+Shift+F**
+also opens this dialog for the focused clip or the clip under the playhead.
+
+To explore these context shortcuts, open **Edit → Preferences → Keyboard
+shortcuts** and choose **Show keyboard**. Pick a context and modifier state,
+or hold a modifier key, then click a key to see its commands.
 
 ### Edit a clip’s source {#clip-source-properties}
 
-Choose **Edit → Audio clips → Clip properties** to open the source editor.
-The full recording appears behind the clip. Drag the clip’s edges to change
-its source in and duration while keeping its start on the project timeline.
-The **Normalize** drawer contains clip gain and the peak and loudness actions.
+Choose **Window → Source monitor** to open the source waveform editor for the
+selected audio clip. The full recording appears behind the clip. Drag the
+clip's edges to change its source in and duration while keeping its start on
+the project timeline. With several clips selected, use the Source monitor's
+tabs to choose the source you want to edit.
 
-Open **Pitch and tempo** and check **Link pitch and tempo** to change speed
-and pitch together. A speed ratio of `1` and a pitch change of `0%` leave the
-sound unchanged. A ratio of `2` plays twice as fast and an octave higher;
-`0.5` plays half as fast and an octave lower. Editing either linked control
-updates the other. Unchecking the link restores the independent pitch setting
-while keeping the current speed ratio.
+Choose **Edit → Audio clips → Clip properties**, or **Window → Clip properties**,
+for the clip's numeric settings: track, timeline position, duration, source
+trims, pitch, speed, reverse, and fades. Selecting several clips exposes their
+shared properties; changing a shared value applies it to the selection. Pitch
+uses semitones and speed uses percent, with `100%` playing at the original
+speed. **Additional properties** retains the other clip settings, including
+linked pitch and tempo controls.
 
-**Ctrl+click** the waveform to add a stretch marker tied to that source sample.
-Dragging it changes the timing on either side; the overlay shows both playback
+In the Source monitor, **Ctrl+click** the waveform to add a stretch marker
+tied to that source sample. Dragging it changes the timing on either side; the overlay shows both playback
 rates. The clip’s controls remain per clip. Selecting source audio and applying
 an effect updates every clip that uses that source.
+
+### Adjust labels {#adjust-labels}
+
+Double-click a label's text to rename it, then press **Enter** to keep the name
+or **Escape** to restore it. Drag its text banner to move the whole label, or
+drag an ear to stretch either boundary. A point label becomes a region when you
+pull an ear away; dragging a region boundary close to the opposite edge
+collapses it to a point. Edges snap to other labels on the same track.
+
+Adjacent region labels share one boundary stalk. Drag it to resize both
+regions together; select a label and drag its ear to adjust that label alone.
+Use the track menu's **Track color** to change the label palette, or right-click
+a label and choose **Label text size** for a size from 9 to 48 points.
 
 ### Edit clips in a spreadsheet {#clip-spreadsheet}
 
@@ -148,6 +178,18 @@ changes that can be undone while history is available.
 
 Use the playback meter and loudness analysis to inspect the result. Avoid
 treating a meter target as a substitute for listening to the complete export.
+
+### Listen at a different speed {#play-at-speed}
+
+Open **Play options** beside the Play button and set **Playback speed**. The
+Play button uses that rate; **Preserve pitch** keeps pitch steady while the
+project plays faster or slower. Returning to `1×` restores normal playback.
+
+For a slider on the toolbar, open **Customize toolbar** and enable **Play at
+speed**. This control starts hidden and uses the same rate as the Play options
+dropdown. Adjust the slider while playback is stopped, or right-click it and
+choose **Enter value**. Playback speed changes how you hear the project; it
+does not change the clips or exported audio.
 
 ### Listen to selected frequencies {#listen-to-selected-frequencies}
 

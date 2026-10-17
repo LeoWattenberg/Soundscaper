@@ -74,7 +74,7 @@ product enables see
 | Native project format | + — `.sscape`, a lossless portable archive | + — `.sscape`, a lossless portable archive | + — `.aup4` | + — `.sesx` |
 | Opens Audacity projects | + — AUP, AUP3, and AUP4 import; AUP3 and AUP4 export | + — AUP, AUP3, and AUP4 import; AUP3 and AUP4 export | + — AUP, AUP3, and AUP4 import; AUP4 export, no AUP3 export | / |
 | Non-destructive clip timeline | + | + | + | + — multitrack editor |
-| Dedicated single-file editor | + — source waveform editor in Clip properties | + — source waveform editor in Clip properties | ~ — edits apply in place in the timeline | + — waveform editor |
+| Dedicated single-file editor | + — source waveform editor in Source monitor | + — source waveform editor in Source monitor | ~ — edits apply in place in the timeline | + — waveform editor |
 | Mono and stereo content on one track | + — a track holds either | + — a track holds either | / — a track is mono or stereo | / — channel format is fixed per track |
 | Nested track folders | + — any depth, undoable, with routing | + — any depth, undoable, with routing | / | ~ — submix buses only, no folder tracks |
 | Project bin | + — organises files and doubles as a clipboard | + — organises files and doubles as a clipboard | / | ~ — the Files panel lists open files |
