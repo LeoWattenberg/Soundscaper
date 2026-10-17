@@ -116,7 +116,7 @@ export function createControllerBindings<RenderEngine extends ClipTimePitchRende
 	const { compactLiveSourceState, liveSessionSourceIds, liveSessionClipIds } = deferControllerMethods(() => services.doc().retention, ['compactLiveSourceState', 'liveSessionSourceIds', 'liveSessionClipIds']);
 	const { publishProjectState, setTimelineView, setAllTracksView } = deferControllerMethods(() => services.doc().view, ['publishProjectState', 'setTimelineView', 'setAllTracksView']);
 	const { duplicateTrack } = deferControllerMethods(() => services.doc().trackDuplication, ['duplicateTrack']);
-	const { handleClipAction, setClipTimePitch, stretchClip, resetClipPitchSpeed } = deferControllerMethods(() => services.clips().clipProperty, ['handleClipAction', 'setClipTimePitch', 'stretchClip', 'resetClipPitchSpeed']);
+	const { handleClipAction, setClipTimePitch, setClipsTimePitch, stretchClip, resetClipPitchSpeed } = deferControllerMethods(() => services.clips().clipProperty, ['handleClipAction', 'setClipTimePitch', 'setClipsTimePitch', 'stretchClip', 'resetClipPitchSpeed']);
 	const { moveClips, moveClipsToNewTrack, trimClips, overwriteClips } = deferControllerMethods(() => services.clips().clipTransform, ['moveClips', 'moveClipsToNewTrack', 'trimClips', 'overwriteClips']);
 	const { renderClipPitchSpeed } = deferControllerMethods(() => services.clips(), ['renderClipPitchSpeed']);
 	const { createCacheAwareRenderEngine, prepareCommittedTimePitchCaches, beginPlaybackCachePreparation, cancelPlaybackCachePreparation } = deferControllerMethods(() => services.sources().timePitchCaches, ['createCacheAwareRenderEngine', 'prepareCommittedTimePitchCaches', 'beginPlaybackCachePreparation', 'cancelPlaybackCachePreparation']);
@@ -166,7 +166,7 @@ export function createControllerBindings<RenderEngine extends ClipTimePitchRende
 		updateSelection, projectChanged, saveNow, flushProject,
 		compactLiveSourceState, liveSessionSourceIds, liveSessionClipIds, publishProjectState,
 		setTimelineView, setAllTracksView, duplicateTrack, handleClipAction,
-		setClipTimePitch, stretchClip, resetClipPitchSpeed, moveClips,
+		setClipTimePitch, setClipsTimePitch, stretchClip, resetClipPitchSpeed, moveClips,
 		moveClipsToNewTrack, trimClips, overwriteClips, renderClipPitchSpeed,
 		createCacheAwareRenderEngine, prepareCommittedTimePitchCaches, beginPlaybackCachePreparation, cancelPlaybackCachePreparation,
 		videoEffectGestureKey, reorderVideoClipEffect, removeVideoClipEffect, beginVideoEffectGesture,

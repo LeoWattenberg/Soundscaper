@@ -176,6 +176,7 @@ export const EDITOR_ACTION_FUNCTION_NAMES = defineEditorActionFunctionNames([
 	'setAudioOutputDevice',
 	'setAutoFitTrackHeight',
 	'setClipTimePitch',
+	'setClipsTimePitch',
 	'setLatencyOffset',
 	'setLoopRegion',
 	'setLoopRegionInOut',

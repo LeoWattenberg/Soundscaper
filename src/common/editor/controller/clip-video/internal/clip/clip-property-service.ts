@@ -109,6 +109,7 @@ export interface ClipPropertyServiceDependencies {
 export interface ClipPropertyService {
 	handleClipAction(action: ClipPropertyAction | string, clipId?: string | null): Promise<unknown>;
 	setClipTimePitch(clipId?: string | null, changes?: ClipTimePitchChanges): unknown;
+	setClipsTimePitch(clipIds: readonly string[], changes: ClipTimePitchChanges): unknown;
 	stretchClip(clipId?: string | null, changes?: ClipStretchChanges): unknown;
 	resetClipPitchSpeed(clipId?: string | null): unknown;
 	toggleStretchToTempo(clipId?: string | null): unknown;
@@ -119,7 +120,7 @@ export function createClipPropertyService(
 ): Readonly<ClipPropertyService> {
 	return Object.freeze({
 		handleClipAction,
-		setClipTimePitch,
+		setClipTimePitch, setClipsTimePitch,
 		stretchClip,
 		resetClipPitchSpeed,
 		toggleStretchToTempo,
@@ -180,9 +181,21 @@ export function createClipPropertyService(
 		}
 	}
 
+	/** Validate all selected clips before publishing one history entry. */
+	function setClipsTimePitch(clipIds: readonly string[], changes: ClipTimePitchChanges): unknown {
+		dependencies.lifetime.assertActive();
+		if (dependencies.editingBlocked()) return null;
+		const commands: AudioEditorCommand[] = [];
+		for (const clipId of new Set(clipIds)) {
+			setClipTimePitch(clipId, changes, command => { commands.push(command); });
+		}
+		return commands.length ? dependencies.commit({ type: 'batch', commands }) : null;
+	}
+
 	function setClipTimePitch(
 		clipId: string | null = dependencies.getSelectedClipId(),
 		changes: ClipTimePitchChanges = {},
+		publish: ClipPropertyServiceDependencies['commit'] = dependencies.commit,
 	): unknown {
 		dependencies.lifetime.assertActive();
 		if (dependencies.editingBlocked()) return null;
@@ -223,7 +236,7 @@ export function createClipPropertyService(
 				renderCacheRevision: clip.renderCacheRevision + 1,
 			},
 		}], dependencies.createId);
-		return dependencies.commit(command, { selectTrackId: track.id, selectClipId: clip.id });
+		return publish(command, { selectTrackId: track.id, selectClipId: clip.id });
 	}
 
 	function stretchClip(

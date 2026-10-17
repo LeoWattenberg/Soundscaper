@@ -180,6 +180,7 @@ export interface EditorActionFunctions {
 	readonly setAudacityEffectType: ReturnType<typeof createEffectsComposition>['controls']['setAudacityEffectType'];
 	readonly setAudioOutputDevice: ReturnType<typeof createRecordingComposition>['routing']['setAudioOutputDevice'];
 	readonly setAutoFitTrackHeight: ReturnType<typeof createTransportComposition>['view']['setAutoFitTrackHeight'];
+	readonly setClipsTimePitch: ReturnType<typeof createClipVideoComposition>['clipProperty']['setClipsTimePitch'];
 	readonly setClipTimePitch: ReturnType<typeof createClipVideoComposition>['clipProperty']['setClipTimePitch'];
 	readonly setLatencyOffset: ReturnType<typeof createRecordingComposition>['setLatencyOffset'];
 	readonly setLoopRegion: ReturnType<typeof createTransportComposition>['transport']['setLoopRegion'];
