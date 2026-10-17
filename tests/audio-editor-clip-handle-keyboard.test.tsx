@@ -26,6 +26,7 @@ async function mounted(check: (dom: ReturnType<typeof installReactTestDom>, port
 	};
 	try {
 		await act(async () => root.render(<div data-clip-id="one" tabIndex={0}>
+			<button data-clip-indicator="pitch" />
 			<button data-clip-fade-handle="in" tabIndex={-1} /><button data-clip-fade-handle="out" tabIndex={-1} />
 			{(['trim', 'stretch'] as const).flatMap(kind => (['left', 'right'] as const).map(edge => <button key={`${kind}-${edge}`} tabIndex={-1} className={`clip-display__handle clip-display__handle--${kind}-${edge}`} />))}
 			<input />
@@ -81,6 +82,16 @@ test('cursor edits target the clip under the cursor and direct clip shortcuts se
 		assert.deepEqual(calls.pop(), { seek: 48_000 });
 		routeClipHandleKeyboard(key(target, 'Enter'), ports);
 		assert.deepEqual(calls.pop(), { seek: 0 });
+	});
+});
+
+test('Enter leaves clip indicator buttons available for their native activation', async () => {
+	await mounted((dom, ports, calls) => {
+		const target = dom.one('[data-clip-indicator]') as unknown as EventTarget;
+		let prevented = false;
+		assert.equal(routeClipHandleKeyboard(key(target, 'Enter', { preventDefault: () => { prevented = true; } }), ports), false);
+		assert.equal(prevented, false);
+		assert.deepEqual(calls, []);
 	});
 });
 

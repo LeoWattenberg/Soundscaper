@@ -119,7 +119,7 @@ export function routeClipHandleKeyboard(event: KeyEvent, ports: Ports): boolean 
 		heldHandleRelease.get(target.ownerDocument)?.();
 		clipElement.focus({ preventScroll: true });
 	};
-	if (!handle && event.key === 'Enter' && !event.altKey && !event.ctrlKey && !event.metaKey && !event.shiftKey
+	if (target === clipElement && event.key === 'Enter' && !event.altKey && !event.ctrlKey && !event.metaKey && !event.shiftKey
 		&& ports.selectedIds.includes(focused.id)) { ports.seek(focused.timelineStartFrame); return stop(); }
 	if ((event.ctrlKey || event.metaKey) && !event.altKey && !event.shiftKey && ['[', ']'].includes(key)) {
 		ports.seek(focused.timelineStartFrame + (key === ']' ? focused.durationFrames : 0)); return stop();
