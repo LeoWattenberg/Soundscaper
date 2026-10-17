@@ -35,6 +35,7 @@ import {
 	handleEditorToolbarKeyDown,
 } from '../workspace-shortcuts.ts';
 
+const PlaybackSpeedToolbarControl = lazy(() => import('./PlaybackSpeedToolbarControl.tsx'));
 const CustomToolbarButtonDialog = lazy(() => import('../dialogs/CustomToolbarButtonDialog.tsx'));
 
 export default function EditorToolToolbar({
@@ -90,7 +91,7 @@ export default function EditorToolToolbar({
 	const setToolbarSettingsTrigger = useCallback((element) => {
 		toolbarSettingsTriggerRef.current = element?.querySelector('button') || null;
 	}, []);
-	const isToolbarButtonVisible = (buttonId) => toolbarButtons?.[buttonId] !== false;
+	const isToolbarButtonVisible = (buttonId) => buttonId === 'varispeed' ? toolbarButtons?.varispeed === true : toolbarButtons?.[buttonId] !== false;
 	const visibleEditItems = editItems.filter((item) => isToolbarButtonVisible(item.action));
 	const customButtons = snapshot.preferences?.workspace?.customButtons ?? [];
 	const visibleCustomButtons = customButtons.filter((button) => isToolbarButtonVisible(button.id));
@@ -125,6 +126,7 @@ export default function EditorToolToolbar({
 		{ id: 'jump-start', label: copy.jumpStart, icon: 'skip-back' },
 		{ id: 'jump-end', label: copy.jumpEnd, icon: 'skip-forward' },
 		{ id: 'loop', label: copy.loop, icon: 'loop' },
+		{ id: 'varispeed', label: copy.playAtSpeed, icon: 'play' },
 		{ id: 'metronome', label: copy.metronome, icon: 'metronome' },
 		{ id: 'volume-automation', label: copy.clipGain, icon: 'automation' },
 		{ id: 'split-tool', label: copy.splitTool, icon: 'split' },
@@ -252,6 +254,9 @@ export default function EditorToolToolbar({
 				</WorkspaceToolbarSection>,
 
 				<WorkspaceToolbarSection key="meter" {...toolbarSectionProps('meter')}>
+				{toolbarButtons?.varispeed === true && <Suspense fallback={null}>
+					<PlaybackSpeedToolbarControl controller={controller} snapshot={snapshot} copy={copy} blocked={blocked} run={run} />
+				</Suspense>}
 				{isToolbarButtonVisible('time-display') && !snapshot.preferences?.workspace?.panels?.clock?.visible && <TelemetryTimeCode
 					controller={controller}
 					copy={copy}

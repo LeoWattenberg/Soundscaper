@@ -1,0 +1,62 @@
+/* VarispeedControl — the play-at-speed control on the toolbar before the
+   timecode (2026-10-15, the Figma "1.1 - Simple slider" third row):
+   "Speed" caption · the design system's Slider (unmarked, a soft snap at
+   100%) · a fixed-width percent readout. Nothing here is a dark face: the timecode
+   keeps the one LCD on the bar. NOTHING MARKS THE ON STATE (2026-10-15:
+   "I don't like colour change", then an outline on the readout, "I don't
+   like"): the thumb off its mark and a number other than 100% ARE the
+   state, as the Figma row draws it. */
+.varispeed {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+/* The "Speed" caption, as the "Snap" label beside its checkbox: a caption,
+   not a button, and NOT A STATE — it never changes colour or weight
+   (2026-10-15, "I don't think changing the Speed text color or weight is
+   sensible"); the readout and the timecode's digits carry the on state. */
+.varispeed__label {
+  padding: 0 2px;
+  color: var(--varispeed-text);
+  font: 500 12px/28px 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  white-space: nowrap;
+  user-select: none;
+}
+
+/* The slider: the design system's Slider (the volume slider's track, fill
+   and handle), 72px wide, with no mark — the drag detent is the "default"
+   (2026-10-15, "I also don't like the line at the 'default' level") */
+.varispeed__track {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  height: 28px;
+  padding: 0 2px;
+}
+
+.varispeed__track .slider.varispeed__slider {
+  flex: none;
+  width: 72px;
+}
+
+
+/* The readout: plain text in percent at a FIXED WIDTH — room for "300%"
+   in tabular figures, right-aligned so the "%" holds still and the digits
+   grow leftward — so the timecode after it never shuffles as the slider
+   moves ("so toolbar doesn't jump around", 2026-10-15) */
+.varispeed__readout {
+  display: inline-block;
+  width: 36px;
+  text-align: right;
+  color: var(--varispeed-text);
+  font: 500 12px/28px 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  user-select: none;
+  border-radius: 3px;
+  cursor: default;
+  box-sizing: border-box;
+}

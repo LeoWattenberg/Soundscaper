@@ -18,6 +18,7 @@ export const DEFAULT_TOOLBARS = Object.freeze({
 export const DEFAULT_TOOLBAR_BUTTONS = Object.freeze({
 	play: true,
 	'play-at-speed': true,
+	varispeed: false,
 	stop: true,
 	record: true,
 	'jump-start': true,

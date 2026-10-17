@@ -9,8 +9,8 @@ import type { EngineClip, EngineProject } from './types.ts';
 
 export const DEFAULT_SAMPLE_RATE = 48_000;
 export const MAX_EFFECT_TAIL_SECONDS = 10;
-export const PLAY_AT_SPEED_MINIMUM_RATE = 0.5;
-export const PLAY_AT_SPEED_MAXIMUM_RATE = 2;
+export const PLAY_AT_SPEED_MINIMUM_RATE = 0.01;
+export const PLAY_AT_SPEED_MAXIMUM_RATE = 3;
 export const PLAY_AT_SPEED_STAFFPAD_MEMORY_LIMIT_BYTES = AUDACITY_EFFECT_PEAK_MEMORY_LIMIT_BYTES;
 
 export function clamp(value: number, minimum: number, maximum: number): number {

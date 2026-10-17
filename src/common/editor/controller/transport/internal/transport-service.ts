@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { normalizePlayAtSpeedRate } from '../../../engine/buffer-math.ts';
 import type { EngineAudioContext } from '../../../engine/public-api.ts'; import { createLocalizedError, setLocalizedStatus } from '../../../../i18n/presentation-message.ts';
 import { hasCoreEditingProjectAuthority } from '../../../project-schema-version.ts';
 import { resolveSelectionRange } from '../../../selection-range.ts';
@@ -54,10 +55,7 @@ export function createEditorTransportService<Project extends TransportProject = 
 	}
 
 	function setPlayAtSpeedRate(value: unknown) {
-		const rate = Number(value);
-		if (!Number.isFinite(rate) || rate < 0.5 || rate > 2) {
-			throw new RangeError('Playback speed must be between 0.5 and 2.');
-		}
+		const rate = normalizePlayAtSpeedRate(value);
 		state.playAtSpeedRate = rate;
 		publishDocumentSnapshot();
 		return rate;
