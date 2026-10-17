@@ -482,7 +482,7 @@ test.describe('non-destructive clip fade handles', () => {
 		await expect(fade).toHaveAttribute('aria-valuenow', '0.1');
 	});
 
-	test('a handle affects only its own clip when multiple clips are selected', async ({ page }) => {
+	test('selected fades preview every selected track together, while an unselected target keeps the other clip picked', async ({ page }) => {
 		const editor = await bootEditor(page, '/embed/en/');
 		await importFiles(editor, [toneA, toneB]);
 		const first = clipByName(editor, toneA.name);
@@ -495,8 +495,24 @@ test.describe('non-destructive clip fade handles', () => {
 		await expect(firstFade).toBeVisible();
 		await expect(secondFade).toBeVisible();
 		await beginFadeDrag(page, firstFade, 30);
-		await page.mouse.up();
 		await expect.poll(async () => Number(await firstFade.getAttribute('aria-valuenow'))).toBeGreaterThan(0.002);
+		const preview = await firstFade.getAttribute('aria-valuenow');
+		await expect(secondFade).toHaveAttribute('aria-valuenow', preview);
+		await page.mouse.up();
+		await expect(secondFade).toHaveAttribute('aria-valuenow', preview);
+		await editor.getByRole('button', { name: 'Undo', exact: true }).click();
+		await expect(firstFade).toHaveAttribute('aria-valuenow', '0.002');
+		await expect(secondFade).toHaveAttribute('aria-valuenow', '0.002');
+		await first.locator('.clip-header').click({ modifiers: ['Shift'] });
+		await expect(first.locator('.clip-display')).toHaveAttribute('data-selected', 'false');
+		await expect(second.locator('.clip-display')).toHaveAttribute('data-selected', 'true');
+		await beginFadeDrag(page, firstFade, 30);
+		await expect.poll(async () => Number(await firstFade.getAttribute('aria-valuenow'))).toBeGreaterThan(0.002);
+		await expect(secondFade).toHaveAttribute('aria-valuenow', '0.002');
+		await page.mouse.up();
+		await expect(second.locator('.clip-display')).toHaveAttribute('data-selected', 'true');
+		await editor.getByRole('button', { name: 'Undo', exact: true }).click();
+		await expect(firstFade).toHaveAttribute('aria-valuenow', '0.002');
 		await expect(secondFade).toHaveAttribute('aria-valuenow', '0.002');
 	});
 
