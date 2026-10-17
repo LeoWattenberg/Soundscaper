@@ -7,6 +7,7 @@ async function selectClip(clip) {
 }
 
 async function beginDrag(page, handle, delta) {
+	await handle.locator('xpath=ancestor::*[@data-clip-id][1]').hover();
 	const bounds = await handle.boundingBox();
 	expect(bounds).not.toBeNull();
 	const x = bounds.x + bounds.width / 2;

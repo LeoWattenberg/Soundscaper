@@ -26,10 +26,15 @@ test('a grouped keyboard trim resolves an editable boundary on every participati
 	await expect(clip).toBeFocused();
 	await clip.getByRole('button', { name: 'Trim right edge', exact: true }).press('ArrowLeft');
 	await expect(editor.locator('[data-editor-toast="workspace-error"]')).toBeHidden();
-	const properties = await openClipProperties(page, editor, clip);
-	await properties.getByText('Media settings', { exact: true }).click();
-	const duration = properties.locator('[data-clip-field="durationFrame"]');
-	await duration.locator('.timecode__format-button').click();
-	await page.getByRole('menuitem', { name: 'samples', exact: true }).click();
-	await expect(duration.locator('.timecode__display')).toHaveText('000,000,043,201samples');
+	// Group selection uses the merged inspector; ungroup after the edit to inspect both native boundaries.
+	await chooseNestedCommandAction(page, editor, 'Edit', ['Audio clips', 'Ungroup clips']);
+	for (const fixture of [plain, warped]) {
+		const properties = await openClipProperties(page, editor, clipByName(editor, fixture.name));
+		const media = properties.locator('summary').filter({ hasText: 'Media settings' });
+		if (await media.locator('..').getAttribute('open') === null) await media.click();
+		const duration = properties.locator('[data-clip-field="durationFrame"]');
+		await duration.locator('.timecode__format-button').click();
+		await page.getByRole('menuitem', { name: 'samples', exact: true }).click();
+		await expect(duration.locator('.timecode__display')).toHaveText('000,000,043,201samples');
+	}
 });
