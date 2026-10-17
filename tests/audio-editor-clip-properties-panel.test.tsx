@@ -16,10 +16,97 @@ test('the upstream properties surface follows selection and keeps the source vie
 		assert.ok(f.dom.find('[data-clip-properties-field="strip"]'));
 		assert.equal(f.dom.find('[data-audio-source-monitor-panel]'), null);
 		assert.equal(f.dom.find('[data-clip-properties-drawer]'), null);
+		assert.equal(f.dom.find('summary'), null, 'the audio inspector has no duplicated Additional properties surface');
 		await f.render(['two']);
 		assert.equal(f.input('name').value, 'Second source');
 		await f.render([]);
 		assert.ok(f.dom.find('[data-clip-properties-empty]'));
+	} finally { await f.cleanup(); }
+});
+
+test('clip color uses the shared swatch palette and can return to the owning track color', async () => {
+	const f = await fixture();
+	try {
+		await f.render(['one']);
+		const trigger = f.dom.one('[data-open-clip-color]');
+		await act(async () => reactProps(trigger).onClick({ currentTarget: trigger }));
+		const swatch = f.dom.one('[data-color="blue"]');
+		await act(async () => reactProps(swatch).onClick());
+		assert.deepEqual(f.updates.pop(), { id: 'one', changes: { color: 'blue' } });
+		await act(async () => reactProps(trigger).onClick({ currentTarget: trigger }));
+		await act(async () => reactProps(f.dom.one('[data-follow-track-color]')).onClick());
+		assert.deepEqual(f.updates.pop(), { id: 'one', changes: { color: 'auto' } });
+	} finally { await f.cleanup(); }
+});
+
+test('the source visual opens Source monitor for its clip without mutating the selection', async () => {
+	const f = await fixture();
+	try {
+		await f.render(['one']);
+		await act(async () => reactProps(f.dom.one('[data-clip-properties-action="open-source"]')).onClick());
+		assert.deepEqual(f.opened, ['source-monitor', 'one']);
+		assert.deepEqual(f.project().selection.clipIds, ['one']);
+	} finally { await f.cleanup(); }
+});
+
+test('unique audio operations remain in the Media settings menu and mutation errors reach the workspace runner', async () => {
+	const f = await fixture();
+	try {
+		await f.render(['one']);
+		const trigger = f.dom.one('[data-clip-audio-settings]');
+		await act(async () => reactProps(trigger).onClick({ currentTarget: trigger }));
+		for (const name of [ENGLISH_COPY.clipLinkPitchAndTempo, ENGLISH_COPY.preserveFormants, ENGLISH_COPY.stretchToTempo,
+			ENGLISH_COPY.normalizePeak, ENGLISH_COPY.normalizeLufs, ENGLISH_COPY.invert, ENGLISH_COPY.resample]) {
+			assert.ok(f.dom.container.querySelectorAll('[role="menuitem"], [role="menuitemcheckbox"]').some(item => item.textContent.includes(name)), name);
+		}
+		f.rejectUpdates();
+		await f.type('name', 'Rejected');
+		await act(async () => reactProps(f.input('name')).onBlur());
+		assert.equal(f.failures.length, 1);
+		assert.equal((f.failures[0] as Error).message, 'Cannot update clip');
+		assert.equal(f.dom.find('[role="alert"]'), null);
+	} finally { await f.cleanup(); }
+});
+
+test('Media settings preserves formants, normalization and exact custom fade coefficients', async () => {
+	const f = await fixture();
+	try {
+		await f.render(['one']);
+		await f.settingsItem(ENGLISH_COPY.preserveFormants);
+		assert.deepEqual(f.timePitch.pop(), { ids: ['one'], changes: { preserveFormants: true } });
+		await f.settingsItem(ENGLISH_COPY.normalizePeak);
+		assert.deepEqual(f.operations.pop(), { action: 'normalizePeak', id: 'one' });
+		await f.settingsItem(ENGLISH_COPY.fadeOutShape);
+		await act(async () => reactProps(f.dom.one('form')).onSubmit({ preventDefault() {} }));
+		assert.deepEqual(f.updates, [], 'opening and accepting an unchanged legacy shape preserves its representation');
+		await f.settingsItem(ENGLISH_COPY.fadeInShape);
+		const field = f.dom.one('[data-clip-field="fadeInShape"]');
+		const input = field.querySelector('input');
+		assert.ok(input);
+		await act(async () => reactProps(input).onChange({ target: { value: '1.73' } }));
+		assert.deepEqual(f.updates, [], 'typing a coefficient must remain a draft');
+		await act(async () => reactProps(f.dom.one('form')).onSubmit({ preventDefault() {} }));
+		assert.deepEqual(f.updates, [{ id: 'one', changes: { fadeInShape: 1.73 } }]);
+		assert.equal(f.dom.find('[role="dialog"]'), null);
+	} finally { await f.cleanup(); }
+});
+
+test('native time display replaces the glyph fields and commits an exact project sample duration', async () => {
+	const f = await fixture();
+	try {
+		await f.render(['one']);
+		await f.settingsItem(ENGLISH_COPY.clipTimecodeFields);
+		assert.equal(f.dom.container.querySelectorAll('[data-clip-properties-field="length"]').length, 1);
+		const field = f.dom.one('[data-clip-field="durationFrame"]');
+		const input = field.querySelector('input'), wrapper = field.querySelector('[data-timecode-input]');
+		assert.ok(input && wrapper);
+		await act(async () => reactProps(input).onChange({ currentTarget: { valueAsNumber: 12_345 } }));
+		assert.equal(f.trims.length, 0);
+		await act(async () => reactProps(wrapper).onBlur({ currentTarget: wrapper, relatedTarget: null }));
+		assert.equal(f.trims[0]?.id, 'one');
+		assert.equal(f.trims[0]?.changes.durationFrames, 12_345);
+		assert.equal(f.trims[0]?.changes.sourceDurationFrames, 12_345);
+		assert.deepEqual(f.failures, []);
 	} finally { await f.cleanup(); }
 });
 
@@ -117,9 +204,16 @@ async function fixture() {
 	const root = createRoot(dom.container as unknown as Element);
 	let current = project();
 	const updates: unknown[] = [], commits: unknown[] = [], timePitch: unknown[] = [];
+	const operations: unknown[] = [];
+	const trims: { id: string; changes: Readonly<Record<string, number>> }[] = [];
+	const opened: string[] = [], failures: unknown[] = [];
+	let reject = false;
 	const controller = { get project() { return current; }, actions: {
+		preferences: { setPanelVisibility: (id: string) => { opened.push(id); } },
+		clipSourcePreview: { focus: (id: string) => { opened.push(id); }, trim: (id: string, changes: Readonly<Record<string, number>>) => { trims.push({ id, changes }); } },
 		edit: { commit: (command: unknown) => { commits.push(command); } },
-		clip: { update: (id: string, changes: unknown) => { updates.push({ id, changes }); },
+		clip: { update: (id: string, changes: unknown) => { if (reject) throw new Error('Cannot update clip'); updates.push({ id, changes }); },
+			normalizePeak: (id: string) => { operations.push({ action: 'normalizePeak', id }); },
 			setTimePitch: (id: string, changes: unknown) => { timePitch.push({ ids: [id], changes }); },
 			setTimePitchMany: (ids: readonly string[], changes: unknown) => { timePitch.push({ ids, changes }); } },
 	} };
@@ -129,12 +223,23 @@ async function fixture() {
 		input(name).focus();
 		await act(async () => reactProps(input(name)).onChange({ target: { value } }));
 	};
-	return { dom, input, updates, commits, timePitch, type, project: () => current,
+	const run = (operation: () => unknown) => {
+		try { void Promise.resolve(operation()).catch(cause => { failures.push(cause); }); } catch (cause) { failures.push(cause); }
+	};
+	return { dom, input, updates, commits, timePitch, type, opened, failures, operations, trims, rejectUpdates: () => { reject = true; }, project: () => current,
+		settingsItem: async (label: string) => {
+			const trigger = dom.one('[data-clip-audio-settings]');
+			await act(async () => reactProps(trigger).onClick({ currentTarget: trigger }));
+			const item = dom.container.querySelectorAll('[role="menuitem"], [role="menuitemcheckbox"]').find(node => node.querySelector('.context-menu-item-label')?.textContent === label);
+			assert.ok(item, label);
+			await act(async () => reactProps(item).onClick({ stopPropagation() {} }));
+		},
 		typeAndCommit: async (name: string, value: string) => { await type(name, value); await act(async () => reactProps(field(name)).onBlur({ target: input(name) })); },
 		render: async (ids: string[], options: { projectId?: string; locked?: boolean; copy?: typeof ENGLISH_COPY;
 			focusRequest?: ComponentProps<typeof ClipPropertiesPanel>['focusRequest']; panelActive?: boolean } = {}) => {
 			current = project(options.projectId, ids, options.locked);
 			await act(async () => root.render(<ClipPropertiesPanel controller={controller} copy={options.copy ?? ENGLISH_COPY}
+				run={run}
 				snapshot={{ project: current, selectedClipIds: ids, selectedClipId: ids[0] ?? null, capabilities: { audioEffects: true } }}
 				focusRequest={options.focusRequest} panelActive={options.panelActive} />));
 		},

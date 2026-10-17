@@ -1,7 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import { useEffect, useMemo, useRef, useState } from 'react';
 import UpstreamClipPropertiesPanel from '@soundscaper/design-system/ClipPropertiesPanel/ClipPropertiesPanel';
-import { AUDIO_EDITOR_TRACK_COLORS } from '../../project-audio-factory.js';
 import { projectForRuntimeConsumers } from '../../project-current-runtime.ts';
 import type { RuntimeClipProject } from '../../runtime-clip-projection.ts';
 import type { AudioEditorCommand } from '../../commands/protocol.ts';
@@ -18,12 +17,19 @@ import ClipPropertiesBody from './ClipPropertiesBody.jsx';
 import ImageClipPropertiesBody from './ImageClipPropertiesBody.tsx';
 import GeneratorClipPropertiesBody from './GeneratorClipPropertiesBody.tsx';
 import { selectAudioEditorEditBlock } from '../edit-blocking.ts';
-import { feedbackFailure, usePresentationFeedback } from '../presentation-feedback.ts';
 import { upstreamClipPropertiesLabels } from './upstream-clip-properties-copy.ts';
+import ClipPropertiesColorPicker from './ClipPropertiesColorPicker.tsx';
+import ClipAudioSettingsMenu from './ClipAudioSettingsMenu.tsx';
+import { clipPropertiesTimeFields } from './ClipPropertiesTimeFields.tsx';
+import { NumberField } from '@soundscaper/design-system/ClipPropertiesPanel/clip-properties-controls';
+import { PitchGlyph } from '@soundscaper/design-system/ClipPropertiesPanel/clip-properties-glyphs';
+import { clipLinkedPitchSpeed } from './clip-properties-linked-pitch.ts';
+import { clipPitchInUnit, clipPitchUnitToCents } from './inspector-helpers.ts';
 
 export type { ClipPropertiesFocusRequest } from '../../controller/composition/clip-properties-panel-opening.ts';
 interface Props {
 	readonly controller: object;
+	readonly run: (operation: () => unknown) => unknown;
 	readonly snapshot: ClipPropertiesSelectionSnapshot & Readonly<Record<string, unknown>>;
 	readonly copy: Readonly<Record<string, string>>;
 	readonly focusRequest?: ClipPropertiesFocusRequest | null;
@@ -41,12 +47,13 @@ interface Editor {
 			setTimePitch(id: string, changes: Readonly<Record<string, unknown>>): unknown;
 			setTimePitchMany(ids: readonly string[], changes: Readonly<Record<string, unknown>>): unknown;
 		};
-		readonly clipSourcePreview?: { trim(id: string, changes: Readonly<Record<string, number>>): unknown };
+		readonly clipSourcePreview?: { trim(id: string, changes: Readonly<Record<string, number>>): unknown; focus(id: string): unknown };
+		readonly preferences: { setPanelVisibility(panel: string, visible: boolean): unknown };
 	};
 }
 
 /** Upstream glyph fields and merged selections, with the editor's native commands. */
-export default function ClipPropertiesPanel({ controller, snapshot, copy, focusRequest = null, panelActive = true, runtimeProject = null }: Props) {
+export default function ClipPropertiesPanel({ controller, snapshot, copy, focusRequest = null, panelActive = true, runtimeProject = null, run: runCommand }: Props) {
 	const selected = useClipPropertiesSelection(snapshot, copy.clip);
 	const editor = controller as Editor;
 	const project = useMemo(() => {
@@ -62,10 +69,9 @@ export default function ClipPropertiesPanel({ controller, snapshot, copy, focusR
 	const mounted = useRef(true);
 	const handledFocus = useRef<ClipPropertiesFocusRequest | null>(null);
 	const root = useRef<HTMLDivElement>(null);
-	const [extraOpen, setExtraOpen] = useState(false);
-	const [error, setError] = usePresentationFeedback(copy);
+	const [nativeTimeFields, setNativeTimeFields] = useState(false);
+	const [pitchUnit, setPitchUnit] = useState<'semitones' | 'percent'>('semitones');
 	useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
-	useEffect(() => { setExtraOpen(false); setError(''); }, [targetKey, setError]);
 	useEffect(() => {
 		if (!panelActive || !focusRequest || handledFocus.current === focusRequest) return;
 		const ownsProject = focusRequest.projectId === undefined || focusRequest.projectId === project?.id;
@@ -77,16 +83,11 @@ export default function ClipPropertiesPanel({ controller, snapshot, copy, focusR
 		}
 		handledFocus.current = focusRequest; focusRequest.onHandled?.();
 	}, [focusRequest, panelActive, project?.id, selected.clips]);
+	const ownsTarget = () => mounted.current && liveTarget.current === targetKey
+		&& !('project' in editor && editor.project?.id !== project?.id);
 	const run = (operation: () => unknown) => {
-		if (blocked || !mounted.current || liveTarget.current !== targetKey
-			|| ('project' in editor && editor.project?.id !== project?.id)) return;
-		try {
-			const result = operation();
-			setError('');
-			void Promise.resolve(result).catch(cause => {
-				if (mounted.current && liveTarget.current === targetKey) setError(feedbackFailure(cause));
-			});
-		} catch (cause) { setError(feedbackFailure(cause)); }
+		if (blocked || !ownsTarget()) return;
+		return runCommand(() => Promise.resolve(operation()).catch(cause => { if (ownsTarget()) throw cause; }));
 	};
 	const update = (changes: (clip: PropertyClip) => Readonly<Record<string, unknown>>) => run(() => {
 		if (presentation.clips.length === 1) return editor.actions.clip.update(presentation.clips[0]!.id, changes(presentation.clips[0]!));
@@ -97,52 +98,74 @@ export default function ClipPropertiesPanel({ controller, snapshot, copy, focusR
 		: editor.actions.clip.setTimePitch(presentation.clips[0]!.id, changes));
 	const clip = presentation.clips[0];
 	const source = project?.sources.find(source => source.id === clip?.sourceId);
-	const trim = (edge: 'start' | 'end', seconds: number) => run(() => {
+	const trimSourceFrame = (edge: 'start' | 'end', sourceFrame: number) => run(() => {
 		if (!clip || !source || !project) return;
-		const sourceRate = source.sampleRate || project.sampleRate;
-		const sourceFrame = Math.round((edge === 'start' ? seconds : (source.frameCount ?? 0) / sourceRate - seconds) * sourceRate);
 		const changes = clipSourceTrim(clip as Parameters<typeof clipSourceTrim>[0], source as Parameters<typeof clipSourceTrim>[1], project.sampleRate, edge, sourceFrame, project as unknown as ClipSourceTimingProject);
 		return editor.actions.clipSourcePreview ? editor.actions.clipSourcePreview.trim(clip.id, changes) : editor.actions.clip.trim(clip.id, changes);
 	});
+	const trim = (edge: 'start' | 'end', seconds: number) => {
+		const frames = Math.round(seconds * (source?.sampleRate || project?.sampleRate || 48_000));
+		return trimSourceFrame(edge, edge === 'start' ? frames : (source?.frameCount ?? 0) - frames);
+	};
+	const setDuration = (durationFrames: number) => run(() => {
+		if (!clip || !source || !project) return;
+		const loop = readClipLoop(clip);
+		if (loop) return editor.actions.clip.update(clip.id, { loop: { ...loop, durationFrames } });
+		const changes = clipPropertiesMediaRange(clip as Parameters<typeof clipPropertiesMediaRange>[0], source.frameCount ?? 0, 'durationFrame', durationFrames,
+			{ project: project as unknown as ClipSourceTimingProject, source: source as ClipSourceTimingSource });
+		return editor.actions.clipSourcePreview ? editor.actions.clipSourcePreview.trim(clip.id, changes) : editor.actions.clip.trim(clip.id, changes);
+	});
+	const setStart = (frames: number) => run(() => clip && editor.actions.clip.move(clip.id, presentation.tracks[0]!.id, frames, { exactFrame: true }));
+	const setFade = (side: 'in' | 'out', frames: number) => update(clip => ({ [side === 'in' ? 'fadeInFrames' : 'fadeOutFrames']: Math.min(clip.durationFrames, Math.max(0, frames)) }));
+	const timingFields = nativeTimeFields && clip && source && project && !presentation.selection ? clipPropertiesTimeFields({
+		controller: controller as Parameters<typeof clipPropertiesTimeFields>[0]['controller'], clip, source, sampleRate: project.sampleRate, copy, disabled: blocked,
+		onStart: setStart, onDuration: setDuration, onFade: setFade,
+		onTrimStart: readClipLoop(clip) ? undefined : frames => trimSourceFrame('start', frames),
+		onTrimEnd: readClipLoop(clip) ? undefined : frames => trimSourceFrame('end', (source.frameCount ?? 0) - frames),
+	}) : undefined;
+	const reportFailure = (cause: unknown) => { runCommand(() => { throw cause; }); };
 	const enabled = !blocked;
 	const capabilities = snapshot.capabilities as { readonly audioEffects?: boolean } | undefined;
 	const timePitchEnabled = enabled && capabilities?.audioEffects !== false;
 	const shapeLabels: Record<string, string> = { linear: copy.fadeShapeLinear, logarithmic: copy.fadeShapeLogarithmic,
 		exponential: copy.fadeShapeExponential, 's-curve': copy.fadeShapeSCurve, 'constant-power': copy.fadeShapeConstantPower };
-	return <div ref={root} className="audio-editor-upstream-clip-properties" data-upstream-clip-properties tabIndex={-1}>
-		{audio ? <fieldset disabled={blocked}>
+	return <div ref={root} className="audio-editor-upstream-clip-properties" data-upstream-clip-properties data-native-time-fields={nativeTimeFields || undefined} tabIndex={-1}>
+		{audio ? <><fieldset>
 			<UpstreamClipPropertiesPanel key={targetKey} clip={presentation.clip} selection={presentation.selection}
-				labels={upstreamClipPropertiesLabels(copy)}
-				colors={[{ id: 'track', label: copy.followTrackColor }, ...AUDIO_EDITOR_TRACK_COLORS.map((color: string, index: number) => ({ id: color, label: `${copy.trackColor} ${index + 1}` }))]}
+				labels={upstreamClipPropertiesLabels(copy)} timingFields={timingFields}
+				colors={[]}
+				colorControl={<ClipPropertiesColorPicker key={targetKey} copy={copy} color={presentation.selection?.color ?? presentation.clip?.color}
+					disabled={blocked} onChange={color => update(() => ({ color }))} />}
+				onOpenSource={clip ? () => { if (ownsTarget()) runCommand(() => Promise.resolve(editor.actions.preferences.setPanelVisibility('source-monitor', true))
+					.then(() => liveTarget.current === targetKey && (!('project' in editor) || editor.project?.id === project?.id) ? editor.actions.clipSourcePreview?.focus(clip.id) : undefined)); } : undefined}
 				tracks={(project?.tracks ?? []).filter(track => track.type === 'audio' && !track.locked).map(track => ({ id: track.id, label: track.name }))}
 				fadeShapes={END_FADE_SHAPE_PRESETS.map(preset => ({ ...preset, shape: preset.shape ?? 'linear', label: shapeLabels[preset.id]! }))}
 				onRename={enabled && clip ? name => update(() => ({ title: name })) : undefined}
 				onColorChange={enabled ? color => update(() => ({ color: color === 'track' ? 'auto' : color })) : undefined}
 				onTrackChange={enabled ? trackId => run(() => editor.actions.edit.commit({ type: 'batch', commands: presentation.clips.map(clip => ({ type: 'clip/move', clipId: clip.id, trackId, timelineStartFrame: clip.timelineStartFrame })) })) : undefined}
-				onStartChange={enabled && clip && project ? seconds => run(() => editor.actions.clip.move(clip.id, presentation.tracks[0]!.id, Math.max(0, Math.round(seconds * project.sampleRate)), { exactFrame: true })) : undefined}
-				onDurationChange={enabled && clip && source && project ? seconds => run(() => {
-					const durationFrames = Math.max(1, Math.round(seconds * project.sampleRate));
-					const loop = readClipLoop(clip);
-					if (loop) return editor.actions.clip.update(clip.id, { loop: { ...loop, durationFrames } });
-					const changes = clipPropertiesMediaRange(clip as Parameters<typeof clipPropertiesMediaRange>[0], source.frameCount ?? 0, 'durationFrame', durationFrames,
-						{ project: project as unknown as ClipSourceTimingProject, source: source as ClipSourceTimingSource });
-					return editor.actions.clipSourcePreview ? editor.actions.clipSourcePreview.trim(clip.id, changes) : editor.actions.clip.trim(clip.id, changes);
-				}) : undefined}
+				onStartChange={enabled && clip && project ? seconds => setStart(Math.max(0, Math.round(seconds * project.sampleRate))) : undefined}
+				onDurationChange={enabled && clip && source && project ? seconds => setDuration(Math.max(1, Math.round(seconds * project.sampleRate))) : undefined}
 				onTrimStartChange={enabled && !readClipLoop(clip ?? {}) ? seconds => trim('start', seconds) : undefined}
 				onTrimEndChange={enabled && !readClipLoop(clip ?? {}) ? seconds => trim('end', seconds) : undefined}
-				onFadeChange={enabled && project ? (side, seconds) => update(clip => ({ [side === 'in' ? 'fadeInFrames' : 'fadeOutFrames']: Math.min(clip.durationFrames, Math.max(0, Math.round(seconds * project.sampleRate))) })) : undefined}
+				onFadeChange={enabled && project ? (side, seconds) => setFade(side, Math.round(seconds * project.sampleRate)) : undefined}
 				onFadeShapeChange={enabled ? (side, id) => { const preset = END_FADE_SHAPE_PRESETS.find(preset => preset.id === id); if (preset) update(() => ({ [side === 'in' ? 'fadeInShape' : 'fadeOutShape']: preset.shape })); } : undefined}
-				onPitchChange={timePitchEnabled ? semitones => setTimePitch({ pitchCents: semitones * 100 }) : undefined}
+				pitchControl={<NumberField testId="pitch" label={pitchUnit === 'percent' ? copy.clipPitchPercent : copy.clipPitchField} glyph={<PitchGlyph />}
+					value={presentation.selection?.pitchSemitones === 'mixed' ? 'mixed' : Number(clipPitchInUnit((presentation.selection?.pitchSemitones ?? presentation.clip?.pitchSemitones ?? 0) * 100, pitchUnit))}
+					step={pitchUnit === 'percent' ? 0.1 : 1} digits={pitchUnit === 'percent' ? 3 : 2}
+					onCommit={timePitchEnabled ? value => { run(() => {
+						if (presentation.clips.every(clip => clip.linkPitchAndTempo)) setTimePitch({ speedRatio: clipLinkedPitchSpeed(value, pitchUnit, copy.clipLinkedPitchRange) });
+						else setTimePitch({ pitchCents: clipPitchUnitToCents(value, pitchUnit, copy) });
+					}); } : undefined} />}
 				onSpeedChange={timePitchEnabled ? percent => setTimePitch({ speedRatio: percent / 100 }) : undefined}
 				onReverseChange={timePitchEnabled && !presentation.clips.some(clip => (clip as { readonly warpMap?: unknown }).warpMap != null) ? reversed => update(() => ({ reversed })) : undefined}
 				onResetPitchSpeed={timePitchEnabled ? () => setTimePitch({ pitchCents: 0, speedRatio: 1, preserveFormants: false }) : undefined} />
-			{clip && !presentation.selection && <details className="audio-editor-upstream-clip-properties__additional" open={extraOpen}
-				onToggle={event => setExtraOpen(event.currentTarget.open)}><summary>{copy.clipAdditionalProperties}</summary>
-				{extraOpen && <ClipPropertiesBody key={targetKey} controller={controller} snapshot={{ ...snapshot, project }} copy={copy} clipId={clip.id} />}
-			</details>}
-		</fieldset> : clip?.kind === 'image' ? <ImageClipPropertiesBody controller={controller} project={snapshot.project} clipId={clip.id} copy={copy} disabled={blocked} />
-			: clip?.kind === 'generator' ? <GeneratorClipPropertiesBody controller={controller} project={project} clipId={clip.id} copy={copy} disabled={blocked} />
-				: <ClipPropertiesBody key={targetKey} controller={controller} snapshot={{ ...snapshot, project }} copy={copy} clipId={clip?.id} />}
-		{error && <p role="alert">{error}</p>}
+		</fieldset>
+			{clip && source && !presentation.selection && <ClipAudioSettingsMenu key={`settings:${targetKey}`} controller={controller} clip={clip} source={source}
+				copy={copy} disabled={blocked} effectsEnabled={capabilities?.audioEffects !== false} run={run}
+				nativeTimeFields={nativeTimeFields} onNativeTimeFields={() => setNativeTimeFields(value => !value)}
+				pitchUnit={pitchUnit} onPitchUnit={setPitchUnit} />}
+		</> : clip?.kind === 'image' ? <ImageClipPropertiesBody controller={controller} project={snapshot.project} clipId={clip.id} copy={copy} disabled={blocked} onError={reportFailure} />
+			: clip?.kind === 'generator' ? <GeneratorClipPropertiesBody controller={controller} project={project} clipId={clip.id} copy={copy} disabled={blocked} onError={reportFailure} />
+				: <ClipPropertiesBody key={targetKey} controller={controller} snapshot={{ ...snapshot, project }} copy={copy} clipId={clip?.id} onError={reportFailure} />}
 	</div>;
 }

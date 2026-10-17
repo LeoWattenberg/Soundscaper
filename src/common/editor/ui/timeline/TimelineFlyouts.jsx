@@ -168,10 +168,12 @@ export function ContainerAddTrackFlyout({
 	);
 }
 
-export function TrackColorPicker({ isOpen, x, y, color, copy, onChange, onClose }) {
+/** @param {{isOpen: boolean, x: number, y: number, color?: string, copy: Record<string, string>, onChange: (color: string) => void, onClose: () => void, onFollowTrackColor?: () => void}} props */
+export function TrackColorPicker({ isOpen, x, y, color, copy, onChange, onClose, onFollowTrackColor }) {
 	return (
 		<ContextMenu
 			isOpen={isOpen}
+			ariaLabel={copy.trackColor}
 			x={x}
 			y={y}
 			autoFocus
@@ -179,6 +181,10 @@ export function TrackColorPicker({ isOpen, x, y, color, copy, onChange, onClose 
 			className="audio-editor-track-color-picker"
 		>
 			<div className="audio-editor-track-color-picker__label">{copy.trackColor}</div>
+			{onFollowTrackColor && <button type="button" role="menuitemcheckbox" aria-checked={color === 'auto'}
+				data-follow-track-color className="audio-editor-track-color-picker__follow" onClick={() => { onFollowTrackColor(); onClose(); }}>
+				{copy.followTrackColor}
+			</button>}
 			{AUDIO_EDITOR_TRACK_COLORS.map((candidate) => (
 				<button
 					key={candidate}

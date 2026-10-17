@@ -6,7 +6,6 @@ import type { RuntimeClipProject } from '../../runtime-clip-projection.ts';
 import type { ClipPropertiesFocusRequest } from '../../controller/composition/clip-properties-panel-opening.ts';
 import ClipSourceEditor from './ClipSourceEditor.tsx';
 import { selectAudioEditorBusyBlock, selectAudioEditorEditBlock } from '../edit-blocking.ts';
-import { feedbackFailure, usePresentationFeedback } from '../presentation-feedback.ts';
 import type { ClipSourceController, ClipSourceProject } from './clip-source-editor-types.ts';
 import {
 	reconcileClipPropertiesTarget,
@@ -19,6 +18,7 @@ export type { ClipPropertiesFocusRequest } from '../../controller/composition/cl
 
 interface ClipSourceMonitorPanelProps {
 	readonly controller: object;
+	readonly run: (operation: () => unknown) => unknown;
 	readonly snapshot: ClipPropertiesSelectionSnapshot & Readonly<Record<string, unknown>>;
 	readonly copy: Readonly<Record<string, string>>;
 	readonly focusRequest?: ClipPropertiesFocusRequest | null;
@@ -27,9 +27,8 @@ interface ClipSourceMonitorPanelProps {
 }
 
 /** A live inspector whose local tabs never rewrite the timeline's selection. */
-export default function ClipSourceMonitorPanel({ controller, snapshot, copy, focusRequest = null, panelActive = true, runtimeProject = null }: ClipSourceMonitorPanelProps) {
+export default function ClipSourceMonitorPanel({ controller, snapshot, copy, focusRequest = null, panelActive = true, runtimeProject = null, run }: ClipSourceMonitorPanelProps) {
 	const selection = useClipPropertiesSelection(snapshot, copy.clip);
-	const [error, setError] = usePresentationFeedback(copy);
 	const [storedTarget, setStoredTarget] = useState<ClipPropertiesTarget>({ projectId: null, clipId: null });
 	const handledFocus = useRef<ClipPropertiesFocusRequest | null>(null);
 	const pendingFocus = focusRequest && handledFocus.current !== focusRequest
@@ -99,9 +98,7 @@ export default function ClipSourceMonitorPanel({ controller, snapshot, copy, foc
 		event.stopPropagation();
 		if (event.target instanceof Element && event.target.closest('input, textarea, select, button, a, summary, [contenteditable]:not([contenteditable="false"]), [role="button"], [role="slider"], [role="spinbutton"]')) return;
 		event.preventDefault();
-		setError('');
-		try { void Promise.resolve(sourceController.actions.clipSourcePreview.playPause(activeClipId)).catch(cause => setError(feedbackFailure(cause))); }
-		catch (cause) { setError(feedbackFailure(cause)); }
+		run(() => sourceController.actions.clipSourcePreview.playPause(activeClipId));
 	};
 
 	return <div className="audio-editor-clip-properties-panel audio-editor-source-monitor-panel" data-audio-source-monitor-panel>
@@ -115,11 +112,10 @@ export default function ClipSourceMonitorPanel({ controller, snapshot, copy, foc
 		{activeClipId ? <div ref={bodyRef} id={bodyId} role={multiple ? 'tabpanel' : undefined}
 			aria-labelledby={multiple ? tabId(activeClipId) : undefined} tabIndex={-1} data-clip-properties-active-clip={activeClipId}
 			onKeyDown={handlePlaybackKey}
-			onFocusCapture={() => { if (hasSourceEditor && activeClipId) sourceController.actions.clipSourcePreview.focus(activeClipId); }}>
+			onFocusCapture={() => { if (hasSourceEditor && activeClipId) run(() => sourceController.actions.clipSourcePreview.focus(activeClipId)); }}>
 			{hasSourceEditor && sourceProject && activeClipId && <ClipSourceEditor key={`source:${sourceProject.id}:${activeClipId}`} controller={sourceController}
-				project={sourceProject} clipId={activeClipId} copy={copy} blocked={mutationBlocked}
+				project={sourceProject} clipId={activeClipId} copy={copy} blocked={mutationBlocked} run={run}
 				previewBlocked={selectAudioEditorBusyBlock(snapshot as Parameters<typeof selectAudioEditorBusyBlock>[0]).blocked} />}
 		</div> : <p className="audio-editor-panel-hint" data-no-clip>{copy.clipSourceEmpty}</p>}
-		{error && <p role="alert">{error}</p>}
 	</div>;
 }

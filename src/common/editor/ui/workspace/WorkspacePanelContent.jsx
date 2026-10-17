@@ -182,7 +182,7 @@ export default function WorkspacePanelContent({
 		const selectedAudioClip = project?.clips.find(clip => clip.id === snapshot.selectedClipId && clip.kind === 'audio');
 		if (selectedAudioClip || productId === 'soundscaper') {
 			return <React.Suspense fallback={<LazyInspectorFallback copy={copy} />}><AudioSourceMonitorPanel
-				controller={controller} snapshot={snapshot} runtimeProject={runtimeProject} copy={copy} panelActive={panelActive} /></React.Suspense>;
+				controller={controller} snapshot={snapshot} runtimeProject={runtimeProject} copy={copy} panelActive={panelActive} run={run} /></React.Suspense>;
 		}
 		return (
 			<SourceMonitorPanel

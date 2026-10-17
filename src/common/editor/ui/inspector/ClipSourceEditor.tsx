@@ -8,7 +8,6 @@ import { clipSourceDisplayRange, clipSourceFrameToDisplay, clipDisplayFrameToSou
 import { AUDIO_EDITOR_TRACK_DISPLAY_MODES, type TrackDisplayMode } from '../../track-display-mode.ts';
 import { renderAmplitudeRulers, renderFrequencyRulers } from '../timeline/track-row-helpers.jsx';
 import { useNonPassiveWheel } from '../useNonPassiveWheel.js';
-import { feedbackFailure, usePresentationFeedback } from '../presentation-feedback.ts';
 import ClipSourceWaveforms from './ClipSourceWaveforms.tsx';
 import ClipSourceFades from './ClipSourceFades.tsx';
 import type { ClipFadeChanges } from '../timeline/ClipFadeOverlays.tsx';
@@ -23,6 +22,7 @@ import type { ClipSourceController, ClipSourceProject, SourceSelection } from '.
 
 interface Props {
 	readonly controller: ClipSourceController;
+	readonly run: (operation: () => unknown) => unknown;
 	readonly project: ClipSourceProject;
 	readonly clipId: string;
 	readonly copy: Readonly<Record<string, string>>;
@@ -34,7 +34,7 @@ const amplitudeRulers = renderAmplitudeRulers as (channels: number, height: numb
 type Gesture = { readonly kind: 'selection' | 'start' | 'end' | 'fade-in' | 'fade-out' | 'shape-in' | 'shape-out' | 'marker'; readonly startFrame: number; readonly pointIndex?: number;
 	readonly captureTarget?: HTMLElement; readonly startX: number; readonly startY: number; readonly pointerId: number; readonly initialSelection: SourceSelection | null; readonly initialValue?: number; readonly gainHeight?: number; readonly baseGain?: number; readonly startGain?: number };
 
-export default function ClipSourceEditor({ controller, project, clipId, copy, blocked, previewBlocked = blocked }: Props) {
+export default function ClipSourceEditor({ controller, project, clipId, copy, blocked, previewBlocked = blocked, run }: Props) {
 	const mutationBlockedRef = useRef(blocked);
 	mutationBlockedRef.current = blocked;
 	const clip = project.clips.find(candidate => candidate.id === clipId)!;
@@ -53,7 +53,6 @@ export default function ClipSourceEditor({ controller, project, clipId, copy, bl
 	const [verticalZoom, setVerticalZoom] = useState(0);
 	const [ruler, setRuler] = useState(INITIAL_SOURCE_RULER_OPTIONS);
 	const [transport, setTransport] = useState(() => preview.snapshot());
-	const [error, setError] = usePresentationFeedback(copy);
 	const [menu, setMenu] = useState<{ kind: 'view' | 'wave'; x: number; y: number; frame: number } | null>(null);
 	const [dragFrame, setDragFrame] = useState<number | null>(null);
 	const [fadePreview, setFadePreview] = useState<ClipFadeChanges | null>(null);
@@ -69,11 +68,6 @@ export default function ClipSourceEditor({ controller, project, clipId, copy, bl
 	const rawVisual = controller.getClipVisualData(clipId);
 	const visual = loadedAudio?.sourceId === source.id ? { ...rawVisual, buffer: loadedAudio.buffer } : rawVisual;
 	const available = Boolean(visual?.available && (visual.buffer || visual.peaks));
-	const run = (action: () => unknown) => {
-		setError('');
-		try { void Promise.resolve(action()).catch(cause => setError(feedbackFailure(cause))); }
-		catch (cause) { setError(feedbackFailure(cause)); }
-	};
 	const pixel = (frame: number) => (frame - startFrame) / (endFrame - startFrame) * width;
 	const sourceAt = (frame: number) => Math.round(clipDisplayFrameToSource(project, clip, source, frame));
 	const frameAt = (clientX: number) => {
@@ -125,16 +119,16 @@ export default function ClipSourceEditor({ controller, project, clipId, copy, bl
 	}, [controller, preview, clipId]);
 	useEffect(() => {
 		if (displayMode === 'waveform-three-band' || displayMode === 'waveform-rainbow') {
-			void controller.actions.timeline.requestFrequencyWaveform?.(clipId).catch(cause => setError(feedbackFailure(cause)));
+			run(() => controller.actions.timeline.requestFrequencyWaveform?.(clipId));
 		}
 		let current = true;
 		if (!visual?.buffer && (displayMode === 'spectrogram' || displayMode === 'multiview')) {
-			void controller.actions.effects.loadSourceAudio?.(clipId).then(buffer => {
+			run(() => controller.actions.effects.loadSourceAudio?.(clipId).then(buffer => {
 				if (current) setLoadedAudio({ sourceId: source.id, buffer });
-			}).catch(cause => { if (current) setError(feedbackFailure(cause)); });
+			}).catch(cause => { if (current) throw cause; }));
 		}
 		return () => { current = false; };
-	}, [controller, clipId, source.id, displayMode, visual?.buffer, setError]);
+	}, [controller, clipId, source.id, displayMode, visual?.buffer, run]);
 	useEffect(() => {
 		if (!(transport.state === 'playing') || !view || !ruler.scroll) return;
 		const span = endFrame - startFrame;
@@ -261,7 +255,7 @@ export default function ClipSourceEditor({ controller, project, clipId, copy, bl
 				onContextMenu={event => { event.preventDefault(); setMenu({ kind: 'wave', x: event.clientX, y: event.clientY, frame: frameAt(event.clientX) }); }}>
 				{visual && <ClipSourceWaveforms project={project} clip={previewClip} source={source} visual={visual} width={width} startFrame={startFrame} endFrame={endFrame}
 					displayMode={displayMode} verticalZoom={verticalZoom} selection={selection} copy={copy}
-					loadSourceAudioWindow={controller.actions.effects.loadSourceAudioWindow} onLoadError={cause => setError(feedbackFailure(cause))} />}
+					loadSourceAudioWindow={controller.actions.effects.loadSourceAudioWindow} onLoadError={cause => { run(() => { throw cause; }); }} />}
 				<div className="audio-editor-source-clip" style={{ left: pixel(range.startFrame), width: pixel(range.endFrame) - pixel(range.startFrame) }} data-source-clip-overlay>
 					<div onPointerDown={event => event.stopPropagation()}><ClipHeader name={clip.title || source.name || copy.clip} selected width={pixel(range.endFrame) - pixel(range.startFrame)} showMenu={false}
 						onRename={blocked ? undefined : title => { if (!mutationBlockedRef.current) run(() => controller.actions.clip.update(clipId, { title })); }} /></div>
@@ -303,7 +297,6 @@ export default function ClipSourceEditor({ controller, project, clipId, copy, bl
 				<ContextMenuItem label={copy.clipSourceFit} onClick={() => setView(null)} onClose={() => setMenu(null)} />
 			</>}
 		</ContextMenu>
-		{error && <p role="alert" className="audio-editor-field-error">{error}</p>}
 	</div>;
 }
 

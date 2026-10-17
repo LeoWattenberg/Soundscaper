@@ -295,13 +295,19 @@
 	border: 0;
 }
 
-.audio-editor-upstream-clip-properties__additional {
-	margin: 8px 10px;
+.audio-editor-upstream-clip-properties .clip-properties__row:has(> .clip-properties__field--timecode) {
+	grid-template-columns: minmax(0, 1fr);
 }
 
-.audio-editor-upstream-clip-properties__additional > summary {
-	cursor: pointer;
-	font-size: 12px;
+.audio-editor-upstream-clip-properties .clip-properties__field--timecode {
+	height: auto;
+	min-height: 28px;
+}
+
+.clip-properties__field--timecode [data-timecode-input] {
+	min-width: 0;
+	flex: 1;
+	overflow-x: auto;
 }
 
 [data-panel-dock='bottom'] .audio-editor-upstream-clip-properties .clip-properties__body {

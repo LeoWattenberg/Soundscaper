@@ -22,12 +22,17 @@ export interface PropertyClip {
 	readonly reversed?: boolean;
 	readonly color?: string;
 	readonly groupId?: string | null;
+	readonly gain?: number;
+	readonly inverted?: boolean;
+	readonly preserveFormants?: boolean;
+	readonly stretchToTempo?: boolean;
 }
 export interface PropertySource {
 	readonly id: string;
 	readonly name?: string;
 	readonly sampleRate?: number;
 	readonly frameCount?: number;
+	readonly channelCount?: number;
 }
 export interface PropertyTrack {
 	readonly id: string;

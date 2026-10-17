@@ -5,6 +5,7 @@
 export const CLIP_PROPERTIES_COPY_BY_LOCALE = Object.freeze({
 	de: Object.freeze({
 			clipAdditionalProperties: 'Weitere Eigenschaften',
+			clipTimecodeFields: 'Zeitcode-Felder',
 			clipCustomShape: 'Benutzerdefiniert',
 			clipFadesTitle: 'Blenden',
 			clipPitchAndSpeed: 'Tonhöhe und Geschwindigkeit',
@@ -77,6 +78,7 @@ export const CLIP_PROPERTIES_COPY_BY_LOCALE = Object.freeze({
 	}),
 	en: Object.freeze({
 			clipAdditionalProperties: 'Additional properties',
+			clipTimecodeFields: 'Timecode fields',
 			clipCustomShape: 'Custom',
 			clipFadesTitle: 'Fades',
 			clipPitchAndSpeed: 'Pitch & speed',

@@ -176,6 +176,16 @@
 	font-size: var(--editor-font-size, 12px);
 }
 
+.audio-editor-track-color-picker__follow {
+	grid-column: 1 / -1;
+	border: 0;
+	padding: 4px;
+	background: transparent;
+	color: inherit;
+	text-align: left;
+	cursor: pointer;
+}
+
 .audio-editor-track-color-picker__swatch {
 	width: 24px;
 	height: 24px;
